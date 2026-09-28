@@ -86,8 +86,15 @@ export async function GET(req: NextRequest) {
       token_expires_at: Date.now() + expires_in * 1000,
     }, { merge: true });
 
+    // 4. Automatically sync broadcasts & recent streams
+    try {
+      await fetch(`${baseUrl}/api/youtube/sync?workspaceId=${workspaceId}`);
+    } catch (syncErr) {
+      console.warn('[youtube-callback] Initial sync warning:', syncErr);
+    }
+
     // Success redirect
-    return NextResponse.redirect(`${baseUrl}/settings?success=youtube_connected`);
+    return NextResponse.redirect(`${baseUrl}/dashboard?success=youtube_connected`);
 
   } catch (err) {
     console.error("[youtube-callback-error]", err);

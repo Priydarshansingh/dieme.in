@@ -5,10 +5,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { col } from "@/lib/firestore/collections";
 
-const YOUTUBE_CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
-const REDIRECT_URI = process.env.NEXT_PUBLIC_APP_URL
-  ? `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`
-  : "http://localhost:3000/api/youtube/callback";
+function getBaseUrl(req: NextRequest) {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  const proto = req.headers.get('x-forwarded-proto') || 'https';
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'localhost:3000';
+  return `${proto}://${host}`;
+}
 
 // Required scopes for capturing live streams and chat
 const YOUTUBE_SCOPES = [
@@ -42,13 +44,16 @@ export async function GET(req: NextRequest) {
   // Pass workspaceId and uid via state variable to maintain context for callback
   const state = Buffer.from(JSON.stringify({ workspaceId, uid })).toString("base64");
 
-  if (!YOUTUBE_CLIENT_ID) {
+  const redirectUri = `${getBaseUrl(req)}/api/youtube/callback`;
+  const clientId = process.env.YOUTUBE_CLIENT_ID;
+
+  if (!clientId) {
     return NextResponse.json({ error: "YOUTUBE_CLIENT_ID is not configured on server" }, { status: 500 });
   }
 
   const params = new URLSearchParams({
-    client_id: YOUTUBE_CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
+    client_id: clientId,
+    redirect_uri: redirectUri,
     response_type: "code",
     scope: YOUTUBE_SCOPES.join(" "),
     access_type: "offline",

@@ -6,24 +6,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 import { col } from "@/lib/firestore/collections";
 
-const YOUTUBE_CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
-const YOUTUBE_CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
-const REDIRECT_URI = process.env.NEXT_PUBLIC_APP_URL
-  ? `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`
-  : "http://localhost:3000/api/youtube/callback";
+function getBaseUrl(req: NextRequest) {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  const proto = req.headers.get('x-forwarded-proto') || 'https';
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'localhost:3000';
+  return `${proto}://${host}`;
+}
 
 export async function GET(req: NextRequest) {
+  const baseUrl = getBaseUrl(req);
+  const redirectUri = `${baseUrl}/api/youtube/callback`;
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
   if (error) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings?error=youtube_auth_failed`);
+    return NextResponse.redirect(`${baseUrl}/settings?error=youtube_auth_failed`);
   }
 
-  if (!code || !state || !YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings?error=invalid_callback`);
+  const clientId = process.env.YOUTUBE_CLIENT_ID;
+  const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
+
+  if (!code || !state || !clientId || !clientSecret) {
+    return NextResponse.redirect(`${baseUrl}/settings?error=invalid_callback`);
   }
 
   try {
@@ -37,11 +43,11 @@ export async function GET(req: NextRequest) {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        client_id: YOUTUBE_CLIENT_ID,
-        client_secret: YOUTUBE_CLIENT_SECRET,
+        client_id: clientId,
+        client_secret: clientSecret,
         code,
         grant_type: "authorization_code",
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: redirectUri,
       }),
     });
 
@@ -81,10 +87,10 @@ export async function GET(req: NextRequest) {
     }, { merge: true });
 
     // Success redirect
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings?success=youtube_connected`);
+    return NextResponse.redirect(`${baseUrl}/settings?success=youtube_connected`);
 
   } catch (err) {
     console.error("[youtube-callback-error]", err);
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings?error=connection_failed`);
+    return NextResponse.redirect(`${baseUrl}/settings?error=connection_failed`);
   }
 }

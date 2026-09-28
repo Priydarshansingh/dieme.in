@@ -71,12 +71,18 @@ async function provisionNewUser(user: User) {
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
         // Provision on first sign-in (idempotent — checks before writing)
-        await provisionNewUser(u);
+        try {
+          await provisionNewUser(u);
+        } catch (e) {
+          console.warn('[useAuth] User provision error:', e);
+        }
       }
       setUser(u);
       setLoading(false);
@@ -85,16 +91,35 @@ export function useAuth() {
   }, []);
 
   const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    // Product account only — YouTube OAuth is a separate step in Settings
-    provider.addScope('email');
-    provider.addScope('profile');
-    await signInWithPopup(auth, provider);
+    setAuthError(null);
+    setIsSigningIn(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      // Product account only — YouTube OAuth is a separate step in Settings
+      provider.addScope('email');
+      provider.addScope('profile');
+      await signInWithPopup(auth, provider);
+    } catch (err: any) {
+      console.error('[useAuth] Google Sign-In failed:', err);
+      if (err?.code === 'auth/unauthorized-domain') {
+        setAuthError(
+          'This domain is not authorized in Firebase. Add your Vercel domain in Firebase Console → Authentication → Settings → Authorized domains.'
+        );
+      } else if (err?.code === 'auth/popup-closed-by-user') {
+        setAuthError('Sign-in popup was closed before completing.');
+      } else if (err?.code === 'auth/cancelled-popup-request') {
+        // Ignored
+      } else {
+        setAuthError(err?.message || 'Failed to sign in with Google. Please try again.');
+      }
+    } finally {
+      setIsSigningIn(false);
+    }
   };
 
   const logout = async () => {
     await signOut(auth);
   };
 
-  return { user, loading, signInWithGoogle, logout };
+  return { user, loading, isSigningIn, authError, signInWithGoogle, logout };
 }

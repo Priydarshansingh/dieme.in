@@ -1,0 +1,4 @@
+# Copy to local.properties. Do not commit secrets.
+# sdk.dir=/Users/YOU/Library/Android/sdk
+YOUTUBE_CLIENT_ID=
+CLOUD_RUN_BASE_URL=https://api.digicast.app/

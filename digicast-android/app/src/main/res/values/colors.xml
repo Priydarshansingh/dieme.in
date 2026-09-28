@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="digicast_navy">#1B2237</color>
+    <color name="digicast_navy_dark">#0D111D</color>
+    <color name="digicast_surface">#1A2035</color>
+    <color name="digicast_white">#FFFFFF</color>
+    <color name="digicast_slate">#6B7280</color>
+    <color name="digicast_live_red">#EF4444</color>
+</resources>

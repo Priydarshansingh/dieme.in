@@ -1,0 +1,11 @@
+{
+  "name": "digicast-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix digicast-web run dev",
+    "build": "npm --prefix digicast-web run build",
+    "start": "npm --prefix digicast-web run start",
+    "install:web": "npm --prefix digicast-web install"
+  }
+}

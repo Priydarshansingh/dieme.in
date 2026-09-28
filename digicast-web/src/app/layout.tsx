@@ -1,12 +1,5 @@
 import type { Metadata } from 'next';
-import { Nunito } from 'next/font/google';
 import './globals.css';
-
-const nunito = Nunito({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-nunito',
-});
 
 export const metadata: Metadata = {
   title: 'Digicast — Creator Live Intelligence Platform',
@@ -15,8 +8,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={nunito.variable}>
-      <body className={nunito.className}>{children}</body>
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body style={{ fontFamily: "'Nunito', sans-serif" }}>{children}</body>
     </html>
   );
 }

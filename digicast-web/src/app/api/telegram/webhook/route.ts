@@ -34,13 +34,50 @@ export async function POST(req: NextRequest) {
   if (message) {
     const chatId = (message.chat as Record<string, unknown>)?.id;
     const text = (message.text as string | undefined) ?? '';
+    const chatType = (message.chat as Record<string, unknown>)?.type as string;
+    const chatTitle = (message.chat as Record<string, unknown>)?.title as string | undefined;
 
-    // Log only event type + chat ID — NEVER log message text
-    console.info(`[telegram/webhook] message event, chatId=${chatId}`);
+    console.info(`[telegram/webhook] message event, chatId=${chatId}, type=${chatType}`);
 
-    // TODO: Route to appropriate handler based on !command text
-    // e.g., acknowledge !clip commands, respond to /status, etc.
-    // All business logic runs here server-side — bot token never leaves the server.
+    // Handle authentication /start code
+    if (text.startsWith('/start ')) {
+      const code = text.split(' ')[1]?.toUpperCase();
+      if (code && chatId) {
+        try {
+          const { adminDb } = await import('@/lib/firebase/admin');
+          const { col } = await import('@/lib/firestore/collections');
+
+          const codeDoc = await adminDb.doc(`telegram_codes/${code}`).get();
+
+          if (codeDoc.exists) {
+            const data = codeDoc.data()!;
+            if (Date.now() < data.expiresAt) {
+              const { workspaceId, connectedBy } = data;
+
+              // Save the Telegram connection to the workspace
+              await adminDb.doc(col.telegramConnection(workspaceId, String(chatId))).set({
+                id: String(chatId),
+                workspaceId,
+                telegramChatId: String(chatId),
+                chatType,
+                chatTitle,
+                connectedBy,
+                connectedAt: new Date().toISOString(),
+                status: 'active'
+              });
+
+              // Mark code as used
+              await codeDoc.ref.delete();
+
+              // (In production, the bot should send a success message to the chat here via Telegram HTTP API)
+              console.info(`[telegram/webhook] Successfully linked chat ${chatId} to workspace ${workspaceId}`);
+            }
+          }
+        } catch (e) {
+          console.error('[telegram/webhook] Auth processing error:', e);
+        }
+      }
+    }
   } else if (callbackQuery) {
     console.info('[telegram/webhook] callback_query event');
     // TODO: Handle inline keyboard callbacks

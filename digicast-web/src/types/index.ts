@@ -109,6 +109,7 @@ export interface ClipMarker {
   // Download state (synced from device)
   downloadStatus?: ClipDownloadStatus;
   telegramStatus?: ClipTelegramStatus;
+  telegramSent?: boolean;
   assignedTo?: string[]; // array of editor uids
 }
 

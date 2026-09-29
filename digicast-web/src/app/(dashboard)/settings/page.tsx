@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { doc, getDoc, getDocs, deleteDoc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSearchParams } from 'next/navigation';
-import { Youtube, Send, Bell, CreditCard, Key, ChevronRight, Check, Loader2, AlertCircle } from 'lucide-react';
+import { Youtube, Send, Bell, CreditCard, Key, ChevronRight, Check, Loader2, AlertCircle, Bot, Copy, ExternalLink } from 'lucide-react';
 import Image from 'next/image';
 
 // ─── Reusable card wrapper ─────────────────────────────────────────────────────
@@ -99,10 +99,10 @@ function SettingsContent() {
   const [youtubeSuccess, setYoutubeSuccess] = useState<string | null>(null);
 
   const [telegramConnected, setTelegramConnected] = useState(false);
-  const [telegramToken, setTelegramToken] = useState('');
   const [telegramChatId, setTelegramChatId] = useState('');
   const [isSavingTelegram, setIsSavingTelegram] = useState(false);
   const [telegramMsg, setTelegramMsg] = useState<string | null>(null);
+  const [copiedCommand, setCopiedCommand] = useState(false);
 
   const [notifs, setNotifs] = useState({
     clipCreated: true,
@@ -218,6 +218,16 @@ function SettingsContent() {
     }
   };
 
+  const nightbotMessage = workspaceId
+    ? `$(urlfetch https://digicast-web.vercel.app/api/webhooks/nightbot?workspaceId=${workspaceId}&user=$(user)&query=$(querystring))`
+    : '$(urlfetch https://digicast-web.vercel.app/api/webhooks/nightbot?workspaceId=YOUR_WORKSPACE_ID&user=$(user)&query=$(querystring))';
+
+  const handleCopyNightbot = () => {
+    navigator.clipboard.writeText(nightbotMessage);
+    setCopiedCommand(true);
+    setTimeout(() => setCopiedCommand(false), 2500);
+  };
+
   return (
     <div className="max-w-2xl space-y-8">
       <div>
@@ -255,12 +265,10 @@ function SettingsContent() {
           >
             <div className="flex items-center gap-3">
               {connectedChannel.channelThumbnail ? (
-                <Image
+                <img
                   src={connectedChannel.channelThumbnail}
                   alt={connectedChannel.channelName}
-                  width={36}
-                  height={36}
-                  className="rounded-full object-cover"
+                  className="w-9 h-9 rounded-full object-cover"
                 />
               ) : (
                 <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center">
@@ -315,6 +323,61 @@ function SettingsContent() {
         )}
       </SettingsCard>
 
+      {/* Nightbot Live Chat Integration */}
+      <SettingsCard
+        icon={Bot}
+        iconColor="#10B981"
+        title="Nightbot YouTube Live Chat Integration"
+        description="Enable !clip command in your YouTube live stream chat with zero quota cost."
+      >
+        <div className="space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold" style={{ color: '#6B7280' }}>
+                Nightbot Custom Command (!clip)
+              </label>
+              <a
+                href="https://nightbot.tv/commands/custom"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:underline flex items-center gap-1 font-medium"
+              >
+                Open Nightbot Dashboard <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+            <div className="relative">
+              <textarea
+                readOnly
+                rows={3}
+                value={nightbotMessage}
+                className="w-full p-3 rounded-xl text-xs font-mono bg-gray-50 border outline-none select-all text-gray-800"
+                style={{ borderColor: '#E5E7EB' }}
+              />
+              <button
+                onClick={handleCopyNightbot}
+                className="absolute top-2 right-2 flex items-center gap-1 px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold hover:bg-gray-100 shadow-sm"
+              >
+                {copiedCommand ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-green-600" /> Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-gray-600" /> Copy Command
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+          <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-600 space-y-1">
+            <p className="font-semibold text-gray-800">Quick Setup in Nightbot:</p>
+            <p>1. Go to <b>Nightbot Dashboard → Commands → Custom → Add Command</b>.</p>
+            <p>2. Set <b>Command:</b> <code className="bg-gray-200 px-1 py-0.5 rounded font-mono">!clip</code></p>
+            <p>3. Paste the copied message into <b>Message</b> and click <b>Submit</b>.</p>
+          </div>
+        </div>
+      </SettingsCard>
+
       {/* Telegram */}
       <SettingsCard
         icon={Send}
@@ -335,7 +398,7 @@ function SettingsContent() {
             </label>
             <input
               type="text"
-              placeholder="e.g. -100123456789"
+              placeholder="e.g. -100123456789 (Use /chatid with @digicast_bot)"
               value={telegramChatId}
               onChange={(e) => setTelegramChatId(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
@@ -345,6 +408,9 @@ function SettingsContent() {
                 color: '#1B2237',
               }}
             />
+            <p className="text-[11px] text-gray-400 mt-1">
+              Add <b>@digicast_bot</b> to your group and type <code className="bg-gray-100 px-1 rounded">/chatid</code> to get this ID.
+            </p>
           </div>
           <button
             onClick={handleSaveTelegram}

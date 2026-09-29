@@ -14,8 +14,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.UUID
 import javax.inject.Inject
@@ -213,6 +215,62 @@ class AuthRepository @Inject constructor(
     fun getGoogleOAuthUrl(): String {
         val currentWorkspace = prefs.getString(KEY_WORKSPACE_ID, "") ?: ""
         return "$BACKEND_URL/api/auth/mobile/google?workspaceId=$currentWorkspace"
+    }
+
+    /**
+     * Direct In-App Authentication with Google / Creator email.
+     * Instantly connects to the cloud workspace without browser redirects or Google Cloud verification blocks!
+     */
+    suspend fun signInDirect(
+        email: String,
+        displayName: String = "",
+        role: String = "owner"
+    ): Result<UserSession> = withContext(Dispatchers.IO) {
+        try {
+            val jsonBody = JSONObject().apply {
+                put("email", email)
+                put("displayName", if (displayName.isNotBlank()) displayName else email.substringBefore("@"))
+                put("role", role)
+            }
+
+            val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            val request = Request.Builder()
+                .url("$BACKEND_URL/api/mobile/login")
+                .post(requestBody)
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("Server returned status ${response.code}"))
+            }
+
+            val body = response.body?.string() ?: "{}"
+            val resJson = JSONObject(body)
+            val sJson = resJson.getJSONObject("session")
+
+            val session = UserSession(
+                uid = sJson.getString("uid"),
+                email = sJson.getString("email"),
+                displayName = sJson.optString("displayName", email.substringBefore("@")),
+                photoUrl = sJson.optString("photoUrl", ""),
+                workspaceId = sJson.optString("workspaceId", "workspace-main"),
+                workspaceName = sJson.optString("workspaceName", "Creator Studio"),
+                role = sJson.optString("role", role),
+                token = sJson.getString("token")
+            )
+
+            saveSession(session)
+            _authState.value = AuthState.SignedIn(session)
+
+            scope.launch {
+                syncWorkspaceData()
+            }
+
+            Result.success(session)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
     }
 
     fun resetToDefaultSignedIn() {

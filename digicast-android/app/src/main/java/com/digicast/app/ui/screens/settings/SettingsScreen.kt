@@ -230,18 +230,25 @@ fun SettingsScreen(
                                 color = DigicastSlate,
                                 fontSize = 13.sp
                             )
+                            var showSignInDialog by remember { mutableStateOf(false) }
+
+                            if (showSignInDialog) {
+                                com.digicast.app.ui.components.SignInDialog(
+                                    onDismissRequest = { showSignInDialog = false },
+                                    onSuccess = { showSignInDialog = false },
+                                    authRepository = authRepository,
+                                    initialEmail = "pskishnawat133@gmail.com"
+                                )
+                            }
+
                             Button(
-                                onClick = {
-                                    val authUrl = authRepository.getGoogleOAuthUrl()
-                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
-                                    context.startActivity(browserIntent)
-                                },
+                                onClick = { showSignInDialog = true },
                                 colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Icon(Icons.Default.AccountCircle, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Sign in with Google")
+                                Text("Sign in with Google Account")
                             }
 
                             OutlinedButton(

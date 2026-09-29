@@ -37,6 +37,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -131,13 +134,20 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Google Sign-In Action Button
+            var showSignInDialog by remember { mutableStateOf(false) }
+
+            if (showSignInDialog) {
+                com.digicast.app.ui.components.SignInDialog(
+                    onDismissRequest = { showSignInDialog = false },
+                    onSuccess = { onComplete() },
+                    authRepository = authRepository,
+                    initialEmail = "pskishnawat133@gmail.com"
+                )
+            }
+
+            // Google Sign-In Action Button (Opens Instant Sign-In)
             Button(
-                onClick = {
-                    val authUrl = authRepository.getGoogleOAuthUrl()
-                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
-                    context.startActivity(browserIntent)
-                },
+                onClick = { showSignInDialog = true },
                 colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier

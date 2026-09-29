@@ -124,32 +124,36 @@ export async function GET(req: NextRequest) {
           activeWorkspaceName = doc.data().name || `${displayName}'s Workspace`;
           role = "owner";
         } else {
-          const memberByEmailSnap = await adminDb
-            .collectionGroup("members")
-            .where("email", "==", email)
-            .limit(1)
-            .get();
+          try {
+            const memberByEmailSnap = await adminDb
+              .collectionGroup("members")
+              .where("email", "==", email)
+              .limit(1)
+              .get();
 
-          if (!memberByEmailSnap.empty) {
-            const memberDoc = memberByEmailSnap.docs[0];
-            const memberData = memberDoc.data();
-            activeWorkspaceId = memberData.workspaceId || memberDoc.ref.parent.parent?.id || "";
-            role = memberData.role || "editor";
+            if (!memberByEmailSnap.empty) {
+              const memberDoc = memberByEmailSnap.docs[0];
+              const memberData = memberDoc.data();
+              activeWorkspaceId = memberData.workspaceId || memberDoc.ref.parent.parent?.id || "";
+              role = memberData.role || "editor";
 
-            await memberDoc.ref.set({
-              uid,
-              displayName,
-              photoURL,
-              status: "active",
-              updatedAt: new Date().toISOString(),
-            }, { merge: true });
+              await memberDoc.ref.set({
+                uid,
+                displayName,
+                photoURL,
+                status: "active",
+                updatedAt: new Date().toISOString(),
+              }, { merge: true });
 
-            if (activeWorkspaceId) {
-              const wsDoc = await adminDb.doc(col.workspace(activeWorkspaceId)).get();
-              if (wsDoc.exists) {
-                activeWorkspaceName = wsDoc.data()?.name || "Team Workspace";
+              if (activeWorkspaceId) {
+                const wsDoc = await adminDb.doc(col.workspace(activeWorkspaceId)).get();
+                if (wsDoc.exists) {
+                  activeWorkspaceName = wsDoc.data()?.name || "Team Workspace";
+                }
               }
             }
+          } catch (idxErr) {
+            console.warn("[youtube/callback] Member index query skipped:", idxErr);
           }
         }
       }

@@ -1,54 +1,39 @@
-# Quick Start Guide: Using Digicast
+# Digicast Extensions Guide
 
-This guide walks you through setting up Digicast for your YouTube livestreams.
-
----
-
-### 1. Requirements
-- A YouTube channel with live streaming enabled.
-- A Nightbot account (free, zero API cost).
-- A Telegram group for your video editors.
-- The Digicast Android Companion App or Web Dashboard.
+This guide explains how to install and use official `.dcast` extensions in the Digicast mobile ecosystem.
 
 ---
 
-### 2. Setting Up the `!clip` Command in Nightbot
+### 📦 Available Extensions
 
-1. Log into your [Nightbot Dashboard](https://nightbot.tv/).
-2. Navigate to **Commands → Custom → Add Command**.
-3. Fill in:
-   - **Command:** `!clip`
-   - **Message:**
-     ```text
-     $(urlfetch https://digicast-web.vercel.app/api/webhooks/nightbot?workspaceId=YOUR_WORKSPACE_ID&user=$(user)&query=$(querystring))
-     ```
-   - **Userlevel:** Everyone (or Moderator if you want mods only).
-   - **Cooldown:** 5 seconds.
-4. Click **Submit**.
+1. **YouTube Video Downloader (`com.digicast.ext.youtubedl`)**
+   - High-quality video & audio extraction (1080p60 / 1440p / 4K).
+   - Enables offline stream caching directly on your device.
 
----
+2. **FFmpeg Video Trimmer (`com.digicast.ext.ffmpeg`)**
+   - Lossless precision trimming without re-encoding quality loss.
+   - Fast frame-accurate cuts for highlight clips.
 
-### 3. Setting Up the Telegram Bot
-
-1. Open Telegram and search for `@digicast_bot`.
-2. Add `@digicast_bot` as a member to your editors' group.
-3. Send the command `/chatid` in the group.
-4. Copy the group ID (e.g., `-1001234567890`) and paste it into **Digicast Settings → Telegram Delivery**.
+3. **Digicast Clip Engine - Full Suite (`com.digicast.ext.clipengine`)**
+   - All-in-one automated pipeline combining downloader and trimmer.
 
 ---
 
-### 4. Installing the Clip Engine Extension (`.dcast`)
+### 📲 How to Install Extensions
 
-1. In the Digicast Android App, go to **Settings → Extensions Catalog**.
-2. Tap **Install** next to **Digicast Clip Engine**.
-3. Once installed, the app can render 1080p60/4K clips directly on your mobile device.
+#### Method 1: In-App Extensions Catalog (Recommended)
+1. Open the **Digicast App** on your device.
+2. Navigate to **Settings → Extensions Catalog**.
+3. Tap **Install** next to any extension.
+4. The extension will automatically download and activate.
+
+#### Method 2: Direct 1-Tap Installation (`.dcast` file)
+1. Download any `.dcast` package from the [Releases](https://github.com/Priydarshansingh/Digicast/releases) or the [`extensions/`](extensions/) folder.
+2. Tap the downloaded `.dcast` file in your device's file manager or browser.
+3. The Digicast App will open and register the extension instantly.
 
 ---
 
-### 5. In-Stream Usage Examples
+### 🛡️ Security & Sandboxing
 
-- Standard clip: `!clip`
-- Custom labeled clip: `!clip insane 1v4 clutch`
-- Funny moment clip: `!clip failed jump laugh`
-
-All moments will be captured with the 45-second lookback buffer and sent to your editors automatically!
+All `.dcast` extensions run locally inside a sandboxed environment on your device. Extensions do not transmit any video or personal data to external servers.

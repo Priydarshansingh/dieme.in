@@ -100,6 +100,9 @@ export interface ClipMarker {
   youtubeVideoId: string;
   markerTimestamp: number;   // seconds from stream start
   markerTimestampDisplay: string; // e.g. "01:42:17"
+  windowStartSeconds?: number;    // e.g. markerTimestamp - 45
+  windowEndSeconds?: number;      // e.g. markerTimestamp + 15
+  lookbackSeconds?: number;       // e.g. 45
   source: ClipSource;
   authorName?: string;
   chatMessageId?: string;

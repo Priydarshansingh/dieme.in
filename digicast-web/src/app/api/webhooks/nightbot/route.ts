@@ -10,6 +10,17 @@ import { ClipMarker } from '@/types';
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
+// Helper to format seconds to HH:MM:SS
+function formatSeconds(secs: number): string {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 // Helper to send instant clip alert to Telegram group
 async function sendTelegramClipAlert(chatId: string | number, clip: {
   clipId: string;
@@ -17,16 +28,24 @@ async function sendTelegramClipAlert(chatId: string | number, clip: {
   authorName: string;
   labelText: string;
   timestampDisplay: string;
+  lookbackDisplay: string;
+  youtubeVideoId?: string;
+  lookbackStartSec?: number;
 }) {
   if (!TELEGRAM_BOT_TOKEN || !chatId) return false;
   try {
+    const replayLink = clip.youtubeVideoId
+      ? `\n🔗 <b>Replay Jump:</b> <a href="https://youtu.be/${clip.youtubeVideoId}?t=${clip.lookbackStartSec || 0}">Watch Lookback (-45s)</a>`
+      : '';
+
     const text = `
 🎬 <b>New Clip Marker Recorded!</b>
 
 🔴 <b>Stream:</b> ${clip.streamTitle}
 👤 <b>Clipped by:</b> @${clip.authorName}
 📝 <b>Note:</b> "${clip.labelText}"
-⏱️ <b>Stream Time:</b> ${clip.timestampDisplay}
+⏱️ <b>Trigger Time:</b> ${clip.timestampDisplay}
+⏪ <b>Clip Window:</b> ${clip.lookbackDisplay} (45s buffer)${replayLink}
 🆔 <b>Clip ID:</b> <code>${clip.clipId}</code>
     `.trim();
 
@@ -37,7 +56,7 @@ async function sendTelegramClipAlert(chatId: string | number, clip: {
         chat_id: chatId,
         text,
         parse_mode: 'HTML',
-        disable_web_page_preview: true,
+        disable_web_page_preview: false,
       }),
     });
 
@@ -102,6 +121,7 @@ async function handleNightbotClip(req: NextRequest) {
     let streamId = 'live-stream';
     let streamTitle = 'Live Stream';
     let youtubeVideoId = '';
+    let streamStartedAtMs = Date.now();
 
     try {
       const activeStreamSnap = await adminDb
@@ -112,13 +132,20 @@ async function handleNightbotClip(req: NextRequest) {
 
       if (!activeStreamSnap.empty) {
         const streamDoc = activeStreamSnap.docs[0];
+        const streamData = streamDoc.data();
         streamId = streamDoc.id;
-        streamTitle = streamDoc.data().title || 'Live Stream';
-        youtubeVideoId = streamDoc.data().youtubeVideoId || '';
+        streamTitle = streamData.title || 'Live Stream';
+        youtubeVideoId = streamData.youtubeVideoId || '';
+        
+        if (streamData.startedAt) {
+          streamStartedAtMs = typeof streamData.startedAt.toDate === 'function'
+            ? streamData.startedAt.toDate().getTime()
+            : new Date(streamData.startedAt).getTime();
+        }
 
         // Increment clip count on active stream
         await streamDoc.ref.update({
-          clipCount: (streamDoc.data().clipCount || 0) + 1,
+          clipCount: (streamData.clipCount || 0) + 1,
           updatedAt: new Date().toISOString(),
         });
       }
@@ -126,13 +153,21 @@ async function handleNightbotClip(req: NextRequest) {
       console.warn('[nightbot-webhook] Could not fetch active stream:', e);
     }
 
-    // 2. Generate unique clip marker ID
+    // 2. Compute retroactive recording lookback window (-45s to +15s)
+    const nowMs = Date.now();
+    const markerTimestamp = Math.max(0, Math.floor((nowMs - streamStartedAtMs) / 1000));
+    const windowStartSeconds = Math.max(0, markerTimestamp - 45);
+    const windowEndSeconds = markerTimestamp + 15;
+
+    const timestampDisplay = formatSeconds(markerTimestamp);
+    const lookbackDisplay = `${formatSeconds(windowStartSeconds)} - ${formatSeconds(windowEndSeconds)}`;
+
+    // 3. Generate unique clip marker ID
     const shortHash = Math.random().toString(36).substring(2, 8).toUpperCase();
     const clipId = `CLP-${shortHash}`;
     const nowIso = new Date().toISOString();
-    const timestampDisplay = new Date().toLocaleTimeString('en-US', { hour12: false });
 
-    // 3. Deliver instant alert to Telegram if workspace has a connected Telegram group
+    // 4. Deliver instant alert to Telegram if workspace has a connected Telegram group
     let telegramSent = false;
     try {
       const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
@@ -156,20 +191,26 @@ async function handleNightbotClip(req: NextRequest) {
           authorName,
           labelText,
           timestampDisplay,
+          lookbackDisplay,
+          youtubeVideoId,
+          lookbackStartSec: windowStartSeconds,
         });
       }
     } catch (tgErr) {
       console.warn('[nightbot-webhook] Telegram delivery check warning:', tgErr);
     }
 
-    // 4. Save clip marker in Firestore
-    const clipMarker: ClipMarker = {
+    // 5. Save clip marker in Firestore with retroactive recording window
+    const clipMarker: ClipMarker & { windowStartSeconds: number; windowEndSeconds: number; lookbackSeconds: number } = {
       id: clipId,
       workspaceId,
       streamId,
       youtubeVideoId,
-      markerTimestamp: Math.floor(Date.now() / 1000),
+      markerTimestamp,
       markerTimestampDisplay: timestampDisplay,
+      windowStartSeconds,
+      windowEndSeconds,
+      lookbackSeconds: 45,
       source: 'viewer',
       authorName,
       aiTopic: labelText,
@@ -181,9 +222,22 @@ async function handleNightbotClip(req: NextRequest) {
 
     await adminDb.doc(col.clip(workspaceId, clipId)).set(clipMarker);
 
-    // 5. Return plain text response to be sent to YouTube Live Chat by Nightbot
+    // Also write to subcollection for direct stream queries if streamId exists
+    if (streamId && streamId !== 'live-stream') {
+      try {
+        await adminDb
+          .doc(col.stream(workspaceId, streamId))
+          .collection('clipMarkers')
+          .doc(clipId)
+          .set(clipMarker);
+      } catch (subColErr) {
+        console.warn('[nightbot-webhook] Could not write to stream subcollection:', subColErr);
+      }
+    }
+
+    // 6. Return plain text response to be sent to YouTube Live Chat by Nightbot
     return new NextResponse(
-      `🎬 Clip marker recorded by @${authorName}! [${clipId}: "${labelText}"]`,
+      `🎬 Clip marker recorded by @${authorName}! [${clipId} | Window: ${lookbackDisplay}]`,
       {
         status: 200,
         headers: { 'Content-Type': 'text/plain' },

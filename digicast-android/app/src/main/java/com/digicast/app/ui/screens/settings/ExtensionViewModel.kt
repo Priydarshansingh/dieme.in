@@ -49,10 +49,28 @@ class ExtensionViewModel @Inject constructor(
     private fun loadMockRegistry() {
         val mockRegistry = listOf(
             ExtensionRegistryItem(
-                id = "com.digicast.ext.clipengine",
-                name = "Digicast Clip Engine",
+                id = "com.digicast.ext.youtubedl",
+                name = "YouTube Video Downloader",
                 version = "1.0.0",
-                description = "Core video processing engine. Enables local clip downloading and trimming.",
+                description = "High-quality stream extraction engine (1080p60 / 1440p / 4K stream video & audio).",
+                downloadUrl = "https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/extensions/com.digicast.ext.youtubedl.dcast",
+                entryClass = "com.digicast.ext.youtubedl.YouTubeDownloaderExtension",
+                isInstalled = checkIsInstalled("com.digicast.ext.youtubedl")
+            ),
+            ExtensionRegistryItem(
+                id = "com.digicast.ext.ffmpeg",
+                name = "FFmpeg Video Trimmer",
+                version = "1.0.0",
+                description = "Lossless precision video cutter and high-efficiency MP4 encoder.",
+                downloadUrl = "https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/extensions/com.digicast.ext.ffmpeg.dcast",
+                entryClass = "com.digicast.ext.ffmpeg.FFmpegTrimmerExtension",
+                isInstalled = checkIsInstalled("com.digicast.ext.ffmpeg")
+            ),
+            ExtensionRegistryItem(
+                id = "com.digicast.ext.clipengine",
+                name = "Digicast Clip Engine (Full Suite)",
+                version = "1.0.0",
+                description = "All-in-one bundle: automated YouTube downloader + FFmpeg lossless trimmer.",
                 downloadUrl = "https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/extensions/com.digicast.ext.clipengine.dcast",
                 entryClass = "com.digicast.ext.clipengine.ClipEngineExtension",
                 isInstalled = checkIsInstalled("com.digicast.ext.clipengine")

@@ -22,3 +22,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "digicast-extensions"
 include(":clip-engine")
+include(":youtube-downloader")
+include(":ffmpeg-trimmer")

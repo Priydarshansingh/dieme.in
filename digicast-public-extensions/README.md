@@ -58,7 +58,9 @@ Extensions in Digicast are distributed as `.dcast` packages. They can be install
 
 | Extension Name | Version | Description | Package File |
 |---|---|---|---|
-| **Digicast Clip Engine** | `v1.0.0` | On-device video downloader and lossless precision trimmer. | [`com.digicast.ext.clipengine.dcast`](extensions/com.digicast.ext.clipengine.dcast) |
+| **YouTube Video Downloader** | `v1.0.0` | High-quality stream extraction (1080p60/4K audio & video). | [`com.digicast.ext.youtubedl.dcast`](extensions/com.digicast.ext.youtubedl.dcast) |
+| **FFmpeg Video Trimmer** | `v1.0.0` | Lossless precision cutter & high-efficiency MP4 encoder. | [`com.digicast.ext.ffmpeg.dcast`](extensions/com.digicast.ext.ffmpeg.dcast) |
+| **Digicast Clip Engine (Full Suite)** | `v1.0.0` | All-in-one downloader + lossless FFmpeg trimmer. | [`com.digicast.ext.clipengine.dcast`](extensions/com.digicast.ext.clipengine.dcast) |
 
 ---
 

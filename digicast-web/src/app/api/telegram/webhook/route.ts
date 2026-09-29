@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
     const rawText = (message.text || '').trim();
     const chatType = message.chat?.type || 'private';
     const chatTitle = message.chat?.title || message.from?.first_name || 'Chat';
-    const senderUsername = message.from?.username ? `@${message.from.username}` : message.from?.first_name || 'User';
 
     // Normalize command (handles /command and /command@digicast_bot)
     const commandMatch = rawText.match(/^\/([a-zA-Z0-9_]+)(?:@\w+)?(?:\s+(.*))?$/);
@@ -66,10 +65,6 @@ export async function POST(req: NextRequest) {
 🆔 <b>Chat ID:</b> <code>${chatId}</code>
 🏷️ <b>Title:</b> <b>${chatTitle}</b>
 👥 <b>Type:</b> <i>${chatType}</i>
-
-💡 <b>How to use:</b>
-Copy this Chat ID and paste it into your <b>Digicast Web Dashboard</b>:
-👉 <b>Settings → Telegram Delivery</b> to receive live YouTube clips here automatically!
       `.trim();
       await sendTelegramMessage(chatId, response, messageId);
     }
@@ -105,7 +100,7 @@ Copy this Chat ID and paste it into your <b>Digicast Web Dashboard</b>:
 
               await sendTelegramMessage(
                 chatId,
-                `🎉 <b>Digicast Connected!</b>\n\nThis chat is now linked to your Digicast workspace. Clip markers from your YouTube streams will be delivered here automatically.`,
+                `🎉 <b>Digicast Connected!</b>\n\nThis chat is now linked. Clip markers from your YouTube streams will be delivered here automatically.`,
                 messageId
               );
               return NextResponse.json({ ok: true });
@@ -126,7 +121,6 @@ Digicast is the real-time Live Intelligence & Instant Clip Delivery Platform for
 When viewers type <code>!clip</code> in your YouTube live chat, Digicast automatically captures the moment, creates markers, and delivers alerts straight to this Telegram group for your video editors!
 
 👨‍💻 <b>Developer & Creator:</b> @livehellboy
-🌐 <b>Dashboard:</b> <a href="https://digicast-web.vercel.app">digicast-web.vercel.app</a>
 
 <b>Available Commands:</b>
 • <code>/chatid</code> — Get the Chat ID of this group/chat
@@ -141,7 +135,7 @@ When viewers type <code>!clip</code> in your YouTube live chat, Digicast automat
       const helpMessage = `
 📖 <b>Digicast Bot Commands:</b>
 
-• <code>/chatid</code> — Get this group's Chat ID (use in Settings)
+• <code>/chatid</code> — Get this group's Chat ID
 • <code>/status</code> — Check active stream & clip capture
 • <code>/start</code> — Bot introduction & connection
 • <code>/help</code> — Show this help message
@@ -159,8 +153,6 @@ When viewers type <code>!clip</code> in your YouTube live chat, Digicast automat
 🟢 <b>Bot Server:</b> Online & Operational
 🤖 <b>Nightbot Webhook:</b> Active (24/7 Zero-Quota)
 🆔 <b>Current Chat ID:</b> <code>${chatId}</code>
-
-<i>To monitor your livestream, open the Digicast Dashboard or run the Digicast Android companion app.</i>
       `.trim();
       await sendTelegramMessage(chatId, statusMessage, messageId);
     }
@@ -177,8 +169,6 @@ I deliver YouTube livestream clip moments recorded by your viewers directly to t
 
 🆔 <b>Your Group Chat ID:</b> <code>${chatId}</code>
 👨‍💻 <b>Developed by:</b> @livehellboy
-
-👉 Copy the Chat ID above and paste it into <b>Digicast Dashboard → Settings → Telegram Delivery</b>!
         `.trim();
         await sendTelegramMessage(chatId, groupGreeting);
       }

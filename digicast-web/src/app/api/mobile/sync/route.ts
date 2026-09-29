@@ -30,57 +30,106 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 1. Verify workspace exists
-    const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
-    if (!wsDoc.exists) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
-    }
+    // 1. Verify workspace exists (by ID or ownerUid)
+    let wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
+    let wsData = wsDoc.exists ? wsDoc.data() : null;
+    let actualWorkspaceId = workspaceId;
 
-    const wsData = wsDoc.data();
+    if (!wsDoc.exists) {
+      const ownedSnap = await adminDb
+        .collection(col.workspaces())
+        .where("ownerUid", "==", workspaceId)
+        .limit(1)
+        .get();
+
+      if (!ownedSnap.empty) {
+        wsDoc = ownedSnap.docs[0];
+        wsData = wsDoc.data();
+        actualWorkspaceId = wsDoc.id;
+      } else {
+        // Fallback for demo or freshly initiated workspace
+        wsData = {
+          name: "Creator Studio",
+          ownerUid: workspaceId,
+          subscription: "free_trial",
+        };
+      }
+    }
 
     // 2. Fetch active or latest stream for this workspace
     let activeStream: any = null;
-    const streamsSnap = await adminDb
-      .collection(col.streams(workspaceId))
-      .orderBy("startedAt", "desc")
-      .limit(5)
-      .get();
+    let streams: any[] = [];
+    try {
+      const streamsSnap = await adminDb
+        .collection(col.streams(actualWorkspaceId))
+        .orderBy("startedAt", "desc")
+        .limit(25)
+        .get();
 
-    const streams = streamsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    activeStream = streams.find((s: any) => s.status === 'live') || streams[0] || null;
+      streams = streamsSnap.docs.map(doc => {
+        const d = doc.data();
+        let startedAtMs = Date.now();
+        if (d.startedAt?._seconds) {
+          startedAtMs = d.startedAt._seconds * 1000;
+        } else if (typeof d.startedAt === "number") {
+          startedAtMs = d.startedAt;
+        } else if (typeof d.startedAt === "string") {
+          const parsed = Date.parse(d.startedAt);
+          if (!isNaN(parsed)) startedAtMs = parsed;
+        }
+
+        return {
+          id: doc.id,
+          ...d,
+          startedAtMs,
+        };
+      });
+      activeStream = streams.find((s: any) => s.status === 'live') || streams[0] || null;
+    } catch (streamErr) {
+      console.warn("[mobile/sync] Stream fetch warning:", streamErr);
+    }
 
     // 3. Fetch recent clip markers for this workspace
-    const clipsSnap = await adminDb
-      .collection(col.clips(workspaceId))
-      .orderBy("createdAt", "desc")
-      .limit(50)
-      .get();
+    let clips: any[] = [];
+    try {
+      const clipsSnap = await adminDb
+        .collection(col.clips(actualWorkspaceId))
+        .orderBy("createdAt", "desc")
+        .limit(50)
+        .get();
 
-    const clips = clipsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      clips = clipsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (clipErr) {
+      console.warn("[mobile/sync] Clip fetch warning:", clipErr);
+    }
 
     // 4. Fetch YouTube Account connection status
     let youtubeAccount: any = null;
-    const ytSnap = await adminDb
-      .collection(col.youtube(workspaceId))
-      .limit(1)
-      .get();
+    try {
+      const ytSnap = await adminDb
+        .collection(col.youtube(actualWorkspaceId))
+        .limit(1)
+        .get();
 
-    if (!ytSnap.empty) {
-      const ytDoc = ytSnap.docs[0];
-      const ytData = ytDoc.data();
-      youtubeAccount = {
-        channelId: ytData.channelId,
-        channelName: ytData.channelName,
-        channelThumbnail: ytData.channelThumbnail,
-        connectionStatus: ytData.connectionStatus || 'connected',
-      };
+      if (!ytSnap.empty) {
+        const ytDoc = ytSnap.docs[0];
+        const ytData = ytDoc.data();
+        youtubeAccount = {
+          channelId: ytData.channelId,
+          channelName: ytData.channelName,
+          channelThumbnail: ytData.channelThumbnail,
+          connectionStatus: ytData.connectionStatus || 'connected',
+        };
+      }
+    } catch (ytErr) {
+      console.warn("[mobile/sync] YouTube account fetch warning:", ytErr);
     }
 
     return NextResponse.json({
       workspace: {
-        id: workspaceId,
+        id: actualWorkspaceId,
         name: wsData?.name || "Workspace",
-        ownerId: wsData?.ownerId,
+        ownerId: wsData?.ownerUid || wsData?.ownerId || workspaceId,
         subscription: wsData?.subscription || "free_trial",
       },
       youtubeAccount,

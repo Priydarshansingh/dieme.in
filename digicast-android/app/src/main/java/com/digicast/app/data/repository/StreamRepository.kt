@@ -11,6 +11,7 @@ class StreamRepository @Inject constructor(
     private val dao: DigicastDao
 ) {
     fun getActiveStreams(): Flow<List<StreamEntity>> = dao.getActiveStreams()
+    fun getAllStreams(): Flow<List<StreamEntity>> = dao.getAllStreams()
 
     suspend fun getStreamById(id: String): StreamEntity? = dao.getStreamById(id)
 

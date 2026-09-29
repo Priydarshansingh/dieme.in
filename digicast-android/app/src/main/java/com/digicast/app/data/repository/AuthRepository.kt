@@ -34,6 +34,13 @@ data class UserSession(
     val token: String
 )
 
+data class YouTubeAccountInfo(
+    val channelId: String,
+    val channelName: String,
+    val channelThumbnail: String,
+    val connectionStatus: String
+)
+
 sealed class AuthState {
     object SignedOut : AuthState()
     object Loading : AuthState()
@@ -62,7 +69,7 @@ class AuthRepository @Inject constructor(
         // Backend URL (configurable in build / production)
         const val BACKEND_URL = "https://digicast-web.vercel.app"
 
-        // Default creator / editor session so the app is always already signed in
+        // Default creator / editor session for demo mode
         val DEFAULT_SESSION = UserSession(
             uid = "creator-primary-uid",
             email = "creator@digicast.app",
@@ -78,11 +85,15 @@ class AuthRepository @Inject constructor(
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.SignedIn(DEFAULT_SESSION))
+    // Start as SignedOut so Onboarding comes first on fresh launch
+    private val _authState = MutableStateFlow<AuthState>(AuthState.SignedOut)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
     private val _isSyncing = MutableStateFlow<Boolean>(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    private val _youtubeAccount = MutableStateFlow<YouTubeAccountInfo?>(null)
+    val youtubeAccount: StateFlow<YouTubeAccountInfo?> = _youtubeAccount.asStateFlow()
 
     init {
         loadSavedSession()
@@ -94,29 +105,22 @@ class AuthRepository @Inject constructor(
         val email = prefs.getString(KEY_EMAIL, null)
         val token = prefs.getString(KEY_TOKEN, null)
 
-        if (uid != null && email != null && token != null) {
+        if (uid != null && email != null && token != null && !explicitlySignedOut && email != DEFAULT_SESSION.email) {
             val session = UserSession(
                 uid = uid,
                 email = email,
                 displayName = prefs.getString(KEY_NAME, email.substringBefore("@")) ?: "User",
                 photoUrl = prefs.getString(KEY_PHOTO, "") ?: "",
-                workspaceId = prefs.getString(KEY_WORKSPACE_ID, "workspace-main") ?: "workspace-main",
-                workspaceName = prefs.getString(KEY_WORKSPACE_NAME, "Main Studio") ?: "Main Studio",
+                workspaceId = prefs.getString(KEY_WORKSPACE_ID, uid) ?: uid,
+                workspaceName = prefs.getString(KEY_WORKSPACE_NAME, "Creator Studio") ?: "Creator Studio",
                 role = prefs.getString(KEY_ROLE, "owner") ?: "owner",
                 token = token
             )
             _authState.value = AuthState.SignedIn(session)
-            // Auto fetch immediately when app opens
+            // Auto fetch immediately when app opens with saved login
             scope.launch { syncWorkspaceData() }
-        } else if (!explicitlySignedOut) {
-            // Default to already signed-in state
-            saveSession(DEFAULT_SESSION)
-            _authState.value = AuthState.SignedIn(DEFAULT_SESSION)
-            scope.launch {
-                seedInitialDataIfEmpty()
-                syncWorkspaceData()
-            }
         } else {
+            // First run or logged out -> Onboarding screen comes first!
             _authState.value = AuthState.SignedOut
         }
     }
@@ -314,18 +318,42 @@ class AuthRepository @Inject constructor(
             val bodyString = response.body?.string() ?: "{}"
             val json = JSONObject(bodyString)
 
+            // 0. Extract connected YouTube channel info
+            val ytObj = json.optJSONObject("youtubeAccount")
+            if (ytObj != null) {
+                _youtubeAccount.value = YouTubeAccountInfo(
+                    channelId = ytObj.optString("channelId", ""),
+                    channelName = ytObj.optString("channelName", ""),
+                    channelThumbnail = ytObj.optString("channelThumbnail", ""),
+                    connectionStatus = ytObj.optString("connectionStatus", "connected")
+                )
+            }
+
             // 1. Process active and recent streams into Room
             val streamsArray = json.optJSONArray("streams")
+            var hasLiveStream = false
             if (streamsArray != null && streamsArray.length() > 0) {
+                // First pass to see if any are explicitly live
+                for (i in 0 until streamsArray.length()) {
+                    if (streamsArray.getJSONObject(i).optString("status", "").lowercase() == "live") {
+                        hasLiveStream = true
+                        break
+                    }
+                }
+
                 for (i in 0 until streamsArray.length()) {
                     val s = streamsArray.getJSONObject(i)
                     val streamId = s.optString("id", UUID.randomUUID().toString())
                     val title = s.optString("title", "Live Stream")
-                    val channelId = s.optString("youtubeChannelId", "channel-1")
-                    val channelTitle = s.optString("channelTitle", currentSession.workspaceName)
-                    val status = s.optString("status", "live")
+                    val channelId = s.optString("channelId", s.optString("youtubeChannelId", "channel-1"))
+                    val channelTitle = s.optString("channelName", s.optString("channelTitle", currentSession.workspaceName))
+                    val status = s.optString("status", "ended").lowercase()
                     val isLive = status == "live"
                     val thumb = s.optString("thumbnailUrl", "")
+                    val startedAtMs = s.optLong("startedAtMs", System.currentTimeMillis() - (i * 3600000L))
+
+                    // If none is strictly live, activate the first/latest stream so HomeScreen can display it
+                    val effectiveIsActive = isLive || (!hasLiveStream && i == 0)
 
                     val streamEntity = StreamEntity(
                         id = streamId,
@@ -336,9 +364,9 @@ class AuthRepository @Inject constructor(
                         liveChatId = if (s.has("liveChatId") && !s.isNull("liveChatId")) s.getString("liveChatId") else null,
                         thumbnailUrl = if (thumb.isNotEmpty()) thumb else null,
                         status = status,
-                        isActive = isLive,
-                        startedAtMs = System.currentTimeMillis(),
-                        endedAtMs = null
+                        isActive = effectiveIsActive,
+                        startedAtMs = startedAtMs,
+                        endedAtMs = if (!isLive) startedAtMs + 7200000L else null
                     )
                     dao.insertStream(streamEntity)
                 }

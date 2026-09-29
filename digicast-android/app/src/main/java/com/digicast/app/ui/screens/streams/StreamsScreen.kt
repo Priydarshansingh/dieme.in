@@ -52,7 +52,7 @@ class StreamsViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
     val isSyncing = authRepository.isSyncing
-    val streams = streamRepository.getActiveStreams()
+    val streams = streamRepository.getAllStreams()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {

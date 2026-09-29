@@ -21,6 +21,9 @@ interface DigicastDao {
     @Query("SELECT * FROM streams WHERE isActive = 1")
     fun getActiveStreams(): Flow<List<StreamEntity>>
 
+    @Query("SELECT * FROM streams ORDER BY isActive DESC, startedAtMs DESC")
+    fun getAllStreams(): Flow<List<StreamEntity>>
+
     @Query("SELECT * FROM streams WHERE id = :streamId")
     suspend fun getStreamById(streamId: String): StreamEntity?
 

@@ -113,6 +113,7 @@ fun HomeScreen(
     val messages by viewModel.recentMessages.collectAsState()
     val authState by viewModel.authState.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val ytAccount by viewModel.authRepository.youtubeAccount.collectAsState()
 
     val live = streams.firstOrNull()
     val capturing = LiveChatCaptureService.isServiceRunning
@@ -190,30 +191,112 @@ fun HomeScreen(
                 }
             }
 
-            item {
-                Text(
-                    text = if (live != null) live.title else "Live Broadcast",
-                    color = DigicastWhite,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                if (live != null) {
-                    Text(live.channelTitle, color = DigicastSlate, fontSize = 13.sp)
+            // Connected YouTube Channel Card
+            if (ytAccount != null) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = DigicastNavy),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(DigicastLiveRed, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("YT", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = ytAccount?.channelName ?: "YouTube Channel",
+                                    color = DigicastWhite,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = "Channel ID: ${ytAccount?.channelId}",
+                                    color = DigicastSlate,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .background(DigicastAccentBlue.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text("STUDIO LINKED", color = DigicastAccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
             }
+
+            // Stream Card
+            if (live != null) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = DigicastSurface),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                StatusBadge(status = live.status)
+                                Text(
+                                    text = if (live.isActive) "ACTIVE BROADCAST" else "LATEST STREAM",
+                                    color = DigicastAccentBlue,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                text = live.title,
+                                color = DigicastWhite,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = live.channelTitle,
+                                color = DigicastSlate,
+                                fontSize = 13.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Button(
+                                onClick = { onNavigateToStreamDetail(live.id) },
+                                colors = ButtonDefaults.buttonColors(containerColor = DigicastLiveRed),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Open Stream Intelligence", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    Text(
+                        text = "Live Broadcast",
+                        color = DigicastWhite,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     MetricCard("Messages", messages.size.toString(), modifier = Modifier.weight(1f))
-                    MetricCard("Status", if (capturing) "Capturing" else "Live", modifier = Modifier.weight(1f))
-                }
-            }
-            if (live != null) {
-                item {
-                    Button(
-                        onClick = { onNavigateToStreamDetail(live.id) },
-                        colors = ButtonDefaults.buttonColors(containerColor = DigicastLiveRed),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Open live stream") }
+                    MetricCard("Status", if (capturing) "Capturing" else "Idle", modifier = Modifier.weight(1f))
                 }
             }
             item {

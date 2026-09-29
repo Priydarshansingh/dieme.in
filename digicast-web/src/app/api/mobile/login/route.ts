@@ -52,62 +52,80 @@ export async function POST(req: NextRequest) {
     let role = requestedRole;
 
     if (!activeWorkspaceId) {
-      // Check owned workspaces
-      const ownedSnap = await adminDb
-        .collection(col.workspaces())
-        .where("ownerId", "==", uid)
-        .limit(1)
-        .get();
-
-      if (!ownedSnap.empty) {
-        const doc = ownedSnap.docs[0];
-        activeWorkspaceId = doc.id;
-        activeWorkspaceName = doc.data().name || `${displayName}'s Workspace`;
+      // A. Check if workspace document ID matches user's UID directly
+      const directWsDoc = await adminDb.doc(col.workspace(uid)).get();
+      if (directWsDoc.exists) {
+        activeWorkspaceId = directWsDoc.id;
+        activeWorkspaceName = directWsDoc.data()?.name || `${displayName}'s Workspace`;
         role = "owner";
       } else {
-        // Attempt check for invited email across member collections
-        try {
-          const memberByEmailSnap = await adminDb
-            .collectionGroup("members")
-            .where("email", "==", email)
+        // B. Check owned workspaces by ownerUid (primary field in web app)
+        let ownedSnap = await adminDb
+          .collection(col.workspaces())
+          .where("ownerUid", "==", uid)
+          .limit(1)
+          .get();
+
+        if (ownedSnap.empty) {
+          // Fallback to checking ownerId
+          ownedSnap = await adminDb
+            .collection(col.workspaces())
+            .where("ownerId", "==", uid)
             .limit(1)
             .get();
+        }
 
-          if (!memberByEmailSnap.empty) {
-            const memberDoc = memberByEmailSnap.docs[0];
-            const memberData = memberDoc.data();
-            activeWorkspaceId = memberData.workspaceId || memberDoc.ref.parent.parent?.id || "";
-            role = memberData.role || "editor";
+        if (!ownedSnap.empty) {
+          const doc = ownedSnap.docs[0];
+          activeWorkspaceId = doc.id;
+          activeWorkspaceName = doc.data().name || `${displayName}'s Workspace`;
+          role = "owner";
+        } else {
+          // C. Attempt check for invited email across member collections
+          try {
+            const memberByEmailSnap = await adminDb
+              .collectionGroup("members")
+              .where("email", "==", email)
+              .limit(1)
+              .get();
 
-            await memberDoc.ref.set({
-              uid,
-              displayName,
-              status: "active",
-              updatedAt: new Date().toISOString(),
-            }, { merge: true });
+            if (!memberByEmailSnap.empty) {
+              const memberDoc = memberByEmailSnap.docs[0];
+              const memberData = memberDoc.data();
+              activeWorkspaceId = memberData.workspaceId || memberDoc.ref.parent.parent?.id || "";
+              role = memberData.role || "editor";
 
-            if (activeWorkspaceId) {
-              const wsDoc = await adminDb.doc(col.workspace(activeWorkspaceId)).get();
-              if (wsDoc.exists) {
-                activeWorkspaceName = wsDoc.data()?.name || "Team Workspace";
+              await memberDoc.ref.set({
+                uid,
+                displayName,
+                status: "active",
+                updatedAt: new Date().toISOString(),
+              }, { merge: true });
+
+              if (activeWorkspaceId) {
+                const wsDoc = await adminDb.doc(col.workspace(activeWorkspaceId)).get();
+                if (wsDoc.exists) {
+                  activeWorkspaceName = wsDoc.data()?.name || "Team Workspace";
+                }
               }
             }
+          } catch (idxErr) {
+            console.warn("[mobile/login] Index warning on members query:", idxErr);
           }
-        } catch (idxErr) {
-          console.warn("[mobile/login] Index warning on members query:", idxErr);
         }
       }
     }
 
     // If still no workspace, create one
     if (!activeWorkspaceId) {
-      activeWorkspaceId = `ws-${uid.substring(0, 8)}`;
+      activeWorkspaceId = uid;
       activeWorkspaceName = `${displayName}'s Studio`;
       role = requestedRole;
 
       await adminDb.doc(col.workspace(activeWorkspaceId)).set({
         id: activeWorkspaceId,
         name: activeWorkspaceName,
+        ownerUid: uid,
         ownerId: uid,
         createdAt: new Date().toISOString(),
         subscription: "free_trial",

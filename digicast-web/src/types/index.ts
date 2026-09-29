@@ -105,6 +105,8 @@ export interface ClipMarker {
   lookbackSeconds?: number;       // e.g. 45
   source: ClipSource;
   authorName?: string;
+  title?: string;
+  note?: string;
   chatMessageId?: string;
   aiTopic?: string;
   aiEngagementScore?: number;

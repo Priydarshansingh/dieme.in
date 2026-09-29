@@ -200,7 +200,7 @@ async function handleNightbotClip(req: NextRequest) {
       console.warn('[nightbot-webhook] Telegram delivery check warning:', tgErr);
     }
 
-    // 5. Save clip marker in Firestore with retroactive recording window
+    // 5. Save clip marker in Firestore with retroactive recording window and custom note
     const clipMarker: ClipMarker & { windowStartSeconds: number; windowEndSeconds: number; lookbackSeconds: number } = {
       id: clipId,
       workspaceId,
@@ -213,6 +213,8 @@ async function handleNightbotClip(req: NextRequest) {
       lookbackSeconds: 45,
       source: 'viewer',
       authorName,
+      title: labelText,
+      note: labelText,
       aiTopic: labelText,
       createdAt: nowIso,
       downloadStatus: 'not_started',
@@ -237,7 +239,7 @@ async function handleNightbotClip(req: NextRequest) {
 
     // 6. Return plain text response to be sent to YouTube Live Chat by Nightbot
     return new NextResponse(
-      `🎬 Clip marker recorded by @${authorName}! [${clipId} | Window: ${lookbackDisplay}]`,
+      `🎬 Clip recorded by @${authorName}! ["${labelText}" | ${clipId} | Window: ${lookbackDisplay}]`,
       {
         status: 200,
         headers: { 'Content-Type': 'text/plain' },

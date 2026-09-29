@@ -182,44 +182,8 @@ export async function GET(req: NextRequest) {
       // Construct mobile deep-link URL
       const deepLinkUrl = `digicast://oauth?token=${encodeURIComponent(customToken)}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(displayName)}&photoUrl=${encodeURIComponent(photoURL)}&workspaceId=${encodeURIComponent(activeWorkspaceId)}&workspaceName=${encodeURIComponent(activeWorkspaceName)}&role=${encodeURIComponent(role)}`;
 
-      const htmlResponse = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Digicast Authentication</title>
-            <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B101E; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 20px; text-align: center; box-sizing: border-box; }
-              .card { background-color: #161F36; border: 1px solid #283556; border-radius: 16px; padding: 32px 24px; max-width: 420px; width: 100%; box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
-              .avatar { width: 64px; height: 64px; border-radius: 50%; margin-bottom: 16px; border: 2px solid #3B82F6; }
-              h1 { font-size: 22px; margin: 0 0 8px; color: #FFFFFF; }
-              p { font-size: 14px; color: #8F9CAE; margin: 0 0 24px; line-height: 1.5; }
-              .btn { display: inline-block; background-color: #3B82F6; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 16px; padding: 14px 28px; border-radius: 10px; width: 100%; box-sizing: border-box; }
-              .badge { display: inline-block; background-color: #1E2945; color: #4E95FF; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 16px; text-transform: uppercase; }
-            </style>
-            <script>
-              window.onload = function() {
-                window.location.href = "${deepLinkUrl}";
-              };
-            </script>
-          </head>
-          <body>
-            <div class="card">
-              ${photoURL ? `<img class="avatar" src="${photoURL}" alt="${displayName}" />` : ''}
-              <div class="badge">${role} Verified</div>
-              <h1>Welcome, ${displayName}!</h1>
-              <p>Signed in as <b>${email}</b>.<br>Connected to workspace <b>${activeWorkspaceName}</b>.</p>
-              <a href="${deepLinkUrl}" class="btn">Return to Digicast App</a>
-            </div>
-          </body>
-        </html>
-      `;
-
-      return new NextResponse(htmlResponse, {
-        status: 200,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
+      // Perform direct HTTP 302 redirect back to Android App via deep link
+      return NextResponse.redirect(deepLinkUrl);
     }
 
     // ── 2. WEB YOUTUBE ACCOUNT CONNECTION FLOW ──────────────────────────────

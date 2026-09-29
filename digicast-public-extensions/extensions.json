@@ -10,7 +10,7 @@
       "versionCode": 1,
       "description": "High-quality on-device video downloader and lossless FFmpeg precision trimmer.",
       "type": "CLIP_PROCESSOR",
-      "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/digicast-extensions/main/extensions/com.digicast.ext.clipengine.dcast",
+      "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/extensions/com.digicast.ext.clipengine.dcast",
       "entryClass": "com.digicast.ext.clipengine.ClipEngineExtension",
       "minCoreVersion": 1,
       "fileSize": "1.2 MB",

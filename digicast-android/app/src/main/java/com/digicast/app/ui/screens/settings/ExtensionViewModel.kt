@@ -53,7 +53,7 @@ class ExtensionViewModel @Inject constructor(
                 name = "Digicast Clip Engine",
                 version = "1.0.0",
                 description = "Core video processing engine. Enables local clip downloading and trimming.",
-                downloadUrl = "https://github.com/digicast-app/extensions/releases/download/v1.0.0/clip-engine.dcast",
+                downloadUrl = "https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/extensions/com.digicast.ext.clipengine.dcast",
                 entryClass = "com.digicast.ext.clipengine.ClipEngineExtension",
                 isInstalled = checkIsInstalled("com.digicast.ext.clipengine")
             )

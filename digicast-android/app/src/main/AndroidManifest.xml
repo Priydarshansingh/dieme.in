@@ -9,19 +9,28 @@
     <application
         android:name=".DigicastApplication"
         android:allowBackup="false"
-        android:icon="@drawable/ic_digicast_logo"
+        android:icon="@mipmap/ic_launcher"
         android:label="Digicast"
-        android:roundIcon="@drawable/ic_digicast_logo"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Digicast">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.Digicast">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- OAuth Deep Link Handler for Google / YouTube sign in -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="digicast" />
             </intent-filter>
 
             <!-- Register Digicast as the exclusive handler for .dcast extension files -->

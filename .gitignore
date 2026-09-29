@@ -24,3 +24,12 @@ local.properties
 *.iml
 .cxx/
 captures/
+.vercel
+.env*
+build output/
+build-output/
+build_output/
+client_secret*.json
+google-services.json
+GoogleService-Info.plist
+*.pem

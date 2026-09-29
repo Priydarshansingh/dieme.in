@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,9 +9,9 @@ plugins {
 }
 
 android {
-    namespace = "com.digicast.app"
+    namespace = "com.digicast.app" 
     compileSdk = 35
-
+ 
     defaultConfig {
         applicationId = "com.digicast.app"
         minSdk = 26
@@ -96,4 +98,25 @@ dependencies {
 
     implementation(libs.coroutines.android)
     implementation(libs.datastore)
+}
+
+tasks.register("copyDebugApkToBuildOutput") {
+    doLast {
+        val apkFile = file("${layout.buildDirectory.get()}/outputs/apk/debug/app-debug.apk")
+        if (apkFile.exists()) {
+            val outputDir = file("${rootDir}/../build output")
+            outputDir.mkdirs()
+            outputDir.listFiles()?.forEach { oldFile ->
+                if (oldFile.name.endsWith(".apk")) {
+                    oldFile.delete()
+                }
+            }
+            apkFile.copyTo(File(outputDir, "app-debug.apk"), overwrite = true)
+            println("=== [BUILD OUTPUT] Copied latest debug APK to 'build output/app-debug.apk' successfully ===")
+        }
+    }
+}
+
+tasks.matching { it.name == "assembleDebug" }.configureEach {
+    finalizedBy("copyDebugApkToBuildOutput")
 }

@@ -1,9 +1,9 @@
 // GET /api/youtube/callback
-// Handles the OAuth callback from Google/YouTube, exchanges code for tokens,
-// and stores them securely in the workspace.
+// Handles Google/YouTube OAuth callback registered in Google Cloud Console.
+// Supports both Web YouTube Account linking and Mobile Android deep-link authentication.
 
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { col } from "@/lib/firestore/collections";
 
 function getBaseUrl(req: NextRequest) {
@@ -21,24 +21,211 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  if (error) {
-    return NextResponse.redirect(`${baseUrl}/settings?error=youtube_auth_failed`);
+  if (error || !code) {
+    return NextResponse.json({ error: error || "Authorization error or missing code" }, { status: 400 });
   }
 
-  const clientId = process.env.YOUTUBE_CLIENT_ID;
-  const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
+  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.YOUTUBE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.YOUTUBE_CLIENT_SECRET;
 
-  if (!code || !state || !clientId || !clientSecret) {
-    return NextResponse.redirect(`${baseUrl}/settings?error=invalid_callback`);
+  if (!clientId || !clientSecret) {
+    return NextResponse.json({ error: "Server OAuth credentials missing" }, { status: 500 });
   }
 
   try {
-    const decodedState = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
-    const { workspaceId, uid } = decodedState;
+    let decodedState: any = {};
+    if (state) {
+      try {
+        decodedState = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
+      } catch {
+        decodedState = {};
+      }
+    }
 
+    // ── 1. MOBILE ANDROID AUTHENTICATION FLOW ────────────────────────────────
+    if (decodedState.source === "mobile_android") {
+      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code,
+          grant_type: "authorization_code",
+          redirect_uri: redirectUri,
+        }),
+      });
+
+      const tokenData = await tokenRes.json();
+      if (tokenData.error) {
+        throw new Error(tokenData.error_description || "Failed to exchange authorization code with Google");
+      }
+
+      const { access_token } = tokenData;
+
+      // Fetch user email & profile
+      const userProfileRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${access_token}` },
+      });
+      const profile = await userProfileRes.json();
+
+      const email = (profile.email || "").toLowerCase().trim();
+      const displayName = profile.name || email.split("@")[0] || "Digicast User";
+      const photoURL = profile.picture || "";
+
+      if (!email) {
+        throw new Error("Unable to retrieve email from Google profile");
+      }
+
+      // Upsert user in Firebase Auth
+      let uid: string;
+      try {
+        const existingUser = await adminAuth.getUserByEmail(email);
+        uid = existingUser.uid;
+      } catch {
+        const newUser = await adminAuth.createUser({
+          email,
+          displayName,
+          photoURL,
+        });
+        uid = newUser.uid;
+      }
+
+      // Save user profile to Firestore
+      await adminDb.doc(col.user(uid)).set({
+        uid,
+        email,
+        displayName,
+        photoURL,
+        lastLoginAt: new Date().toISOString(),
+      }, { merge: true });
+
+      // Generate Firebase Custom Token
+      const customToken = await adminAuth.createCustomToken(uid, {
+        email,
+        displayName,
+      });
+
+      // Workspace & Editor Matching
+      let activeWorkspaceId = decodedState.workspaceId || "";
+      let activeWorkspaceName = "Personal Workspace";
+      let role = "owner";
+
+      if (!activeWorkspaceId) {
+        const ownedSnap = await adminDb
+          .collection(col.workspaces())
+          .where("ownerId", "==", uid)
+          .limit(1)
+          .get();
+
+        if (!ownedSnap.empty) {
+          const doc = ownedSnap.docs[0];
+          activeWorkspaceId = doc.id;
+          activeWorkspaceName = doc.data().name || `${displayName}'s Workspace`;
+          role = "owner";
+        } else {
+          const memberByEmailSnap = await adminDb
+            .collectionGroup("members")
+            .where("email", "==", email)
+            .limit(1)
+            .get();
+
+          if (!memberByEmailSnap.empty) {
+            const memberDoc = memberByEmailSnap.docs[0];
+            const memberData = memberDoc.data();
+            activeWorkspaceId = memberData.workspaceId || memberDoc.ref.parent.parent?.id || "";
+            role = memberData.role || "editor";
+
+            await memberDoc.ref.set({
+              uid,
+              displayName,
+              photoURL,
+              status: "active",
+              updatedAt: new Date().toISOString(),
+            }, { merge: true });
+
+            if (activeWorkspaceId) {
+              const wsDoc = await adminDb.doc(col.workspace(activeWorkspaceId)).get();
+              if (wsDoc.exists) {
+                activeWorkspaceName = wsDoc.data()?.name || "Team Workspace";
+              }
+            }
+          }
+        }
+      }
+
+      if (!activeWorkspaceId) {
+        activeWorkspaceId = `ws-${uid.substring(0, 8)}`;
+        activeWorkspaceName = `${displayName}'s Workspace`;
+        role = "owner";
+
+        await adminDb.doc(col.workspace(activeWorkspaceId)).set({
+          id: activeWorkspaceId,
+          name: activeWorkspaceName,
+          ownerId: uid,
+          createdAt: new Date().toISOString(),
+          subscription: "free_trial",
+        });
+
+        await adminDb.doc(col.member(activeWorkspaceId, uid)).set({
+          id: uid,
+          uid,
+          workspaceId: activeWorkspaceId,
+          role: "owner",
+          displayName,
+          email,
+          photoURL,
+          joinedAt: new Date().toISOString(),
+        });
+      }
+
+      // Construct mobile deep-link URL
+      const deepLinkUrl = `digicast://oauth?token=${encodeURIComponent(customToken)}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(displayName)}&photoUrl=${encodeURIComponent(photoURL)}&workspaceId=${encodeURIComponent(activeWorkspaceId)}&workspaceName=${encodeURIComponent(activeWorkspaceName)}&role=${encodeURIComponent(role)}`;
+
+      const htmlResponse = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Digicast Authentication</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0B101E; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 20px; text-align: center; box-sizing: border-box; }
+              .card { background-color: #161F36; border: 1px solid #283556; border-radius: 16px; padding: 32px 24px; max-width: 420px; width: 100%; box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
+              .avatar { width: 64px; height: 64px; border-radius: 50%; margin-bottom: 16px; border: 2px solid #3B82F6; }
+              h1 { font-size: 22px; margin: 0 0 8px; color: #FFFFFF; }
+              p { font-size: 14px; color: #8F9CAE; margin: 0 0 24px; line-height: 1.5; }
+              .btn { display: inline-block; background-color: #3B82F6; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 16px; padding: 14px 28px; border-radius: 10px; width: 100%; box-sizing: border-box; }
+              .badge { display: inline-block; background-color: #1E2945; color: #4E95FF; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 16px; text-transform: uppercase; }
+            </style>
+            <script>
+              window.onload = function() {
+                window.location.href = "${deepLinkUrl}";
+              };
+            </script>
+          </head>
+          <body>
+            <div class="card">
+              ${photoURL ? `<img class="avatar" src="${photoURL}" alt="${displayName}" />` : ''}
+              <div class="badge">${role} Verified</div>
+              <h1>Welcome, ${displayName}!</h1>
+              <p>Signed in as <b>${email}</b>.<br>Connected to workspace <b>${activeWorkspaceName}</b>.</p>
+              <a href="${deepLinkUrl}" class="btn">Return to Digicast App</a>
+            </div>
+          </body>
+        </html>
+      `;
+
+      return new NextResponse(htmlResponse, {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+
+    // ── 2. WEB YOUTUBE ACCOUNT CONNECTION FLOW ──────────────────────────────
+    const { workspaceId, uid } = decodedState;
     if (!workspaceId || !uid) throw new Error("Invalid state context");
 
-    // 1. Exchange code for access/refresh tokens
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -56,7 +243,6 @@ export async function GET(req: NextRequest) {
 
     const { access_token, refresh_token, expires_in } = tokenData;
 
-    // 2. Fetch YouTube Channel ID & Name using access token
     const youtubeRes = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true", {
       headers: { Authorization: `Bearer ${access_token}` },
     });
@@ -70,8 +256,6 @@ export async function GET(req: NextRequest) {
     const channelName = youtubeData.items[0].snippet.title;
     const channelThumbnail = youtubeData.items[0].snippet.thumbnails?.default?.url || "";
 
-    // 3. Store tokens in a SECURE Firestore collection
-    // Note: In production, tokens should be encrypted before storing.
     await adminDb.doc(col.youtubeAccount(workspaceId, channelId)).set({
       id: channelId,
       workspaceId,
@@ -81,23 +265,15 @@ export async function GET(req: NextRequest) {
       connectionStatus: "connected",
       connectedAt: new Date().toISOString(),
       connectedBy: uid,
-      access_token, // Store securely
-      refresh_token: refresh_token || null, // Keep existing if not returned
+      access_token,
+      refresh_token: refresh_token || null,
       token_expires_at: Date.now() + expires_in * 1000,
     }, { merge: true });
 
-    // 4. Automatically sync broadcasts & recent streams
-    try {
-      await fetch(`${baseUrl}/api/youtube/sync?workspaceId=${workspaceId}`);
-    } catch (syncErr) {
-      console.warn('[youtube-callback] Initial sync warning:', syncErr);
-    }
-
-    // Success redirect
     return NextResponse.redirect(`${baseUrl}/dashboard?success=youtube_connected`);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error("[youtube-callback-error]", err);
-    return NextResponse.redirect(`${baseUrl}/settings?error=connection_failed`);
+    return NextResponse.redirect(`${baseUrl}/settings?error=${encodeURIComponent(err.message || "connection_failed")}`);
   }
 }

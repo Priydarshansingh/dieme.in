@@ -56,7 +56,7 @@ fun BottomNavBar(
             .fillMaxWidth()
             .border(1.dp, DigicastBorder, RoundedCornerShape(0.dp)),
         containerColor = DigicastNavy,
-        tonalElevation = 8.dp
+        tonalElevation = 0.dp
     ) {
         items.forEach { item ->
             val isSelected = currentRoute == item.route
@@ -82,7 +82,7 @@ fun BottomNavBar(
                     selectedTextColor = DigicastWhite,
                     unselectedIconColor = DigicastMuted,
                     unselectedTextColor = DigicastMuted,
-                    indicatorColor = DigicastSurfaceElevated
+                    indicatorColor = androidx.compose.ui.graphics.Color.Transparent
                 )
             )
         }

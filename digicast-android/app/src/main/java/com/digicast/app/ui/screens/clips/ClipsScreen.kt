@@ -1,5 +1,6 @@
 package com.digicast.app.ui.screens.clips
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -78,44 +79,72 @@ fun ClipsScreen(
         viewModel.sync()
     }
 
-    Scaffold(containerColor = DigicastDeepNavy) { padding ->
+    Scaffold(
+        containerColor = DigicastDeepNavy,
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(com.digicast.app.ui.theme.DigicastNavy)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "CLIP STUDIO",
+                    color = DigicastWhite,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 14.sp,
+                    letterSpacing = 1.sp
+                )
+
+                if (isSyncing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = DigicastAccentBlue,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    IconButton(onClick = { viewModel.sync() }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = DigicastSlate)
+                    }
+                }
+            }
+        }
+    ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Clips", color = DigicastWhite, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    if (isSyncing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = DigicastAccentBlue,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        IconButton(onClick = { viewModel.sync() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = DigicastSlate)
-                        }
-                    }
-                }
-            }
             if (clips.isEmpty()) {
-                item { Text("No clip markers found yet. Captured !clip markers from chat and cloud appear here automatically.", color = DigicastSlate) }
+                item { Text("No clip markers found yet. Captured !clip markers from chat and cloud appear here automatically.", color = DigicastSlate, fontSize = 13.sp) }
             }
             items(clips, key = { it.id }) { clip ->
                 Card(
                     colors = CardDefaults.cardColors(containerColor = DigicastSurface),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth().clickable { onNavigateToClipGenerate(clip.id) }
                 ) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        StatusBadge(status = clip.status)
-                        Text(clip.label, color = DigicastWhite, fontWeight = FontWeight.SemiBold)
-                        Text("by ${clip.authorName}", color = DigicastSlate, fontSize = 13.sp)
+                    Row(
+                        modifier = Modifier.padding(14.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(clip.label, color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("by ${clip.authorName}", color = DigicastSlate, fontSize = 12.sp)
+                                Text("•", color = DigicastSlate, fontSize = 12.sp)
+                                Text(
+                                    text = if (clip.status.uppercase().contains("COMPLET") || clip.status.uppercase() == "GENERATED") "GENERATED" else clip.status.uppercase(),
+                                    color = if (clip.status.uppercase().contains("COMPLET") || clip.status.uppercase() == "GENERATED") com.digicast.app.ui.theme.DigicastEmerald else DigicastSlate,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
+                        }
                     }
                 }
             }

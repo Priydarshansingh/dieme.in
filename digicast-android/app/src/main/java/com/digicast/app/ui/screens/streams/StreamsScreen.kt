@@ -1,5 +1,6 @@
 package com.digicast.app.ui.screens.streams
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -78,44 +79,59 @@ fun StreamsScreen(
         viewModel.sync()
     }
 
-    Scaffold(containerColor = DigicastDeepNavy) { padding ->
+    Scaffold(
+        containerColor = DigicastDeepNavy,
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(com.digicast.app.ui.theme.DigicastNavy)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "STREAMS",
+                    color = DigicastWhite,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 14.sp,
+                    letterSpacing = 1.sp
+                )
+
+                if (isSyncing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = DigicastAccentBlue,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    IconButton(onClick = { viewModel.sync() }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = DigicastSlate)
+                    }
+                }
+            }
+        }
+    ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Streams", color = DigicastWhite, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    if (isSyncing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = DigicastAccentBlue,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        IconButton(onClick = { viewModel.sync() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = DigicastSlate)
-                        }
-                    }
-                }
-            }
             if (streams.isEmpty()) {
-                item { Text("No streams found. Synchronizing with cloud workspace...", color = DigicastSlate) }
+                item { Text("No streams found. Synchronizing with cloud workspace...", color = DigicastSlate, fontSize = 13.sp) }
             }
             items(streams, key = { it.id }) { stream ->
                 Card(
                     colors = CardDefaults.cardColors(containerColor = DigicastSurface),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth().clickable { onNavigateToDetail(stream.id) }
                 ) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        StatusBadge(status = stream.status)
-                        Text(stream.title, color = DigicastWhite, fontWeight = FontWeight.SemiBold)
-                        Text(stream.channelTitle, color = DigicastSlate, fontSize = 13.sp)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(stream.title, color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            StatusBadge(status = stream.status)
+                        }
+                        Text(stream.channelTitle, color = DigicastSlate, fontSize = 12.sp)
                     }
                 }
             }

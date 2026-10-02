@@ -56,6 +56,7 @@ dependencies {
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.splashscreen)
+    implementation(libs.material)
 
     val composeBom = platform(libs.compose.bom)
     implementation(composeBom)

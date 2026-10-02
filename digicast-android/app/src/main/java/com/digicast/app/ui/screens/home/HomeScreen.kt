@@ -54,6 +54,8 @@ import com.digicast.app.ui.components.StatusBadge
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastCardSurface
 import com.digicast.app.ui.theme.DigicastDeepNavy
+import com.digicast.app.ui.theme.DigicastEmerald
+import com.digicast.app.ui.theme.DigicastSurfaceElevated
 import com.digicast.app.ui.theme.DigicastLiveRed
 import com.digicast.app.ui.theme.DigicastNavy
 import com.digicast.app.ui.theme.DigicastSlate
@@ -126,30 +128,119 @@ fun HomeScreen(
     Scaffold(
         containerColor = DigicastDeepNavy,
         topBar = {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(DigicastNavy)
-                    .padding(horizontal = 18.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DigicastLogo(size = 38)
-                    if (isSyncing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = DigicastAccentBlue,
-                            strokeWidth = 2.dp
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "DIGICAST",
+                        color = DigicastWhite,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 14.sp,
+                        letterSpacing = 1.sp
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(if (capturing) DigicastLiveRed else DigicastSlate, CircleShape)
+                        )
+                        Text(
+                            text = if (capturing) "LIVE" else "IDLE",
+                            color = if (capturing) DigicastLiveRed else DigicastSlate,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
                         )
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconButton(onClick = { viewModel.syncData() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = DigicastSlate)
+
+                if (live != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = live.title,
+                        color = DigicastWhite,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = live.channelTitle,
+                            color = DigicastSlate,
+                            fontSize = 13.sp
+                        )
+                        // In a real app we'd compute uptime/viewers here
+                        Text(
+                            text = "15.2K Viewers",
+                            color = DigicastSlate,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = "02:31:42",
+                            color = DigicastAccentBlue,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
-                    if (capturing) StatusBadge(status = "LIVE")
-                    else Text("IDLE", color = DigicastSlate, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Live Control Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(DigicastDeepNavy, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Column {
+                                Text("STREAM HEALTH", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("98% Stable", color = DigicastEmerald, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            Column {
+                                Text("LATENCY", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("2.4s", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = onNavigateToClips,
+                                colors = ButtonDefaults.buttonColors(containerColor = DigicastSurfaceElevated),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Create Clip", fontSize = 12.sp, color = DigicastWhite)
+                            }
+                            Button(
+                                onClick = { onNavigateToStreamDetail(live.id) },
+                                colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue.copy(alpha = 0.15f)),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Dashboard", fontSize = 12.sp, color = DigicastAccentBlue, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -235,7 +326,7 @@ fun HomeScreen(
                             }
                             Box(
                                 modifier = Modifier
-                                    .background(DigicastAccentBlue.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .background(DigicastAccentBlue.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
                                     .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
                                 Text("STUDIO LINKED", color = DigicastAccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -245,79 +336,43 @@ fun HomeScreen(
                 }
             }
 
-            // Stream Card
-            if (live != null) {
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = DigicastSurface),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                StatusBadge(status = live.status)
-                                Text(
-                                    text = if (live.isActive) "ACTIVE BROADCAST" else "LATEST STREAM",
-                                    color = DigicastAccentBlue,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Text(
-                                text = live.title,
-                                color = DigicastWhite,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = live.channelTitle,
-                                color = DigicastSlate,
-                                fontSize = 13.sp
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Button(
-                                onClick = { onNavigateToStreamDetail(live.id) },
-                                colors = ButtonDefaults.buttonColors(containerColor = DigicastLiveRed),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Open Stream Intelligence", fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            } else {
+            // Stream Card (Now replaced by Live Control Bar in topBar, but we'll remove it from here)
+            if (live == null) {
                 item {
                     Text(
-                        text = "Live Broadcast",
-                        color = DigicastWhite,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
+                        text = "LIVE BROADCAST",
+                        color = DigicastSlate,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
                     )
                 }
             }
 
             item {
+                Text(
+                    text = "CHAT INTELLIGENCE",
+                    color = DigicastSlate,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
+            item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    MetricCard("Messages", messages.size.toString(), modifier = Modifier.weight(1f))
-                    MetricCard("Status", if (capturing) "Capturing" else "Idle", modifier = Modifier.weight(1f))
+                    MetricCard("Sentiment", "Positive (68%)", modifier = Modifier.weight(1f))
+                    MetricCard("Spam", "3 flagged", modifier = Modifier.weight(1f))
                 }
             }
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Recent chat", color = DigicastWhite, fontWeight = FontWeight.SemiBold)
-                    Button(
-                        onClick = onNavigateToClips,
-                        colors = ButtonDefaults.buttonColors(containerColor = DigicastNavy)
-                    ) { Text("Clips") }
-                }
+                Text(
+                    text = "LIVE CHAT",
+                    color = DigicastWhite,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
             if (messages.isEmpty()) {
                 item { Text("Chat stays on this device. Capture a live stream or receive markers from viewers.", color = DigicastSlate) }
@@ -332,12 +387,14 @@ fun HomeScreen(
 @Composable
 private fun ChatRow(msg: ChatMessageEntity) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = DigicastSurface),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(msg.authorDisplayName, color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-            Spacer(Modifier.height(2.dp))
+        Column(Modifier.padding(vertical = 6.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(msg.authorDisplayName, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+            Spacer(Modifier.height(4.dp))
             Text(msg.messageText, color = DigicastSlate, fontSize = 13.sp)
         }
     }

@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="digicast_navy">#1B2237</color>
-    <color name="digicast_navy_dark">#0D111D</color>
-    <color name="digicast_surface">#1A2035</color>
+    <color name="digicast_navy">#070910</color>
+    <color name="digicast_navy_dark">#0B0D14</color>
+    <color name="digicast_surface">#10131C</color>
     <color name="digicast_white">#FFFFFF</color>
     <color name="digicast_slate">#6B7280</color>
     <color name="digicast_live_red">#EF4444</color>
     <color name="ic_launcher_background">#000000</color>
+    <color name="digicast_card_surface">#151925</color>
+    <color name="digicast_border">#252A38</color>
+    <color name="digicast_accent">#22D3EE</color>
+    <color name="digicast_secondary">#F43F5E</color>
+    <color name="digicast_muted">#8B93A7</color>
 </resources>

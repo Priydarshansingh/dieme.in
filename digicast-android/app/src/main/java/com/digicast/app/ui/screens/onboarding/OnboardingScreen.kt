@@ -132,7 +132,7 @@ fun OnboardingScreen(
 
             // Sign-In Card — email and password
             Card(
-                colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+                colors = CardDefaults.cardColors(),
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {

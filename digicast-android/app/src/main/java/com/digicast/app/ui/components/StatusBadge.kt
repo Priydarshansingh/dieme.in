@@ -32,9 +32,8 @@ fun StatusBadge(status: String, modifier: Modifier = Modifier) {
     }
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(color.copy(alpha = 0.18f))
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+            .background(color.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+            .padding(horizontal = 6.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -45,9 +44,10 @@ fun StatusBadge(status: String, modifier: Modifier = Modifier) {
         )
         Text(
             text = "  ${status.uppercase()}",
-            color = DigicastWhite,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold
+            color = color,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
         )
     }
 }

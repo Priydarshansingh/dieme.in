@@ -34,8 +34,8 @@ fun MetricCard(
             .padding(14.dp)
             .fillMaxWidth()
     ) {
-        Text(text = label, color = DigicastSlate, fontSize = 12.sp)
+        Text(text = label.uppercase(), color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
         Spacer(modifier = Modifier.height(4.dp))
-        Text(text = value, color = DigicastWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(text = value, color = DigicastWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
 }

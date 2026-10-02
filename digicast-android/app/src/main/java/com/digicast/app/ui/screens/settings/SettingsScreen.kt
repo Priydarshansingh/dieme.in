@@ -2,6 +2,7 @@ package com.digicast.app.ui.screens.settings
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,9 +59,11 @@ import com.digicast.app.data.repository.AuthState
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastCardSurface
 import com.digicast.app.ui.theme.DigicastDeepNavy
+import com.digicast.app.ui.theme.DigicastEmerald
 import com.digicast.app.ui.theme.DigicastLiveRed
 import com.digicast.app.ui.theme.DigicastNavy
 import com.digicast.app.ui.theme.DigicastSlate
+import com.digicast.app.ui.theme.DigicastSurface
 import com.digicast.app.ui.theme.DigicastWhite
 import kotlinx.coroutines.launch
 
@@ -105,17 +108,11 @@ fun SettingsScreen(
             // ── Account Card ──────────────────────────────────────────────────
             Card(
                 colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = DigicastAccentBlue)
-                        Text("Workspace Account", color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    }
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("WORKSPACE ACCOUNT", color = DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
 
                     when (val state = authState) {
                         is AuthState.SignedIn -> {
@@ -130,7 +127,7 @@ fun SettingsScreen(
                                     modifier = Modifier
                                         .size(48.dp)
                                         .clip(CircleShape)
-                                        .background(DigicastAccentBlue),
+                                        .background(DigicastNavy),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -159,13 +156,6 @@ fun SettingsScreen(
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
-                                        Box(
-                                            modifier = Modifier
-                                                .background(DigicastNavy, RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(session.workspaceName, color = DigicastWhite, fontSize = 11.sp)
-                                        }
                                     }
                                 }
                             }
@@ -182,8 +172,9 @@ fun SettingsScreen(
                                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue)
+                                modifier = Modifier.fillMaxWidth().height(42.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue),
+                                shape = RoundedCornerShape(8.dp)
                             ) {
                                 if (isSyncing) {
                                     CircularProgressIndicator(
@@ -228,37 +219,25 @@ fun SettingsScreen(
             // ── Extensions & Plugins Card (.dcast) ────────────────────────────
             Card(
                 colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(Icons.Default.Extension, contentDescription = null, tint = DigicastAccentBlue)
-                            Text("Extensions (.dcast)", color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                        }
-                        IconButton(onClick = { extensionViewModel.loadCatalog() }) {
+                        Text("EXTENSIONS (.DCAST)", color = DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                        IconButton(onClick = { extensionViewModel.loadCatalog() }, modifier = Modifier.size(24.dp)) {
                             Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = DigicastSlate)
                         }
                     }
 
-                    Text(
-                        "Extensions allow high-performance video trimming (yt-dlp + FFmpeg) on your device without violating Play Store rules. Fetched from GitHub Releases.",
-                        color = DigicastSlate,
-                        fontSize = 12.sp
-                    )
-
                     extensions.forEach { item ->
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = DigicastNavy),
-                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = DigicastSurface),
+                            shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -272,17 +251,9 @@ fun SettingsScreen(
                                         Text("v${item.version} • ${item.id}", color = DigicastSlate, fontSize = 11.sp)
                                     }
                                     if (item.isInstalled) {
-                                        Box(
-                                            modifier = Modifier
-                                                .background(Color(0xFF1E3A2F), RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text("INSTALLED", color = Color(0xFF4ADE80), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                        }
+                                        Text("INSTALLED", color = DigicastEmerald, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
-
-                                Text(item.description, color = DigicastSlate, fontSize = 12.sp)
 
                                 if (item.isInstalling) {
                                     LinearProgressIndicator(
@@ -292,7 +263,6 @@ fun SettingsScreen(
                                             .height(4.dp),
                                         color = DigicastAccentBlue
                                     )
-                                    Text("Downloading ${item.downloadProgress}%", color = DigicastSlate, fontSize = 11.sp)
                                 }
 
                                 Row(
@@ -301,22 +271,23 @@ fun SettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     if (item.isInstalled) {
-                                        OutlinedButton(
-                                            onClick = { extensionViewModel.removeExtension(item) },
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastLiveRed)
-                                        ) {
-                                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(14.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Uninstall", fontSize = 12.sp)
-                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Uninstall",
+                                            color = DigicastLiveRed,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.clickable { extensionViewModel.removeExtension(item) }.padding(4.dp)
+                                        )
                                     } else {
                                         Button(
                                             onClick = { extensionViewModel.installExtension(item) },
                                             enabled = !item.isInstalling,
-                                            colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue)
+                                            colors = ButtonDefaults.buttonColors(containerColor = DigicastNavy),
+                                            shape = RoundedCornerShape(6.dp),
+                                            modifier = Modifier.height(32.dp),
+                                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                                         ) {
-                                            Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(14.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
                                             Text("Install .dcast", fontSize = 12.sp)
                                         }
                                     }
@@ -330,37 +301,37 @@ fun SettingsScreen(
             // ── Privacy & Security ────────────────────────────────────────────
             Card(
                 colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Default.Security, contentDescription = null, tint = DigicastSlate)
-                        Text("Security Architecture", color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("SECURITY ARCHITECTURE", color = DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "• Chat messages are processed in-memory and stored only locally in Room DB.",
+                            color = DigicastSlate,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                        Text(
+                            "• Zero cross-account data leakage: Workspaces and clip markers are bounded by your verified workspace UID.",
+                            color = DigicastSlate,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                        Text(
+                            "• Telegram bot tokens are executed serverless in Cloud Run and never stored in this APK.",
+                            color = DigicastSlate,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                        Text(
+                            "• Sign-in uses your registered workspace email. No passwords are stored on-device.",
+                            color = DigicastSlate,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
                     }
-                    Text(
-                        "• Chat messages are processed in-memory and stored only locally in Room DB.",
-                        color = DigicastSlate,
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        "• Zero cross-account data leakage: Workspaces and clip markers are bounded by your verified workspace UID.",
-                        color = DigicastSlate,
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        "• Telegram bot tokens are executed serverless in Cloud Run and never stored in this APK.",
-                        color = DigicastSlate,
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        "• Sign-in uses your registered workspace email. No passwords are stored on-device.",
-                        color = DigicastSlate,
-                        fontSize = 12.sp
-                    )
                 }
             }
         }

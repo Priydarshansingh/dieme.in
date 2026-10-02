@@ -62,30 +62,29 @@ fun TeamScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Team & Workspace", color = DigicastWhite, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text("TEAM", color = DigicastWhite, fontSize = 24.sp, fontWeight = FontWeight.Bold)
 
             when (val state = authState) {
                 is AuthState.SignedIn -> {
                     val session = state.session
 
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("MEMBERS", color = DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    }
+
                     // Active Member Profile Card
                     Card(
                         colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Default.Group, contentDescription = null, tint = DigicastAccentBlue)
-                                Text("Current Workspace Member", color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                            }
-
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Box(
                                     modifier = Modifier
-                                        .size(44.dp)
+                                        .size(48.dp)
                                         .clip(CircleShape)
-                                        .background(DigicastAccentBlue),
+                                        .background(DigicastNavy),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -96,54 +95,49 @@ fun TeamScreen(
                                     )
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(session.displayName, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                    Text(session.email, color = DigicastSlate, fontSize = 12.sp)
+                                    Text(session.displayName, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text(session.email, color = DigicastSlate, fontSize = 13.sp)
                                 }
                                 Box(
                                     modifier = Modifier
                                         .background(DigicastNavy, RoundedCornerShape(6.dp))
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
-                                    Text(session.role.uppercase(), color = DigicastAccentBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text(session.role.uppercase(), color = DigicastAccentBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                                 }
                             }
-
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("Workspace: ${session.workspaceName}", color = DigicastSlate, fontSize = 13.sp)
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("PERMISSIONS", color = DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
 
                     // Role Permissions Card
                     Card(
                         colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = DigicastAccentBlue)
-                                Text("Role & Permissions", color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            }
-
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             PermissionItem(
-                                title = "Live Stream Capture",
+                                title = "Manage Streams",
                                 allowed = true,
-                                note = "On-device YouTube live chat monitoring & clip markers"
+                                note = ""
                             )
                             PermissionItem(
-                                title = "On-Device .dcast Trimming",
+                                title = "Create & Publish Clips",
                                 allowed = true,
-                                note = "Execute local video processing via installed extensions"
+                                note = ""
                             )
                             PermissionItem(
-                                title = "Telegram Bot Integration",
-                                allowed = session.role.lowercase() == "owner" || session.role.lowercase() == "editor",
-                                note = "Securely dispatched to cloud backend without token exposure"
-                            )
-                            PermissionItem(
-                                title = "Workspace & Member Management",
+                                title = "Workspace Billing",
                                 allowed = session.role.lowercase() == "owner",
-                                note = "Invite editors and manage workspace settings via web portal"
+                                note = ""
+                            )
+                            PermissionItem(
+                                title = "Team Management",
+                                allowed = session.role.lowercase() == "owner",
+                                note = ""
                             )
                         }
                     }
@@ -151,11 +145,11 @@ fun TeamScreen(
                 else -> {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Not Connected to Cloud Workspace", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Not Connected", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             Text(
                                 "Sign in from Settings or Onboarding to link this device with your Creator/Editor team workspace.",
                                 color = DigicastSlate,
@@ -163,26 +157,6 @@ fun TeamScreen(
                             )
                         }
                     }
-                }
-            }
-
-            // Security Overview
-            Card(
-                colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Security, contentDescription = null, tint = DigicastSlate)
-                        Text("Zero-Trust Architecture", color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    }
-                    Text(
-                        "All workspace data is bound to your backend session and encrypted at rest. Editors never receive sensitive API keys on device.",
-                        color = DigicastSlate,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
                 }
             }
         }
@@ -198,27 +172,19 @@ private fun PermissionItem(
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            Text(note, color = DigicastSlate, fontSize = 11.sp)
+            if (note.isNotEmpty()) {
+                Text(note, color = DigicastSlate, fontSize = 11.sp)
+            }
         }
-        Box(
-            modifier = Modifier
-                .background(
-                    if (allowed) androidx.compose.ui.graphics.Color(0xFF1E3A2F)
-                    else androidx.compose.ui.graphics.Color(0xFF3B2323),
-                    RoundedCornerShape(4.dp)
-                )
-                .padding(horizontal = 6.dp, vertical = 2.dp)
-        ) {
-            Text(
-                text = if (allowed) "ALLOWED" else "RESTRICTED",
-                color = if (allowed) androidx.compose.ui.graphics.Color(0xFF4ADE80) else androidx.compose.ui.graphics.Color(0xFFF87171),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        Text(
+            text = if (allowed) "✓" else "—",
+            color = if (allowed) DigicastWhite else DigicastSlate,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }

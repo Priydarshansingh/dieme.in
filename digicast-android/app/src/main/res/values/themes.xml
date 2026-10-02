@@ -1,8 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Digicast" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Digicast" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/digicast_accent</item>
+        <item name="colorPrimaryContainer">@color/digicast_card_surface</item>
+        <item name="colorSecondary">@color/digicast_secondary</item>
+        <item name="android:colorBackground">@color/digicast_surface</item>
+        <item name="colorSurface">@color/digicast_surface</item>
+        <item name="colorSurfaceVariant">@color/digicast_card_surface</item>
+        <item name="colorOnPrimary">@color/digicast_white</item>
+        <item name="colorOnSecondary">@color/digicast_white</item>
+        <item name="colorOnBackground">@color/digicast_white</item>
+        <item name="colorOnSurface">@color/digicast_white</item>
         <item name="android:statusBarColor">@color/digicast_navy_dark</item>
         <item name="android:navigationBarColor">@color/digicast_navy_dark</item>
         <item name="android:windowBackground">@color/digicast_navy_dark</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.Digicast.MediumComponent</item>
     </style>
 </resources>

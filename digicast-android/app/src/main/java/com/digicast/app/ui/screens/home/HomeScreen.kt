@@ -119,6 +119,7 @@ class HomeViewModel @Inject constructor(
 fun HomeScreen(
     onNavigateToStreamDetail: (String) -> Unit,
     onNavigateToClips: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val streams by viewModel.activeStreams.collectAsState()
@@ -159,19 +160,34 @@ fun HomeScreen(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Box(
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier
-                                .size(6.dp)
-                                .background(if (capturing) DigicastLiveRed else DigicastSlate, CircleShape)
-                        )
-                        Text(
-                            text = if (capturing) "LIVE" else "IDLE",
-                            color = if (capturing) DigicastLiveRed else DigicastSlate,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                                .background(DigicastDeepNavy, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(if (capturing) DigicastLiveRed else DigicastSlate, CircleShape)
+                            )
+                            Text(
+                                text = if (capturing) "LIVE" else "IDLE",
+                                color = if (capturing) DigicastLiveRed else DigicastSlate,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+
+                        val session = (authState as? AuthState.SignedIn)?.session
+                        com.digicast.app.ui.components.ProfileAvatarButton(
+                            displayName = session?.displayName,
+                            photoUrl = session?.photoUrl,
+                            onClick = onNavigateToSettings
                         )
                     }
                 }

@@ -64,7 +64,7 @@ import javax.inject.Inject
 @HiltViewModel
 class StreamsViewModel @Inject constructor(
     streamRepository: StreamRepository,
-    private val authRepository: AuthRepository
+    val authRepository: AuthRepository
 ) : ViewModel() {
     val isSyncing = authRepository.isSyncing
     val streams = streamRepository.getAllStreams()
@@ -84,10 +84,12 @@ class StreamsViewModel @Inject constructor(
 @Composable
 fun StreamsScreen(
     onNavigateToDetail: (String) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     viewModel: StreamsViewModel = hiltViewModel()
 ) {
     val streams by viewModel.streams.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val authState by viewModel.authRepository.authState.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.sync()
@@ -112,16 +114,28 @@ fun StreamsScreen(
                     letterSpacing = 1.sp
                 )
 
-                if (isSyncing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = DigicastAccentBlue,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    IconButton(onClick = { viewModel.sync() }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = DigicastSlate)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (isSyncing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = DigicastAccentBlue,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        IconButton(onClick = { viewModel.sync() }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = DigicastSlate)
+                        }
                     }
+
+                    val session = (authState as? com.digicast.app.data.repository.AuthState.SignedIn)?.session
+                    com.digicast.app.ui.components.ProfileAvatarButton(
+                        displayName = session?.displayName,
+                        photoUrl = session?.photoUrl,
+                        onClick = onNavigateToSettings
+                    )
                 }
             }
         }

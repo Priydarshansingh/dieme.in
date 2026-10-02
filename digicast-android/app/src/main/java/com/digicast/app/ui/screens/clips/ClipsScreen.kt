@@ -50,7 +50,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ClipsViewModel @Inject constructor(
     clipRepository: ClipRepository,
-    private val authRepository: AuthRepository
+    val authRepository: AuthRepository
 ) : ViewModel() {
     val isSyncing = authRepository.isSyncing
     val clips = clipRepository.getAllClips()
@@ -70,10 +70,12 @@ class ClipsViewModel @Inject constructor(
 @Composable
 fun ClipsScreen(
     onNavigateToClipGenerate: (String) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     viewModel: ClipsViewModel = hiltViewModel()
 ) {
     val clips by viewModel.clips.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val authState by viewModel.authRepository.authState.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.sync()
@@ -98,16 +100,28 @@ fun ClipsScreen(
                     letterSpacing = 1.sp
                 )
 
-                if (isSyncing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = DigicastAccentBlue,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    IconButton(onClick = { viewModel.sync() }, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = DigicastSlate)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (isSyncing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = DigicastAccentBlue,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        IconButton(onClick = { viewModel.sync() }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = DigicastSlate)
+                        }
                     }
+
+                    val session = (authState as? com.digicast.app.data.repository.AuthState.SignedIn)?.session
+                    com.digicast.app.ui.components.ProfileAvatarButton(
+                        displayName = session?.displayName,
+                        photoUrl = session?.photoUrl,
+                        onClick = onNavigateToSettings
+                    )
                 }
             }
         }

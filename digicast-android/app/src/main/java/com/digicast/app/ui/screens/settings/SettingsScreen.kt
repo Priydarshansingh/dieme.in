@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Delete
@@ -26,11 +27,13 @@ import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -57,6 +60,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.digicast.app.data.repository.AuthRepository
 import com.digicast.app.data.repository.AuthState
 import com.digicast.app.ui.theme.DigicastAccentBlue
+import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastCardSurface
 import com.digicast.app.ui.theme.DigicastDeepNavy
 import com.digicast.app.ui.theme.DigicastEmerald
@@ -70,6 +74,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     onSignOut: () -> Unit,
+    onNavigateBack: () -> Unit = {},
     extensionViewModel: ExtensionViewModel = hiltViewModel(),
     authRepository: AuthRepository = hiltViewModel<SettingsAuthWrapperViewModel>().authRepository
 ) {
@@ -98,25 +103,40 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Settings & Account",
-                color = DigicastWhite,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
+            // Header with Back Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                IconButton(onClick = onNavigateBack, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = DigicastWhite
+                    )
+                }
+                Text(
+                    text = "Profile & Settings",
+                    color = DigicastWhite,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-            // ── Account Card ──────────────────────────────────────────────────
+            // ── Account & Role Card ───────────────────────────────────────────
             Card(
                 colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("WORKSPACE ACCOUNT", color = DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("WORKSPACE & USER ROLE", color = DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
 
                     when (val state = authState) {
                         is AuthState.SignedIn -> {
                             val session = state.session
+                            val isOwner = session.role.equals("owner", ignoreCase = true)
 
                             // Avatar + profile info
                             Row(
@@ -125,7 +145,7 @@ fun SettingsScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(48.dp)
+                                        .size(52.dp)
                                         .clip(CircleShape)
                                         .background(DigicastNavy),
                                     contentAlignment = Alignment.Center
@@ -134,30 +154,64 @@ fun SettingsScreen(
                                         text = session.displayName.take(1).uppercase(),
                                         color = DigicastWhite,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 20.sp
+                                        fontSize = 22.sp
                                     )
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(session.displayName, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                     Text(session.email, color = DigicastSlate, fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Row(
-                                        modifier = Modifier.padding(top = 4.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .background(DigicastNavy, RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                                .background(
+                                                    if (isOwner) Color(0xFF2E1C0C) else DigicastNavy,
+                                                    RoundedCornerShape(6.dp)
+                                                )
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
                                         ) {
                                             Text(
                                                 "ROLE: ${session.role.uppercase()}",
-                                                color = DigicastAccentBlue,
+                                                color = if (isOwner) Color(0xFFFBBF24) else DigicastAccentBlue,
                                                 fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
+                                                fontWeight = FontWeight.ExtraBold,
+                                                letterSpacing = 1.sp
+                                            )
+                                        }
+
+                                        if (session.workspaceId.isNotBlank()) {
+                                            Text(
+                                                text = "WS: ${session.workspaceId.take(8)}...",
+                                                color = DigicastSlate,
+                                                fontSize = 11.sp
                                             )
                                         }
                                     }
                                 }
+                            }
+
+                            // Role Permissions Summary
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(DigicastSurface, RoundedCornerShape(8.dp))
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = if (isOwner) "Owner Capabilities (Full Studio Access)" else "Editor Capabilities (Production Team)",
+                                    color = DigicastWhite,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+
+                                RolePermissionRow(title = "Manage Streams & Live Chat", granted = true)
+                                RolePermissionRow(title = "Capture & Publish Clip Markers", granted = true)
+                                RolePermissionRow(title = "Manage Team & Invite Members", granted = isOwner, hint = if (!isOwner) "Owner only" else "")
+                                RolePermissionRow(title = "Workspace Billing & API Keys", granted = isOwner, hint = if (!isOwner) "Owner only" else "")
                             }
 
                             // Sync Cloud button
@@ -187,7 +241,7 @@ fun SettingsScreen(
                                 } else {
                                     Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Sync Cloud")
+                                    Text("Sync Workspace Data")
                                 }
                             }
 
@@ -337,3 +391,41 @@ fun SettingsScreen(
         }
     }
 }
+
+@Composable
+private fun RolePermissionRow(
+    title: String,
+    granted: Boolean,
+    hint: String = ""
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = if (granted) "✓" else "—",
+                color = if (granted) DigicastEmerald else DigicastSlate,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = title,
+                color = if (granted) DigicastWhite else DigicastSlate,
+                fontSize = 12.sp
+            )
+        }
+        if (hint.isNotEmpty()) {
+            Text(
+                text = hint,
+                color = DigicastSlate,
+                fontSize = 10.sp
+            )
+        }
+    }
+}
+

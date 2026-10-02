@@ -42,12 +42,11 @@ fun DigicastNavGraph(
         Screen.Onboarding.route
     }
 
+    // Only 3 primary tabs in bottom navigation bar: Home, Clips, Streams
     val bottomBarRoutes = setOf(
         Screen.Home.route,
-        Screen.Streams.route,
         Screen.Clips.route,
-        Screen.Team.route,
-        Screen.Settings.route
+        Screen.Streams.route
     )
 
     Scaffold(
@@ -84,12 +83,14 @@ fun DigicastNavGraph(
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToStreamDetail = { navController.navigate(Screen.StreamDetail.createRoute(it)) },
-                    onNavigateToClips = { navController.navigate(Screen.Clips.route) }
+                    onNavigateToClips = { navController.navigate(Screen.Clips.route) },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
                 )
             }
             composable(Screen.Streams.route) {
                 StreamsScreen(
-                    onNavigateToDetail = { navController.navigate(Screen.StreamDetail.createRoute(it)) }
+                    onNavigateToDetail = { navController.navigate(Screen.StreamDetail.createRoute(it)) },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
                 )
             }
             composable(
@@ -104,7 +105,8 @@ fun DigicastNavGraph(
             }
             composable(Screen.Clips.route) {
                 ClipsScreen(
-                    onNavigateToClipGenerate = { navController.navigate(Screen.ClipGenerate.createRoute(it)) }
+                    onNavigateToClipGenerate = { navController.navigate(Screen.ClipGenerate.createRoute(it)) },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
                 )
             }
             composable(
@@ -124,7 +126,8 @@ fun DigicastNavGraph(
                         navController.navigate(Screen.Onboarding.route) {
                             popUpTo(0) { inclusive = true }
                         }
-                    }
+                    },
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
         }

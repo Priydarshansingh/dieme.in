@@ -62,12 +62,30 @@ export async function POST(req: NextRequest) {
     let activeWorkspaceName = "Personal Workspace";
     let role = requestedRole;
 
+    // Check user profile for defaultWorkspaceId first
+    try {
+      const userSnap = await adminDb.doc(col.user(uid)).get();
+      if (userSnap.exists) {
+        const uData = userSnap.data();
+        if (uData?.defaultWorkspaceId) {
+          const wsDoc = await adminDb.doc(col.workspace(uData.defaultWorkspaceId)).get();
+          if (wsDoc.exists) {
+            activeWorkspaceId = wsDoc.id;
+            activeWorkspaceName = wsDoc.data()?.name || `${displayName}'s Studio`;
+            role = uData.role || (wsDoc.data()?.ownerUid === uid ? "owner" : "editor");
+          }
+        }
+      }
+    } catch (userLookupErr) {
+      console.warn("[mobile/login] User lookup error:", userLookupErr);
+    }
+
     if (!activeWorkspaceId) {
       // A. Check if workspace document ID matches user's UID directly
       const directWsDoc = await adminDb.doc(col.workspace(uid)).get();
       if (directWsDoc.exists) {
         activeWorkspaceId = directWsDoc.id;
-        activeWorkspaceName = directWsDoc.data()?.name || `${displayName}'s Workspace`;
+        activeWorkspaceName = directWsDoc.data()?.name || `${displayName}'s Studio`;
         role = "owner";
       } else {
         // B. Check owned workspaces by ownerUid (primary field in web app)
@@ -78,7 +96,6 @@ export async function POST(req: NextRequest) {
           .get();
 
         if (ownedSnap.empty) {
-          // Fallback to checking ownerId
           ownedSnap = await adminDb
             .collection(col.workspaces())
             .where("ownerId", "==", uid)
@@ -89,39 +106,43 @@ export async function POST(req: NextRequest) {
         if (!ownedSnap.empty) {
           const doc = ownedSnap.docs[0];
           activeWorkspaceId = doc.id;
-          activeWorkspaceName = doc.data().name || `${displayName}'s Workspace`;
+          activeWorkspaceName = doc.data().name || `${displayName}'s Studio`;
           role = "owner";
         } else {
-          // C. Attempt check for invited email across member collections
+          // C. Search existing workspaces for membership by uid or email
           try {
-            const memberByEmailSnap = await adminDb
-              .collectionGroup("members")
-              .where("email", "==", email)
-              .limit(1)
-              .get();
+            const allWsSnap = await adminDb.collection(col.workspaces()).limit(50).get();
+            for (const wsDoc of allWsSnap.docs) {
+              const wsData = wsDoc.data();
+              if (wsData.ownerUid === uid || wsData.ownerId === uid) {
+                activeWorkspaceId = wsDoc.id;
+                activeWorkspaceName = wsData.name || "Creator Studio";
+                role = "owner";
+                break;
+              }
 
-            if (!memberByEmailSnap.empty) {
-              const memberDoc = memberByEmailSnap.docs[0];
-              const memberData = memberDoc.data();
-              activeWorkspaceId = memberData.workspaceId || memberDoc.ref.parent.parent?.id || "";
-              role = memberData.role || "editor";
+              // Check members subcollection by UID
+              const memByUid = await wsDoc.ref.collection("members").doc(uid).get();
+              if (memByUid.exists) {
+                activeWorkspaceId = wsDoc.id;
+                activeWorkspaceName = wsData.name || "Creator Studio";
+                role = memByUid.data()?.role || "editor";
+                break;
+              }
 
-              await memberDoc.ref.set({
-                uid,
-                displayName,
-                status: "active",
-                updatedAt: new Date().toISOString(),
-              }, { merge: true });
-
-              if (activeWorkspaceId) {
-                const wsDoc = await adminDb.doc(col.workspace(activeWorkspaceId)).get();
-                if (wsDoc.exists) {
-                  activeWorkspaceName = wsDoc.data()?.name || "Team Workspace";
-                }
+              // Check members subcollection by email
+              const memByEmail = await wsDoc.ref.collection("members").where("email", "==", email).limit(1).get();
+              if (!memByEmail.empty) {
+                const mDoc = memByEmail.docs[0];
+                activeWorkspaceId = wsDoc.id;
+                activeWorkspaceName = wsData.name || "Creator Studio";
+                role = mDoc.data()?.role || "editor";
+                await mDoc.ref.set({ uid, displayName, status: "active" }, { merge: true });
+                break;
               }
             }
-          } catch (idxErr) {
-            console.warn("[mobile/login] Index warning on members query:", idxErr);
+          } catch (wsSearchErr) {
+            console.warn("[mobile/login] Workspace search warning:", wsSearchErr);
           }
         }
       }
@@ -152,6 +173,12 @@ export async function POST(req: NextRequest) {
         joinedAt: new Date().toISOString(),
       });
     }
+
+    // Persist defaultWorkspaceId on user doc so future queries are instant
+    await adminDb.doc(col.user(uid)).set({
+      defaultWorkspaceId: activeWorkspaceId,
+      role,
+    }, { merge: true });
 
     // 4. Verify workspace subscription status
     const finalWsDoc = await adminDb.doc(col.workspace(activeWorkspaceId)).get();

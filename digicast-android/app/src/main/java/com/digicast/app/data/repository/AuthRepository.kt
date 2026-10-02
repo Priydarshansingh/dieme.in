@@ -273,21 +273,40 @@ class AuthRepository @Inject constructor(
                     signOut()
                     return@withContext Result.failure(Exception("Subscription Expired: Workspace subscription or trial has ended. Mobile app access suspended."))
                 }
+                if (response.code == 401) {
+                    _authState.value = AuthState.SignedOut
+                    signOut()
+                    return@withContext Result.failure(Exception("Session expired or password was updated on web. Please sign in again with your app password."))
+                }
                 return@withContext Result.failure(Exception("Sync failed: ${response.code}"))
             }
 
             val json = JSONObject(response.body?.string() ?: "{}")
 
-            // Parse subscription if present in sync response
+            // Update workspace and subscription if present in sync response
+            val wsObj = json.optJSONObject("workspace")
             val subObj = json.optJSONObject("subscription")
-            if (subObj != null) {
-                val current = (_authState.value as? AuthState.SignedIn)?.session
-                if (current != null) {
-                    val updated = current.copy(
-                        subscriptionStatus = subObj.optString("status", current.subscriptionStatus),
-                        plan = subObj.optString("plan", current.plan),
-                        daysRemaining = subObj.optInt("daysRemaining", current.daysRemaining)
+            val current = (_authState.value as? AuthState.SignedIn)?.session
+            if (current != null) {
+                var updated = current
+                if (wsObj != null) {
+                    val realWid = wsObj.optString("id", "")
+                    val realWname = wsObj.optString("name", "")
+                    if (realWid.isNotBlank() && realWid != current.workspaceId) {
+                        updated = updated.copy(
+                            workspaceId = realWid,
+                            workspaceName = if (realWname.isNotBlank()) realWname else updated.workspaceName
+                        )
+                    }
+                }
+                if (subObj != null) {
+                    updated = updated.copy(
+                        subscriptionStatus = subObj.optString("status", updated.subscriptionStatus),
+                        plan = subObj.optString("plan", updated.plan),
+                        daysRemaining = subObj.optInt("daysRemaining", updated.daysRemaining)
                     )
+                }
+                if (updated != current) {
                     _authState.value = AuthState.SignedIn(updated)
                     saveRealSession(updated)
                 }

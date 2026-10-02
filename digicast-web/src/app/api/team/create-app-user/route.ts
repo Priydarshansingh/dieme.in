@@ -72,15 +72,27 @@ export async function POST(req: NextRequest) {
       role: role || "editor",
       telegramUpload: false,
       joinedAt: new Date().toISOString(),
-    });
+    }, { merge: true });
 
-    // 3. Add to root users collection
+    // 3. Add to root users collection with defaultWorkspaceId
     await adminDb.doc(col.user(newUid)).set({
       uid: newUid,
       email: email.trim().toLowerCase(),
       displayName: displayName || "App User",
       createdAt: new Date().toISOString(),
+      defaultWorkspaceId: workspaceId,
+      role: role || "editor",
     }, { merge: true });
+
+    // 4. Set custom claims so ID tokens carry workspaceId & role
+    try {
+      await adminAuth.setCustomUserClaims(newUid, {
+        workspaceId,
+        role: role || "editor",
+      });
+    } catch (claimErr) {
+      console.warn("[create-app-user] claim setting warning:", claimErr);
+    }
 
     return NextResponse.json({ message: "App user created successfully", uid: newUid });
   } catch (err: any) {

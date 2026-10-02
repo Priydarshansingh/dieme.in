@@ -1,5 +1,6 @@
 package com.digicast.app.ui.screens.onboarding
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.digicast.app.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CloudSync
@@ -103,10 +107,23 @@ fun OnboardingScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Logo
-            DigicastLogo(size = 72, showLiveText = false)
+            // Logo mark & brand text graphic
+            Image(
+                painter = painterResource(id = R.drawable.logo_round),
+                contentDescription = "Digicast Studio",
+                modifier = Modifier.size(76.dp)
+            )
+
+            Image(
+                painter = painterResource(id = R.drawable.logo_text),
+                contentDescription = "DIGICAST Live",
+                modifier = Modifier
+                    .height(46.dp)
+                    .fillMaxWidth(0.65f),
+                contentScale = ContentScale.Fit
+            )
 
             // Sign-In Card — email and password
             Card(

@@ -38,19 +38,30 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // ── Authorization ───────────────────────────────────────────────────────
-    // Resolve the real workspace first, then confirm the caller is a member of
-    // it. Without this, any authenticated user could read any workspace's data
-    // just by guessing its ID.
-    const requestedWsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
+    // ── Authorization & Workspace Resolution ──────────────────────────────────
     let actualWorkspaceId = workspaceId;
 
+    // Check user profile for their canonical workspace
+    try {
+      const userDoc = await adminDb.doc(col.user(caller.uid)).get();
+      const userDefaultWid = userDoc.data()?.defaultWorkspaceId;
+      if (userDefaultWid) {
+        const preferredWs = await adminDb.doc(col.workspace(userDefaultWid)).get();
+        if (preferredWs.exists) {
+          actualWorkspaceId = userDefaultWid;
+        }
+      }
+    } catch (e) {
+      console.warn("[mobile/sync] User profile check warning:", e);
+    }
+
+    const requestedWsDoc = await adminDb.doc(col.workspace(actualWorkspaceId)).get();
+
     if (!requestedWsDoc.exists) {
-      // Allow lookup by ownerUid (the app may send an owner UID instead of the
-      // workspace doc ID for freshly-provisioned workspaces).
+      // Allow lookup by ownerUid
       const ownedSnap = await adminDb
         .collection(col.workspaces())
-        .where("ownerUid", "==", workspaceId)
+        .where("ownerUid", "==", actualWorkspaceId)
         .limit(1)
         .get();
 
@@ -60,34 +71,42 @@ export async function GET(req: NextRequest) {
       actualWorkspaceId = ownedSnap.docs[0].id;
     }
 
-    // Caller must be a member of the resolved workspace.
-    const membership = await adminDb
-      .doc(col.member(actualWorkspaceId, caller.uid))
-      .get();
-
-    if (!membership.exists) {
-      const isOwner = await adminDb
-        .collection(col.workspaces())
-        .where("ownerUid", "==", caller.uid)
-        .limit(1)
-        .get();
-
-      const ownsThisWorkspace =
-        !isOwner.empty && isOwner.docs[0].id === actualWorkspaceId;
-
-      if (!ownsThisWorkspace) {
-        return NextResponse.json(
-          { error: "You do not have access to this workspace." },
-          { status: 403 }
-        );
-      }
-    }
-
-    // Re-read the canonical workspace doc for metadata.
+    // Verify caller has access to actualWorkspaceId
     const wsDoc = await adminDb.doc(col.workspace(actualWorkspaceId)).get();
-    let wsData: any = wsDoc.exists
+    const wsData: any = wsDoc.exists
       ? wsDoc.data()
       : { name: "Creator Studio", ownerUid: actualWorkspaceId, subscription: "free_trial" };
+
+    const isOwner = wsData.ownerUid === caller.uid || wsData.ownerId === caller.uid;
+
+    if (!isOwner) {
+      const membership = await adminDb
+        .doc(col.member(actualWorkspaceId, caller.uid))
+        .get();
+
+      if (!membership.exists) {
+        // Check if member exists by email
+        const memberByEmail = await adminDb
+          .collection(col.members(actualWorkspaceId))
+          .where("email", "==", caller.email.toLowerCase())
+          .limit(1)
+          .get();
+
+        if (!memberByEmail.empty) {
+          // Link member document to caller.uid
+          await adminDb.doc(col.member(actualWorkspaceId, caller.uid)).set({
+            ...memberByEmail.docs[0].data(),
+            uid: caller.uid,
+            updatedAt: new Date().toISOString(),
+          }, { merge: true });
+        } else {
+          return NextResponse.json(
+            { error: "You do not have access to this workspace." },
+            { status: 403 }
+          );
+        }
+      }
+    }
 
     // 2. Fetch active or latest stream for this workspace
     let activeStream: any = null;

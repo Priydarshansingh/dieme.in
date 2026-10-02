@@ -51,6 +51,22 @@ export async function POST(req: NextRequest) {
       password: password,
     });
 
+    // Make sure user document has defaultWorkspaceId set to this workspace
+    await adminDb.doc(col.user(decodedToken.uid)).set({
+      defaultWorkspaceId: workspaceId,
+      role: "owner",
+    }, { merge: true });
+
+    // Set custom claims so ID tokens carry workspaceId and owner role
+    try {
+      await adminAuth.setCustomUserClaims(decodedToken.uid, {
+        workspaceId,
+        role: "owner",
+      });
+    } catch (claimErr) {
+      console.warn("[set-owner-app-password] claim setting warning:", claimErr);
+    }
+
     return NextResponse.json({
       success: true,
       message: "Owner App Password successfully updated. You can now use your email and this password to log into the Digicast Android app."

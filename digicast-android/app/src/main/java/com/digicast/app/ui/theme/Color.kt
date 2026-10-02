@@ -19,3 +19,14 @@ val DigicastEmerald = Color(0xFF22C55E)
 val DigicastAmber = Color(0xFFF59E0B)
 val DigicastAccentBlue = Color(0xFF22D3EE)
 val DigicastCardSurface = Color(0xFF151925)
+
+// ── UI Reference Design System (Vibrant Neon & Matte Dark) ─────────────
+val DigicastNeonLime = Color(0xFFD6F830)
+val DigicastSpringGreen = Color(0xFF56F16A)
+val DigicastSunsetCoral = Color(0xFFFF725C)
+val DigicastElectricCyan = Color(0xFF35D6DA)
+val DigicastMintGlow = Color(0xFF81F7D8)
+val DigicastDarkText = Color(0xFF0E1015)
+val DigicastChipBackground = Color(0xFF161922)
+val DigicastSearchBackground = Color(0xFF141720)
+

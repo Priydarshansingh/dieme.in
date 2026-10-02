@@ -25,14 +25,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- OAuth Deep Link Handler for Google / YouTube sign in -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="digicast" />
-            </intent-filter>
-
             <!-- Register Digicast as the exclusive handler for .dcast extension files -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

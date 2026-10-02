@@ -30,7 +30,10 @@ data class UserSession(
     val workspaceId: String,
     val workspaceName: String,
     val role: String,
-    val token: String
+    val token: String,
+    val subscriptionStatus: String = "trial",
+    val plan: String = "free_trial",
+    val daysRemaining: Int = 14
 )
 
 data class YouTubeAccountInfo(
@@ -63,6 +66,9 @@ class AuthRepository @Inject constructor(
         private const val KEY_WORKSPACE_NAME = "auth_workspace_name"
         private const val KEY_ROLE = "auth_role"
         private const val KEY_TOKEN = "auth_token"
+        private const val KEY_SUB_STATUS = "auth_sub_status"
+        private const val KEY_SUB_PLAN = "auth_sub_plan"
+        private const val KEY_SUB_DAYS = "auth_sub_days"
         private const val KEY_SIGNED_OUT = "auth_signed_out_explicitly"
         private const val KEY_IS_DEMO = "auth_is_demo"
 
@@ -78,7 +84,10 @@ class AuthRepository @Inject constructor(
             workspaceId = "demo-workspace",
             workspaceName = "Demo Studio",
             role = "owner",
-            token = "demo-token"
+            token = "demo-token",
+            subscriptionStatus = "trial",
+            plan = "free_trial",
+            daysRemaining = 14
         )
     }
 
@@ -119,7 +128,10 @@ class AuthRepository @Inject constructor(
                     workspaceId = prefs.getString(KEY_WORKSPACE_ID, uid) ?: uid,
                     workspaceName = prefs.getString(KEY_WORKSPACE_NAME, "Studio") ?: "Studio",
                     role = prefs.getString(KEY_ROLE, "owner") ?: "owner",
-                    token = token
+                    token = token,
+                    subscriptionStatus = prefs.getString(KEY_SUB_STATUS, "trial") ?: "trial",
+                    plan = prefs.getString(KEY_SUB_PLAN, "free_trial") ?: "free_trial",
+                    daysRemaining = prefs.getInt(KEY_SUB_DAYS, 14)
                 )
                 _authState.value = AuthState.SignedIn(session)
                 scope.launch { syncWorkspaceData() }
@@ -161,14 +173,20 @@ class AuthRepository @Inject constructor(
             val responseBody = response.body?.string() ?: "{}"
 
             if (!response.isSuccessful) {
-                val errMsg = runCatching {
-                    JSONObject(responseBody).optString("error", "Server error ${response.code}")
-                }.getOrDefault("Server error ${response.code}")
-                return@withContext Result.failure(Exception(errMsg))
+                val parsed = runCatching { JSONObject(responseBody) }.getOrNull()
+                val isExpired = parsed?.optBoolean("isExpired", false) == true || response.code == 403
+                val rawErr = parsed?.optString("error", "Server error ${response.code}") ?: "Server error ${response.code}"
+                val finalMsg = if (isExpired && (rawErr.contains("expired", ignoreCase = true) || rawErr.contains("trial", ignoreCase = true) || rawErr.contains("subscription", ignoreCase = true))) {
+                    "Subscription Expired: $rawErr"
+                } else {
+                    rawErr
+                }
+                return@withContext Result.failure(Exception(finalMsg))
             }
 
             val json = JSONObject(responseBody)
             val s = json.getJSONObject("session")
+            val subObj = s.optJSONObject("subscription")
 
             val session = UserSession(
                 uid = s.getString("uid"),
@@ -178,7 +196,10 @@ class AuthRepository @Inject constructor(
                 workspaceId = s.optString("workspaceId", ""),
                 workspaceName = s.optString("workspaceName", "Studio"),
                 role = s.optString("role", "owner"),
-                token = s.getString("token")
+                token = s.getString("token"),
+                subscriptionStatus = subObj?.optString("status", "trial") ?: "trial",
+                plan = subObj?.optString("plan", "free_trial") ?: "free_trial",
+                daysRemaining = subObj?.optInt("daysRemaining", 14) ?: 14
             )
 
             saveRealSession(session)
@@ -190,7 +211,8 @@ class AuthRepository @Inject constructor(
             Result.success(session)
         } catch (e: Exception) {
             e.printStackTrace()
-            Result.failure(Exception("Could not connect to server. Check your internet connection."))
+            val msg = e.message ?: "Could not connect to server. Check your internet connection."
+            Result.failure(Exception(msg))
         }
     }
 
@@ -244,10 +266,32 @@ class AuthRepository @Inject constructor(
             val response = okHttpClient.newCall(request).execute()
             if (!response.isSuccessful) {
                 _isSyncing.value = false
+                val respBody = response.body?.string() ?: "{}"
+                val isExpired = runCatching { JSONObject(respBody).optBoolean("isExpired", false) }.getOrDefault(false)
+                if (response.code == 403 || isExpired) {
+                    _authState.value = AuthState.SignedOut
+                    signOut()
+                    return@withContext Result.failure(Exception("Subscription Expired: Workspace subscription or trial has ended. Mobile app access suspended."))
+                }
                 return@withContext Result.failure(Exception("Sync failed: ${response.code}"))
             }
 
             val json = JSONObject(response.body?.string() ?: "{}")
+
+            // Parse subscription if present in sync response
+            val subObj = json.optJSONObject("subscription")
+            if (subObj != null) {
+                val current = (_authState.value as? AuthState.SignedIn)?.session
+                if (current != null) {
+                    val updated = current.copy(
+                        subscriptionStatus = subObj.optString("status", current.subscriptionStatus),
+                        plan = subObj.optString("plan", current.plan),
+                        daysRemaining = subObj.optInt("daysRemaining", current.daysRemaining)
+                    )
+                    _authState.value = AuthState.SignedIn(updated)
+                    saveRealSession(updated)
+                }
+            }
 
             // 0. Extract connected YouTube channel info
             val ytObj = json.optJSONObject("youtubeAccount")
@@ -370,6 +414,9 @@ class AuthRepository @Inject constructor(
             .putString(KEY_WORKSPACE_NAME, session.workspaceName)
             .putString(KEY_ROLE, session.role)
             .putString(KEY_TOKEN, session.token)
+            .putString(KEY_SUB_STATUS, session.subscriptionStatus)
+            .putString(KEY_SUB_PLAN, session.plan)
+            .putInt(KEY_SUB_DAYS, session.daysRemaining)
             .apply()
     }
 

@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { col } from "@/lib/firestore/collections";
+import { computeWorkspaceSubscription } from "@/lib/subscription";
 
 async function verifyAuth(req: NextRequest): Promise<{ uid: string; email: string } | null> {
   const authHeader = req.headers.get("Authorization");
@@ -14,7 +15,6 @@ async function verifyAuth(req: NextRequest): Promise<{ uid: string; email: strin
     const decoded = await adminAuth.verifyIdToken(token);
     return { uid: decoded.uid, email: decoded.email || "" };
   } catch {
-    // If client sent custom token, try checking UID header for development/sandbox
     return null;
   }
 }
@@ -22,39 +22,72 @@ async function verifyAuth(req: NextRequest): Promise<{ uid: string; email: strin
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const workspaceId = searchParams.get("workspaceId");
-  const uidHeader = req.headers.get("x-user-uid");
-  const emailHeader = req.headers.get("x-user-email");
 
   if (!workspaceId) {
     return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
   }
 
+  // ── Authentication ────────────────────────────────────────────────────────
+  // The token must be a Firebase ID token. A custom token will NOT verify here.
+  const caller = await verifyAuth(req);
+  if (!caller) {
+    return NextResponse.json(
+      { error: "Not authenticated. Please sign in again." },
+      { status: 401 }
+    );
+  }
+
   try {
-    // 1. Verify workspace exists (by ID or ownerUid)
-    let wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
-    let wsData = wsDoc.exists ? wsDoc.data() : null;
+    // ── Authorization ───────────────────────────────────────────────────────
+    // Resolve the real workspace first, then confirm the caller is a member of
+    // it. Without this, any authenticated user could read any workspace's data
+    // just by guessing its ID.
+    const requestedWsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
     let actualWorkspaceId = workspaceId;
 
-    if (!wsDoc.exists) {
+    if (!requestedWsDoc.exists) {
+      // Allow lookup by ownerUid (the app may send an owner UID instead of the
+      // workspace doc ID for freshly-provisioned workspaces).
       const ownedSnap = await adminDb
         .collection(col.workspaces())
         .where("ownerUid", "==", workspaceId)
         .limit(1)
         .get();
 
-      if (!ownedSnap.empty) {
-        wsDoc = ownedSnap.docs[0];
-        wsData = wsDoc.data();
-        actualWorkspaceId = wsDoc.id;
-      } else {
-        // Fallback for demo or freshly initiated workspace
-        wsData = {
-          name: "Creator Studio",
-          ownerUid: workspaceId,
-          subscription: "free_trial",
-        };
+      if (ownedSnap.empty) {
+        return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+      }
+      actualWorkspaceId = ownedSnap.docs[0].id;
+    }
+
+    // Caller must be a member of the resolved workspace.
+    const membership = await adminDb
+      .doc(col.member(actualWorkspaceId, caller.uid))
+      .get();
+
+    if (!membership.exists) {
+      const isOwner = await adminDb
+        .collection(col.workspaces())
+        .where("ownerUid", "==", caller.uid)
+        .limit(1)
+        .get();
+
+      const ownsThisWorkspace =
+        !isOwner.empty && isOwner.docs[0].id === actualWorkspaceId;
+
+      if (!ownsThisWorkspace) {
+        return NextResponse.json(
+          { error: "You do not have access to this workspace." },
+          { status: 403 }
+        );
       }
     }
+
+    // Re-read the canonical workspace doc for metadata.
+    const wsDoc = await adminDb.doc(col.workspace(actualWorkspaceId)).get();
+    let wsData: any = wsDoc.exists
+      ? wsDoc.data()
+      : { name: "Creator Studio", ownerUid: actualWorkspaceId, subscription: "free_trial" };
 
     // 2. Fetch active or latest stream for this workspace
     let activeStream: any = null;
@@ -125,6 +158,15 @@ export async function GET(req: NextRequest) {
       console.warn("[mobile/sync] YouTube account fetch warning:", ytErr);
     }
 
+    const subscription = computeWorkspaceSubscription(wsData);
+    if (subscription.isExpired) {
+      return NextResponse.json({
+        error: "Your workspace trial or subscription has expired. Please renew your plan on the web dashboard to continue using the app.",
+        isExpired: true,
+        subscription,
+      }, { status: 403 });
+    }
+
     return NextResponse.json({
       workspace: {
         id: actualWorkspaceId,
@@ -132,6 +174,7 @@ export async function GET(req: NextRequest) {
         ownerId: wsData?.ownerUid || wsData?.ownerId || workspaceId,
         subscription: wsData?.subscription || "free_trial",
       },
+      subscription,
       youtubeAccount,
       activeStream,
       streams,

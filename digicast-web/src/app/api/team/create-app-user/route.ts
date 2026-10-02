@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { col } from "@/lib/firestore/collections";
+import { computeWorkspaceSubscription } from "@/lib/subscription";
 
 // POST /api/team/create-app-user
 // Protected endpoint for Workspace Owners to create a new App User (with Email/Password)
@@ -30,8 +31,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Only workspace owners can create App users" }, { status: 403 });
     }
 
-    // 1. Create the user in Firebase Auth with the Password
-    let newUid;
+    // Verify workspace subscription is not expired
+    const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
+    const wsData = wsDoc.exists ? wsDoc.data() : null;
+    const sub = computeWorkspaceSubscription(wsData);
+    if (sub.isExpired) {
+      return NextResponse.json({
+        error: "Your workspace subscription or trial has expired. Please renew your monthly subscription on the web dashboard to manage app credentials.",
+        isExpired: true,
+      }, { status: 403 });
+    }
+
+    // 1. Create or update user in Firebase Auth with the Password
+    let newUid: string;
     try {
       const userRecord = await adminAuth.createUser({
         email: email.trim().toLowerCase(),
@@ -40,11 +52,14 @@ export async function POST(req: NextRequest) {
       });
       newUid = userRecord.uid;
     } catch (firebaseErr: any) {
-      // If email already exists, Firebase throws "email-already-exists"
+      // If email already exists, update their password so owner can renew/reset credentials
       if (firebaseErr.code === "auth/email-already-exists") {
-        return NextResponse.json({ error: "A user with this email already exists." }, { status: 400 });
+        const existing = await adminAuth.getUserByEmail(email.trim().toLowerCase());
+        await adminAuth.updateUser(existing.uid, { password: password });
+        newUid = existing.uid;
+      } else {
+        throw firebaseErr;
       }
-      throw firebaseErr;
     }
 
     // 2. Add them as a member to the workspace

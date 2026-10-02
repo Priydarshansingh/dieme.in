@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { KeyRound, Mail, Shield, Trash2, Users, Eye, EyeOff } from 'lucide-react';
+import { KeyRound, Mail, Shield, Trash2, Users, Eye, EyeOff, AlertTriangle, Smartphone, RefreshCw, CheckCircle2, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface Member {
@@ -38,7 +38,24 @@ export default function TeamPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [createSuccess, setCreateSuccess] = useState(false);
+  const [createSuccess, setCreateSuccess] = useState<string | null>(null);
+
+  // Owner App Password State
+  const [ownerPassword, setOwnerPassword] = useState('');
+  const [showOwnerPassword, setShowOwnerPassword] = useState(false);
+  const [isSavingOwnerPassword, setIsSavingOwnerPassword] = useState(false);
+  const [ownerPasswordSuccess, setOwnerPasswordSuccess] = useState<string | null>(null);
+  const [ownerPasswordError, setOwnerPasswordError] = useState<string | null>(null);
+
+  // Subscription State
+  const [subscription, setSubscription] = useState<{
+    status: 'trial' | 'active' | 'expired';
+    plan: 'free_trial' | 'pro';
+    trialEndsAt: string | null;
+    subscriptionExpiresAt: string | null;
+    daysRemaining: number;
+    isExpired: boolean;
+  } | null>(null);
 
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
@@ -47,12 +64,28 @@ export default function TeamPage() {
     loadMembers();
   }, [user]);
 
+  async function loadSubscription(wid: string) {
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/workspaces/subscription?workspaceId=${wid}`, {
+        headers: { Authorization: `Bearer ${idToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubscription(data.subscription);
+      }
+    } catch (err) {
+      console.error('Subscription load error:', err);
+    }
+  }
+
   async function loadMembers() {
     try {
       const userSnap = await getDoc(doc(db, 'users', user!.uid));
       if (!userSnap.exists()) return;
       const wid: string = userSnap.data().defaultWorkspaceId;
       setWorkspaceId(wid);
+      loadSubscription(wid);
       const snap = await getDocs(collection(db, 'workspaces', wid, 'members'));
       setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as Member)));
     } catch (err) {
@@ -62,6 +95,45 @@ export default function TeamPage() {
     }
   }
 
+  const handleSetOwnerPassword = async () => {
+    if (!ownerPassword || !workspaceId) {
+      setOwnerPasswordError('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsSavingOwnerPassword(true);
+    setOwnerPasswordError(null);
+    setOwnerPasswordSuccess(null);
+
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/team/set-owner-app-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          workspaceId,
+          password: ownerPassword
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to set app password');
+      }
+
+      setOwnerPasswordSuccess('Your mobile app login password has been saved! You can now log into the mobile app with your email and this password.');
+      setOwnerPassword('');
+      setTimeout(() => setOwnerPasswordSuccess(null), 5000);
+    } catch (err: any) {
+      setOwnerPasswordError(err.message);
+    } finally {
+      setIsSavingOwnerPassword(false);
+    }
+  };
+
   const handleCreateAppUser = async () => {
     if (!inviteEmail || !invitePassword || !workspaceId) {
       setCreateError('Email and Password are required');
@@ -70,7 +142,7 @@ export default function TeamPage() {
 
     setIsCreating(true);
     setCreateError(null);
-    setCreateSuccess(false);
+    setCreateSuccess(null);
 
     try {
       const idToken = await auth.currentUser?.getIdToken();
@@ -95,12 +167,12 @@ export default function TeamPage() {
         throw new Error(data.error || 'Failed to create app user');
       }
 
-      setCreateSuccess(true);
+      setCreateSuccess(data.isExisting ? 'Editor app password updated successfully!' : 'Editor app user created successfully!');
       setInviteEmail('');
       setInvitePassword('');
       loadMembers(); // Refresh list
 
-      setTimeout(() => setCreateSuccess(false), 3000);
+      setTimeout(() => setCreateSuccess(null), 5000);
     } catch (err: any) {
       setCreateError(err.message);
     } finally {
@@ -120,14 +192,159 @@ export default function TeamPage() {
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div>
-        <h1 style={{ color: '#1B2237' }}>Team & App Access</h1>
-        <p className="text-sm mt-0.5" style={{ color: '#9CA3AF' }}>
-          Create app accounts for your editors to connect to your live streams on their device.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 style={{ color: '#1B2237' }}>Team & App Access</h1>
+          <p className="text-sm mt-0.5" style={{ color: '#9CA3AF' }}>
+            Generate ID & passwords for the mobile app for yourself and your team.
+          </p>
+        </div>
+
+        {subscription && (
+          <div>
+            {subscription.isExpired ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">
+                <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+                Subscription Expired
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border"
+                style={{
+                  backgroundColor: subscription.status === 'trial' ? '#EFF6FF' : '#ECFDF5',
+                  borderColor: subscription.status === 'trial' ? '#BFDBFE' : '#A7F3D0',
+                  color: subscription.status === 'trial' ? '#1D4ED8' : '#047857',
+                }}
+              >
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: subscription.status === 'trial' ? '#3B82F6' : '#10B981' }}
+                />
+                {subscription.plan === 'pro'
+                  ? `Pro Monthly (${subscription.daysRemaining}d left)`
+                  : `Free Trial (${subscription.daysRemaining}d left)`}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Invite card — only owners can invite */}
+      {/* Subscription Expired Warning Banner */}
+      {subscription?.isExpired && (
+        <div className="rounded-2xl p-5 border border-red-200 bg-red-50 text-red-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-bold text-sm text-red-900">Workspace Subscription Expired</h3>
+              <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                Your workspace trial or subscription has expired. All mobile app logins (creator and editors) are suspended until renewed. Renew your subscription in Settings to restore mobile app access and generate new passwords.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/settings')}
+            className="px-4 py-2.5 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shrink-0 transition shadow-sm"
+          >
+            Renew in Settings &rarr;
+          </button>
+        </div>
+      )}
+
+      {/* Creator / Owner Mobile App Login Card */}
+      {currentUserIsOwner && (
+        <div
+          className="rounded-2xl p-6 space-y-4"
+          style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB' }}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Smartphone className="w-4 h-4" style={{ color: '#7C3AED' }} />
+                <h2 style={{ color: '#1B2237' }}>My Mobile App Login (Creator)</h2>
+              </div>
+              <p className="text-sm" style={{ color: '#9CA3AF' }}>
+                Set your mobile app password to log in directly into the Digicast mobile app with your email.
+              </p>
+            </div>
+            <span
+              className="text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0"
+              style={{ color: '#7C3AED', backgroundColor: 'rgba(124,58,237,0.08)' }}
+            >
+              Workspace Owner
+            </span>
+          </div>
+
+          {ownerPasswordError && (
+            <div className="p-3 text-sm rounded-lg bg-red-50 text-red-600 border border-red-100">
+              {ownerPasswordError}
+            </div>
+          )}
+
+          {ownerPasswordSuccess && (
+            <div className="p-3 text-sm rounded-lg bg-green-50 text-green-700 border border-green-100 font-medium">
+              {ownerPasswordSuccess}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border bg-gray-50 opacity-80"
+              style={{ borderColor: '#E5E7EB' }}
+            >
+              <Mail className="w-4 h-4 shrink-0" style={{ color: '#9CA3AF' }} />
+              <input
+                type="text"
+                readOnly
+                value={user?.email || ''}
+                className="flex-1 text-sm bg-transparent outline-none w-full cursor-not-allowed font-mono text-gray-700"
+                title="Your App User ID (Email)"
+              />
+            </div>
+
+            <div
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-colors focus-within:border-indigo-500"
+              style={{ backgroundColor: '#F4F6F9', borderColor: '#E5E7EB' }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowOwnerPassword(!showOwnerPassword)}
+                className="shrink-0 focus:outline-none"
+              >
+                {showOwnerPassword ? (
+                  <EyeOff className="w-4 h-4" style={{ color: '#9CA3AF' }} />
+                ) : (
+                  <Eye className="w-4 h-4" style={{ color: '#9CA3AF' }} />
+                )}
+              </button>
+              <input
+                type={showOwnerPassword ? "text" : "password"}
+                placeholder="Set / Reset App Password"
+                value={ownerPassword}
+                disabled={Boolean(subscription?.isExpired)}
+                onChange={(e) => setOwnerPassword(e.target.value)}
+                className="flex-1 text-sm bg-transparent outline-none w-full disabled:opacity-50"
+                style={{ color: '#1B2237' }}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs" style={{ color: '#9CA3AF' }}>
+              Your login ID is your email: <code className="font-semibold text-gray-700">{user?.email}</code>
+            </p>
+            <button
+              onClick={handleSetOwnerPassword}
+              disabled={isSavingOwnerPassword || !ownerPassword || Boolean(subscription?.isExpired)}
+              className="px-5 py-2.5 text-sm font-semibold rounded-xl transition disabled:opacity-50 hover:opacity-90 shadow-sm"
+              style={{ backgroundColor: '#7C3AED', color: '#FFFFFF' }}
+            >
+              {isSavingOwnerPassword ? 'Saving...' : 'Save App Password'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Editor App Login Card — only owners can create */}
       {currentUserIsOwner && (
         <div
           className="rounded-2xl p-6 space-y-4"
@@ -136,10 +353,10 @@ export default function TeamPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <KeyRound className="w-4 h-4" style={{ color: '#1B2237' }} />
-              <h2 style={{ color: '#1B2237' }}>Create App Login</h2>
+              <h2 style={{ color: '#1B2237' }}>Add Editor App Login</h2>
             </div>
             <p className="text-sm" style={{ color: '#9CA3AF' }}>
-              Create an ID and Password that an Editor can use to log into the Digicast mobile app. They will be added to this workspace automatically.
+              Generate an ID and Password for an Editor to log into the Digicast mobile app. If the editor already exists, submitting will update their password.
             </p>
           </div>
 
@@ -151,7 +368,7 @@ export default function TeamPage() {
 
           {createSuccess && (
             <div className="p-3 text-sm rounded-lg bg-green-50 text-green-700 border border-green-100 font-medium">
-              App User created successfully! They can now log into the mobile app.
+              {createSuccess}
             </div>
           )}
 
@@ -165,8 +382,9 @@ export default function TeamPage() {
                 type="email"
                 placeholder="editor@example.com"
                 value={inviteEmail}
+                disabled={Boolean(subscription?.isExpired)}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1 text-sm bg-transparent outline-none w-full"
+                className="flex-1 text-sm bg-transparent outline-none w-full disabled:opacity-50"
                 style={{ color: '#1B2237' }}
               />
             </div>
@@ -180,30 +398,37 @@ export default function TeamPage() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="shrink-0 focus:outline-none"
               >
-                {showPassword ?
-                   <EyeOff className="w-4 h-4" style={{ color: '#9CA3AF' }} /> :
-                   <Eye className="w-4 h-4" style={{ color: '#9CA3AF' }} />
-                }
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" style={{ color: '#9CA3AF' }} />
+                ) : (
+                  <Eye className="w-4 h-4" style={{ color: '#9CA3AF' }} />
+                )}
               </button>
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="Secure Password"
+                placeholder="Secure Password (min 6 chars)"
                 value={invitePassword}
+                disabled={Boolean(subscription?.isExpired)}
                 onChange={(e) => setInvitePassword(e.target.value)}
-                className="flex-1 text-sm bg-transparent outline-none w-full"
+                className="flex-1 text-sm bg-transparent outline-none w-full disabled:opacity-50"
                 style={{ color: '#1B2237' }}
               />
             </div>
           </div>
 
-          <button
-            onClick={handleCreateAppUser}
-            disabled={isCreating || !inviteEmail || !invitePassword}
-            className="w-full sm:w-auto px-6 py-2.5 text-sm font-semibold rounded-xl transition disabled:opacity-50"
-            style={{ backgroundColor: '#1B2237', color: '#FFFFFF' }}
-          >
-            {isCreating ? 'Creating...' : 'Create App User'}
-          </button>
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs" style={{ color: '#9CA3AF' }}>
+              Editors will automatically sync live streams and can trigger clips from their mobile device.
+            </p>
+            <button
+              onClick={handleCreateAppUser}
+              disabled={isCreating || !inviteEmail || !invitePassword || Boolean(subscription?.isExpired)}
+              className="w-full sm:w-auto px-6 py-2.5 text-sm font-semibold rounded-xl transition disabled:opacity-50 hover:opacity-90 shadow-sm"
+              style={{ backgroundColor: '#1B2237', color: '#FFFFFF' }}
+            >
+              {isCreating ? 'Saving...' : 'Save Editor Login'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -252,16 +477,21 @@ export default function TeamPage() {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: '#1B2237' }}>
-                      {member.displayName ?? 'Unknown'}
-                    </p>
-                    <p className="text-xs" style={{ color: '#9CA3AF' }}>{member.email}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold truncate" style={{ color: '#1B2237' }}>
+                        {member.displayName ?? 'Unknown'}
+                      </p>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                        App User
+                      </span>
+                    </div>
+                    <p className="text-xs truncate" style={{ color: '#9CA3AF' }}>{member.email}</p>
                   </div>
 
                   {/* Telegram toggle indicator (editor only) */}
                   {member.role === 'editor' && (
                     <div
-                      className="flex items-center gap-1 text-xs font-medium shrink-0"
+                      className="hidden sm:flex items-center gap-1 text-xs font-medium shrink-0"
                       style={{ color: member.telegramUpload ? '#059669' : '#9CA3AF' }}
                     >
                       <Shield className="w-3.5 h-3.5" />
@@ -276,6 +506,20 @@ export default function TeamPage() {
                   >
                     {cfg.label}
                   </span>
+
+                  {/* Quick Reset Password button for Editors */}
+                  {member.role === 'editor' && currentUserIsOwner && (
+                    <button
+                      onClick={() => {
+                        setInviteEmail(member.email || '');
+                        window.scrollTo({ top: 250, behavior: 'smooth' });
+                      }}
+                      className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700 transition"
+                      title="Update app password for this editor"
+                    >
+                      Set Password
+                    </button>
+                  )}
 
                   {/* Remove (not for owner, only owner can remove) */}
                   {member.role !== 'owner' && currentUserIsOwner && (
@@ -299,7 +543,7 @@ export default function TeamPage() {
         className="rounded-xl p-4 text-xs leading-relaxed"
         style={{ backgroundColor: '#F4F6F9', color: '#9CA3AF' }}
       >
-        Editors can only access this workspace. An editor from another workspace cannot see your streams, clips, or team. Telegram upload is <strong style={{ color: '#6B7280' }}>off by default</strong> for all new editors — enable it per-person above.
+        <span className="font-semibold text-gray-700">App Security & Subscription:</span> All creator and editor mobile credentials remain active during your active subscription or free trial. If the subscription expires, credentials automatically expire. When renewed, you can update credentials and app access is immediately restored.
       </div>
     </div>
   );

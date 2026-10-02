@@ -1,10 +1,7 @@
-// POST /api/mobile/login
-// API endpoint for the Digicast Android mobile app to sign in with Email & Password.
-// Bypasses browser OAuth hurdles but maintains full Firebase Auth security.
-
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { col } from "@/lib/firestore/collections";
+import { computeWorkspaceSubscription } from "@/lib/subscription";
 
 export async function POST(req: NextRequest) {
   try {
@@ -156,12 +153,66 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4. Generate custom authentication token for the Android client
-    const customToken = await adminAuth.createCustomToken(uid, {
-      email,
-      displayName,
-      role: role,
+    // 4. Verify workspace subscription status
+    const finalWsDoc = await adminDb.doc(col.workspace(activeWorkspaceId)).get();
+    const finalWsData = finalWsDoc.exists ? finalWsDoc.data() : { plan: "free_trial", createdAt: new Date().toISOString() };
+    const subscription = computeWorkspaceSubscription(finalWsData);
+
+    if (subscription.isExpired) {
+      return NextResponse.json({
+        error: "Your workspace trial or subscription has expired. Please renew your plan on the web dashboard to continue using the app.",
+        isExpired: true,
+        subscription,
+      }, { status: 403 });
+    }
+
+    // 5. Mint an ID token for the Android client.
+    //
+    // The client sends this back as `Authorization: Bearer <token>` and the
+    // server verifies it with adminAuth.verifyIdToken(). A CUSTOM token cannot
+    // be verified that way — verifyIdToken() only accepts ID tokens. The
+    // Identity Toolkit response from step 1 already IS a signed ID token, so we
+    // return a freshly-minted one rather than forcing the app to do a second
+    // client-side round trip through Firebase SDK's signInWithCustomToken().
+    //
+    // Mirror the resolved role into custom claims so token-holders downstream
+    // (and Firestore rules, if enabled) can read it without a workspace lookup.
+    await adminAuth.setCustomUserClaims(uid, {
+      role,
+      workspaceId: activeWorkspaceId,
     });
+
+    // Re-exchange the password credential to obtain an ID token that carries
+    // the claims we just set. (ID tokens are immutable; claims only appear in a
+    // token issued AFTER setCustomUserClaims.)
+    const refreshedAuthRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, returnSecureToken: true }),
+      }
+    );
+
+    if (!refreshedAuthRes.ok) {
+      console.error("[mobile/login] Failed to mint ID token after claims update");
+      return NextResponse.json(
+        { error: "Could not complete sign-in. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    const refreshedAuthData = await refreshedAuthRes.json();
+    const idToken: string | undefined = refreshedAuthData.idToken;
+    const refreshToken: string | undefined = refreshedAuthData.refreshToken;
+
+    if (!idToken) {
+      console.error("[mobile/login] Identity Toolkit returned no idToken");
+      return NextResponse.json(
+        { error: "Could not complete sign-in. Please try again." },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       session: {
@@ -172,7 +223,10 @@ export async function POST(req: NextRequest) {
         workspaceId: activeWorkspaceId,
         workspaceName: activeWorkspaceName,
         role,
-        token: customToken,
+        token: idToken,
+        refreshToken: refreshToken || "",
+        expiresIn: Number(refreshedAuthData.expiresIn) || 3600,
+        subscription,
       },
       message: "Signed in successfully"
     });

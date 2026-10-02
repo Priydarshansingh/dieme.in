@@ -179,12 +179,20 @@ fun HomeScreen(
                                 Text(session.workspaceName, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                 Text("${session.displayName} • ${session.role.uppercase()}", color = DigicastSlate, fontSize = 12.sp)
                             }
-                            Box(
-                                modifier = Modifier
-                                    .background(DigicastNavy, RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text("CONNECTED", color = DigicastAccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                val isTrial = session.subscriptionStatus == "trial" || session.plan == "free_trial"
+                                val subText = if (isTrial) "TRIAL (${session.daysRemaining}D)" else "PRO STUDIO"
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            if (isTrial) DigicastNavy else DigicastAccentBlue.copy(alpha = 0.2f),
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(subText, color = DigicastAccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Text("CONNECTED", color = DigicastSlate, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }

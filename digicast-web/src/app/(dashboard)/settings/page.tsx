@@ -92,6 +92,18 @@ function SettingsContent() {
   const searchParams = useSearchParams();
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [plan, setPlan] = useState<'free_trial' | 'pro'>('free_trial');
+
+  const [subscription, setSubscription] = useState<{
+    status: 'trial' | 'active' | 'expired';
+    plan: 'free_trial' | 'pro';
+    trialEndsAt: string | null;
+    subscriptionExpiresAt: string | null;
+    daysRemaining: number;
+    isExpired: boolean;
+  } | null>(null);
+  const [isRenewing, setIsRenewing] = useState(false);
+  const [renewSuccess, setRenewSuccess] = useState<string | null>(null);
+  const [renewError, setRenewError] = useState<string | null>(null);
   
   const [connectedChannel, setConnectedChannel] = useState<ConnectedChannel | null>(null);
   const [isConnectingYoutube, setIsConnectingYoutube] = useState(false);
@@ -142,6 +154,8 @@ function SettingsContent() {
         if (wsData.telegramChatId) setTelegramChatId(wsData.telegramChatId);
       }
 
+      loadSubscription(wid);
+
       // Realtime listener on connected YouTube channels
       const unsub = onSnapshot(collection(db, 'workspaces', wid, 'youtube'), (snap) => {
         if (!snap.empty) {
@@ -156,6 +170,57 @@ function SettingsContent() {
     }
     load();
   }, [user]);
+
+  async function loadSubscription(wid: string) {
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch(`/api/workspaces/subscription?workspaceId=${wid}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubscription(data.subscription);
+      }
+    } catch (err) {
+      console.error('Failed to load subscription:', err);
+    }
+  }
+
+  const handleRenewMonthly = async () => {
+    if (!workspaceId) return;
+    setIsRenewing(true);
+    setRenewError(null);
+    setRenewSuccess(null);
+
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch('/api/workspaces/subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          workspaceId,
+          action: 'renew_monthly',
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to renew subscription');
+      }
+
+      setSubscription(data.subscription);
+      setPlan('pro');
+      setRenewSuccess('🎉 Pro Monthly subscription activated successfully! 30 days added. All mobile app credentials are active.');
+      setTimeout(() => setRenewSuccess(null), 6000);
+    } catch (err: any) {
+      setRenewError(err.message);
+    } finally {
+      setIsRenewing(false);
+    }
+  };
 
   const handleConnectYoutube = async () => {
     if (!user || !workspaceId) return;
@@ -476,31 +541,97 @@ function SettingsContent() {
       {/* Subscription */}
       <SettingsCard
         icon={CreditCard}
-        title="Subscription"
-        description="Your current plan and billing."
+        title="Subscription & App Access"
+        description="Manage your workspace monthly plan and mobile app access credentials."
       >
-        <div
-          className="flex items-center justify-between px-4 py-4 rounded-xl"
-          style={{ backgroundColor: '#F4F6F9', border: '1px solid #E5E7EB' }}
-        >
-          <div>
-            <p className="text-sm font-bold" style={{ color: '#1B2237' }}>
-              {plan === 'free_trial' ? 'Free Trial' : 'Pro'}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>
-              {plan === 'free_trial'
-                ? '14-day free trial — no credit card required'
-                : 'Full access. Billed monthly.'}
-            </p>
-          </div>
-          {plan === 'free_trial' && (
-            <button
-              className="flex items-center gap-1 px-4 py-2 text-sm font-semibold rounded-xl transition hover:opacity-90"
-              style={{ backgroundColor: '#1B2237', color: '#FFFFFF' }}
-            >
-              Upgrade <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+        <div className="space-y-4">
+          {renewError && (
+            <div className="p-3 text-xs rounded-xl bg-red-50 text-red-700 border border-red-200">
+              {renewError}
+            </div>
           )}
+
+          {renewSuccess && (
+            <div className="p-3 text-xs rounded-xl bg-green-50 text-green-700 border border-green-200 font-medium">
+              {renewSuccess}
+            </div>
+          )}
+
+          <div
+            className={`p-5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+              subscription?.isExpired ? 'bg-red-50 border-red-200' : 'bg-[#F4F6F9] border-[#E5E7EB]'
+            }`}
+          >
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-base font-bold" style={{ color: subscription?.isExpired ? '#991B1B' : '#1B2237' }}>
+                  {subscription?.plan === 'pro' ? 'Pro Studio Monthly' : '14-Day Free Trial'}
+                </p>
+                <span
+                  className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
+                    subscription?.isExpired
+                      ? 'bg-red-200 text-red-800'
+                      : subscription?.status === 'trial'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-green-100 text-green-700'
+                  }`}
+                >
+                  {subscription?.isExpired
+                    ? 'Expired'
+                    : subscription?.status === 'trial'
+                    ? `${subscription?.daysRemaining} days left`
+                    : 'Active'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500">
+                {subscription?.isExpired
+                  ? 'Your subscription expired. All mobile app credentials have been disabled.'
+                  : subscription?.plan === 'pro'
+                  ? `Renews on: ${subscription?.subscriptionExpiresAt ? new Date(subscription.subscriptionExpiresAt).toLocaleDateString() : 'Active'} (${subscription?.daysRemaining} days remaining)`
+                  : `Trial ends on: ${subscription?.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString() : 'In 14 days'}`}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRenewMonthly}
+                disabled={isRenewing || !workspaceId}
+                className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl transition hover:opacity-90 disabled:opacity-50 text-white shadow-sm"
+                style={{ backgroundColor: subscription?.isExpired ? '#DC2626' : '#1B2237' }}
+              >
+                {isRenewing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    {subscription?.isExpired
+                      ? 'Reactivate Pro Monthly ($29/mo)'
+                      : subscription?.plan === 'pro'
+                      ? 'Renew Monthly ($29/mo)'
+                      : 'Upgrade to Pro Monthly ($29/mo)'}
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600">
+            <div className="p-3 bg-white border border-gray-200 rounded-xl">
+              <p className="font-semibold text-gray-800 mb-1">📱 Mobile App Sync</p>
+              <p className="text-gray-500">Full access for Creator & Editor app passwords to clip live streams.</p>
+            </div>
+            <div className="p-3 bg-white border border-gray-200 rounded-xl">
+              <p className="font-semibold text-gray-800 mb-1">⚡ Cloud Processing</p>
+              <p className="text-gray-500">Fast 1080p clip renders with cloud storage and auto-captioning.</p>
+            </div>
+            <div className="p-3 bg-white border border-gray-200 rounded-xl">
+              <p className="font-semibold text-gray-800 mb-1">✈️ Telegram Delivery</p>
+              <p className="text-gray-500">Instant automatic bot forwarding straight to editor chat groups.</p>
+            </div>
+          </div>
         </div>
       </SettingsCard>
     </div>

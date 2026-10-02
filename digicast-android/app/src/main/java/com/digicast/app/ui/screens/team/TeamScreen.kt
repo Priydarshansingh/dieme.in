@@ -157,7 +157,7 @@ fun TeamScreen(
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Not Connected to Cloud Workspace", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             Text(
-                                "Sign in with Google in Settings or Onboarding to link this device with your Creator/Editor team workspace.",
+                                "Sign in from Settings or Onboarding to link this device with your Creator/Editor team workspace.",
                                 color = DigicastSlate,
                                 fontSize = 13.sp
                             )
@@ -178,7 +178,7 @@ fun TeamScreen(
                         Text("Zero-Trust Architecture", color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                     Text(
-                        "All workspace data is bound to your verified Google Auth UID and encrypted at rest. Editors never receive sensitive API keys on device.",
+                        "All workspace data is bound to your backend session and encrypted at rest. Editors never receive sensitive API keys on device.",
                         color = DigicastSlate,
                         fontSize = 12.sp,
                         lineHeight = 16.sp

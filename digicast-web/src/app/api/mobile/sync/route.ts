@@ -148,6 +148,10 @@ export async function GET(req: NextRequest) {
           id: doc.id,
           ...d,
           thumbnailUrl,
+          concurrentViewers: Number(d.concurrentViewers) || 0,
+          viewCount: Number(d.viewCount) || 0,
+          likeCount: Number(d.likeCount) || 0,
+          commentCount: Number(d.commentCount) || 0,
           startedAtMs,
         };
       });

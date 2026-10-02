@@ -15,7 +15,7 @@ import com.digicast.app.data.local.entity.SyncQueueEntity
         ClipMarkerEntity::class,
         SyncQueueEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class DigicastDatabase : RoomDatabase() {

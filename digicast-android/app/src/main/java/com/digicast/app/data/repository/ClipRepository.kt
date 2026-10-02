@@ -15,6 +15,8 @@ class ClipRepository @Inject constructor(
 
     fun getAllClips(): Flow<List<ClipMarkerEntity>> = dao.getAllClipMarkers()
 
+    suspend fun getClipById(id: String): ClipMarkerEntity? = dao.getClipMarkerById(id)
+
     suspend fun getPending(): List<ClipMarkerEntity> = dao.getPendingClipMarkers()
 
     suspend fun updateStatus(id: String, status: String) =

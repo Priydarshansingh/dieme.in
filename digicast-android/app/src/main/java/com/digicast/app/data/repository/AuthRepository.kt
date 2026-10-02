@@ -357,8 +357,12 @@ class AuthRepository @Inject constructor(
                             thumbnailUrl = resolvedThumb,
                             status = status,
                             isActive = status == "live" || (!hasLive && i == 0),
+                            concurrentViewers = s.optLong("concurrentViewers", 0L),
+                            viewCount = s.optLong("viewCount", 0L),
+                            likeCount = s.optLong("likeCount", 0L),
+                            commentCount = s.optLong("commentCount", 0L),
                             startedAtMs = s.optLong("startedAtMs", System.currentTimeMillis()),
-                            endedAtMs = if (status != "live") s.optLong("startedAtMs", 0L) + 7200000L else null
+                            endedAtMs = if (status != "live") (s.optLong("endedAtMs", 0L).takeIf { it > 0 } ?: (s.optLong("startedAtMs", 0L) + 7200000L)) else null
                         )
                     )
                 }

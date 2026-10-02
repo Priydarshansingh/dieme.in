@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.digicast.app.ui.theme.DigicastSurfaceElevated
+import com.digicast.app.ui.utils.MetricFormatter
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -151,14 +152,38 @@ fun StreamDetailScreen(
                 Text(stream?.title ?: "Untitled Stream", color = DigicastWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("15.2K Viewers", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Text("12.4K Avg", color = DigicastSlate, fontSize = 13.sp)
-                    Text("18.7K Peak", color = DigicastSlate, fontSize = 13.sp)
+                    val s = stream
+                    if (s?.status == "live") {
+                        Text(
+                            text = if (s.concurrentViewers > 0) "${MetricFormatter.formatCount(s.concurrentViewers)} Live Viewers" else "Live Broadcast",
+                            color = DigicastLiveRed,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Text(
+                            text = "${MetricFormatter.formatCount(s?.viewCount ?: 0L)} Views",
+                            color = DigicastWhite,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Text(
+                        text = "${MetricFormatter.formatCount(s?.likeCount ?: 0L)} Likes",
+                        color = DigicastSlate,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        text = MetricFormatter.formatDuration(s?.startedAtMs, s?.endedAtMs),
+                        color = DigicastAccentBlue,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     Text("Overview", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    Text("Chat", color = DigicastSlate, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text("Chat (${messages.size})", color = DigicastSlate, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     Text("Clips (${clips.size})", color = DigicastSlate, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
             }
@@ -171,7 +196,7 @@ fun StreamDetailScreen(
         ) {
             item {
                 Text(
-                    text = "VIEWER ACTIVITY",
+                    text = "STREAM METRICS",
                     color = DigicastSlate,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -181,21 +206,21 @@ fun StreamDetailScreen(
 
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    MetricCard("Peak Viewers", "18,742", modifier = Modifier.weight(1f))
-                    MetricCard("Average Viewers", "12,421", modifier = Modifier.weight(1f))
+                    MetricCard("Total Views", MetricFormatter.formatCount(stream?.viewCount ?: 0L), modifier = Modifier.weight(1f))
+                    MetricCard("Total Likes", MetricFormatter.formatCount(stream?.likeCount ?: 0L), modifier = Modifier.weight(1f))
                 }
             }
 
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    MetricCard("Watch Time", "428h", modifier = Modifier.weight(1f))
-                    MetricCard("New Subscribers", "+428", modifier = Modifier.weight(1f))
+                    MetricCard("Stream Duration", MetricFormatter.formatDuration(stream?.startedAtMs, stream?.endedAtMs), modifier = Modifier.weight(1f))
+                    MetricCard("Comments", MetricFormatter.formatCount(stream?.commentCount ?: 0L), modifier = Modifier.weight(1f))
                 }
             }
 
             item {
                 Text(
-                    text = "AI CHAT INTELLIGENCE",
+                    text = "ACTIVITY & CHAT INTELLIGENCE",
                     color = DigicastSlate,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -212,16 +237,17 @@ fun StreamDetailScreen(
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Sentiment", color = DigicastSlate, fontSize = 13.sp)
-                            Text("Positive 68%", color = DigicastAccentBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Captured Messages", color = DigicastSlate, fontSize = 13.sp)
+                            Text("${messages.size}", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                        val activeChatters = messages.map { it.authorDisplayName }.toSet().size
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Active Chatters", color = DigicastSlate, fontSize = 13.sp)
+                            Text("$activeChatters", color = DigicastAccentBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Engagement", color = DigicastSlate, fontSize = 13.sp)
-                            Text("High", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Trending", color = DigicastSlate, fontSize = 13.sp)
-                            Text("Tournament", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Clips Created", color = DigicastSlate, fontSize = 13.sp)
+                            Text("${clips.size}", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

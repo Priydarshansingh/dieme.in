@@ -282,7 +282,65 @@ export async function syncWorkspaceYouTubeStreams(workspaceId: string): Promise<
       console.warn('[youtube-sync] recent videos fetch warning:', recentErr);
     }
 
-    // E. If there is NO active live stream, ensure no stale stream is marked 'live'
+    // E. Batch fetch real-time YouTube statistics (views, likes, comments, live viewers)
+    if (seenVideoIds.size > 0) {
+      const idList = Array.from(seenVideoIds);
+      for (let i = 0; i < idList.length; i += 50) {
+        const batch = idList.slice(i, i + 50).join(',');
+        try {
+          const statsRes = await fetch(
+            `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails,statistics&id=${batch}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const statsData = await statsRes.json();
+          if (statsData.items && Array.isArray(statsData.items)) {
+            for (const v of statsData.items) {
+              const vid = v.id;
+              const stats = v.statistics || {};
+              const liveDetails = v.liveStreamingDetails || {};
+
+              const concurrentViewers = liveDetails.concurrentViewers ? Number(liveDetails.concurrentViewers) : 0;
+              const viewCount = stats.viewCount ? Number(stats.viewCount) : 0;
+              const likeCount = stats.likeCount ? Number(stats.likeCount) : 0;
+              const commentCount = stats.commentCount ? Number(stats.commentCount) : 0;
+
+              const isLive = concurrentViewers > 0 || (activeLiveStream && activeLiveStream.id === vid);
+
+              const updatePayload: any = {
+                concurrentViewers,
+                viewCount,
+                likeCount,
+                commentCount,
+                updatedAt: new Date().toISOString(),
+              };
+
+              if (liveDetails.actualStartTime) {
+                updatePayload.startedAt = new Date(liveDetails.actualStartTime);
+              }
+              if (liveDetails.actualEndTime) {
+                updatePayload.endedAt = new Date(liveDetails.actualEndTime);
+              }
+              if (liveDetails.activeLiveChatId) {
+                updatePayload.liveChatId = liveDetails.activeLiveChatId;
+              }
+              if (isLive) {
+                updatePayload.status = 'live';
+              }
+
+              await adminDb.doc(col.stream(workspaceId, vid)).set(updatePayload, { merge: true });
+
+              if (activeLiveStream && activeLiveStream.id === vid) {
+                activeLiveStream = { ...activeLiveStream, ...updatePayload };
+              }
+            }
+          }
+        } catch (statsErr) {
+          console.warn('[youtube-sync] statistics batch fetch warning:', statsErr);
+        }
+      }
+    }
+
+    // F. If there is NO active live stream, ensure no stale stream is marked 'live'
     if (!activeLiveStream) {
       const staleLiveSnap = await adminDb
         .collection(col.streams(workspaceId))

@@ -22,10 +22,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,25 +34,41 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.digicast.app.data.local.entity.ClipMarkerEntity
 import com.digicast.app.data.repository.ClipRepository
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastDeepNavy
 import com.digicast.app.ui.theme.DigicastEmerald
-import com.digicast.app.ui.theme.DigicastLiveRed
 import com.digicast.app.ui.theme.DigicastNavy
 import com.digicast.app.ui.theme.DigicastSlate
 import com.digicast.app.ui.theme.DigicastSurface
 import com.digicast.app.ui.theme.DigicastSurfaceElevated
 import com.digicast.app.ui.theme.DigicastWhite
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ClipGenerateViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val clipRepository: ClipRepository
 ) : ViewModel() {
+    val clipId: String = checkNotNull(savedStateHandle["clipId"])
+    private val _clip = MutableStateFlow<ClipMarkerEntity?>(null)
+    val clip: StateFlow<ClipMarkerEntity?> = _clip.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _clip.value = clipRepository.getClipById(clipId)
+        }
+    }
+
     suspend fun markGenerating(id: String) = clipRepository.updateStatus(id, "GENERATING")
 }
 
@@ -62,7 +79,9 @@ fun ClipGenerateScreen(
     onNavigateBack: () -> Unit,
     viewModel: ClipGenerateViewModel = hiltViewModel()
 ) {
+    val clip by viewModel.clip.collectAsState()
     val scope = rememberCoroutineScope()
+
     Scaffold(
         containerColor = DigicastDeepNavy,
         topBar = {
@@ -78,7 +97,7 @@ fun ClipGenerateScreen(
                     IconButton(onClick = onNavigateBack, modifier = Modifier.size(24.dp).padding(end = 8.dp)) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = DigicastSlate)
                     }
-                    Text("Clip Studio", color = DigicastSlate, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                    Text("Clip Details", color = DigicastSlate, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
                 }
                 Button(
                     onClick = { scope.launch { viewModel.markGenerating(clipId); onNavigateBack() } },
@@ -96,79 +115,67 @@ fun ClipGenerateScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Gaming Marathon - Part 2", color = DigicastWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            val title = clip?.label?.takeIf { it.isNotBlank() } ?: "Clip Marker #$clipId"
+            Text(title, color = DigicastWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
-            // Video Player Mockup
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(DigicastSurfaceElevated, RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("VIDEO PREVIEW", color = DigicastSlate, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Timeline scrubber
-            Column {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("00:32", color = DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Text("01:12", color = DigicastSlate, fontSize = 12.sp)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { 0.3f },
-                    modifier = Modifier.fillMaxWidth().height(4.dp),
-                    color = DigicastLiveRed,
-                    trackColor = DigicastSurfaceElevated
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text("AI DETECTED MOMENTS", color = DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-
+            // Info Card
             Card(
                 colors = CardDefaults.cardColors(containerColor = DigicastSurface),
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("🔥", fontSize = 24.sp)
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("98 Viral Score", color = DigicastAccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Text("INSANE TEAM FIGHT", color = DigicastWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Marker Status", color = DigicastSlate, fontSize = 13.sp)
+                        Text(
+                            text = clip?.status?.uppercase() ?: "PENDING",
+                            color = if (clip?.status == "GENERATED") DigicastEmerald else DigicastAccentBlue,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Author / Creator", color = DigicastSlate, fontSize = 13.sp)
+                        Text(clip?.authorName ?: "Editor", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Stream ID", color = DigicastSlate, fontSize = 13.sp)
+                        Text(clip?.streamId ?: "Live Stream", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Timestamp Offset", color = DigicastSlate, fontSize = 13.sp)
+                        val ms = clip?.timestampMs ?: 0L
+                        val seconds = (ms / 1000) % 60
+                        val minutes = (ms / (1000 * 60))
+                        Text(String.format("%02d:%02d", minutes, seconds), color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = DigicastSurface),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("⚡", fontSize = 24.sp)
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("91 Viral Score", color = DigicastAccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Text("CHAT GOES CRAZY", color = DigicastWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            // Local file status
+            val filePath = clip?.localFilePath
+            if (!filePath.isNullOrEmpty()) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = DigicastSurface),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Exported Video File", color = DigicastSlate, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(filePath, color = DigicastWhite, fontSize = 13.sp)
                     }
                 }
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Text("AI TOOLS", color = DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { }, colors = ButtonDefaults.buttonColors(containerColor = DigicastSurface), modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text("Auto Crop", color = DigicastWhite) }
-                Button(onClick = { }, colors = ButtonDefaults.buttonColors(containerColor = DigicastSurface), modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text("Captions", color = DigicastWhite) }
+            Button(
+                onClick = { scope.launch { viewModel.markGenerating(clipId); onNavigateBack() } },
+                colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Process & Render Clip", color = DigicastDeepNavy, fontWeight = FontWeight.Bold)
             }
         }
     }

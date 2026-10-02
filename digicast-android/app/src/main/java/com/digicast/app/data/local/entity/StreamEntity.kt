@@ -14,6 +14,10 @@ data class StreamEntity(
     val thumbnailUrl: String?,
     val status: String, // "live", "upcoming", "ended"
     val isActive: Boolean = true,
+    val concurrentViewers: Long = 0L,
+    val viewCount: Long = 0L,
+    val likeCount: Long = 0L,
+    val commentCount: Long = 0L,
     val startedAtMs: Long?,
     val endedAtMs: Long?,
     val createdAtMs: Long = System.currentTimeMillis(),

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.PlayArrow
 import coil.compose.AsyncImage
+import com.digicast.app.ui.utils.MetricFormatter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
@@ -267,14 +268,23 @@ fun HomeScreen(
                             color = DigicastSlate,
                             fontSize = 13.sp
                         )
-                        // In a real app we'd compute uptime/viewers here
+                        // Real Viewers or Views Count
+                        if (live.status == "live") {
+                            Text(
+                                text = if (live.concurrentViewers > 0) "${MetricFormatter.formatCount(live.concurrentViewers)} Viewers" else "Live",
+                                color = DigicastLiveRed,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Text(
+                                text = "${MetricFormatter.formatCount(live.viewCount)} Views",
+                                color = DigicastSlate,
+                                fontSize = 13.sp
+                            )
+                        }
                         Text(
-                            text = "15.2K Viewers",
-                            color = DigicastSlate,
-                            fontSize = 13.sp
-                        )
-                        Text(
-                            text = "02:31:42",
+                            text = MetricFormatter.formatDuration(live.startedAtMs, live.endedAtMs),
                             color = DigicastAccentBlue,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -294,12 +304,22 @@ fun HomeScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             Column {
-                                Text("STREAM HEALTH", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                Text("98% Stable", color = DigicastEmerald, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("STATUS", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = if (live.status == "live") "Active Live" else "Broadcast Ended",
+                                    color = if (live.status == "live") DigicastLiveRed else DigicastEmerald,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                             Column {
-                                Text("LATENCY", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                Text("2.4s", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("LIKES", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = MetricFormatter.formatCount(live.likeCount),
+                                    color = DigicastWhite,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
 
@@ -455,8 +475,9 @@ fun HomeScreen(
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    MetricCard("Sentiment", "Positive (68%)", modifier = Modifier.weight(1f))
-                    MetricCard("Spam", "3 flagged", modifier = Modifier.weight(1f))
+                    MetricCard("Captured Messages", "${messages.size}", modifier = Modifier.weight(1f))
+                    val distinctChatters = messages.map { it.authorDisplayName }.toSet().size
+                    MetricCard("Active Chatters", "$distinctChatters", modifier = Modifier.weight(1f))
                 }
             }
             item {

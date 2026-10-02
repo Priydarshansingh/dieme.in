@@ -109,21 +109,26 @@ fun OnboardingScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Logo mark & brand text graphic
-            Image(
-                painter = painterResource(id = R.drawable.logo_round),
-                contentDescription = "Digicast Studio",
-                modifier = Modifier.size(76.dp)
-            )
+            // Brand Logo & Stylized Name Header
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo_round),
+                    contentDescription = "Digicast Studio",
+                    modifier = Modifier.size(76.dp)
+                )
 
-            Image(
-                painter = painterResource(id = R.drawable.logo_text),
-                contentDescription = "DIGICAST Live",
-                modifier = Modifier
-                    .height(46.dp)
-                    .fillMaxWidth(0.65f),
-                contentScale = ContentScale.Fit
-            )
+                Image(
+                    painter = painterResource(id = R.drawable.logo_text),
+                    contentDescription = "DIGICAST Live",
+                    modifier = Modifier
+                        .height(42.dp)
+                        .fillMaxWidth(0.65f),
+                    contentScale = ContentScale.Fit
+                )
+            }
 
             // Sign-In Card — email and password
             Card(

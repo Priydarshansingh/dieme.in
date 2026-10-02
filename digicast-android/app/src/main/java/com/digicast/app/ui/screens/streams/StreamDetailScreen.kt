@@ -32,9 +32,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.digicast.app.ui.theme.DigicastSurfaceElevated
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -121,8 +124,31 @@ fun StreamDetailScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(14.dp))
-                Text(stream?.title ?: "Untitled Stream", color = DigicastWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+
+                val currentStream = stream
+                val thumbUrl = currentStream?.thumbnailUrl
+                    ?: if (!currentStream?.id.isNullOrBlank()) "https://i.ytimg.com/vi/${currentStream?.id}/hqdefault.jpg" else null
+
+                if (!thumbUrl.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(DigicastSurfaceElevated)
+                    ) {
+                        AsyncImage(
+                            model = thumbUrl,
+                            contentDescription = currentStream?.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(stream?.title ?: "Untitled Stream", color = DigicastWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text("15.2K Viewers", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Medium)

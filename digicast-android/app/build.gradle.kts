@@ -100,6 +100,7 @@ dependencies {
 
     implementation(libs.coroutines.android)
     implementation(libs.datastore)
+    implementation(libs.coil.compose)
 }
 
 tasks.register("copyDebugApkToBuildOutput") {

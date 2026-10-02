@@ -235,8 +235,15 @@ export async function GET(req: NextRequest) {
       connectedBy: uid,
       access_token,
       refresh_token: refresh_token || null,
-      token_expires_at: Date.now() + expires_in * 1000,
     }, { merge: true });
+
+    // Automatically trigger immediate stream sync so live broadcasts and thumbnails appear at once
+    try {
+      const { syncWorkspaceYouTubeStreams } = await import("@/lib/youtube/sync");
+      await syncWorkspaceYouTubeStreams(workspaceId);
+    } catch (syncErr) {
+      console.warn("[youtube-callback] Post-connection sync non-fatal warning:", syncErr);
+    }
 
     return NextResponse.redirect(`${baseUrl}/dashboard?success=youtube_connected`);
 

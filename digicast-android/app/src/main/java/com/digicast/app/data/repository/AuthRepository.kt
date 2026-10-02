@@ -341,6 +341,11 @@ class AuthRepository @Inject constructor(
                 for (i in 0 until streamsArr.length()) {
                     val s = streamsArr.getJSONObject(i)
                     val status = s.optString("status", "ended")
+                    val videoId = s.optString("youtubeVideoId", s.optString("id", ""))
+                    val resolvedThumb = s.optString("thumbnailUrl").takeIf { it.isNotEmpty() }
+                        ?: s.optString("thumbnail").takeIf { it.isNotEmpty() }
+                        ?: if (videoId.isNotEmpty()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else null
+
                     dao.insertStream(
                         StreamEntity(
                             id = s.optString("id", UUID.randomUUID().toString()),
@@ -349,7 +354,7 @@ class AuthRepository @Inject constructor(
                             channelId = s.optString("channelId", s.optString("youtubeChannelId", "")),
                             channelTitle = s.optString("channelName", s.optString("channelTitle", session.workspaceName)),
                             liveChatId = s.optString("liveChatId").takeIf { it.isNotEmpty() },
-                            thumbnailUrl = s.optString("thumbnailUrl").takeIf { it.isNotEmpty() },
+                            thumbnailUrl = resolvedThumb,
                             status = status,
                             isActive = status == "live" || (!hasLive && i == 0),
                             startedAtMs = s.optLong("startedAtMs", System.currentTimeMillis()),

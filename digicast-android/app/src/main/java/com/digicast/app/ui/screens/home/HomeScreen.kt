@@ -18,6 +18,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.PlayArrow
+import coil.compose.AsyncImage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
@@ -168,13 +177,87 @@ fun HomeScreen(
 
                 if (live != null) {
                     Spacer(modifier = Modifier.height(12.dp))
+
+                    // 16:9 Hero Thumbnail with LIVE Badge
+                    val thumbUrl = live.thumbnailUrl ?: if (live.id.isNotBlank()) "https://i.ytimg.com/vi/${live.id}/hqdefault.jpg" else null
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(170.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(DigicastSurfaceElevated)
+                            .clickable { onNavigateToStreamDetail(live.id) }
+                    ) {
+                        if (!thumbUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = thumbUrl,
+                                contentDescription = live.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            // Gradient shadow on bottom for readability
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(Color.Transparent, DigicastDeepNavy.copy(alpha = 0.85f))
+                                        )
+                                    )
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.PlayCircle, contentDescription = null, tint = DigicastSlate, modifier = Modifier.size(48.dp))
+                            }
+                        }
+
+                        // Badge top-left
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(8.dp)
+                                .background(
+                                    if (live.status == "live") DigicastLiveRed else DigicastSurfaceElevated,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(modifier = Modifier.size(6.dp).background(DigicastWhite, CircleShape))
+                            Text(
+                                text = if (live.status == "live") "LIVE NOW" else "STREAM",
+                                color = DigicastWhite,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Channel info at bottom inside thumbnail
+                        Text(
+                            text = live.channelTitle,
+                            color = DigicastWhite.copy(alpha = 0.9f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(10.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = live.title,
                         color = DigicastWhite,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -303,13 +386,25 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(DigicastLiveRed, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("YT", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            val channelThumb = ytAccount?.channelThumbnail
+                            if (!channelThumb.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = channelThumb,
+                                    contentDescription = ytAccount?.channelName,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(DigicastLiveRed, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("YT", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(

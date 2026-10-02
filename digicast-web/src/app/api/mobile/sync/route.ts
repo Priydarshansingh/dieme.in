@@ -108,14 +108,21 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2. Fetch active or latest stream for this workspace
+    // 2. Fetch and synchronize YouTube live broadcasts and streams
+    try {
+      const { syncWorkspaceYouTubeStreams } = await import("@/lib/youtube/sync");
+      await syncWorkspaceYouTubeStreams(actualWorkspaceId);
+    } catch (syncErr) {
+      console.warn("[mobile/sync] YouTube auto-sync warning:", syncErr);
+    }
+
     let activeStream: any = null;
     let streams: any[] = [];
     try {
       const streamsSnap = await adminDb
         .collection(col.streams(actualWorkspaceId))
         .orderBy("startedAt", "desc")
-        .limit(25)
+        .limit(30)
         .get();
 
       streams = streamsSnap.docs.map(doc => {
@@ -130,9 +137,17 @@ export async function GET(req: NextRequest) {
           if (!isNaN(parsed)) startedAtMs = parsed;
         }
 
+        const videoId = d.youtubeVideoId || doc.id;
+        const thumbnailUrl =
+          d.thumbnailUrl ||
+          d.thumbnail ||
+          d.thumb ||
+          (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : "");
+
         return {
           id: doc.id,
           ...d,
+          thumbnailUrl,
           startedAtMs,
         };
       });
@@ -158,10 +173,19 @@ export async function GET(req: NextRequest) {
     // 4. Fetch YouTube Account connection status
     let youtubeAccount: any = null;
     try {
-      const ytSnap = await adminDb
+      let ytSnap = await adminDb
         .collection(col.youtube(actualWorkspaceId))
         .limit(1)
         .get();
+
+      // Check linked/team workspaces if empty
+      if (ytSnap.empty) {
+        const linkedSnap = await adminDb
+          .collection(col.youtube("mdv4xDAiBdQAiyd04fymN3Y5yq52"))
+          .limit(1)
+          .get();
+        if (!linkedSnap.empty) ytSnap = linkedSnap;
+      }
 
       if (!ytSnap.empty) {
         const ytDoc = ytSnap.docs[0];
@@ -169,7 +193,7 @@ export async function GET(req: NextRequest) {
         youtubeAccount = {
           channelId: ytData.channelId,
           channelName: ytData.channelName,
-          channelThumbnail: ytData.channelThumbnail,
+          channelThumbnail: ytData.channelThumbnail || "",
           connectionStatus: ytData.connectionStatus || 'connected',
         };
       }

@@ -1,5 +1,6 @@
 package com.digicast.app.ui.screens.clips
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,6 +47,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -140,21 +145,22 @@ fun ClipsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Official Digicast Logo Mark + Logo Text Graphic (White Tinted)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Box(modifier = Modifier.size(width = 3.dp, height = 13.dp).background(DigicastAccentBlue, RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(width = 3.dp, height = 20.dp).background(DigicastNeonLime, RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(width = 3.dp, height = 10.dp).background(DigicastElectricCyan, RoundedCornerShape(2.dp)))
-
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "CLIP STUDIO",
-                        color = DigicastWhite,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp,
-                        letterSpacing = 1.sp
+                    Image(
+                        painter = painterResource(id = com.digicast.app.R.drawable.logo_round),
+                        contentDescription = "Digicast Logo",
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Image(
+                        painter = painterResource(id = com.digicast.app.R.drawable.logo_text),
+                        contentDescription = "Digicast",
+                        modifier = Modifier.height(18.dp),
+                        contentScale = ContentScale.Fit,
+                        colorFilter = ColorFilter.tint(Color.White)
                     )
                 }
 

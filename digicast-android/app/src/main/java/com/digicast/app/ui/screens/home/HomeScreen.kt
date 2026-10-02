@@ -1,6 +1,7 @@
 package com.digicast.app.ui.screens.home
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -174,22 +177,22 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Minimalist Sound/Stream Wave Glyph from UI Reference
+                // Official Digicast Logo Mark + Logo Text Graphic (White Tinted)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Box(modifier = Modifier.size(width = 3.dp, height = 13.dp).background(DigicastAccentBlue, RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(width = 3.dp, height = 20.dp).background(DigicastNeonLime, RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(width = 3.dp, height = 10.dp).background(DigicastElectricCyan, RoundedCornerShape(2.dp)))
-
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "DIGICAST",
-                        color = DigicastWhite,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp,
-                        letterSpacing = 1.sp
+                    Image(
+                        painter = painterResource(id = com.digicast.app.R.drawable.logo_round),
+                        contentDescription = "Digicast Logo",
+                        modifier = Modifier.size(30.dp)
+                    )
+                    Image(
+                        painter = painterResource(id = com.digicast.app.R.drawable.logo_text),
+                        contentDescription = "Digicast",
+                        modifier = Modifier.height(20.dp),
+                        contentScale = ContentScale.Fit,
+                        colorFilter = ColorFilter.tint(Color.White)
                     )
                 }
 
@@ -237,48 +240,30 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ── 1. Greeting Row (From Reference Image 1) ───────────────────────
+            // ── 1. Greeting Row ────────────────────────────────────────────────
             item {
                 val session = (authState as? AuthState.SignedIn)?.session
                 val firstName = session?.displayName?.split(" ")?.firstOrNull() ?: "Creator"
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 2.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "Hello $firstName",
-                            color = DigicastWhite,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = (-0.5).sp
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Welcome Back !",
-                            color = DigicastSlate,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Normal
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(DigicastSearchBackground)
-                            .border(1.dp, DigicastBorder, CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Tune,
-                            contentDescription = "Studio Settings",
-                            tint = DigicastWhite,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    Text(
+                        text = "Hello $firstName",
+                        color = DigicastWhite,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.5).sp
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Welcome Back !",
+                        color = DigicastSlate,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Normal
+                    )
                 }
             }
 

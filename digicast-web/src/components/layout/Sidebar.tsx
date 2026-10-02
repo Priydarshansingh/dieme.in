@@ -10,6 +10,7 @@ import {
   Scissors,
   Users,
   Settings,
+  Palette,
   LogOut,
 } from 'lucide-react';
 
@@ -18,6 +19,7 @@ const navItems = [
   { href: '/streams',   label: 'Streams',   icon: Radio },
   { href: '/clips',     label: 'Clips',     icon: Scissors },
   { href: '/team',      label: 'Team',      icon: Users },
+  { href: '/design-canvas', label: 'Design Canvas', icon: Palette },
   { href: '/settings',  label: 'Settings',  icon: Settings },
 ];
 

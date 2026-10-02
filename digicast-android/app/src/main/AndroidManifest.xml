@@ -18,6 +18,9 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:label="Digicast"
             android:launchMode="singleTask"
             android:theme="@style/Theme.Digicast">
             <intent-filter>

@@ -134,8 +134,8 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DigicastLogo(size = 32)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    DigicastLogo(size = 38)
                     if (isSyncing) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),

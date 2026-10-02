@@ -2,7 +2,6 @@ package com.digicast.app.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.net.Uri
 import com.digicast.app.data.local.dao.DigicastDao
 import com.digicast.app.data.local.entity.ClipMarkerEntity
 import com.digicast.app.data.local.entity.StreamEntity
@@ -64,259 +63,191 @@ class AuthRepository @Inject constructor(
         private const val KEY_WORKSPACE_NAME = "auth_workspace_name"
         private const val KEY_ROLE = "auth_role"
         private const val KEY_TOKEN = "auth_token"
-        private const val KEY_IS_SIGNED_OUT_EXPLICITLY = "auth_signed_out_explicitly"
+        private const val KEY_SIGNED_OUT = "auth_signed_out_explicitly"
+        private const val KEY_IS_DEMO = "auth_is_demo"
 
-        // Backend URL (configurable in build / production)
+        // All API calls go to Vercel-hosted digicast-web backend
         const val BACKEND_URL = "https://digicast-web.vercel.app"
 
-        // Default creator / editor session for demo mode
-        val DEFAULT_SESSION = UserSession(
-            uid = "creator-primary-uid",
-            email = "creator@digicast.app",
-            displayName = "Digicast Creator",
+        // Demo session — used when user skips sign-in
+        val DEMO_SESSION = UserSession(
+            uid = "demo-uid",
+            email = "demo@digicast.app",
+            displayName = "Demo Studio",
             photoUrl = "",
-            workspaceId = "workspace-main",
-            workspaceName = "Main Creator Studio",
+            workspaceId = "demo-workspace",
+            workspaceName = "Demo Studio",
             role = "owner",
-            token = "session-token-primary"
+            token = "demo-token"
         )
     }
 
-    private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // Start as SignedOut so Onboarding comes first on fresh launch
     private val _authState = MutableStateFlow<AuthState>(AuthState.SignedOut)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
-    private val _isSyncing = MutableStateFlow<Boolean>(false)
+    private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
     private val _youtubeAccount = MutableStateFlow<YouTubeAccountInfo?>(null)
     val youtubeAccount: StateFlow<YouTubeAccountInfo?> = _youtubeAccount.asStateFlow()
 
     init {
-        loadSavedSession()
+        restoreSession()
     }
 
-    private fun loadSavedSession() {
-        val explicitlySignedOut = prefs.getBoolean(KEY_IS_SIGNED_OUT_EXPLICITLY, false)
+    // ─── Session restore on app launch ───────────────────────────────────────
+
+    private fun restoreSession() {
+        val signedOut = prefs.getBoolean(KEY_SIGNED_OUT, false)
+        val isDemo = prefs.getBoolean(KEY_IS_DEMO, false)
         val uid = prefs.getString(KEY_UID, null)
         val email = prefs.getString(KEY_EMAIL, null)
         val token = prefs.getString(KEY_TOKEN, null)
 
-        if (uid != null && email != null && token != null && !explicitlySignedOut && email != DEFAULT_SESSION.email) {
-            val session = UserSession(
-                uid = uid,
-                email = email,
-                displayName = prefs.getString(KEY_NAME, email.substringBefore("@")) ?: "User",
-                photoUrl = prefs.getString(KEY_PHOTO, "") ?: "",
-                workspaceId = prefs.getString(KEY_WORKSPACE_ID, uid) ?: uid,
-                workspaceName = prefs.getString(KEY_WORKSPACE_NAME, "Creator Studio") ?: "Creator Studio",
-                role = prefs.getString(KEY_ROLE, "owner") ?: "owner",
-                token = token
-            )
-            _authState.value = AuthState.SignedIn(session)
-            // Auto fetch immediately when app opens with saved login
-            scope.launch { syncWorkspaceData() }
-        } else {
-            // First run or logged out -> Onboarding screen comes first!
-            _authState.value = AuthState.SignedOut
-        }
-    }
-
-    private fun saveSession(session: UserSession) {
-        prefs.edit().apply {
-            putBoolean(KEY_IS_SIGNED_OUT_EXPLICITLY, false)
-            putString(KEY_UID, session.uid)
-            putString(KEY_EMAIL, session.email)
-            putString(KEY_NAME, session.displayName)
-            putString(KEY_PHOTO, session.photoUrl)
-            putString(KEY_WORKSPACE_ID, session.workspaceId)
-            putString(KEY_WORKSPACE_NAME, session.workspaceName)
-            putString(KEY_ROLE, session.role)
-            putString(KEY_TOKEN, session.token)
-            apply()
-        }
-    }
-
-    private suspend fun seedInitialDataIfEmpty() = withContext(Dispatchers.IO) {
-        try {
-            val existing = dao.getStreamById("stream-live-demo")
-            if (existing == null) {
-                val demoStream = StreamEntity(
-                    id = "stream-live-demo",
-                    workspaceId = DEFAULT_SESSION.workspaceId,
-                    title = "Live Studio Stream • YouTube Broadcast",
-                    channelId = "channel-digicast",
-                    channelTitle = DEFAULT_SESSION.workspaceName,
-                    liveChatId = "chat-demo-101",
-                    thumbnailUrl = null,
-                    status = "live",
-                    isActive = true,
-                    startedAtMs = System.currentTimeMillis() - (1000 * 60 * 45),
-                    endedAtMs = null
+        when {
+            // Previously signed in with a real account — restore and background-sync
+            !signedOut && !isDemo && uid != null && email != null && token != null -> {
+                val session = UserSession(
+                    uid = uid,
+                    email = email,
+                    displayName = prefs.getString(KEY_NAME, email.substringBefore("@")) ?: "User",
+                    photoUrl = prefs.getString(KEY_PHOTO, "") ?: "",
+                    workspaceId = prefs.getString(KEY_WORKSPACE_ID, uid) ?: uid,
+                    workspaceName = prefs.getString(KEY_WORKSPACE_NAME, "Studio") ?: "Studio",
+                    role = prefs.getString(KEY_ROLE, "owner") ?: "owner",
+                    token = token
                 )
-                dao.insertStream(demoStream)
-
-                val demoClip = ClipMarkerEntity(
-                    id = "clip-demo-1",
-                    streamId = "stream-live-demo",
-                    authorName = "StreamViewer",
-                    authorId = "user-v1",
-                    triggerMessageId = "msg-demo-1",
-                    timestampMs = System.currentTimeMillis() - (1000 * 60 * 12),
-                    label = "Epic Clutch Moment !clip",
-                    status = "GENERATED",
-                    localFilePath = null,
-                    telegramMessageUrl = null
-                )
-                dao.insertClipMarker(demoClip)
+                _authState.value = AuthState.SignedIn(session)
+                scope.launch { syncWorkspaceData() }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+            // Was in demo mode — restore demo without syncing cloud
+            !signedOut && isDemo -> {
+                _authState.value = AuthState.SignedIn(DEMO_SESSION)
+                scope.launch { seedDemoDataIfEmpty() }
+            }
+            // Signed out or first launch — show onboarding
+            else -> {
+                _authState.value = AuthState.SignedOut
+            }
         }
     }
 
-    /**
-     * Parses the deep-link URL returned after Google OAuth on the web backend:
-     * digicast://oauth?token=...&uid=...&email=...&name=...&workspaceId=...&role=...
-     * Automatically syncs all workspace data upon successful sign in!
-     */
-    fun handleOAuthDeepLink(uri: Uri): Boolean {
-        if (uri.scheme != "digicast") return false
-
-        val token = uri.getQueryParameter("token") ?: return false
-        val uid = uri.getQueryParameter("uid") ?: return false
-        val email = uri.getQueryParameter("email") ?: return false
-        val displayName = uri.getQueryParameter("name") ?: email.substringBefore("@")
-        val photoUrl = uri.getQueryParameter("photoUrl") ?: ""
-        val workspaceId = uri.getQueryParameter("workspaceId") ?: "workspace-main"
-        val workspaceName = uri.getQueryParameter("workspaceName") ?: "Workspace"
-        val role = uri.getQueryParameter("role") ?: "editor"
-
-        val session = UserSession(
-            uid = uid,
-            email = email,
-            displayName = displayName,
-            photoUrl = photoUrl,
-            workspaceId = workspaceId,
-            workspaceName = workspaceName,
-            role = role,
-            token = token
-        )
-
-        saveSession(session)
-        _authState.value = AuthState.SignedIn(session)
-
-        // AUTOMATIC DATA FETCH IMMEDIATELY ON SIGN IN
-        scope.launch {
-            syncWorkspaceData()
-        }
-        return true
-    }
-
-    fun getGoogleOAuthUrl(): String {
-        val currentWorkspace = prefs.getString(KEY_WORKSPACE_ID, "") ?: ""
-        return "$BACKEND_URL/api/auth/mobile/google?workspaceId=$currentWorkspace"
-    }
+    // ─── Sign in with email (calls /api/mobile/login on Vercel) ──────────────
 
     /**
-     * Direct In-App Authentication with Google / Creator email.
-     * Instantly connects to the cloud workspace without browser redirects or Google Cloud verification blocks!
+     * Signs in using the email the Creator/Editor registered on digicast-web.
+     * The Vercel backend resolves the workspace automatically.
+     * On success, automatically fetches all workspace data from /api/mobile/sync.
      */
-    suspend fun signInDirect(
-        email: String,
-        displayName: String = "",
-        role: String = "owner"
-    ): Result<UserSession> = withContext(Dispatchers.IO) {
+    suspend fun signInWithEmail(email: String, password: String): Result<UserSession> = withContext(Dispatchers.IO) {
         try {
-            val jsonBody = JSONObject().apply {
+            val displayName = email.substringBefore("@")
+            val body = JSONObject().apply {
                 put("email", email)
-                put("displayName", if (displayName.isNotBlank()) displayName else email.substringBefore("@"))
-                put("role", role)
-            }
+                put("password", password)
+                put("displayName", displayName)
+            }.toString().toRequestBody("application/json".toMediaType())
 
-            val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
             val request = Request.Builder()
                 .url("$BACKEND_URL/api/mobile/login")
-                .post(requestBody)
+                .post(body)
                 .build()
 
             val response = okHttpClient.newCall(request).execute()
+            val responseBody = response.body?.string() ?: "{}"
+
             if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("Server returned status ${response.code}"))
+                val errMsg = runCatching {
+                    JSONObject(responseBody).optString("error", "Server error ${response.code}")
+                }.getOrDefault("Server error ${response.code}")
+                return@withContext Result.failure(Exception(errMsg))
             }
 
-            val body = response.body?.string() ?: "{}"
-            val resJson = JSONObject(body)
-            val sJson = resJson.getJSONObject("session")
+            val json = JSONObject(responseBody)
+            val s = json.getJSONObject("session")
 
             val session = UserSession(
-                uid = sJson.getString("uid"),
-                email = sJson.getString("email"),
-                displayName = sJson.optString("displayName", email.substringBefore("@")),
-                photoUrl = sJson.optString("photoUrl", ""),
-                workspaceId = sJson.optString("workspaceId", "workspace-main"),
-                workspaceName = sJson.optString("workspaceName", "Creator Studio"),
-                role = sJson.optString("role", role),
-                token = sJson.getString("token")
+                uid = s.getString("uid"),
+                email = s.getString("email"),
+                displayName = s.optString("displayName", displayName),
+                photoUrl = s.optString("photoUrl", ""),
+                workspaceId = s.optString("workspaceId", ""),
+                workspaceName = s.optString("workspaceName", "Studio"),
+                role = s.optString("role", "owner"),
+                token = s.getString("token")
             )
 
-            saveSession(session)
+            saveRealSession(session)
             _authState.value = AuthState.SignedIn(session)
 
-            scope.launch {
-                syncWorkspaceData()
-            }
+            // Immediately fetch all workspace data after sign-in
+            syncWorkspaceData()
 
             Result.success(session)
         } catch (e: Exception) {
             e.printStackTrace()
-            Result.failure(e)
+            Result.failure(Exception("Could not connect to server. Check your internet connection."))
         }
     }
 
-    fun resetToDefaultSignedIn() {
-        saveSession(DEFAULT_SESSION)
-        _authState.value = AuthState.SignedIn(DEFAULT_SESSION)
-        scope.launch {
-            seedInitialDataIfEmpty()
-            syncWorkspaceData()
-        }
+    // ─── Demo mode (no account needed) ───────────────────────────────────────
+
+    fun enterDemoMode() {
+        prefs.edit()
+            .putBoolean(KEY_SIGNED_OUT, false)
+            .putBoolean(KEY_IS_DEMO, true)
+            .apply()
+        _authState.value = AuthState.SignedIn(DEMO_SESSION)
+        scope.launch { seedDemoDataIfEmpty() }
     }
+
+    // ─── Sign out ─────────────────────────────────────────────────────────────
 
     fun signOut() {
-        prefs.edit().putBoolean(KEY_IS_SIGNED_OUT_EXPLICITLY, true).clear().apply()
+        prefs.edit().clear()
+            .putBoolean(KEY_SIGNED_OUT, true)
+            .apply()
         _authState.value = AuthState.SignedOut
+        _youtubeAccount.value = null
     }
 
+    // ─── Sync workspace data from Vercel (/api/mobile/sync) ──────────────────
+
     /**
-     * Syncs workspace stream and clip data from backend directly into Room DB
+     * Fetches live streams, clip markers and YouTube account data from the
+     * Vercel-hosted digicast-web backend and stores them in local Room DB.
+     * Demo-mode users skip this call entirely.
      */
     suspend fun syncWorkspaceData(): Result<String> = withContext(Dispatchers.IO) {
-        val currentSession = (authState.value as? AuthState.SignedIn)?.session
-            ?: return@withContext Result.failure(Exception("User not authenticated"))
+        val session = (_authState.value as? AuthState.SignedIn)?.session
+            ?: return@withContext Result.failure(Exception("Not signed in"))
+
+        // Don't hit the cloud for demo sessions
+        if (session.uid == DEMO_SESSION.uid) {
+            return@withContext Result.success("Demo mode — no sync needed")
+        }
 
         _isSyncing.value = true
-
         try {
-            val syncUrl = "$BACKEND_URL/api/mobile/sync?workspaceId=${currentSession.workspaceId}"
+            val url = "$BACKEND_URL/api/mobile/sync?workspaceId=${session.workspaceId}"
             val request = Request.Builder()
-                .url(syncUrl)
-                .addHeader("Authorization", "Bearer ${currentSession.token}")
-                .addHeader("x-user-uid", currentSession.uid)
-                .addHeader("x-user-email", currentSession.email)
+                .url(url)
+                .addHeader("Authorization", "Bearer ${session.token}")
+                .addHeader("x-user-uid", session.uid)
+                .addHeader("x-user-email", session.email)
                 .build()
 
             val response = okHttpClient.newCall(request).execute()
             if (!response.isSuccessful) {
                 _isSyncing.value = false
-                return@withContext Result.failure(Exception("Sync error code: ${response.code}"))
+                return@withContext Result.failure(Exception("Sync failed: ${response.code}"))
             }
 
-            val bodyString = response.body?.string() ?: "{}"
-            val json = JSONObject(bodyString)
+            val json = JSONObject(response.body?.string() ?: "{}")
 
             // 0. Extract connected YouTube channel info
             val ytObj = json.optJSONObject("youtubeAccount")
@@ -329,88 +260,45 @@ class AuthRepository @Inject constructor(
                 )
             }
 
-            // 1. Process active and recent streams into Room
-            val streamsArray = json.optJSONArray("streams")
-            var hasLiveStream = false
-            if (streamsArray != null && streamsArray.length() > 0) {
-                // First pass to see if any are explicitly live
-                for (i in 0 until streamsArray.length()) {
-                    if (streamsArray.getJSONObject(i).optString("status", "").lowercase() == "live") {
-                        hasLiveStream = true
-                        break
+            // 1. Streams
+            val streamsArr = json.optJSONArray("streams")
+            if (streamsArr != null && streamsArr.length() > 0) {
+                var hasLive = false
+                for (i in 0 until streamsArr.length()) {
+                    if (streamsArr.getJSONObject(i).optString("status") == "live") {
+                        hasLive = true; break
                     }
                 }
-
-                for (i in 0 until streamsArray.length()) {
-                    val s = streamsArray.getJSONObject(i)
-                    val streamId = s.optString("id", UUID.randomUUID().toString())
-                    val title = s.optString("title", "Live Stream")
-                    val channelId = s.optString("channelId", s.optString("youtubeChannelId", "channel-1"))
-                    val channelTitle = s.optString("channelName", s.optString("channelTitle", currentSession.workspaceName))
-                    val status = s.optString("status", "ended").lowercase()
-                    val isLive = status == "live"
-                    val thumb = s.optString("thumbnailUrl", "")
-                    val startedAtMs = s.optLong("startedAtMs", System.currentTimeMillis() - (i * 3600000L))
-
-                    // If none is strictly live, activate the first/latest stream so HomeScreen can display it
-                    val effectiveIsActive = isLive || (!hasLiveStream && i == 0)
-
-                    val streamEntity = StreamEntity(
-                        id = streamId,
-                        workspaceId = currentSession.workspaceId,
-                        title = title,
-                        channelId = channelId,
-                        channelTitle = channelTitle,
-                        liveChatId = if (s.has("liveChatId") && !s.isNull("liveChatId")) s.getString("liveChatId") else null,
-                        thumbnailUrl = if (thumb.isNotEmpty()) thumb else null,
-                        status = status,
-                        isActive = effectiveIsActive,
-                        startedAtMs = startedAtMs,
-                        endedAtMs = if (!isLive) startedAtMs + 7200000L else null
+                for (i in 0 until streamsArr.length()) {
+                    val s = streamsArr.getJSONObject(i)
+                    val status = s.optString("status", "ended")
+                    dao.insertStream(
+                        StreamEntity(
+                            id = s.optString("id", UUID.randomUUID().toString()),
+                            workspaceId = session.workspaceId,
+                            title = s.optString("title", "Live Stream"),
+                            channelId = s.optString("channelId", s.optString("youtubeChannelId", "")),
+                            channelTitle = s.optString("channelName", s.optString("channelTitle", session.workspaceName)),
+                            liveChatId = s.optString("liveChatId").takeIf { it.isNotEmpty() },
+                            thumbnailUrl = s.optString("thumbnailUrl").takeIf { it.isNotEmpty() },
+                            status = status,
+                            isActive = status == "live" || (!hasLive && i == 0),
+                            startedAtMs = s.optLong("startedAtMs", System.currentTimeMillis()),
+                            endedAtMs = if (status != "live") s.optLong("startedAtMs", 0L) + 7200000L else null
+                        )
                     )
-                    dao.insertStream(streamEntity)
                 }
             } else {
-                // If cloud has no live streams yet, ensure active workspace stream exists in local cache
-                val activeStream = json.optJSONObject("activeStream")
-                val streamId = activeStream?.optString("id") ?: "stream-live-${currentSession.workspaceId}"
-                val title = activeStream?.optString("title") ?: "${currentSession.workspaceName} Live Broadcast"
-                val streamEntity = StreamEntity(
-                    id = streamId,
-                    workspaceId = currentSession.workspaceId,
-                    title = title,
-                    channelId = "channel-${currentSession.workspaceId}",
-                    channelTitle = currentSession.workspaceName,
-                    liveChatId = null,
-                    thumbnailUrl = null,
-                    status = "live",
-                    isActive = true,
-                    startedAtMs = System.currentTimeMillis(),
-                    endedAtMs = null
-                )
-                dao.insertStream(streamEntity)
-            }
-
-            // 2. Process clip markers into Room
-            val clipsArray = json.optJSONArray("clips")
-            if (clipsArray != null) {
-                for (i in 0 until clipsArray.length()) {
-                    val c = clipsArray.getJSONObject(i)
-                    val clipId = c.optString("id", UUID.randomUUID().toString())
-                    val streamId = c.optString("streamId", "stream-live-${currentSession.workspaceId}")
-                    val authorName = c.optString("authorName", "Viewer")
-                    val label = c.optString("title", c.optString("note", "Clip Marker"))
-                    val status = c.optString("downloadStatus", "PENDING").uppercase()
-
-                    // Ensure foreign key stream exists before inserting clip marker
-                    val existingStream = dao.getStreamById(streamId)
-                    if (existingStream == null) {
-                        val fallbackStream = StreamEntity(
-                            id = streamId,
-                            workspaceId = currentSession.workspaceId,
-                            title = "${currentSession.workspaceName} Live Stream",
-                            channelId = "channel-main",
-                            channelTitle = currentSession.workspaceName,
+                // No cloud streams yet — insert a placeholder so HomeScreen isn't empty
+                val sid = "stream-${session.workspaceId}"
+                if (dao.getStreamById(sid) == null) {
+                    dao.insertStream(
+                        StreamEntity(
+                            id = sid,
+                            workspaceId = session.workspaceId,
+                            title = "${session.workspaceName} Broadcast",
+                            channelId = "",
+                            channelTitle = session.workspaceName,
                             liveChatId = null,
                             thumbnailUrl = null,
                             status = "live",
@@ -418,31 +306,107 @@ class AuthRepository @Inject constructor(
                             startedAtMs = System.currentTimeMillis(),
                             endedAtMs = null
                         )
-                        dao.insertStream(fallbackStream)
-                    }
-
-                    val clipEntity = ClipMarkerEntity(
-                        id = clipId,
-                        streamId = streamId,
-                        authorName = authorName,
-                        authorId = c.optString("authorId", "user"),
-                        triggerMessageId = c.optString("chatMessageId", "msg-${UUID.randomUUID()}"),
-                        timestampMs = System.currentTimeMillis(),
-                        label = label,
-                        status = if (status.contains("COMPLET")) "GENERATED" else "PENDING",
-                        localFilePath = null,
-                        telegramMessageUrl = null
                     )
-                    dao.insertClipMarker(clipEntity)
+                }
+            }
+
+            // 2. Clip markers
+            val clipsArr = json.optJSONArray("clips")
+            if (clipsArr != null) {
+                for (i in 0 until clipsArr.length()) {
+                    val c = clipsArr.getJSONObject(i)
+                    val streamId = c.optString("streamId", "stream-${session.workspaceId}")
+                    if (dao.getStreamById(streamId) == null) {
+                        dao.insertStream(
+                            StreamEntity(
+                                id = streamId,
+                                workspaceId = session.workspaceId,
+                                title = "${session.workspaceName} Stream",
+                                channelId = "", channelTitle = session.workspaceName,
+                                liveChatId = null, thumbnailUrl = null,
+                                status = "live", isActive = true,
+                                startedAtMs = System.currentTimeMillis(), endedAtMs = null
+                            )
+                        )
+                    }
+                    val rawStatus = c.optString("downloadStatus", "PENDING").uppercase()
+                    dao.insertClipMarker(
+                        ClipMarkerEntity(
+                            id = c.optString("id", UUID.randomUUID().toString()),
+                            streamId = streamId,
+                            authorName = c.optString("authorName", "Viewer"),
+                            authorId = c.optString("authorId", "user"),
+                            triggerMessageId = c.optString("chatMessageId", "msg-${UUID.randomUUID()}"),
+                            timestampMs = System.currentTimeMillis(),
+                            label = c.optString("title", c.optString("note", "Clip Marker")),
+                            status = if (rawStatus.contains("COMPLET")) "GENERATED" else "PENDING",
+                            localFilePath = null,
+                            telegramMessageUrl = null
+                        )
+                    )
                 }
             }
 
             _isSyncing.value = false
-            Result.success("Sync completed successfully")
+            Result.success("Synced successfully")
         } catch (e: Exception) {
             _isSyncing.value = false
             e.printStackTrace()
             Result.failure(e)
+        }
+    }
+
+    // ─── Private helpers ──────────────────────────────────────────────────────
+
+    private fun saveRealSession(session: UserSession) {
+        prefs.edit()
+            .putBoolean(KEY_SIGNED_OUT, false)
+            .putBoolean(KEY_IS_DEMO, false)
+            .putString(KEY_UID, session.uid)
+            .putString(KEY_EMAIL, session.email)
+            .putString(KEY_NAME, session.displayName)
+            .putString(KEY_PHOTO, session.photoUrl)
+            .putString(KEY_WORKSPACE_ID, session.workspaceId)
+            .putString(KEY_WORKSPACE_NAME, session.workspaceName)
+            .putString(KEY_ROLE, session.role)
+            .putString(KEY_TOKEN, session.token)
+            .apply()
+    }
+
+    private suspend fun seedDemoDataIfEmpty() = withContext(Dispatchers.IO) {
+        try {
+            if (dao.getStreamById("demo-stream-001") != null) return@withContext
+            dao.insertStream(
+                StreamEntity(
+                    id = "demo-stream-001",
+                    workspaceId = "demo-workspace",
+                    title = "Demo Live Broadcast",
+                    channelId = "demo-channel",
+                    channelTitle = "Demo Studio",
+                    liveChatId = "demo-chat",
+                    thumbnailUrl = null,
+                    status = "live",
+                    isActive = true,
+                    startedAtMs = System.currentTimeMillis() - 2700000L,
+                    endedAtMs = null
+                )
+            )
+            dao.insertClipMarker(
+                ClipMarkerEntity(
+                    id = "demo-clip-001",
+                    streamId = "demo-stream-001",
+                    authorName = "DemoViewer",
+                    authorId = "demo-user",
+                    triggerMessageId = "demo-msg-001",
+                    timestampMs = System.currentTimeMillis() - 600000L,
+                    label = "Incredible moment !clip",
+                    status = "GENERATED",
+                    localFilePath = null,
+                    telegramMessageUrl = null
+                )
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

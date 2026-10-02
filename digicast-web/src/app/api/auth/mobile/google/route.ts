@@ -19,7 +19,7 @@ const GOOGLE_SCOPES = [
 
 export async function GET(req: NextRequest) {
   const baseUrl = getBaseUrl(req);
-  const redirectUri = `${baseUrl}/api/youtube/callback`;
+  const redirectUri = `${baseUrl}/api/auth/mobile/callback`;
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.YOUTUBE_CLIENT_ID;
 
   if (!clientId) {

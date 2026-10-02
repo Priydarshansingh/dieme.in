@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import {
   collection, getDocs, doc, getDoc, Timestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
+import { db, auth } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { UserPlus, Mail, Shield, Trash2, Users } from 'lucide-react';
+import { KeyRound, Mail, Shield, Trash2, Users, Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface Member {
   uid: string;
@@ -27,29 +28,85 @@ const ROLE_CONFIG: Record<Member['role'], { label: string; color: string; bg: st
 
 export default function TeamPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // App User Creation State
   const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createSuccess, setCreateSuccess] = useState(false);
+
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    async function load() {
-      try {
-        const userSnap = await getDoc(doc(db, 'users', user!.uid));
-        if (!userSnap.exists()) return;
-        const wid: string = userSnap.data().defaultWorkspaceId;
-        setWorkspaceId(wid);
-        const snap = await getDocs(collection(db, 'workspaces', wid, 'members'));
-        setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as Member)));
-      } catch (err) {
-        console.error('Team load error:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    loadMembers();
   }, [user]);
+
+  async function loadMembers() {
+    try {
+      const userSnap = await getDoc(doc(db, 'users', user!.uid));
+      if (!userSnap.exists()) return;
+      const wid: string = userSnap.data().defaultWorkspaceId;
+      setWorkspaceId(wid);
+      const snap = await getDocs(collection(db, 'workspaces', wid, 'members'));
+      setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as Member)));
+    } catch (err) {
+      console.error('Team load error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleCreateAppUser = async () => {
+    if (!inviteEmail || !invitePassword || !workspaceId) {
+      setCreateError('Email and Password are required');
+      return;
+    }
+
+    setIsCreating(true);
+    setCreateError(null);
+    setCreateSuccess(false);
+
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+
+      const res = await fetch('/api/team/create-app-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          workspaceId,
+          email: inviteEmail,
+          password: invitePassword,
+          displayName: inviteEmail.split('@')[0],
+          role: 'editor'
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create app user');
+      }
+
+      setCreateSuccess(true);
+      setInviteEmail('');
+      setInvitePassword('');
+      loadMembers(); // Refresh list
+
+      setTimeout(() => setCreateSuccess(false), 3000);
+    } catch (err: any) {
+      setCreateError(err.message);
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const currentUserIsOwner = members.find(m => m.uid === user?.uid)?.role === 'owner';
 
@@ -64,9 +121,9 @@ export default function TeamPage() {
   return (
     <div className="max-w-3xl space-y-8">
       <div>
-        <h1 style={{ color: '#1B2237' }}>Team</h1>
+        <h1 style={{ color: '#1B2237' }}>Team & App Access</h1>
         <p className="text-sm mt-0.5" style={{ color: '#9CA3AF' }}>
-          Manage who has access to your workspace.
+          Create app accounts for your editors to connect to your live streams on their device.
         </p>
       </div>
 
@@ -78,17 +135,30 @@ export default function TeamPage() {
         >
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <UserPlus className="w-4 h-4" style={{ color: '#1B2237' }} />
-              <h2 style={{ color: '#1B2237' }}>Invite an editor</h2>
+              <KeyRound className="w-4 h-4" style={{ color: '#1B2237' }} />
+              <h2 style={{ color: '#1B2237' }}>Create App Login</h2>
             </div>
             <p className="text-sm" style={{ color: '#9CA3AF' }}>
-              Editors can view streams and generate clips. Telegram upload permission is off by default and must be enabled per-editor.
+              Create an ID and Password that an Editor can use to log into the Digicast mobile app. They will be added to this workspace automatically.
             </p>
           </div>
-          <div className="flex gap-2">
+
+          {createError && (
+            <div className="p-3 text-sm rounded-lg bg-red-50 text-red-600 border border-red-100">
+              {createError}
+            </div>
+          )}
+
+          {createSuccess && (
+            <div className="p-3 text-sm rounded-lg bg-green-50 text-green-700 border border-green-100 font-medium">
+              App User created successfully! They can now log into the mobile app.
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div
-              className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl"
-              style={{ border: '1px solid #E5E7EB', backgroundColor: '#F4F6F9' }}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-colors focus-within:border-indigo-500"
+              style={{ backgroundColor: '#F4F6F9', borderColor: '#E5E7EB' }}
             >
               <Mail className="w-4 h-4 shrink-0" style={{ color: '#9CA3AF' }} />
               <input
@@ -96,24 +166,51 @@ export default function TeamPage() {
                 placeholder="editor@example.com"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1 text-sm bg-transparent outline-none"
+                className="flex-1 text-sm bg-transparent outline-none w-full"
                 style={{ color: '#1B2237' }}
               />
             </div>
-            <button
-              className="px-5 py-2.5 text-sm font-semibold rounded-xl transition hover:opacity-90"
-              style={{ backgroundColor: '#1B2237', color: '#FFFFFF' }}
+
+            <div
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-colors focus-within:border-indigo-500"
+              style={{ backgroundColor: '#F4F6F9', borderColor: '#E5E7EB' }}
             >
-              Send invite
-            </button>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="shrink-0 focus:outline-none"
+              >
+                {showPassword ?
+                   <EyeOff className="w-4 h-4" style={{ color: '#9CA3AF' }} /> :
+                   <Eye className="w-4 h-4" style={{ color: '#9CA3AF' }} />
+                }
+              </button>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Secure Password"
+                value={invitePassword}
+                onChange={(e) => setInvitePassword(e.target.value)}
+                className="flex-1 text-sm bg-transparent outline-none w-full"
+                style={{ color: '#1B2237' }}
+              />
+            </div>
           </div>
+
+          <button
+            onClick={handleCreateAppUser}
+            disabled={isCreating || !inviteEmail || !invitePassword}
+            className="w-full sm:w-auto px-6 py-2.5 text-sm font-semibold rounded-xl transition disabled:opacity-50"
+            style={{ backgroundColor: '#1B2237', color: '#FFFFFF' }}
+          >
+            {isCreating ? 'Creating...' : 'Create App User'}
+          </button>
         </div>
       )}
 
       {/* Member list */}
       <div className="space-y-3">
         <h2 style={{ color: '#1B2237' }}>
-          Members
+          Workspace Members
           <span className="ml-2 text-sm font-normal" style={{ color: '#9CA3AF' }}>
             {members.length}
           </span>

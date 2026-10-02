@@ -1,8 +1,6 @@
 package com.digicast.app.ui.screens.onboarding
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,18 +19,20 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -48,21 +48,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.digicast.app.R
 import com.digicast.app.data.repository.AuthRepository
 import com.digicast.app.data.repository.AuthState
+import com.digicast.app.ui.components.DigicastLogo
 import com.digicast.app.ui.screens.settings.SettingsAuthWrapperViewModel
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastCardSurface
@@ -82,11 +80,13 @@ fun OnboardingScreen(
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-    var email by remember { mutableStateOf("pskishnawat133@gmail.com") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // If signed in with valid account, navigate forward
+    // Already signed in from a previous session — go directly to dashboard
     LaunchedEffect(authState) {
         if (authState is AuthState.SignedIn) {
             onComplete()
@@ -99,27 +99,14 @@ fun OnboardingScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .padding(horizontal = 24.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Brand Header with authentic Digicast Logo
-            Box(
-                modifier = Modifier
-                    .size(92.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF000000))
-                    .border(1.dp, Color(0xFF253350), RoundedCornerShape(24.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_digicast_logo),
-                    contentDescription = "Digicast Logo",
-                    modifier = Modifier.size(64.dp)
-                )
-            }
+            // Logo
+            DigicastLogo(size = 72)
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
@@ -129,61 +116,37 @@ fun OnboardingScreen(
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 2.sp
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Live Stream Intelligence & Clip Automation",
                     color = DigicastAccentBlue,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
 
-            // Direct In-Place Sign In Card
+            // Sign-In Card — email and password
             Card(
                 colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
                 shape = RoundedCornerShape(18.dp),
-                border = CardDefaults.outlinedCardBorder().copy(
-                    brush = Brush.linearGradient(
-                        colors = listOf(Color(0xFF3B82F6), Color(0xFF1E293B))
-                    )
-                ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .background(DigicastNavy, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.AccountCircle,
-                                contentDescription = null,
-                                tint = DigicastAccentBlue,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Column {
-                            Text(
-                                text = "Sign in to Studio",
-                                color = DigicastWhite,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                            Text(
-                                text = "Connect your Google / YouTube workspace",
-                                color = DigicastSlate,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
+                    Text(
+                        text = "Sign in to your Studio",
+                        color = DigicastWhite,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        text = "Use the App Login created by your workspace owner on digicast-web.",
+                        color = DigicastSlate,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
 
                     OutlinedTextField(
                         value = email,
@@ -191,13 +154,50 @@ fun OnboardingScreen(
                             email = it
                             errorMessage = null
                         },
-                        label = { Text("Google Account / Creator Email", color = DigicastSlate) },
+                        label = { Text("App Email", color = DigicastSlate) },
                         leadingIcon = {
                             Icon(Icons.Default.Email, contentDescription = null, tint = DigicastAccentBlue)
                         },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = DigicastAccentBlue,
+                            unfocusedBorderColor = DigicastNavy,
+                            focusedTextColor = DigicastWhite,
+                            unfocusedTextColor = DigicastWhite,
+                            focusedContainerColor = DigicastNavy,
+                            unfocusedContainerColor = DigicastNavy
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            errorMessage = null
+                        },
+                        label = { Text("Password", color = DigicastSlate) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = DigicastAccentBlue)
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { showPassword = !showPassword }) {
+                                Icon(
+                                    imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = DigicastSlate
+                                )
+                            }
+                        },
+                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
                         ),
                         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
@@ -215,39 +215,32 @@ fun OnboardingScreen(
 
                     if (errorMessage != null) {
                         Text(
-                            text = errorMessage ?: "",
+                            text = errorMessage!!,
                             color = DigicastLiveRed,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 4.dp)
+                            fontSize = 12.sp
                         )
                     }
 
+                    // Primary sign-in button
                     Button(
                         onClick = {
                             focusManager.clearFocus()
                             if (email.isBlank() || !email.contains("@")) {
-                                errorMessage = "Please enter a valid Google Account email"
+                                errorMessage = "Enter a valid email address."
                                 return@Button
                             }
-
+                            if (password.isBlank()) {
+                                errorMessage = "Enter your password."
+                                return@Button
+                            }
                             isLoading = true
                             errorMessage = null
-
                             scope.launch {
-                                val result = authRepository.signInDirect(
-                                    email = email.trim(),
-                                    displayName = email.substringBefore("@"),
-                                    role = "owner"
-                                )
+                                val result = authRepository.signInWithEmail(email.trim(), password)
                                 isLoading = false
-                                result.fold(
-                                    onSuccess = {
-                                        onComplete()
-                                    },
-                                    onFailure = { err ->
-                                        errorMessage = err.message ?: "Failed to sign in. Please verify network connection."
-                                    }
-                                )
+                                result.onFailure { err ->
+                                    errorMessage = err.message ?: "Sign-in failed. Check your credentials and connection."
+                                }
                             }
                         },
                         enabled = !isLoading,
@@ -264,17 +257,18 @@ fun OnboardingScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text("Connecting Studio...", color = DigicastWhite, fontWeight = FontWeight.Bold)
+                            Text("Connecting...", color = DigicastWhite, fontWeight = FontWeight.Bold)
                         } else {
                             Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Sign In & Sync Streams", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text("Sign In", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
+                    // Demo mode — no sign-in required
                     OutlinedButton(
                         onClick = {
-                            authRepository.resetToDefaultSignedIn()
+                            authRepository.enterDemoMode()
                             onComplete()
                         },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastSlate),
@@ -283,12 +277,12 @@ fun OnboardingScreen(
                             .fillMaxWidth()
                             .height(44.dp)
                     ) {
-                        Text("Explore Studio Demo", fontSize = 13.sp)
+                        Text("Explore in Demo Mode", fontSize = 13.sp)
                     }
                 }
             }
 
-            // Feature Highlights
+            // Feature highlights
             Card(
                 colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
                 shape = RoundedCornerShape(16.dp),
@@ -299,37 +293,30 @@ fun OnboardingScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     FeatureRow(
+                        icon = Icons.Default.CloudSync,
+                        title = "Automatic Cloud Sync",
+                        desc = "Streams, clips and workspace data sync instantly via digicast-web."
+                    )
+                    FeatureRow(
                         icon = Icons.Default.AutoAwesome,
-                        title = "Real-time Live Chat & !clip Triggers",
-                        desc = "Monitors stream chat on-device and instantly captures epic moments."
+                        title = "Real-time !clip Detection",
+                        desc = "Live chat is monitored on-device. Clip markers appear instantly."
                     )
                     FeatureRow(
                         icon = Icons.Default.Security,
-                        title = "Zero Data Leakage Privacy",
-                        desc = "Your private credentials stay safe. Directly synchronizes with your verified YouTube workspace."
+                        title = "Zero Cross-Workspace Leakage",
+                        desc = "Each account only ever sees its own workspace data."
                     )
                 }
             }
 
-            Text(
-                text = "Digicast automatically synchronizes your YouTube broadcasts, live chat, and generated clips directly to your mobile studio.",
-                color = DigicastSlate,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-private fun FeatureRow(
-    icon: ImageVector,
-    title: String,
-    desc: String
-) {
+private fun FeatureRow(icon: ImageVector, title: String, desc: String) {
     Row(
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -343,7 +330,7 @@ private fun FeatureRow(
             Icon(icon, contentDescription = null, tint = DigicastAccentBlue, modifier = Modifier.size(20.dp))
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(title, color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             Text(desc, color = DigicastSlate, fontSize = 12.sp, lineHeight = 16.sp)
         }
     }

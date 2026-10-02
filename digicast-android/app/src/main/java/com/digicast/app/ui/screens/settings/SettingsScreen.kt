@@ -1,11 +1,7 @@
 package com.digicast.app.ui.screens.settings
 
-import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,22 +18,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -110,7 +102,7 @@ fun SettingsScreen(
                 fontWeight = FontWeight.Bold
             )
 
-            // ── Account & Google Sign-In Card ────────────────────────────────
+            // ── Account Card ──────────────────────────────────────────────────
             Card(
                 colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
                 shape = RoundedCornerShape(16.dp),
@@ -122,12 +114,14 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = DigicastAccentBlue)
-                        Text("Google & Workspace Account", color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text("Workspace Account", color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                     }
 
                     when (val state = authState) {
                         is AuthState.SignedIn -> {
                             val session = state.session
+
+                            // Avatar + profile info
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -149,13 +143,21 @@ fun SettingsScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(session.displayName, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                     Text(session.email, color = DigicastSlate, fontSize = 13.sp)
-                                    Row(modifier = Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(
+                                        modifier = Modifier.padding(top = 4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
                                         Box(
                                             modifier = Modifier
                                                 .background(DigicastNavy, RoundedCornerShape(6.dp))
                                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                                         ) {
-                                            Text("ROLE: ${session.role.uppercase()}", color = DigicastAccentBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Text(
+                                                "ROLE: ${session.role.uppercase()}",
+                                                color = DigicastAccentBlue,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
                                         }
                                         Box(
                                             modifier = Modifier
@@ -168,50 +170,37 @@ fun SettingsScreen(
                                 }
                             }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            isSyncing = true
-                                            val res = authRepository.syncWorkspaceData()
-                                            isSyncing = false
-                                            if (res.isSuccess) {
-                                                Toast.makeText(context, "Workspace synchronized!", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                Toast.makeText(context, "Sync: ${res.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue)
-                                ) {
-                                    if (isSyncing) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = DigicastAccentBlue, strokeWidth = 2.dp)
-                                    } else {
-                                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Sync Cloud")
+                            // Sync Cloud button
+                            OutlinedButton(
+                                onClick = {
+                                    coroutineScope.launch {
+                                        isSyncing = true
+                                        val res = authRepository.syncWorkspaceData()
+                                        isSyncing = false
+                                        val msg = if (res.isSuccess) "Workspace synchronized!"
+                                                  else "Sync failed: ${res.exceptionOrNull()?.message}"
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                     }
-                                }
-
-                                Button(
-                                    onClick = {
-                                        val authUrl = authRepository.getGoogleOAuthUrl()
-                                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
-                                        context.startActivity(browserIntent)
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(containerColor = DigicastNavy)
-                                ) {
-                                    Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Switch Account")
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue)
+                            ) {
+                                if (isSyncing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = DigicastAccentBlue,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Syncing...")
+                                } else {
+                                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Sync Cloud")
                                 }
                             }
 
+                            // Sign out
                             OutlinedButton(
                                 onClick = {
                                     authRepository.signOut()
@@ -225,47 +214,18 @@ fun SettingsScreen(
                         }
 
                         else -> {
+                            // Not signed in — just a message; onboarding handles sign-in
                             Text(
-                                "Sign in with your Google Account to connect to your YouTube Channel and cloud workspace as Creator or Editor.",
+                                "You are not signed in. Go back and sign in with your workspace email to connect to your studio.",
                                 color = DigicastSlate,
                                 fontSize = 13.sp
                             )
-                            var showSignInDialog by remember { mutableStateOf(false) }
-
-                            if (showSignInDialog) {
-                                com.digicast.app.ui.components.SignInDialog(
-                                    onDismissRequest = { showSignInDialog = false },
-                                    onSuccess = { showSignInDialog = false },
-                                    authRepository = authRepository,
-                                    initialEmail = "pskishnawat133@gmail.com"
-                                )
-                            }
-
-                            Button(
-                                onClick = { showSignInDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.AccountCircle, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Sign in with Google Account")
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    authRepository.resetToDefaultSignedIn()
-                                },
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastSlate),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Continue with Default Studio Account")
-                            }
                         }
                     }
                 }
             }
 
-            // ── Extensions & Plugins Card (.dcast) ───────────────────────────
+            // ── Extensions & Plugins Card (.dcast) ────────────────────────────
             Card(
                 colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
                 shape = RoundedCornerShape(16.dp),
@@ -327,7 +287,9 @@ fun SettingsScreen(
                                 if (item.isInstalling) {
                                     LinearProgressIndicator(
                                         progress = { item.downloadProgress / 100f },
-                                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(4.dp),
                                         color = DigicastAccentBlue
                                     )
                                     Text("Downloading ${item.downloadProgress}%", color = DigicastSlate, fontSize = 11.sp)
@@ -365,7 +327,7 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Privacy & Security Details ───────────────────────────────────
+            // ── Privacy & Security ────────────────────────────────────────────
             Card(
                 colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
                 shape = RoundedCornerShape(16.dp),
@@ -379,9 +341,26 @@ fun SettingsScreen(
                         Icon(Icons.Default.Security, contentDescription = null, tint = DigicastSlate)
                         Text("Security Architecture", color = DigicastWhite, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     }
-                    Text("• Chat messages are processed in-memory and stored only locally in Room DB.", color = DigicastSlate, fontSize = 12.sp)
-                    Text("• Zero cross-account data leakage: Workspaces and clip markers are cryptographically bounded by your verified Gmail UID.", color = DigicastSlate, fontSize = 12.sp)
-                    Text("• Telegram bot tokens are executed serverless in Cloud Run and never stored in this APK.", color = DigicastSlate, fontSize = 12.sp)
+                    Text(
+                        "• Chat messages are processed in-memory and stored only locally in Room DB.",
+                        color = DigicastSlate,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        "• Zero cross-account data leakage: Workspaces and clip markers are bounded by your verified workspace UID.",
+                        color = DigicastSlate,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        "• Telegram bot tokens are executed serverless in Cloud Run and never stored in this APK.",
+                        color = DigicastSlate,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        "• Sign-in uses your registered workspace email. No passwords are stored on-device.",
+                        color = DigicastSlate,
+                        fontSize = 12.sp
+                    )
                 }
             }
         }

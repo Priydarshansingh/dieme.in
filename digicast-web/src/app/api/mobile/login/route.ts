@@ -1,6 +1,6 @@
 // POST /api/mobile/login
-// Direct, instantaneous authentication endpoint for the Digicast Android mobile app.
-// Bypasses browser OAuth hurdles, Google Cloud verification blocks, and deep-link redirect failures.
+// API endpoint for the Digicast Android mobile app to sign in with Email & Password.
+// Bypasses browser OAuth hurdles but maintains full Firebase Auth security.
 
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
@@ -10,7 +10,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const email = (body.email || "").toLowerCase().trim();
-    const displayName = body.displayName || email.split("@")[0] || "Digicast User";
+    const password = body.password || "";
+
+    // We get role & workspace requests from the app, but they are overridden by server truth if the user already belongs to a workspace
     const requestedRole = (body.role || "owner").toLowerCase();
     const requestedWorkspaceId = body.workspaceId || "";
 
@@ -18,20 +20,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Valid email address is required" }, { status: 400 });
     }
 
-    // 1. Get or create user in Firebase Auth
-    let uid: string;
-    try {
-      const existingUser = await adminAuth.getUserByEmail(email);
-      uid = existingUser.uid;
-    } catch {
-      const newUser = await adminAuth.createUser({
-        email,
-        displayName,
-      });
-      uid = newUser.uid;
+    if (!password) {
+      return NextResponse.json({ error: "Password is required for app login" }, { status: 400 });
     }
 
-    // 2. Upsert in Firestore users
+    // 1. Verify password using Firebase Identity Toolkit REST API
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    if (!apiKey) {
+      throw new Error("Server misconfiguration: missing Firebase API Key");
+    }
+
+    const authRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+    });
+
+    if (!authRes.ok) {
+      const errorData = await authRes.json();
+      const code = errorData?.error?.message || "Invalid credentials";
+
+      let userMessage = "Incorrect email or password.";
+      if (code === "EMAIL_NOT_FOUND") userMessage = "This email is not registered. Ask your workspace owner to create an App account for you from the Web Dashboard.";
+      if (code === "INVALID_PASSWORD") userMessage = "Incorrect password.";
+      if (code === "USER_DISABLED") userMessage = "This account has been disabled.";
+
+      return NextResponse.json({ error: userMessage }, { status: 401 });
+    }
+
+    const authData = await authRes.json();
+    const uid = authData.localId;
+    const displayName = authData.displayName || email.split("@")[0] || "Digicast User";
+
+    // 2. We now have a verified UID. Upsert in Firestore users.
     await adminDb.doc(col.user(uid)).set({
       uid,
       email,
@@ -39,14 +60,7 @@ export async function POST(req: NextRequest) {
       lastLoginAt: new Date().toISOString(),
     }, { merge: true });
 
-    // 3. Generate custom authentication token
-    const customToken = await adminAuth.createCustomToken(uid, {
-      email,
-      displayName,
-      role: requestedRole,
-    });
-
-    // 4. Match or create workspace
+    // 3. Match Workspace
     let activeWorkspaceId = requestedWorkspaceId;
     let activeWorkspaceName = "Personal Workspace";
     let role = requestedRole;
@@ -141,6 +155,13 @@ export async function POST(req: NextRequest) {
         joinedAt: new Date().toISOString(),
       });
     }
+
+    // 4. Generate custom authentication token for the Android client
+    const customToken = await adminAuth.createCustomToken(uid, {
+      email,
+      displayName,
+      role: role,
+    });
 
     return NextResponse.json({
       session: {

@@ -71,19 +71,15 @@ fun BottomNavBar(
     ) {
         items.forEach { item ->
             val isSelected = currentRoute == item.route
-            val interactionSource = remember { MutableInteractionSource() }
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier
+                    .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = { onNavigate(item.route) }
-                    )
-                    .padding(horizontal = 24.dp, vertical = 6.dp)
+                    .clickable { onNavigate(item.route) }
+                    .padding(vertical = 8.dp)
             ) {
                 Icon(
                     imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
@@ -101,7 +97,7 @@ fun BottomNavBar(
                     color = if (isSelected) DigicastWhite else DigicastSlate
                 )
 
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Active dot indicator (from Image 1 & 2)
                 Box(

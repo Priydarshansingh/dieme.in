@@ -56,10 +56,13 @@ fun DigicastNavGraph(
                 BottomNavBar(
                     currentRoute = currentRoute,
                     onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+                        if (route != currentRoute) {
+                            navController.navigate(route) {
+                                popUpTo(Screen.Home.route) {
+                                    saveState = false
+                                }
+                                launchSingleTop = true
+                            }
                         }
                     }
                 )

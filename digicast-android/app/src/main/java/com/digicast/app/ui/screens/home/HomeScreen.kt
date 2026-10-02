@@ -98,10 +98,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.digicast.app.data.repository.ClipRepository
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    streamRepository: StreamRepository,
-    chatRepository: ChatRepository,
+    private val streamRepository: StreamRepository,
+    private val clipRepository: ClipRepository,
+    private val chatRepository: ChatRepository,
     val authRepository: AuthRepository
 ) : ViewModel() {
 
@@ -111,12 +114,18 @@ class HomeViewModel @Inject constructor(
     val activeStreams = streamRepository.getActiveStreams()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val allStreams = streamRepository.getAllStreams()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val clips = clipRepository.getAllClips()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     @OptIn(ExperimentalCoroutinesApi::class)
-    val recentMessages = activeStreams
+    val recentMessages = allStreams
         .map { it.firstOrNull() }
         .flatMapLatest { stream ->
             if (stream == null) flowOf(emptyList())
-            else chatRepository.getRecentMessages(stream.id, 20)
+            else chatRepository.getRecentMessages(stream.id, 50)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -138,13 +147,15 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val streams by viewModel.activeStreams.collectAsState()
+    val activeStreams by viewModel.activeStreams.collectAsState()
+    val allStreams by viewModel.allStreams.collectAsState()
+    val clips by viewModel.clips.collectAsState()
     val messages by viewModel.recentMessages.collectAsState()
     val authState by viewModel.authState.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val ytAccount by viewModel.authRepository.youtubeAccount.collectAsState()
 
-    val live = streams.firstOrNull()
+    val live = activeStreams.firstOrNull() ?: allStreams.firstOrNull()
     val capturing = LiveChatCaptureService.isServiceRunning
     var selectedCategory by remember { mutableStateOf("All Streams") }
 
@@ -303,7 +314,7 @@ fun HomeScreen(
                 }
             }
 
-            // ── 3. The 4 Iconic Folder-Tab Cards (2x2 Grid from Reference 1) ───
+            // ── 3. The 4 Iconic Folder-Tab Cards (100% Real Live Metrics) ──────
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Top Row: Neon Lime & Spring Green
@@ -315,27 +326,29 @@ fun HomeScreen(
                             MetricFormatter.formatCount(live.concurrentViewers)
                         } else if (live != null && live.viewCount > 0) {
                             MetricFormatter.formatCount(live.viewCount)
+                        } else if (allStreams.isNotEmpty()) {
+                            MetricFormatter.formatCount(allStreams.sumOf { it.viewCount })
                         } else {
-                            "230k"
+                            "0"
                         }
 
                         FolderTabCard(
                             value = viewsCount,
-                            label = if (live?.status == "live") "Live Views" else "Total Views",
-                            sublabel = if (live != null) live.channelTitle else "Current Stream",
+                            label = if (live?.status == "live") "Live Viewers" else "Total Views",
+                            sublabel = if (live != null) live.channelTitle else "No streams yet",
                             icon = Icons.AutoMirrored.Filled.TrendingUp,
                             backgroundColor = DigicastNeonLime,
                             modifier = Modifier.weight(1f),
                             onClick = { if (live != null) onNavigateToStreamDetail(live.id) }
                         )
 
-                        val chattersCount = messages.map { it.authorDisplayName }.toSet().size
-                        val chattersStr = if (chattersCount > 0) MetricFormatter.formatCount(chattersCount.toLong()) else "8.549k"
+                        val distinctChatters = messages.map { it.authorDisplayName }.distinct().size
+                        val chattersStr = if (distinctChatters > 0) MetricFormatter.formatCount(distinctChatters.toLong()) else if (messages.isNotEmpty()) "${messages.size}" else "0"
 
                         FolderTabCard(
                             value = chattersStr,
                             label = "Chatters",
-                            sublabel = "Active Community",
+                            sublabel = if (messages.isNotEmpty()) "${messages.size} msgs captured" else "No chatters yet",
                             icon = Icons.Default.Group,
                             backgroundColor = DigicastSpringGreen,
                             modifier = Modifier.weight(1f)
@@ -347,10 +360,13 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        val clipsCount = "${clips.size}"
+                        val readyCount = clips.count { it.status.uppercase().contains("COMPLET") || it.status.uppercase() == "GENERATED" }
+
                         FolderTabCard(
-                            value = "1.423k",
+                            value = clipsCount,
                             label = "Clips Created",
-                            sublabel = "Captured Markers",
+                            sublabel = if (clips.isNotEmpty()) "$readyCount ready" else "No clips yet",
                             icon = Icons.Default.ContentCut,
                             backgroundColor = DigicastSunsetCoral,
                             modifier = Modifier.weight(1f),
@@ -359,14 +375,16 @@ fun HomeScreen(
 
                         val likesStr = if (live != null && live.likeCount > 0) {
                             MetricFormatter.formatCount(live.likeCount)
+                        } else if (allStreams.isNotEmpty()) {
+                            MetricFormatter.formatCount(allStreams.sumOf { it.likeCount })
                         } else {
-                            "$9745"
+                            "0"
                         }
 
                         FolderTabCard(
                             value = likesStr,
                             label = "Likes & Support",
-                            sublabel = "Superchats & Bits",
+                            sublabel = if (live != null) "Current Stream" else "All broadcasts",
                             icon = Icons.Default.Paid,
                             backgroundColor = DigicastElectricCyan,
                             modifier = Modifier.weight(1f)
@@ -409,14 +427,25 @@ fun HomeScreen(
                 }
             }
 
-            // ── 5. Complete Activity Sparkline Wave (From Reference Image 1) ───
+            // ── 5. Complete Activity Sparkline Wave (Bound to Real Broadcast) ──
             item {
+                val sparklineTitle = if (live != null) "${live.channelTitle} Stream Activity" else "Studio Stream Activity"
+                val sparklineSub = if (live != null) live.title else "No broadcast currently streaming"
+                val sparklineTrend = if (live?.status == "live" && live.concurrentViewers > 0) {
+                    "${MetricFormatter.formatCount(live.concurrentViewers)} Live"
+                } else if (live != null && live.viewCount > 0) {
+                    "${MetricFormatter.formatCount(live.viewCount)} Views"
+                } else {
+                    "Offline"
+                }
+                val sparklineDuration = if (live != null) MetricFormatter.formatDuration(live.startedAtMs, live.endedAtMs) else "0m"
+
                 SparklineWaveCard(
-                    title = "Complete Stream Activity",
-                    subtitle = "Real-time Viewer Engagement",
-                    trendPercent = "+4.93%",
-                    isPositiveTrend = true,
-                    highlightBadgeText = "2h 12m"
+                    title = sparklineTitle,
+                    subtitle = sparklineSub,
+                    trendPercent = sparklineTrend,
+                    isPositiveTrend = live?.status == "live",
+                    highlightBadgeText = sparklineDuration
                 )
             }
 

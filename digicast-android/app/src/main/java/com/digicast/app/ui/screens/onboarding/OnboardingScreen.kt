@@ -106,24 +106,7 @@ fun OnboardingScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Logo
-            DigicastLogo(size = 72)
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "DIGICAST",
-                    color = DigicastWhite,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 2.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Live Stream Intelligence & Clip Automation",
-                    color = DigicastAccentBlue,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            DigicastLogo(size = 72, showLiveText = false)
 
             // Sign-In Card — email and password
             Card(
@@ -282,34 +265,7 @@ fun OnboardingScreen(
                 }
             }
 
-            // Feature highlights
-            Card(
-                colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    FeatureRow(
-                        icon = Icons.Default.CloudSync,
-                        title = "Automatic Cloud Sync",
-                        desc = "Streams, clips and workspace data sync instantly via digicast-web."
-                    )
-                    FeatureRow(
-                        icon = Icons.Default.AutoAwesome,
-                        title = "Real-time !clip Detection",
-                        desc = "Live chat is monitored on-device. Clip markers appear instantly."
-                    )
-                    FeatureRow(
-                        icon = Icons.Default.Security,
-                        title = "Zero Cross-Workspace Leakage",
-                        desc = "Each account only ever sees its own workspace data."
-                    )
-                }
-            }
-
+            
             Spacer(modifier = Modifier.height(8.dp))
         }
     }

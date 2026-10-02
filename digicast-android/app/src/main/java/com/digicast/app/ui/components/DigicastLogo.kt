@@ -17,7 +17,7 @@ import com.digicast.app.ui.theme.DigicastSlate
 import com.digicast.app.ui.theme.DigicastWhite
 
 @Composable
-fun DigicastLogo(size: Int = 32, modifier: Modifier = Modifier) {
+fun DigicastLogo(size: Int = 32, modifier: Modifier = Modifier, showLiveText: Boolean = true) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -34,11 +34,13 @@ fun DigicastLogo(size: Int = 32, modifier: Modifier = Modifier) {
             fontWeight = FontWeight.Bold,
             fontSize = (size * 0.55).sp
         )
-        Text(
-            text = "Live",
-            color = DigicastSlate,
-            fontWeight = FontWeight.Medium,
-            fontSize = (size * 0.4).sp
-        )
+        if (showLiveText) {
+            Text(
+                text = "Live",
+                color = DigicastSlate,
+                fontWeight = FontWeight.Medium,
+                fontSize = (size * 0.4).sp
+            )
+        }
     }
 }

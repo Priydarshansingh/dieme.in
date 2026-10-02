@@ -21,28 +21,69 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Password is required for app login" }, { status: 400 });
     }
 
+    console.log(`[mobile/login] Attempting login for email: "${email}"`);
+
     // 1. Verify password using Firebase Identity Toolkit REST API
     const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
     if (!apiKey) {
       throw new Error("Server misconfiguration: missing Firebase API Key");
     }
 
-    const authRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
+    let authRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, returnSecureToken: true }),
     });
 
+    // If failed and password has surrounding whitespace (common on mobile keyboards), retry with trimmed password
+    if (!authRes.ok && password.trim() !== password) {
+      const retryRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: password.trim(), returnSecureToken: true }),
+      });
+      if (retryRes.ok) {
+        authRes = retryRes;
+      }
+    }
+
     if (!authRes.ok) {
       const errorData = await authRes.json();
       const code = errorData?.error?.message || "Invalid credentials";
+      console.warn(`[mobile/login] Identity Toolkit rejected "${email}":`, code);
 
-      let userMessage = "Incorrect email or password.";
-      if (code === "EMAIL_NOT_FOUND") userMessage = "This email is not registered. Ask your workspace owner to create an App account for you from the Web Dashboard.";
-      if (code === "INVALID_PASSWORD") userMessage = "Incorrect password.";
-      if (code === "USER_DISABLED") userMessage = "This account has been disabled.";
+      try {
+        const userRecord = await adminAuth.getUserByEmail(email);
+        // Check if user has a password provider attached
+        const hasPassword = userRecord.providerData.some(p => p.providerId === "password");
+        if (!hasPassword) {
+          console.warn(`[mobile/login] User "${email}" exists but has NO password provider.`);
+          return NextResponse.json({
+            error: "No mobile app password set yet. Please open the Web Dashboard, go to 'Team & App Access' -> 'My Mobile App Login', enter your password and click Save.",
+            code: "PASSWORD_NOT_SET"
+          }, { status: 401 });
+        } else {
+          console.warn(`[mobile/login] User "${email}" entered incorrect password.`);
+          return NextResponse.json({
+            error: "Incorrect password. You can reset or update your password on the Web Dashboard under 'Team & App Access'.",
+            code: "INVALID_PASSWORD"
+          }, { status: 401 });
+        }
+      } catch (userLookupErr: any) {
+        if (userLookupErr.code === "auth/user-not-found") {
+          console.warn(`[mobile/login] User "${email}" not found in Firebase Auth.`);
+          return NextResponse.json({
+            error: "No account found with this email. Please verify your email or ask your workspace owner to add you as an editor on the Web Dashboard.",
+            code: "USER_NOT_FOUND"
+          }, { status: 401 });
+        }
+      }
 
-      return NextResponse.json({ error: userMessage }, { status: 401 });
+      if (code === "USER_DISABLED") {
+        return NextResponse.json({ error: "This account has been disabled." }, { status: 401 });
+      }
+
+      return NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
     }
 
     const authData = await authRes.json();

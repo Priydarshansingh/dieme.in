@@ -205,8 +205,14 @@ class AuthRepository @Inject constructor(
             saveRealSession(session)
             _authState.value = AuthState.SignedIn(session)
 
-            // Immediately fetch all workspace data after sign-in
-            syncWorkspaceData()
+            // Immediately trigger background sync for streams, clips, and YouTube channel
+            scope.launch {
+                try {
+                    syncWorkspaceData()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
 
             Result.success(session)
         } catch (e: Exception) {

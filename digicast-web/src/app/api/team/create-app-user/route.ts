@@ -25,12 +25,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email, password, and workspaceId are required" }, { status: 400 });
     }
 
-    // Verify caller is owner of this workspace
-    const memberDoc = await adminDb.doc(col.member(workspaceId, decodedToken.uid)).get();
-    if (!memberDoc.exists || memberDoc.data()?.role !== "owner") {
-      return NextResponse.json({ error: "Only workspace owners can create App users" }, { status: 403 });
-    }
-
     // Verify workspace subscription is not expired
     const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
     const wsData = wsDoc.exists ? wsDoc.data() : null;
@@ -40,6 +34,15 @@ export async function POST(req: NextRequest) {
         error: "Your workspace subscription or trial has expired. Please renew your monthly subscription on the web dashboard to manage app credentials.",
         isExpired: true,
       }, { status: 403 });
+    }
+
+    // Verify caller is owner of this workspace
+    const isOwnerByDoc = wsData?.ownerUid === decodedToken.uid || wsData?.ownerId === decodedToken.uid || workspaceId === decodedToken.uid;
+    if (!isOwnerByDoc) {
+      const memberDoc = await adminDb.doc(col.member(workspaceId, decodedToken.uid)).get();
+      if (!memberDoc.exists || memberDoc.data()?.role !== "owner") {
+        return NextResponse.json({ error: "Only workspace owners can create App users" }, { status: 403 });
+      }
     }
 
     // 1. Create or update user in Firebase Auth with the Password

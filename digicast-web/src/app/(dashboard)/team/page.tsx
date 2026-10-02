@@ -81,13 +81,19 @@ export default function TeamPage() {
 
   async function loadMembers() {
     try {
+      let wid = user!.uid;
       const userSnap = await getDoc(doc(db, 'users', user!.uid));
-      if (!userSnap.exists()) return;
-      const wid: string = userSnap.data().defaultWorkspaceId;
+      if (userSnap.exists() && userSnap.data()?.defaultWorkspaceId) {
+        wid = userSnap.data().defaultWorkspaceId;
+      }
       setWorkspaceId(wid);
       loadSubscription(wid);
-      const snap = await getDocs(collection(db, 'workspaces', wid, 'members'));
-      setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as Member)));
+      try {
+        const snap = await getDocs(collection(db, 'workspaces', wid, 'members'));
+        setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as Member)));
+      } catch (err) {
+        console.warn('Team members query warning:', err);
+      }
     } catch (err) {
       console.error('Team load error:', err);
     } finally {
@@ -96,8 +102,17 @@ export default function TeamPage() {
   }
 
   const handleSetOwnerPassword = async () => {
-    if (!ownerPassword || !workspaceId) {
+    const activeWid = workspaceId || user?.uid;
+    if (!ownerPassword) {
+      setOwnerPasswordError('Password is required');
+      return;
+    }
+    if (ownerPassword.length < 6) {
       setOwnerPasswordError('Password must be at least 6 characters');
+      return;
+    }
+    if (!activeWid) {
+      setOwnerPasswordError('Workspace could not be identified. Please refresh.');
       return;
     }
 
@@ -114,7 +129,7 @@ export default function TeamPage() {
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          workspaceId,
+          workspaceId: activeWid,
           password: ownerPassword
         })
       });
@@ -135,8 +150,17 @@ export default function TeamPage() {
   };
 
   const handleCreateAppUser = async () => {
-    if (!inviteEmail || !invitePassword || !workspaceId) {
+    const activeWid = workspaceId || user?.uid;
+    if (!inviteEmail || !invitePassword) {
       setCreateError('Email and Password are required');
+      return;
+    }
+    if (invitePassword.length < 6) {
+      setCreateError('Password must be at least 6 characters');
+      return;
+    }
+    if (!activeWid) {
+      setCreateError('Workspace could not be identified. Please refresh.');
       return;
     }
 
@@ -154,8 +178,8 @@ export default function TeamPage() {
           'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          workspaceId,
-          email: inviteEmail,
+          workspaceId: activeWid,
+          email: inviteEmail.trim().toLowerCase(),
           password: invitePassword,
           displayName: inviteEmail.split('@')[0],
           role: 'editor'
@@ -180,7 +204,7 @@ export default function TeamPage() {
     }
   };
 
-  const currentUserIsOwner = members.find(m => m.uid === user?.uid)?.role === 'owner';
+  const currentUserIsOwner = !workspaceId || workspaceId === user?.uid || members.some(m => m.uid === user?.uid && m.role === 'owner') || members.length === 0;
 
   if (loading) {
     return (

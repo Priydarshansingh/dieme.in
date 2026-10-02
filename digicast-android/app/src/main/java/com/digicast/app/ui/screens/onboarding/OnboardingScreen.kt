@@ -243,6 +243,9 @@ fun OnboardingScreen(
                             scope.launch {
                                 val result = authRepository.signInWithEmail(email.trim(), password)
                                 isLoading = false
+                                result.onSuccess {
+                                    onComplete()
+                                }
                                 result.onFailure { err ->
                                     errorMessage = err.message ?: "Sign-in failed. Check your credentials and connection."
                                 }

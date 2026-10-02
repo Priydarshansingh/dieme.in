@@ -29,12 +29,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
     }
 
-    // Verify caller is owner of this workspace
-    const memberDoc = await adminDb.doc(col.member(workspaceId, decodedToken.uid)).get();
-    if (!memberDoc.exists || memberDoc.data()?.role !== "owner") {
-      return NextResponse.json({ error: "Only the workspace owner can set this password" }, { status: 403 });
-    }
-
     // Verify subscription status
     const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
     const wsData = wsDoc.exists ? wsDoc.data() : null;
@@ -45,6 +39,27 @@ export async function POST(req: NextRequest) {
         isExpired: true,
       }, { status: 403 });
     }
+
+    // Verify caller is owner of this workspace
+    const isOwnerByDoc = wsData?.ownerUid === decodedToken.uid || wsData?.ownerId === decodedToken.uid || workspaceId === decodedToken.uid;
+    if (!isOwnerByDoc) {
+      const memberDoc = await adminDb.doc(col.member(workspaceId, decodedToken.uid)).get();
+      if (!memberDoc.exists || memberDoc.data()?.role !== "owner") {
+        return NextResponse.json({ error: "Only the workspace owner can set this password" }, { status: 403 });
+      }
+    }
+
+    // Ensure member record exists and has owner role
+    await adminDb.doc(col.member(workspaceId, decodedToken.uid)).set({
+      id: decodedToken.uid,
+      uid: decodedToken.uid,
+      workspaceId,
+      role: "owner",
+      email: decodedToken.email || "",
+      displayName: decodedToken.name || "Workspace Owner",
+      telegramUpload: true,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
 
     // Set the password in Firebase Auth for this owner
     await adminAuth.updateUser(decodedToken.uid, {

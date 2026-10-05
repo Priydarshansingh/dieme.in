@@ -7,6 +7,8 @@ import {
   PricingPlan,
   PlanId,
   UPI_CONFIG,
+  UPI_HANDLES,
+  UpiHandleId,
   buildUpiDeepLink,
   buildUniversalUpiLink,
   buildMobileAppUpiLinks,
@@ -38,6 +40,7 @@ export default function UpiPaymentModal({
   onPaymentSubmitted,
 }: UpiPaymentModalProps) {
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(initialPlanId);
+  const [selectedHandleId, setSelectedHandleId] = useState<UpiHandleId>('axl');
   const [qrMode, setQrMode] = useState<'universal' | 'amount'>('universal');
   const [activePayTab, setActivePayTab] = useState<'qr' | 'mobile'>('qr');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -77,21 +80,24 @@ export default function UpiPaymentModal({
   };
 
   const selectedPlan = PRICING_PLANS.find(p => p.id === selectedPlanId) || PRICING_PLANS[1];
+  const activeHandle = UPI_HANDLES.find(h => h.id === selectedHandleId) || UPI_HANDLES[0];
+  const selectedUpiId = activeHandle.vpa;
 
-  // Build the target QR URI based on mode
+  // Build the target QR URI based on mode and active handle
   const currentQrUri = qrMode === 'universal'
-    ? buildUniversalUpiLink()
+    ? buildUniversalUpiLink(selectedUpiId)
     : buildUpiDeepLink({
         amount: selectedPlan.priceINR,
         planName: selectedPlan.name,
         workspaceId,
         email: userEmail,
         includeAmount: true,
+        upiId: selectedUpiId,
       });
 
-  const appLinks = buildMobileAppUpiLinks(selectedPlan.priceINR, selectedPlan.name);
+  const appLinks = buildMobileAppUpiLinks(selectedPlan.priceINR, selectedPlan.name, selectedUpiId);
 
-  // Generate QR Code dynamically when selected plan or mode changes
+  // Generate QR Code dynamically when selected plan, mode, or handle changes
   useEffect(() => {
     if (!isOpen) return;
     QRCode.toDataURL(currentQrUri, {
@@ -105,12 +111,12 @@ export default function UpiPaymentModal({
     })
       .then(url => setQrDataUrl(url))
       .catch(err => console.error('QR generation error:', err));
-  }, [selectedPlanId, qrMode, currentQrUri, isOpen]);
+  }, [selectedPlanId, qrMode, selectedHandleId, currentQrUri, isOpen]);
 
   if (!isOpen) return null;
 
   const handleCopyUpi = () => {
-    navigator.clipboard.writeText(UPI_CONFIG.upiId);
+    navigator.clipboard.writeText(selectedUpiId);
     setCopiedUpi(true);
     setTimeout(() => setCopiedUpi(false), 2500);
   };
@@ -144,7 +150,7 @@ export default function UpiPaymentModal({
           workspaceId,
           planId: selectedPlan.id,
           utrNumber: utrNumber.trim(),
-          note: userNote.trim(),
+          note: `${userNote.trim()} [Paid via ${selectedUpiId}]`.trim(),
           screenshotUrl: screenshotFile || null,
         }),
       });
@@ -189,7 +195,7 @@ export default function UpiPaymentModal({
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight">Choose Your Digicast Plan</h2>
             <p className="text-slate-300 text-xs sm:text-sm mt-1">
-              Optimized for all UPI apps (PhonePe, Google Pay, Paytm, BHIM). Pay on phone or scan QR code.
+              Supports PhonePe, Google Pay, Paytm, &amp; BHIM. Switch between @axl, @ibl, or @ybl extensions anytime.
             </p>
           </div>
 
@@ -241,7 +247,7 @@ export default function UpiPaymentModal({
               <div className="lg:col-span-5 flex flex-col items-center text-center p-4 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-sm">
                 
                 {/* Mobile vs PC View Switcher */}
-                <div className="w-full flex rounded-xl bg-slate-200/80 p-1 mb-4">
+                <div className="w-full flex rounded-xl bg-slate-200/80 p-1 mb-3">
                   <button
                     type="button"
                     onClick={() => setActivePayTab('qr')}
@@ -266,6 +272,39 @@ export default function UpiPaymentModal({
                     <Smartphone className="w-3.5 h-3.5" />
                     <span>Pay on Phone</span>
                   </button>
+                </div>
+
+                {/* Bank / Extension Selector: @axl, @ibl, @ybl */}
+                <div className="w-full bg-white p-2.5 rounded-xl border border-slate-200 text-left mb-3 shadow-2xs">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">UPI Server / Extension:</span>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-200">
+                      {activeHandle.handle} ({activeHandle.bank})
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {UPI_HANDLES.map((h) => {
+                      const active = h.id === selectedHandleId;
+                      return (
+                        <button
+                          key={h.id}
+                          type="button"
+                          onClick={() => setSelectedHandleId(h.id)}
+                          className={`py-1.5 px-1.5 rounded-lg text-xs font-bold transition flex flex-col items-center border ${
+                            active
+                              ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-1 ring-slate-900'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                          }`}
+                        >
+                          <span className="font-mono text-xs font-black">{h.handle}</span>
+                          <span className="text-[9px] opacity-80 font-medium">{h.bank.replace(' Bank', '')}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1.5 leading-snug">
+                    Pick Axis (@axl), ICICI (@ibl), or YES Bank (@ybl) depending on which server your UPI app connects to best.
+                  </p>
                 </div>
 
                 {activePayTab === 'qr' ? (
@@ -317,7 +356,7 @@ export default function UpiPaymentModal({
                       {/* Payee name & amount indicator */}
                       <div className="absolute inset-x-0 bottom-4 flex justify-center pointer-events-none">
                         <span className="px-3 py-1 rounded-full text-xs font-black bg-slate-900 text-white shadow-lg border border-slate-700">
-                          {qrMode === 'amount' ? `Pre-filled: ₹${selectedPlan.priceINR}` : `Payee: Priyadarshan Singh`}
+                          {qrMode === 'amount' ? `Pre-filled: ₹${selectedPlan.priceINR}` : `Payee: Priydarshan Singh`}
                         </span>
                       </div>
                     </div>
@@ -383,12 +422,14 @@ export default function UpiPaymentModal({
                 <div className="w-full mt-4 pt-4 border-t border-slate-200 text-left space-y-2">
                   <div className="flex items-center justify-between text-xs bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
                     <div>
-                      <p className="text-[10px] uppercase font-bold text-slate-400">Verified UPI ID</p>
-                      <p className="font-mono font-bold text-slate-800">{UPI_CONFIG.upiId}</p>
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Verified UPI ID ({activeHandle.handle})</p>
+                      <p className="font-mono font-bold text-slate-800 text-[11px] sm:text-xs truncate max-w-[200px] sm:max-w-none">
+                        {selectedUpiId}
+                      </p>
                     </div>
                     <button
                       onClick={handleCopyUpi}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition flex items-center gap-1"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition flex items-center gap-1 shrink-0"
                       title="Copy UPI ID"
                     >
                       {copiedUpi ? (
@@ -410,7 +451,7 @@ export default function UpiPaymentModal({
                     </div>
                     <button
                       onClick={handleCopyAmount}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition flex items-center gap-1"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition flex items-center gap-1 shrink-0"
                       title="Copy Amount"
                     >
                       {copiedAmount ? (
@@ -514,7 +555,7 @@ export default function UpiPaymentModal({
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. Paid via PhonePe / Priyadarshan"
+                        placeholder="e.g. Paid via PhonePe / Priydarshan"
                         value={userNote}
                         onChange={(e) => setUserNote(e.target.value)}
                         className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-600 transition shadow-2xs"
@@ -565,6 +606,10 @@ export default function UpiPaymentModal({
                 <div className="flex justify-between">
                   <span className="text-slate-500">Amount:</span>
                   <span className="font-bold text-emerald-600">₹{selectedPlan.priceINR}.00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Receiver VPA:</span>
+                  <span className="font-bold text-indigo-600">{selectedUpiId}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Status:</span>

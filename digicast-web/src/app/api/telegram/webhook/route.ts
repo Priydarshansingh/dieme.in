@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
           planName,
           amount,
           currency: 'INR',
-          receiverUpiId: 'priyadarshankishnawat@ybl',
+          receiverUpiId: 'priydarshankishnawat@axl',
           utrNumber,
           note: caption || 'Submitted via Telegram bot private chat',
           screenshotUrl: directScreenshotUrl,
@@ -188,7 +188,7 @@ Our team will verify this against the UPI account and activate your subscription
 
 • <b>Plan:</b> ${planName}
 • <b>Workspace ID:</b> <code>${wsId}</code>
-• <b>Receiver UPI:</b> <code>priyadarshankishnawat@ybl</code>
+• <b>Receiver UPI:</b> <code>priydarshankishnawat@axl</code> (also accepts: <code>@ibl</code>, <code>@ybl</code>)
 
 📸 <b>Please reply with your Payment Screenshot now.</b>
 <i>Include your 12-digit UTR in the photo caption!</i>

@@ -5,13 +5,13 @@ import { doc, getDoc, deleteDoc, collection, onSnapshot, setDoc, serverTimestamp
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import {
   Youtube, Send, Bell, CreditCard, Key, ChevronRight, Check,
-  Loader2, AlertCircle, Bot, Copy, ExternalLink, Users, Eye, EyeOff,
-  ShieldCheck, UserCheck
+  Loader2, AlertCircle, Bot, Copy, ExternalLink, QrCode, Sparkles
 } from 'lucide-react';
 import Image from 'next/image';
+import { PRICING_PLANS, PricingPlan } from '@/lib/pricingPlans';
+import UpiPaymentModal from '@/components/subscription/UpiPaymentModal';
 
 // ─── Reusable card wrapper ─────────────────────────────────────────────────────
 function SettingsCard({
@@ -121,22 +121,16 @@ function SettingsContent() {
   const [telegramMsg, setTelegramMsg] = useState<string | null>(null);
   const [copiedCommand, setCopiedCommand] = useState(false);
 
+  const [workspaceName, setWorkspaceName] = useState('Creator Studio');
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
+  const [selectedUpiPlan, setSelectedUpiPlan] = useState<'starter' | 'pro' | 'studio'>('pro');
+
   const [notifs, setNotifs] = useState({
     clipCreated: true,
     clipGenerated: true,
     telegramUploaded: true,
     editorJoined: false,
   });
-
-  // Team Member Creation in Settings (Editor & Admin)
-  const [teamEmail, setTeamEmail] = useState('');
-  const [teamPassword, setTeamPassword] = useState('');
-  const [teamName, setTeamName] = useState('');
-  const [teamRole, setTeamRole] = useState<'editor' | 'admin'>('editor');
-  const [showTeamPassword, setShowTeamPassword] = useState(false);
-  const [isCreatingTeamUser, setIsCreatingTeamUser] = useState(false);
-  const [teamError, setTeamError] = useState<string | null>(null);
-  const [teamSuccess, setTeamSuccess] = useState<string | null>(null);
 
   // Handle URL query feedback
   useEffect(() => {
@@ -164,6 +158,7 @@ function SettingsContent() {
       const wsSnap = await getDoc(doc(db, 'workspaces', wid));
       if (wsSnap.exists()) {
         const wsData = wsSnap.data();
+        if (wsData.name) setWorkspaceName(wsData.name);
         setPlan(wsData.plan ?? 'free_trial');
         setTelegramConnected(Boolean(wsData.telegramEnabled));
         if (wsData.telegramChatId) setTelegramChatId(wsData.telegramChatId);
@@ -306,52 +301,6 @@ function SettingsContent() {
     navigator.clipboard.writeText(nightbotMessage);
     setCopiedCommand(true);
     setTimeout(() => setCopiedCommand(false), 2500);
-  };
-
-  const handleCreateTeamUserFromSettings = async () => {
-    if (!teamEmail || !teamPassword || !workspaceId) {
-      setTeamError('Email and Password are required');
-      return;
-    }
-    if (teamPassword.length < 6) {
-      setTeamError('Password must be at least 6 characters');
-      return;
-    }
-
-    setIsCreatingTeamUser(true);
-    setTeamError(null);
-    setTeamSuccess(null);
-
-    try {
-      const idToken = await user?.getIdToken();
-      const res = await fetch('/api/team/create-app-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          workspaceId,
-          email: teamEmail.trim().toLowerCase(),
-          password: teamPassword,
-          displayName: teamName.trim() || teamEmail.split('@')[0],
-          role: teamRole,
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create team member');
-
-      setTeamSuccess(`${teamRole.toUpperCase()} credentials saved! Credentials stored and available in Team & App Access.`);
-      setTeamEmail('');
-      setTeamPassword('');
-      setTeamName('');
-      setTimeout(() => setTeamSuccess(null), 5000);
-    } catch (err: any) {
-      setTeamError(err.message);
-    } finally {
-      setIsCreatingTeamUser(false);
-    }
   };
 
   return (
@@ -559,141 +508,6 @@ function SettingsContent() {
         </div>
       </SettingsCard>
 
-      {/* Team Creation & Access (Editor & Admin) */}
-      <SettingsCard
-        icon={Users}
-        title="Team Creation & Access"
-        description="Create Editor or Admin accounts for your production team. All credentials are stored and accessible with the eye toggle button."
-      >
-        <div className="space-y-4">
-          {teamError && (
-            <div className="p-3 text-xs rounded-xl bg-red-50 text-red-700 border border-red-200">
-              {teamError}
-            </div>
-          )}
-
-          {teamSuccess && (
-            <div className="p-3 text-xs rounded-xl bg-green-50 text-green-700 border border-green-200 font-medium">
-              {teamSuccess}
-            </div>
-          )}
-
-          {/* Role selector */}
-          <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B7280' }}>
-              Assign Role
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setTeamRole('editor')}
-                className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition ${
-                  teamRole === 'editor'
-                    ? 'border-emerald-500 bg-emerald-50/50'
-                    : 'border-gray-200 bg-gray-50/50 hover:bg-gray-100'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <div>
-                  <p className="text-xs font-bold text-gray-900">Editor</p>
-                  <p className="text-[11px] text-gray-500">Live clips & markers</p>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTeamRole('admin')}
-                className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition ${
-                  teamRole === 'admin'
-                    ? 'border-indigo-600 bg-indigo-50/50'
-                    : 'border-gray-200 bg-gray-50/50 hover:bg-gray-100'
-                }`}
-              >
-                <UserCheck className="w-4 h-4 text-indigo-700 shrink-0" />
-                <div>
-                  <p className="text-xs font-bold text-gray-900">Admin</p>
-                  <p className="text-[11px] text-gray-500">Studio & team access</p>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B7280' }}>
-                Full Name
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Alex Video Editor"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                style={{ border: '1px solid #E5E7EB', backgroundColor: '#F4F6F9', color: '#1B2237' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B7280' }}>
-                User Email (Login ID)
-              </label>
-              <input
-                type="email"
-                placeholder="editor@example.com"
-                value={teamEmail}
-                onChange={(e) => setTeamEmail(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                style={{ border: '1px solid #E5E7EB', backgroundColor: '#F4F6F9', color: '#1B2237' }}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B7280' }}>
-                App Password
-              </label>
-              <div
-                className="flex items-center gap-2 px-3 py-2.5 rounded-xl border"
-                style={{ border: '1px solid #E5E7EB', backgroundColor: '#F4F6F9' }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setShowTeamPassword(!showTeamPassword)}
-                  className="shrink-0 text-gray-400 hover:text-gray-600 focus:outline-none"
-                >
-                  {showTeamPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-                <input
-                  type={showTeamPassword ? "text" : "password"}
-                  placeholder="Min 6 characters"
-                  value={teamPassword}
-                  onChange={(e) => setTeamPassword(e.target.value)}
-                  className="flex-1 text-sm bg-transparent outline-none w-full"
-                  style={{ color: '#1B2237' }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-            <Link
-              href="/team"
-              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1"
-            >
-              View All Members & Credentials &rarr;
-            </Link>
-
-            <button
-              onClick={handleCreateTeamUserFromSettings}
-              disabled={isCreatingTeamUser || !teamEmail || !teamPassword}
-              className="px-5 py-2.5 text-xs font-bold text-white rounded-xl transition hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: '#1B2237' }}
-            >
-              {isCreatingTeamUser ? 'Saving...' : `Create ${teamRole === 'admin' ? 'Admin' : 'Editor'}`}
-            </button>
-          </div>
-        </div>
-      </SettingsCard>
-
       {/* Notifications */}
       <SettingsCard
         icon={Bell}
@@ -754,14 +568,14 @@ function SettingsContent() {
           )}
 
           <div
-            className={`p-5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+            className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
               subscription?.isExpired ? 'bg-red-50 border-red-200' : 'bg-[#F4F6F9] border-[#E5E7EB]'
             }`}
           >
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-base font-bold" style={{ color: subscription?.isExpired ? '#991B1B' : '#1B2237' }}>
-                  {subscription?.plan === 'pro' ? 'Pro Studio Monthly' : '14-Day Free Trial'}
+                  {subscription?.plan === 'pro' ? 'Pro Studio Active' : '14-Day Free Trial'}
                 </p>
                 <span
                   className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
@@ -769,7 +583,7 @@ function SettingsContent() {
                       ? 'bg-red-200 text-red-800'
                       : subscription?.status === 'trial'
                       ? 'bg-blue-100 text-blue-700'
-                      : 'bg-green-100 text-green-700'
+                      : 'bg-emerald-100 text-emerald-700'
                   }`}
                 >
                   {subscription?.isExpired
@@ -781,55 +595,106 @@ function SettingsContent() {
               </div>
               <p className="text-xs text-gray-500">
                 {subscription?.isExpired
-                  ? 'Your subscription expired. All mobile app credentials have been disabled.'
+                  ? 'Your subscription expired. Choose a plan below and scan the pre-coded UPI QR to reactivate instantly.'
                   : subscription?.plan === 'pro'
                   ? `Renews on: ${subscription?.subscriptionExpiresAt ? new Date(subscription.subscriptionExpiresAt).toLocaleDateString() : 'Active'} (${subscription?.daysRemaining} days remaining)`
                   : `Trial ends on: ${subscription?.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString() : 'In 14 days'}`}
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
-                onClick={handleRenewMonthly}
-                disabled={isRenewing || !workspaceId}
-                className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl transition hover:opacity-90 disabled:opacity-50 text-white shadow-sm"
-                style={{ backgroundColor: subscription?.isExpired ? '#DC2626' : '#1B2237' }}
+                type="button"
+                onClick={() => {
+                  setSelectedUpiPlan('pro');
+                  setIsUpiModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl transition hover:opacity-90 text-white shadow-sm"
+                style={{ backgroundColor: '#1B2237' }}
               >
-                {isRenewing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    {subscription?.isExpired
-                      ? 'Reactivate Pro Monthly ($29/mo)'
-                      : subscription?.plan === 'pro'
-                      ? 'Renew Monthly ($29/mo)'
-                      : 'Upgrade to Pro Monthly ($29/mo)'}
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </>
-                )}
+                <QrCode className="w-4 h-4 text-emerald-400" />
+                <span>Scan UPI QR Code</span>
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600">
-            <div className="p-3 bg-white border border-gray-200 rounded-xl">
-              <p className="font-semibold text-gray-800 mb-1">📱 Mobile App Sync</p>
-              <p className="text-gray-500">Full access for Creator & Editor app passwords to clip live streams.</p>
+          {/* 3-Combo Pricing Plans Grid */}
+          <div className="pt-2">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Available Subscription Plans</h3>
+                <p className="text-xs text-gray-500">Pick any plan — the exact amount is pre-filled into the UPI QR scanner.</p>
+              </div>
             </div>
-            <div className="p-3 bg-white border border-gray-200 rounded-xl">
-              <p className="font-semibold text-gray-800 mb-1">⚡ Cloud Processing</p>
-              <p className="text-gray-500">Fast 1080p clip renders with cloud storage and auto-captioning.</p>
-            </div>
-            <div className="p-3 bg-white border border-gray-200 rounded-xl">
-              <p className="font-semibold text-gray-800 mb-1">✈️ Telegram Delivery</p>
-              <p className="text-gray-500">Instant automatic bot forwarding straight to editor chat groups.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {PRICING_PLANS.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`rounded-2xl p-5 border flex flex-col justify-between transition-all duration-200 relative ${
+                    plan.recommended
+                      ? 'border-emerald-500 bg-white shadow-md ring-1 ring-emerald-500/20'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  {plan.badge && (
+                    <span
+                      className="absolute -top-2.5 right-4 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider text-white shadow-sm"
+                      style={{ backgroundColor: plan.color }}
+                    >
+                      {plan.badge}
+                    </span>
+                  )}
+
+                  <div>
+                    <h4 className="font-bold text-sm text-gray-900">{plan.name}</h4>
+                    <div className="flex items-baseline gap-1 my-2">
+                      <span className="text-2xl font-black text-gray-900">₹{plan.priceINR}</span>
+                      <span className="text-xs text-gray-500">/ month</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-4 leading-relaxed">{plan.description}</p>
+
+                    <div className="space-y-2 border-t border-gray-100 pt-3">
+                      {plan.features.map((feat, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs text-gray-700">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                          <span>{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedUpiPlan(plan.id);
+                      setIsUpiModalOpen(true);
+                    }}
+                    className="mt-5 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white transition hover:opacity-95 shadow-sm"
+                    style={{ backgroundColor: plan.color }}
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    <span>Pay ₹{plan.priceINR} via UPI QR</span>
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </SettingsCard>
+
+      {/* UPI Scanner & Payment Modal */}
+      <UpiPaymentModal
+        isOpen={isUpiModalOpen}
+        onClose={() => setIsUpiModalOpen(false)}
+        workspaceId={workspaceId || ''}
+        workspaceName={workspaceName}
+        userEmail={user?.email || ''}
+        initialPlanId={selectedUpiPlan}
+        onPaymentSubmitted={() => {
+          if (workspaceId) loadSubscription(workspaceId);
+        }}
+      />
     </div>
   );
 }

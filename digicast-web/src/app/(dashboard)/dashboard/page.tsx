@@ -8,8 +8,9 @@ import {
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSearchParams } from 'next/navigation';
-import { Radio, Scissors, Send, ArrowRight, RefreshCw, CheckCircle, Youtube } from 'lucide-react';
+import { Radio, Scissors, Send, ArrowRight, RefreshCw, CheckCircle, Youtube, QrCode, Sparkles } from 'lucide-react';
 import Image from 'next/image';
+import UpiPaymentModal from '@/components/subscription/UpiPaymentModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface StreamDoc {
@@ -115,6 +116,9 @@ function DashboardContent() {
   const [loadingData, setLoadingData] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+  const [workspaceName, setWorkspaceName] = useState('Creator Studio');
+  const [subscription, setSubscription] = useState<any>(null);
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
 
   const loadData = useCallback(async (wid: string) => {
     try {
@@ -174,6 +178,21 @@ function DashboardContent() {
       if (!userSnap.exists()) return;
       const wid: string = userSnap.data().defaultWorkspaceId || user!.uid;
       setWorkspaceId(wid);
+
+      // Load workspace details & subscription
+      try {
+        const wsDoc = await getDoc(doc(db, 'workspaces', wid));
+        if (wsDoc.exists() && wsDoc.data()?.name) {
+          setWorkspaceName(wsDoc.data().name);
+        }
+        const subRes = await fetch(`/api/workspaces/subscription?workspaceId=${wid}`);
+        if (subRes.ok) {
+          const subData = await subRes.json();
+          setSubscription(subData.subscription);
+        }
+      } catch (e) {
+        console.error('Subscription load error in dashboard:', e);
+      }
       
       const count = await loadData(wid);
       // Auto-trigger sync on first load if empty
@@ -213,15 +232,26 @@ function DashboardContent() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <button
-          onClick={handleSyncStreams}
-          disabled={isSyncing}
-          className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border bg-white hover:bg-gray-50 transition shadow-sm disabled:opacity-50 text-gray-800"
-          style={{ borderColor: '#E5E7EB' }}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-red-500' : ''}`} />
-          {isSyncing ? 'Syncing...' : 'Sync YouTube'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsUpiModalOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border transition shadow-sm bg-gradient-to-r from-emerald-500/10 to-teal-500/10 text-emerald-800 border-emerald-300 hover:bg-emerald-100/50"
+            title="Upgrade or Renew Plan with UPI QR"
+          >
+            <QrCode className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{subscription?.plan === 'pro' && !subscription?.isExpired ? 'Pro Active (UPI)' : 'Plans & UPI (₹149 - ₹999)'}</span>
+          </button>
+
+          <button
+            onClick={handleSyncStreams}
+            disabled={isSyncing}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border bg-white hover:bg-gray-50 transition shadow-sm disabled:opacity-50 text-gray-800"
+            style={{ borderColor: '#E5E7EB' }}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-red-500' : ''}`} />
+            {isSyncing ? 'Syncing...' : 'Sync YouTube'}
+          </button>
+        </div>
       </div>
 
       {syncFeedback && (
@@ -331,6 +361,23 @@ function DashboardContent() {
           </div>
         )}
       </div>
+
+      {/* UPI QR Payment Modal */}
+      <UpiPaymentModal
+        isOpen={isUpiModalOpen}
+        onClose={() => setIsUpiModalOpen(false)}
+        workspaceId={workspaceId || ''}
+        workspaceName={workspaceName}
+        userEmail={user?.email || ''}
+        initialPlanId="pro"
+        onPaymentSubmitted={() => {
+          if (workspaceId) {
+            fetch(`/api/workspaces/subscription?workspaceId=${workspaceId}`)
+              .then(r => r.json())
+              .then(d => { if (d.subscription) setSubscription(d.subscription); });
+          }
+        }}
+      />
     </div>
   );
 }

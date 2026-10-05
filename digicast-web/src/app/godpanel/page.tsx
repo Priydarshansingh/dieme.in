@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import {
   Shield, Key, Lock, Users, CreditCard, RefreshCw, CheckCircle2,
   AlertTriangle, LogOut, UserPlus, Trash2, Calendar, Clock,
-  Search, ChevronRight, Zap, Eye, EyeOff, ShieldAlert, Sparkles, Building2
+  Search, ChevronRight, Zap, Eye, EyeOff, ShieldAlert, Sparkles, Building2,
+  QrCode, Check
 } from 'lucide-react';
 
 interface AdminSession {
@@ -44,6 +45,22 @@ interface AdminItem {
   lastLoginAt?: string | null;
 }
 
+interface PaymentItem {
+  id: string;
+  workspaceId: string;
+  workspaceName: string;
+  userEmail: string;
+  planId: string;
+  planName: string;
+  amount: number;
+  utrNumber: string;
+  note?: string;
+  status: 'pending_verification' | 'approved' | 'rejected';
+  createdAt: string;
+  verifiedAt?: string | null;
+  verifiedBy?: string | null;
+}
+
 export default function GodPanelPage() {
   const [session, setSession] = useState<AdminSession | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -56,9 +73,11 @@ export default function GodPanelPage() {
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Dashboard state
-  const [activeTab, setActiveTab] = useState<'workspaces' | 'admins'>('workspaces');
+  const [activeTab, setActiveTab] = useState<'workspaces' | 'admins' | 'payments'>('workspaces');
   const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
   const [admins, setAdmins] = useState<AdminItem[]>([]);
+  const [payments, setPayments] = useState<PaymentItem[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'trial' | 'expired'>('all');
@@ -87,6 +106,7 @@ export default function GodPanelPage() {
       if (data.authenticated && data.admin) {
         setSession(data.admin);
         loadWorkspaces();
+        loadPayments();
         if (data.admin.role === 'super_admin') {
           loadAdmins();
         }
@@ -166,6 +186,43 @@ export default function GodPanelPage() {
       }
     } catch (err) {
       console.error('Admins load error:', err);
+    }
+  }
+
+  async function loadPayments() {
+    setLoadingPayments(true);
+    try {
+      const res = await fetch('/api/godpanel/payments');
+      const data = await res.json();
+      if (res.ok && data.payments) {
+        setPayments(data.payments);
+      }
+    } catch (err) {
+      console.error('Payments load error:', err);
+    } finally {
+      setLoadingPayments(false);
+    }
+  }
+
+  async function handlePaymentAction(paymentId: string, action: 'approve' | 'reject') {
+    setActionLoading(`pay_${paymentId}_${action}`);
+    setStatusMessage(null);
+    try {
+      const res = await fetch('/api/godpanel/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId, action, days: 30 })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to process payment');
+
+      setStatusMessage({ text: data.message || 'Payment updated', type: 'success' });
+      await loadPayments();
+      await loadWorkspaces();
+    } catch (err: any) {
+      setStatusMessage({ text: err.message || 'Action failed', type: 'error' });
+    } finally {
+      setActionLoading(null);
     }
   }
 
@@ -492,6 +549,21 @@ export default function GodPanelPage() {
                 Admin Accounts ({admins.length})
               </button>
             )}
+
+            <button
+              onClick={() => {
+                setActiveTab('payments');
+                loadPayments();
+              }}
+              className={`px-4 py-2 rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-2 ${
+                activeTab === 'payments'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
+                  : 'text-gray-400 hover:text-white bg-[#0D111A] border border-[#1E2536]'
+              }`}
+            >
+              <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+              UPI Payments ({payments.filter(p => p.status === 'pending_verification').length})
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -737,6 +809,128 @@ export default function GodPanelPage() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ─── TAB: UPI PAYMENTS VERIFICATION ──────────────────────────────────── */}
+        {activeTab === 'payments' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                  Submitted UPI Payments ({payments.length})
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Verify user UTR numbers against your UPI bank/statement and activate plans in 1 click.
+                </p>
+              </div>
+              <button
+                onClick={loadPayments}
+                className="px-3 py-1.5 rounded-lg bg-[#0D111A] border border-[#1E2536] text-xs font-mono text-gray-300 hover:text-white flex items-center gap-2"
+              >
+                <RefreshCw className={`w-3 h-3 ${loadingPayments ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+
+            <div className="bg-[#0D111A] border border-[#1E2536] rounded-xl overflow-hidden shadow-xl">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-[#1E2536] text-gray-400 font-mono uppercase text-[10px] tracking-wider bg-[#080B11]">
+                    <th className="py-3 px-4">Workspace / User</th>
+                    <th className="py-3 px-4">Plan &amp; Amount</th>
+                    <th className="py-3 px-4">UTR / Ref Number</th>
+                    <th className="py-3 px-4">Submitted</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#1E2536]">
+                  {payments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-gray-500 font-mono">
+                        No UPI payment submissions found
+                      </td>
+                    </tr>
+                  ) : (
+                    payments.map((p) => {
+                      const isPending = p.status === 'pending_verification';
+                      const isApproved = p.status === 'approved';
+
+                      return (
+                        <tr key={p.id} className="hover:bg-[#121724] transition-colors">
+                          <td className="py-4 px-4">
+                            <p className="font-bold text-white text-xs">{p.workspaceName}</p>
+                            <p className="text-[11px] font-mono text-gray-400 mt-0.5">{p.userEmail}</p>
+                            <p className="text-[10px] font-mono text-gray-500">{p.workspaceId}</p>
+                          </td>
+
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white text-sm">₹{p.amount}</span>
+                              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                {p.planName}
+                              </span>
+                            </div>
+                            {p.note && <p className="text-[10px] text-gray-400 italic mt-1">&quot;{p.note}&quot;</p>}
+                          </td>
+
+                          <td className="py-4 px-4">
+                            <code className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/40 px-2 py-1 rounded border border-emerald-800/50">
+                              {p.utrNumber}
+                            </code>
+                          </td>
+
+                          <td className="py-4 px-4 font-mono text-gray-400">
+                            {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A'}
+                          </td>
+
+                          <td className="py-4 px-4">
+                            <span
+                              className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded ${
+                                isPending
+                                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                  : isApproved
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                  : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                              }`}
+                            >
+                              {p.status.replace('_', ' ')}
+                            </span>
+                            {p.verifiedBy && (
+                              <p className="text-[10px] text-gray-500 mt-1">by @{p.verifiedBy}</p>
+                            )}
+                          </td>
+
+                          <td className="py-4 px-4 text-right">
+                            {isPending ? (
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => handlePaymentAction(p.id, 'approve')}
+                                  disabled={Boolean(actionLoading)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-bold font-mono text-white bg-emerald-600 hover:bg-emerald-500 transition shadow-sm disabled:opacity-50"
+                                >
+                                  {actionLoading === `pay_${p.id}_approve` ? 'Activating...' : 'Approve (+30D)'}
+                                </button>
+                                <button
+                                  onClick={() => handlePaymentAction(p.id, 'reject')}
+                                  disabled={Boolean(actionLoading)}
+                                  className="px-2.5 py-1.5 rounded-lg text-xs font-mono text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition border border-[#1E2536]"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] font-mono text-gray-500">Resolved</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>

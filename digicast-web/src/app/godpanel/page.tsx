@@ -34,6 +34,7 @@ interface WorkspaceItem {
     isExpired: boolean;
     daysRemaining: number;
     isSuspended?: boolean;
+    trialBypassDetected?: boolean;
   };
 }
 
@@ -904,7 +905,11 @@ export default function GodPanelPage() {
                                     🚨 SUSPENDED / BANNED
                                   </span>
                                 ) : status === 'active' ? (
-                                  ws.subscription.plan === 'starter' ? (
+                                  ws.subscription.plan === 'intro_29' ? (
+                                    <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-pink-500/15 border border-pink-500/30 text-pink-300">
+                                      ⚡ 1ST MONTH PASS (₹29)
+                                    </span>
+                                  ) : ws.subscription.plan === 'starter' ? (
                                     <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-purple-500/15 border border-purple-500/30 text-purple-300">
                                       STARTER (₹149)
                                     </span>
@@ -926,9 +931,16 @@ export default function GodPanelPage() {
                                     14D TRIAL
                                   </span>
                                 ) : (
-                                  <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-red-500/10 border border-red-500/30 text-red-400">
-                                    EXPIRED / LOCKED
-                                  </span>
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-red-500/10 border border-red-500/30 text-red-400">
+                                      EXPIRED / LOCKED
+                                    </span>
+                                    {ws.subscription.trialBypassDetected && (
+                                      <span className="px-1.5 py-0.5 rounded font-mono text-[9px] font-bold bg-amber-950/80 border border-amber-500/50 text-amber-300">
+                                        ⚠️ TRIAL REUSED
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             </td>
@@ -1725,7 +1737,29 @@ export default function GodPanelPage() {
                         <h4 className="text-xs font-bold font-mono uppercase text-gray-400 tracking-wider mb-3">
                           Assign / Change Subscription Tier
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                          {/* Intro ₹29 Card */}
+                          <div className="bg-[#101522] border border-pink-900/40 hover:border-pink-500 rounded-xl p-3.5 flex flex-col justify-between space-y-3 transition">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-pink-300 text-xs">⚡ 1st Month Pass</span>
+                                <span className="text-[10px] font-mono text-pink-400 font-bold">₹29/30D</span>
+                              </div>
+                              <ul className="text-[11px] text-gray-400 space-y-1 mt-2 font-mono">
+                                <li>• All Pro &amp; VIP Perks</li>
+                                <li>• Anti-Abuse Verified</li>
+                                <li>• Full 30 Days Access</li>
+                              </ul>
+                            </div>
+                            <button
+                              onClick={() => handleSetPlan(activeControlWorkspace.id, 'intro_29', 30)}
+                              disabled={actionLoading !== null}
+                              className="w-full py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
+                            >
+                              Assign ₹29 (30D)
+                            </button>
+                          </div>
+
                           {/* Starter Card */}
                           <div className="bg-[#101522] border border-[#1E2536] hover:border-purple-500/40 rounded-xl p-3.5 flex flex-col justify-between space-y-3 transition">
                             <div>

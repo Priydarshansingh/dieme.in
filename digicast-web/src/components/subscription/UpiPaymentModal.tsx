@@ -5,6 +5,7 @@ import QRCode from 'qrcode';
 import {
   PRICING_PLANS,
   PricingPlan,
+  PlanId,
   UPI_CONFIG,
   buildUpiDeepLink,
   buildVerificationTelegramUrl,
@@ -20,7 +21,7 @@ interface UpiPaymentModalProps {
   workspaceId: string;
   workspaceName?: string;
   userEmail?: string;
-  initialPlanId?: 'starter' | 'pro' | 'studio';
+  initialPlanId?: PlanId;
   onPaymentSubmitted?: () => void;
 }
 
@@ -33,7 +34,7 @@ export default function UpiPaymentModal({
   initialPlanId = 'pro',
   onPaymentSubmitted,
 }: UpiPaymentModalProps) {
-  const [selectedPlanId, setSelectedPlanId] = useState<'starter' | 'pro' | 'studio'>(initialPlanId);
+  const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(initialPlanId);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [copiedAmount, setCopiedAmount] = useState(false);
@@ -176,7 +177,7 @@ export default function UpiPaymentModal({
           </div>
 
           {/* Plan Selector Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
             {PRICING_PLANS.map((plan) => {
               const isSelected = plan.id === selectedPlanId;
               return (

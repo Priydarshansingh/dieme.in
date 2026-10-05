@@ -70,6 +70,7 @@ export async function POST(
       updates.plan = "free_trial";
       updates.subscription = "free_trial";
       updates.subscriptionStatus = "trial";
+      updates.trialBypassDetected = false;
       updates.trialEndsAt = new Date(now + (14 * 24 * 60 * 60 * 1000)).toISOString();
     } else if (action === "set_plan") {
       updates.plan = plan;
@@ -79,10 +80,12 @@ export async function POST(
         updates.trialEndsAt = new Date(now + (14 * 24 * 60 * 60 * 1000)).toISOString();
       } else if (plan === "lifetime") {
         updates.subscriptionStatus = "active";
+        updates.trialBypassDetected = false;
         updates.subscriptionExpiresAt = new Date(now + (3650 * 24 * 60 * 60 * 1000)).toISOString();
       } else {
-        // starter, pro, studio
+        // intro_29, starter, pro, studio
         updates.subscriptionStatus = "active";
+        updates.trialBypassDetected = false;
         updates.subscriptionExpiresAt = new Date(now + (days * 24 * 60 * 60 * 1000)).toISOString();
       }
     }

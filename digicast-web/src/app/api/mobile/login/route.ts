@@ -233,6 +233,15 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
+    // Check if free trial was locked due to duplicate YouTube channel trial bypass
+    if (finalWsData?.trialBypassDetected && (finalWsData?.plan === "free_trial" || !finalWsData?.plan)) {
+      return NextResponse.json({
+        error: "14-Day Free Trial already consumed: This YouTube channel has already used its trial on another account. Please activate the ₹29 First Month Pass on the web dashboard to continue using the mobile app.",
+        isExpired: true,
+        trialBypassDetected: true,
+      }, { status: 403 });
+    }
+
     const subscription = computeWorkspaceSubscription(finalWsData);
 
     if (subscription.isExpired) {

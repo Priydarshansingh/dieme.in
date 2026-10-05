@@ -10,7 +10,7 @@ import {
   Loader2, AlertCircle, Bot, Copy, ExternalLink, QrCode, Sparkles
 } from 'lucide-react';
 import Image from 'next/image';
-import { PRICING_PLANS, PricingPlan } from '@/lib/pricingPlans';
+import { PRICING_PLANS, PricingPlan, PlanId } from '@/lib/pricingPlans';
 import UpiPaymentModal from '@/components/subscription/UpiPaymentModal';
 
 // ─── Reusable card wrapper ─────────────────────────────────────────────────────
@@ -100,11 +100,13 @@ function SettingsContent() {
 
   const [subscription, setSubscription] = useState<{
     status: 'trial' | 'active' | 'expired';
-    plan: 'free_trial' | 'pro';
+    plan: string;
     trialEndsAt: string | null;
     subscriptionExpiresAt: string | null;
     daysRemaining: number;
     isExpired: boolean;
+    trialBypassDetected?: boolean;
+    trialBypassedChannelTitle?: string;
   } | null>(null);
   const [isRenewing, setIsRenewing] = useState(false);
   const [renewSuccess, setRenewSuccess] = useState<string | null>(null);
@@ -123,7 +125,7 @@ function SettingsContent() {
 
   const [workspaceName, setWorkspaceName] = useState('Creator Studio');
   const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
-  const [selectedUpiPlan, setSelectedUpiPlan] = useState<'starter' | 'pro' | 'studio'>('pro');
+  const [selectedUpiPlan, setSelectedUpiPlan] = useState<PlanId>('intro_29');
 
   const [notifs, setNotifs] = useState({
     clipCreated: true,
@@ -141,6 +143,9 @@ function SettingsContent() {
       setYoutubeSuccess('🎉 YouTube channel connected successfully!');
     } else if (error === 'youtube_auth_failed') {
       setYoutubeError('YouTube authorization was denied or cancelled.');
+    } else if (error === 'trial_already_claimed') {
+      const channel = searchParams.get('channel') || 'This YouTube channel';
+      setYoutubeError(`⚠️ Free Trial Expired: "${channel}" has already used its 14-day free trial on another account. Rotating Google accounts to bypass trials is prohibited. Please activate the ₹29 First Month Pass or another plan below to stream.`);
     } else if (error === 'connection_failed' || error === 'invalid_callback') {
       setYoutubeError('Failed to complete YouTube channel connection. Please verify your OAuth client credentials.');
     }
@@ -567,6 +572,38 @@ function SettingsContent() {
             </div>
           )}
 
+          {/* Duplicate YouTube Channel Trial Abuse Alert */}
+          {subscription?.trialBypassDetected && (
+            <div className="p-5 rounded-2xl bg-amber-50 border-2 border-amber-400/50 flex flex-col md:flex-row md:items-center justify-between gap-4 text-amber-950 shadow-sm animate-pulse">
+              <div className="flex items-start gap-3.5">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
+                    ⚠️ 14-Day Free Trial Already Claimed on this YouTube Channel
+                  </h4>
+                  <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                    This YouTube channel has already used its 14-day free trial on another account. Rotating Google accounts to bypass trials is prohibited.
+                  </p>
+                  <p className="text-xs font-bold text-emerald-800 mt-1 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Special Intro Deal: Unlock 30 Days of full Pro &amp; VIP features right now for just ₹29!</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedUpiPlan('intro_29');
+                  setIsUpiModalOpen(true);
+                }}
+                className="px-5 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl shrink-0 shadow-md transition hover:scale-[1.02] flex items-center gap-2"
+              >
+                <QrCode className="w-4 h-4" />
+                <span>⚡ Get 30 Days for ₹29</span>
+              </button>
+            </div>
+          )}
+
           <div
             className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
               subscription?.isExpired ? 'bg-red-50 border-red-200' : 'bg-[#F4F6F9] border-[#E5E7EB]'
@@ -575,7 +612,15 @@ function SettingsContent() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-base font-bold" style={{ color: subscription?.isExpired ? '#991B1B' : '#1B2237' }}>
-                  {subscription?.plan === 'pro' ? 'Pro Studio Active' : '14-Day Free Trial'}
+                  {subscription?.plan === 'intro_29'
+                    ? '1st Month VIP Pass Active'
+                    : subscription?.plan === 'studio'
+                    ? 'Studio VIP Active'
+                    : subscription?.plan === 'starter'
+                    ? 'Starter Creator Active'
+                    : subscription?.plan === 'pro'
+                    ? 'Pro Studio Active'
+                    : '14-Day Free Trial'}
                 </p>
                 <span
                   className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
@@ -596,7 +641,7 @@ function SettingsContent() {
               <p className="text-xs text-gray-500">
                 {subscription?.isExpired
                   ? 'Your subscription expired. Choose a plan below and scan the pre-coded UPI QR to reactivate instantly.'
-                  : subscription?.plan === 'pro'
+                  : subscription?.plan !== 'free_trial'
                   ? `Renews on: ${subscription?.subscriptionExpiresAt ? new Date(subscription.subscriptionExpiresAt).toLocaleDateString() : 'Active'} (${subscription?.daysRemaining} days remaining)`
                   : `Trial ends on: ${subscription?.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString() : 'In 14 days'}`}
               </p>
@@ -606,7 +651,7 @@ function SettingsContent() {
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedUpiPlan('pro');
+                  setSelectedUpiPlan('intro_29');
                   setIsUpiModalOpen(true);
                 }}
                 className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl transition hover:opacity-90 text-white shadow-sm"
@@ -618,7 +663,7 @@ function SettingsContent() {
             </div>
           </div>
 
-          {/* 3-Combo Pricing Plans Grid */}
+          {/* 4-Combo Pricing Plans Grid */}
           <div className="pt-2">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -627,7 +672,7 @@ function SettingsContent() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {PRICING_PLANS.map((plan) => (
                 <div
                   key={plan.id}

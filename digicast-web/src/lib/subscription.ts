@@ -1,6 +1,6 @@
 // Central subscription calculation and enforcement helper for Digicast.
 
-export type PlanType = 'free_trial' | 'starter' | 'pro' | 'studio' | 'lifetime' | string;
+export type PlanType = 'free_trial' | 'intro_29' | 'starter' | 'pro' | 'studio' | 'lifetime' | string;
 
 export interface WorkspaceSubscription {
   status: 'trial' | 'active' | 'expired';
@@ -10,12 +10,31 @@ export interface WorkspaceSubscription {
   isExpired: boolean;
   daysRemaining: number;
   isSuspended?: boolean;
+  trialBypassDetected?: boolean;
+  trialBypassedChannelTitle?: string;
 }
 
 export function computeWorkspaceSubscription(wsData: any): WorkspaceSubscription {
   const now = Date.now();
   const rawPlan = (wsData?.plan || wsData?.subscription || 'free_trial').toLowerCase();
   const isSuspended = Boolean(wsData?.isSuspended);
+  const trialBypassDetected = Boolean(wsData?.trialBypassDetected);
+
+  // If this workspace attempted to bypass the 14-day trial by reusing a YouTube channel that already consumed trial,
+  // and they haven't purchased a paid plan (still on free_trial), lock trial access immediately.
+  if (trialBypassDetected && rawPlan === 'free_trial') {
+    return {
+      status: 'expired',
+      plan: 'free_trial',
+      trialEndsAt: wsData?.trialEndsAt || new Date(now).toISOString(),
+      subscriptionExpiresAt: wsData?.subscriptionExpiresAt,
+      isExpired: true,
+      daysRemaining: 0,
+      isSuspended,
+      trialBypassDetected: true,
+      trialBypassedChannelTitle: wsData?.trialBypassedChannelTitle,
+    };
+  }
 
   // Explicit suspension or override by admin
   if (isSuspended || wsData?.subscriptionStatus === 'expired') {
@@ -43,8 +62,8 @@ export function computeWorkspaceSubscription(wsData: any): WorkspaceSubscription
     };
   }
 
-  // Paid Plans: starter, pro, studio
-  const isPaidPlan = ['starter', 'pro', 'studio'].includes(rawPlan) || rawPlan.startsWith('tier_');
+  // Paid Plans: intro_29, starter, pro, studio
+  const isPaidPlan = ['intro_29', 'starter', 'pro', 'studio'].includes(rawPlan) || rawPlan.startsWith('tier_');
   if (isPaidPlan) {
     let expiresMs = 0;
     if (wsData?.subscriptionExpiresAt) {

@@ -104,10 +104,11 @@ export async function POST(req: NextRequest) {
 
       // 1. Update workspace subscription
       await wsRef.update({
-        plan: "pro", // Keep binary 'pro' for standard app gates while setting detailed tier
+        plan: assignedPlan,
         subscriptionTier: assignedPlan,
-        subscription: "pro",
+        subscription: assignedPlan,
         subscriptionStatus: "active",
+        trialBypassDetected: false, // Reset any trial abuse flags upon verified payment
         subscriptionExpiresAt: new Date(newExpiresMs).toISOString(),
         lastPaymentAt: nowIso,
         updatedAt: nowIso,

@@ -224,6 +224,64 @@ export async function GET(req: NextRequest) {
     const channelName = youtubeData.items[0].snippet.title;
     const channelThumbnail = youtubeData.items[0].snippet.thumbnails?.default?.url || "";
 
+    // ── 3. ANTI-BYPASS TRIAL FINGERPRINT VERIFICATION ─────────────────────────
+    // Prevent users from rotating Google accounts to repeatedly claim 14-day free trials
+    // on the same underlying YouTube channel.
+    const wsRef = adminDb.doc(col.workspace(workspaceId));
+    const wsDoc = await wsRef.get();
+    const wsData = wsDoc.data() || {};
+    const rawPlan = (wsData.plan || wsData.subscription || "free_trial").toLowerCase();
+    const isPaidCustomer = ["intro_29", "starter", "pro", "studio", "lifetime"].includes(rawPlan) || Boolean(wsData.lastPaymentAt);
+
+    const registryRef = adminDb.collection("youtube_trial_registry").doc(channelId);
+    const registryDoc = await registryRef.get();
+
+    let trialBypassTriggered = false;
+
+    if (registryDoc.exists) {
+      const regData = registryDoc.data() || {};
+      const originalWsId = regData.firstRegisteredWorkspaceId;
+
+      // If registered by a DIFFERENT workspace and the current workspace is attempting an unpaid free trial
+      if (originalWsId && originalWsId !== workspaceId && !isPaidCustomer) {
+        console.warn(`[youtube-callback] Trial abuse detected: Channel "${channelName}" (${channelId}) was already claimed by workspace "${originalWsId}". Current workspace "${workspaceId}" is on free_trial.`);
+        trialBypassTriggered = true;
+
+        await wsRef.update({
+          trialBypassDetected: true,
+          trialBypassedChannelId: channelId,
+          trialBypassedChannelTitle: channelName,
+          trialBypassedOriginalWorkspace: originalWsId,
+          subscriptionStatus: "expired",
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        // Legitimate paid customer or same workspace reconnecting
+        await registryRef.set({
+          lastSeenWorkspaceId: workspaceId,
+          lastSeenUid: uid,
+          lastSeenAt: new Date().toISOString(),
+        }, { merge: true });
+      }
+    } else {
+      // First time this channel has ever connected to Digicast!
+      await registryRef.set({
+        channelId,
+        channelTitle: channelName,
+        channelThumbnail,
+        firstRegisteredWorkspaceId: workspaceId,
+        firstRegisteredUid: uid,
+        firstRegisteredAt: new Date().toISOString(),
+        trialClaimed: true,
+        lastSeenAt: new Date().toISOString(),
+      });
+
+      await wsRef.update({
+        primaryYoutubeChannelId: channelId,
+        trialBypassDetected: false,
+      });
+    }
+
     await adminDb.doc(col.youtubeAccount(workspaceId, channelId)).set({
       id: channelId,
       workspaceId,
@@ -243,6 +301,10 @@ export async function GET(req: NextRequest) {
       await syncWorkspaceYouTubeStreams(workspaceId);
     } catch (syncErr) {
       console.warn("[youtube-callback] Post-connection sync non-fatal warning:", syncErr);
+    }
+
+    if (trialBypassTriggered) {
+      return NextResponse.redirect(`${baseUrl}/settings?tab=subscription&error=trial_already_claimed&channel=${encodeURIComponent(channelName)}`);
     }
 
     return NextResponse.redirect(`${baseUrl}/dashboard?success=youtube_connected`);

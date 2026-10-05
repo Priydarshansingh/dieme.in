@@ -1,7 +1,9 @@
 // Digicast Pricing Plans and UPI Configuration
 
+export type PlanId = 'intro_29' | 'starter' | 'pro' | 'studio';
+
 export interface PricingPlan {
-  id: 'starter' | 'pro' | 'studio';
+  id: PlanId;
   name: string;
   badge?: string;
   priceINR: number;
@@ -23,6 +25,26 @@ export const UPI_CONFIG = {
 };
 
 export const PRICING_PLANS: PricingPlan[] = [
+  {
+    id: 'intro_29',
+    name: '1st Month VIP Pass',
+    badge: 'EXCLUSIVE INTRO OFFER',
+    priceINR: 29,
+    period: 'month',
+    description: 'First month special intro offer — get all Pro & VIP perks unlocked for 30 days for just ₹29!',
+    features: [
+      '⚡ All Pro & Studio VIP Features Unlocked',
+      '30 Days Full Access for only ₹29',
+      'Unlimited Live Clips & High-Speed Trimming',
+      'Up to 5 Team Members (Editors & Admins)',
+      '1080p 60fps & 4K Video Quality',
+      'Instant Telegram Bot & Multi-Stream Sync',
+      'Protects against multi-account trial bans',
+    ],
+    color: '#EC4899',
+    lightBg: 'rgba(236, 72, 153, 0.08)',
+    darkBg: '#EC4899',
+  },
   {
     id: 'starter',
     name: 'Starter Creator',

@@ -43,6 +43,15 @@ data class YouTubeAccountInfo(
     val connectionStatus: String
 )
 
+data class TeamMember(
+    val uid: String,
+    val displayName: String,
+    val email: String,
+    val role: String,
+    val appPassword: String? = null,
+    val joinedAt: String? = null
+)
+
 sealed class AuthState {
     object SignedOut : AuthState()
     object Loading : AuthState()
@@ -429,6 +438,153 @@ class AuthRepository @Inject constructor(
             Result.success("Synced successfully")
         } catch (e: Exception) {
             _isSyncing.value = false
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    // ─── Team Members & Credentials ──────────────────────────────────────────
+
+    suspend fun getTeamMembers(): Result<List<TeamMember>> = withContext(Dispatchers.IO) {
+        val session = (_authState.value as? AuthState.SignedIn)?.session
+            ?: return@withContext Result.failure(Exception("Not signed in"))
+
+        if (session.uid == DEMO_SESSION.uid) {
+            val demoList = listOf(
+                TeamMember("demo-1", "Demo Owner", "owner@digicast.app", "owner", "demo1234"),
+                TeamMember("demo-2", "Alex Editor", "alex@digicast.app", "editor", "editorPass99"),
+                TeamMember("demo-3", "Sam Moderator", "sam@digicast.app", "moderator", "modSecret22")
+            )
+            return@withContext Result.success(demoList)
+        }
+
+        try {
+            val url = "$BACKEND_URL/api/team/members?workspaceId=${session.workspaceId}"
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer ${session.token}")
+                .addHeader("x-user-uid", session.uid)
+                .addHeader("x-user-email", session.email)
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("Failed to fetch members: ${response.code}"))
+            }
+
+            val body = response.body?.string() ?: "{}"
+            val json = JSONObject(body)
+            val membersArray = json.optJSONArray("members") ?: org.json.JSONArray()
+            val list = mutableListOf<TeamMember>()
+
+            for (i in 0 until membersArray.length()) {
+                val m = membersArray.getJSONObject(i)
+                list.add(
+                    TeamMember(
+                        uid = m.optString("uid", m.optString("id", "")),
+                        displayName = m.optString("displayName", "Team Member"),
+                        email = m.optString("email", ""),
+                        role = m.optString("role", "editor"),
+                        appPassword = if (m.has("appPassword") && !m.isNull("appPassword")) m.optString("appPassword") else null,
+                        joinedAt = if (m.has("joinedAt") && !m.isNull("joinedAt")) m.optString("joinedAt") else null
+                    )
+                )
+            }
+            Result.success(list)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createTeamMember(
+        email: String,
+        password: String,
+        displayName: String,
+        role: String
+    ): Result<TeamMember> = withContext(Dispatchers.IO) {
+        val session = (_authState.value as? AuthState.SignedIn)?.session
+            ?: return@withContext Result.failure(Exception("Not signed in"))
+
+        if (session.uid == DEMO_SESSION.uid) {
+            return@withContext Result.success(
+                TeamMember(
+                    uid = UUID.randomUUID().toString(),
+                    displayName = displayName.ifBlank { email.split("@").firstOrNull() ?: "Member" },
+                    email = email,
+                    role = role,
+                    appPassword = password
+                )
+            )
+        }
+
+        try {
+            val url = "$BACKEND_URL/api/team/create-app-user"
+            val payload = JSONObject().apply {
+                put("workspaceId", session.workspaceId)
+                put("email", email.trim().lowercase())
+                put("password", password)
+                put("displayName", displayName.trim().ifBlank { email.split("@").firstOrNull() ?: "Member" })
+                put("role", role.lowercase())
+            }
+
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer ${session.token}")
+                .addHeader("x-user-uid", session.uid)
+                .addHeader("x-user-email", session.email)
+                .post(payload.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            val body = response.body?.string() ?: "{}"
+            val json = JSONObject(body)
+
+            if (!response.isSuccessful) {
+                val errorMsg = json.optString("error", "Failed to create user (${response.code})")
+                return@withContext Result.failure(Exception(errorMsg))
+            }
+
+            val created = TeamMember(
+                uid = json.optString("uid", ""),
+                displayName = json.optString("displayName", displayName),
+                email = json.optString("email", email),
+                role = json.optString("role", role),
+                appPassword = json.optString("appPassword", password)
+            )
+            Result.success(created)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removeTeamMember(memberId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val session = (_authState.value as? AuthState.SignedIn)?.session
+            ?: return@withContext Result.failure(Exception("Not signed in"))
+
+        if (session.uid == DEMO_SESSION.uid) {
+            return@withContext Result.success(Unit)
+        }
+
+        try {
+            val url = "$BACKEND_URL/api/team/members?workspaceId=${session.workspaceId}&memberId=$memberId"
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer ${session.token}")
+                .addHeader("x-user-uid", session.uid)
+                .addHeader("x-user-email", session.email)
+                .delete()
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                val body = response.body?.string() ?: "{}"
+                val err = runCatching { JSONObject(body).optString("error") }.getOrNull()
+                return@withContext Result.failure(Exception(err ?: "Failed to remove member (${response.code})"))
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
         }

@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
       role: "owner",
       email: decodedToken.email || "",
       displayName: decodedToken.name || "Workspace Owner",
+      appPassword: password, // Store credential for eye toggle viewing
       telegramUpload: true,
       updatedAt: new Date().toISOString(),
     }, { merge: true });
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
     await adminDb.doc(col.user(decodedToken.uid)).set({
       defaultWorkspaceId: workspaceId,
       role: "owner",
+      appPassword: password,
     }, { merge: true });
 
     // Set custom claims so ID tokens carry workspaceId and owner role

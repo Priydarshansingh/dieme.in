@@ -5,7 +5,12 @@ import { doc, getDoc, deleteDoc, collection, onSnapshot, setDoc, serverTimestamp
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSearchParams } from 'next/navigation';
-import { Youtube, Send, Bell, CreditCard, Key, ChevronRight, Check, Loader2, AlertCircle, Bot, Copy, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Youtube, Send, Bell, CreditCard, Key, ChevronRight, Check,
+  Loader2, AlertCircle, Bot, Copy, ExternalLink, Users, Eye, EyeOff,
+  ShieldCheck, UserCheck
+} from 'lucide-react';
 import Image from 'next/image';
 
 // ─── Reusable card wrapper ─────────────────────────────────────────────────────
@@ -122,6 +127,16 @@ function SettingsContent() {
     telegramUploaded: true,
     editorJoined: false,
   });
+
+  // Team Member Creation in Settings (Editor & Admin)
+  const [teamEmail, setTeamEmail] = useState('');
+  const [teamPassword, setTeamPassword] = useState('');
+  const [teamName, setTeamName] = useState('');
+  const [teamRole, setTeamRole] = useState<'editor' | 'admin'>('editor');
+  const [showTeamPassword, setShowTeamPassword] = useState(false);
+  const [isCreatingTeamUser, setIsCreatingTeamUser] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [teamSuccess, setTeamSuccess] = useState<string | null>(null);
 
   // Handle URL query feedback
   useEffect(() => {
@@ -291,6 +306,52 @@ function SettingsContent() {
     navigator.clipboard.writeText(nightbotMessage);
     setCopiedCommand(true);
     setTimeout(() => setCopiedCommand(false), 2500);
+  };
+
+  const handleCreateTeamUserFromSettings = async () => {
+    if (!teamEmail || !teamPassword || !workspaceId) {
+      setTeamError('Email and Password are required');
+      return;
+    }
+    if (teamPassword.length < 6) {
+      setTeamError('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsCreatingTeamUser(true);
+    setTeamError(null);
+    setTeamSuccess(null);
+
+    try {
+      const idToken = await user?.getIdToken();
+      const res = await fetch('/api/team/create-app-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          workspaceId,
+          email: teamEmail.trim().toLowerCase(),
+          password: teamPassword,
+          displayName: teamName.trim() || teamEmail.split('@')[0],
+          role: teamRole,
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create team member');
+
+      setTeamSuccess(`${teamRole.toUpperCase()} credentials saved! Credentials stored and available in Team & App Access.`);
+      setTeamEmail('');
+      setTeamPassword('');
+      setTeamName('');
+      setTimeout(() => setTeamSuccess(null), 5000);
+    } catch (err: any) {
+      setTeamError(err.message);
+    } finally {
+      setIsCreatingTeamUser(false);
+    }
   };
 
   return (
@@ -495,6 +556,141 @@ function SettingsContent() {
               </>
             )}
           </button>
+        </div>
+      </SettingsCard>
+
+      {/* Team Creation & Access (Editor & Admin) */}
+      <SettingsCard
+        icon={Users}
+        title="Team Creation & Access"
+        description="Create Editor or Admin accounts for your production team. All credentials are stored and accessible with the eye toggle button."
+      >
+        <div className="space-y-4">
+          {teamError && (
+            <div className="p-3 text-xs rounded-xl bg-red-50 text-red-700 border border-red-200">
+              {teamError}
+            </div>
+          )}
+
+          {teamSuccess && (
+            <div className="p-3 text-xs rounded-xl bg-green-50 text-green-700 border border-green-200 font-medium">
+              {teamSuccess}
+            </div>
+          )}
+
+          {/* Role selector */}
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B7280' }}>
+              Assign Role
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setTeamRole('editor')}
+                className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition ${
+                  teamRole === 'editor'
+                    ? 'border-emerald-500 bg-emerald-50/50'
+                    : 'border-gray-200 bg-gray-50/50 hover:bg-gray-100'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-gray-900">Editor</p>
+                  <p className="text-[11px] text-gray-500">Live clips & markers</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTeamRole('admin')}
+                className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition ${
+                  teamRole === 'admin'
+                    ? 'border-indigo-600 bg-indigo-50/50'
+                    : 'border-gray-200 bg-gray-50/50 hover:bg-gray-100'
+                }`}
+              >
+                <UserCheck className="w-4 h-4 text-indigo-700 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-gray-900">Admin</p>
+                  <p className="text-[11px] text-gray-500">Studio & team access</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B7280' }}>
+                Full Name
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Alex Video Editor"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                style={{ border: '1px solid #E5E7EB', backgroundColor: '#F4F6F9', color: '#1B2237' }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B7280' }}>
+                User Email (Login ID)
+              </label>
+              <input
+                type="email"
+                placeholder="editor@example.com"
+                value={teamEmail}
+                onChange={(e) => setTeamEmail(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                style={{ border: '1px solid #E5E7EB', backgroundColor: '#F4F6F9', color: '#1B2237' }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: '#6B7280' }}>
+                App Password
+              </label>
+              <div
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl border"
+                style={{ border: '1px solid #E5E7EB', backgroundColor: '#F4F6F9' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowTeamPassword(!showTeamPassword)}
+                  className="shrink-0 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showTeamPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+                <input
+                  type={showTeamPassword ? "text" : "password"}
+                  placeholder="Min 6 characters"
+                  value={teamPassword}
+                  onChange={(e) => setTeamPassword(e.target.value)}
+                  className="flex-1 text-sm bg-transparent outline-none w-full"
+                  style={{ color: '#1B2237' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+            <Link
+              href="/team"
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1"
+            >
+              View All Members & Credentials &rarr;
+            </Link>
+
+            <button
+              onClick={handleCreateTeamUserFromSettings}
+              disabled={isCreatingTeamUser || !teamEmail || !teamPassword}
+              className="px-5 py-2.5 text-xs font-bold text-white rounded-xl transition hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: '#1B2237' }}
+            >
+              {isCreatingTeamUser ? 'Saving...' : `Create ${teamRole === 'admin' ? 'Admin' : 'Editor'}`}
+            </button>
+          </div>
         </div>
       </SettingsCard>
 

@@ -14,7 +14,7 @@ import {
 import {
   X, Check, Copy, ExternalLink, QrCode, Smartphone,
   Send, ShieldCheck, Sparkles, AlertCircle, Loader2, ArrowRight, Upload,
-  Image as ImageIcon, Trash2,
+  Image as ImageIcon, Trash2, Clock, Laptop, HelpCircle,
 } from 'lucide-react';
 import { auth } from '@/lib/firebase/client';
 
@@ -53,6 +53,9 @@ export default function UpiPaymentModal({
   const [submittedPayment, setSubmittedPayment] = useState<any | null>(null);
   const [telegramUrl, setTelegramUrl] = useState<string | null>(null);
 
+  const [uploadMethod, setUploadMethod] = useState<'device' | 'phone_qr'>('device');
+  const [phoneUploadQr, setPhoneUploadQr] = useState<string>('');
+
   // Auto-detect mobile device on mount to optimize tab
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -90,6 +93,7 @@ export default function UpiPaymentModal({
   });
 
   const appLinks = buildMobileAppUpiLinks(selectedPlan.priceINR, selectedPlan.name);
+  const tgDeepLink = `https://t.me/${UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'}?start=pay_${workspaceId}_${selectedPlan.id}`;
 
   // Handler for the "Pay on Phone" button (redirects on mobile)
   const handlePayOnPhoneClick = () => {
@@ -116,7 +120,20 @@ export default function UpiPaymentModal({
     })
       .then(url => setQrDataUrl(url))
       .catch(err => console.error('QR generation error:', err));
-  }, [selectedPlanId, upiDeepLink, isOpen]);
+
+    // Generate phone quick-upload QR code
+    QRCode.toDataURL(tgDeepLink, {
+      width: 220,
+      margin: 1,
+      color: {
+        dark: '#0F172A',
+        light: '#FFFFFF',
+      },
+      errorCorrectionLevel: 'M',
+    })
+      .then(url => setPhoneUploadQr(url))
+      .catch(err => console.error('Phone upload QR error:', err));
+  }, [selectedPlanId, upiDeepLink, tgDeepLink, isOpen]);
 
   if (!isOpen) return null;
 
@@ -468,83 +485,146 @@ export default function UpiPaymentModal({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                        <span>Upload Payment Screenshot / QR Receipt</span>
-                        <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                          ⚡ Instant Bot Verification
-                        </span>
-                      </label>
-
-                      {!screenshotFile ? (
-                        <label className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-xl p-3.5 flex flex-col items-center justify-center text-center bg-white hover:bg-slate-50/80 transition group shadow-2xs">
-                          <div className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition">
-                            <Upload className="w-4 h-4" />
-                          </div>
-                          <span className="text-xs font-bold text-slate-800">
-                            Click to Upload Payment Screenshot
-                          </span>
-                          <span className="text-[10px] text-slate-400 mt-0.5">
-                            PNG, JPG or JPEG up to 5MB • Automatically sent to admin Telegram
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleScreenshotChange}
-                            className="hidden"
-                          />
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-bold text-slate-700">
+                          Attach Payment Screenshot (Optional)
                         </label>
-                      ) : (
-                        <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {/* Thumbnail preview */}
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={screenshotFile}
-                              alt="Receipt thumbnail"
-                              className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0 shadow-2xs"
+                        <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          UTR is 100% Sufficient
+                        </span>
+                      </div>
+
+                      {/* Method Switcher: Upload on PC vs Send via Phone QR */}
+                      <div className="flex rounded-xl bg-slate-100 p-1 mb-2.5 text-[11px] font-semibold border border-slate-200/60">
+                        <button
+                          type="button"
+                          onClick={() => setUploadMethod('device')}
+                          className={`flex-1 py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1.5 ${
+                            uploadMethod === 'device'
+                              ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                              : 'text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          <Laptop className="w-3.5 h-3.5" />
+                          <span>Upload from this PC / Device</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUploadMethod('phone_qr')}
+                          className={`flex-1 py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1.5 ${
+                            uploadMethod === 'phone_qr'
+                              ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                              : 'text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          <Smartphone className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Paid on Phone? Scan to Send</span>
+                        </button>
+                      </div>
+
+                      {uploadMethod === 'device' ? (
+                        !screenshotFile ? (
+                          <label className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-xl p-3.5 flex flex-col items-center justify-center text-center bg-white hover:bg-slate-50/80 transition group shadow-2xs">
+                            <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-105 transition">
+                              <Upload className="w-4 h-4" />
+                            </div>
+                            <span className="text-xs font-bold text-slate-800">
+                              Click or Drag to Upload Payment Screenshot
+                            </span>
+                            <span className="text-[10px] text-slate-400 mt-0.5">
+                              PNG, JPG or JPEG up to 5MB (Optional)
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleScreenshotChange}
+                              className="hidden"
                             />
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-slate-800 truncate">
-                                {screenshotName || 'receipt_screenshot.jpg'}
-                              </p>
-                              <p className="text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
-                                <Check className="w-3 h-3 text-emerald-600" />
-                                Ready to send to Admin Telegram
-                              </p>
+                          </label>
+                        ) : (
+                          <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-2xs flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={screenshotFile}
+                                alt="Receipt thumbnail"
+                                className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0 shadow-2xs"
+                              />
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-800 truncate">
+                                  {screenshotName || 'receipt_screenshot.jpg'}
+                                </p>
+                                <p className="text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
+                                  <Check className="w-3 h-3 text-emerald-600" />
+                                  Attached for Admin Verification
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <label className="cursor-pointer text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-50 transition">
+                                Change
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleScreenshotChange}
+                                  className="hidden"
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setScreenshotFile(null);
+                                  setScreenshotName(null);
+                                }}
+                                className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition"
+                                title="Remove receipt"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <label className="cursor-pointer text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded hover:bg-indigo-50 transition">
-                              Change
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleScreenshotChange}
-                                className="hidden"
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setScreenshotFile(null);
-                                setScreenshotName(null);
-                              }}
-                              className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition"
-                              title="Remove receipt"
+                        )
+                      ) : (
+                        <div className="p-3 bg-white border border-indigo-100 rounded-xl shadow-2xs flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left">
+                          {phoneUploadQr ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={phoneUploadQr}
+                              alt="Scan to upload from phone"
+                              className="w-24 h-24 rounded-lg border border-slate-200 shrink-0 shadow-2xs bg-white p-1"
+                            />
+                          ) : (
+                            <div className="w-24 h-24 flex items-center justify-center bg-slate-100 rounded-lg">
+                              <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                            </div>
+                          )}
+                          <div className="space-y-1">
+                            <p className="text-xs font-bold text-slate-900 flex items-center justify-center sm:justify-start gap-1">
+                              <Smartphone className="w-3.5 h-3.5 text-indigo-600" />
+                              <span>Scan with Phone Camera</span>
+                            </p>
+                            <p className="text-[11px] text-slate-500 leading-snug">
+                              Opens Telegram (@{UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'}) on your phone to drop the screenshot directly — zero file transfer needed!
+                            </p>
+                            <a
+                              href={tgDeepLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:underline pt-0.5"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                              <Send className="w-3 h-3" /> Or click to open Telegram Web
+                            </a>
                           </div>
                         </div>
                       )}
 
                       {/* Telegram Bot Direct Upload & Help Link */}
-                      <div className="mt-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between gap-2 text-xs">
+                      <div className="mt-2 p-2 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between gap-2 text-xs">
                         <span className="text-[11px] text-slate-500">
-                          Having trouble uploading or prefer Telegram?
+                          Having questions or prefer Telegram?
                         </span>
                         <a
-                          href={`https://t.me/${UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'}?start=pay_${workspaceId}_${selectedPlan.id}`}
+                          href={tgDeepLink}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800 shrink-0 text-[11px] hover:underline"
@@ -592,26 +672,52 @@ export default function UpiPaymentModal({
               </div>
             </div>
           ) : (
-            /* Step 3: Success Screen with Telegram/Discord Redirection */
-            <div className="max-w-xl mx-auto text-center py-6 space-y-6">
+            /* Step 3: Success Screen with 24-Hour Notice, Full Platform Access & Support */
+            <div className="max-w-xl mx-auto text-center py-6 space-y-5 animate-fade-in">
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
                 <Check className="w-8 h-8 stroke-[3]" />
               </div>
 
               <div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900">Payment Submitted for Verification!</h3>
-                <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 tracking-wide uppercase">
+                  ✓ Proof Received
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
+                  Payment Submitted Successfully!
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 mt-1">
                   We received your UTR: <code className="bg-slate-100 font-mono font-bold px-2 py-0.5 rounded text-indigo-700">{submittedPayment.utrNumber}</code> for the <span className="font-bold text-slate-900">{selectedPlan.name} (₹{selectedPlan.priceINR})</span>.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left text-xs space-y-2 font-mono shadow-2xs">
+              {/* 24-Hour Activation Notice Banner */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border border-indigo-200/80 text-left shadow-2xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                      Plan Activation Window: Within 24 Hours
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Your payment proof is being verified by our team.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed font-medium bg-white/80 p-3 rounded-xl border border-indigo-100">
+                  🎉 <b>Your plan will be activated within 24 hours.</b> Till then, you can continue to enjoy full access to the platform, YouTube stream sync, and on-device trimming!
+                </p>
+              </div>
+
+              {/* Payment Summary */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-left text-xs space-y-1.5 font-mono shadow-2xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Plan:</span>
+                  <span className="text-slate-500">Purchased Plan:</span>
                   <span className="font-bold text-slate-800">{selectedPlan.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Amount:</span>
+                  <span className="text-slate-500">Amount Paid:</span>
                   <span className="font-bold text-emerald-600">₹{selectedPlan.priceINR}.00</span>
                 </div>
                 <div className="flex justify-between">
@@ -620,38 +726,27 @@ export default function UpiPaymentModal({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Status:</span>
-                  <span className="font-bold text-amber-600 uppercase">Pending Admin Approval</span>
+                  <span className="font-bold text-amber-600 uppercase">🟡 Pending Admin Approval</span>
                 </div>
               </div>
 
-              {/* Action Buttons to Telegram & Discord */}
+              {/* Queries & Support on Both Telegram and Discord */}
               <div className="space-y-3 pt-2">
-                <p className="text-xs font-semibold text-slate-700">
-                  Speed up verification! Send your receipt directly to our bot:
-                </p>
+                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-slate-700">
+                  <HelpCircle className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Have any questions or queries? Message us anytime:</span>
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <a
-                    href={`https://t.me/${UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'}?start=pay_${workspaceId}_${selectedPlan.id}`}
+                    href={`https://t.me/${UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'}?start=query_${workspaceId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-[#1B2237] hover:bg-black transition shadow-md col-span-full sm:col-span-2"
+                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#229ED9] hover:bg-[#1E88C7] transition shadow-sm"
                   >
-                    <Send className="w-4 h-4 text-emerald-400" />
-                    <span>Send Screenshot to Telegram Bot (@{UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'})</span>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Message on Telegram</span>
                   </a>
-
-                  {telegramUrl && (
-                    <a
-                      href={telegramUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#229ED9] hover:bg-[#1E88C7] transition shadow-sm"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      Post in Channel
-                    </a>
-                  )}
 
                   <a
                     href={UPI_CONFIG.discordSupportUrl}
@@ -660,16 +755,17 @@ export default function UpiPaymentModal({
                     className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#5865F2] hover:bg-[#4752C4] transition shadow-sm"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    Verify on Discord
+                    <span>Message on Discord</span>
                   </a>
                 </div>
 
                 <button
                   type="button"
                   onClick={onClose}
-                  className="mt-4 px-6 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition"
+                  className="w-full mt-2 py-3 px-5 text-sm font-bold text-white rounded-xl shadow-md transition hover:opacity-95"
+                  style={{ backgroundColor: '#1B2237' }}
                 >
-                  Done &amp; Return to Workspace
+                  Done • Return to Workspace &amp; Enjoy Platform
                 </button>
               </div>
             </div>

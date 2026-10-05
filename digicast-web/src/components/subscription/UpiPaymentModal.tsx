@@ -11,7 +11,7 @@ import {
 } from '@/lib/pricingPlans';
 import {
   X, Check, Copy, ExternalLink, QrCode, Smartphone,
-  Send, ShieldCheck, Sparkles, AlertCircle, Loader2, ArrowRight
+  Send, ShieldCheck, Sparkles, AlertCircle, Loader2, ArrowRight, Upload
 } from 'lucide-react';
 
 interface UpiPaymentModalProps {
@@ -41,10 +41,27 @@ export default function UpiPaymentModal({
   // Verification step state
   const [utrNumber, setUtrNumber] = useState('');
   const [userNote, setUserNote] = useState('');
+  const [screenshotFile, setScreenshotFile] = useState<string | null>(null);
+  const [screenshotName, setScreenshotName] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submittedPayment, setSubmittedPayment] = useState<any | null>(null);
   const [telegramUrl, setTelegramUrl] = useState<string | null>(null);
+
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmitError('Screenshot file size must be less than 5MB');
+      return;
+    }
+    setScreenshotName(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setScreenshotFile(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const selectedPlan = PRICING_PLANS.find(p => p.id === selectedPlanId) || PRICING_PLANS[1];
   const upiDeepLink = buildUpiDeepLink({
@@ -109,6 +126,7 @@ export default function UpiPaymentModal({
           planId: selectedPlan.id,
           utrNumber: utrNumber.trim(),
           note: userNote.trim(),
+          screenshotUrl: screenshotFile || null,
         }),
       });
 
@@ -330,6 +348,32 @@ export default function UpiPaymentModal({
 
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Attach Payment Screenshot (Optional / Recommended)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <label className="cursor-pointer flex items-center gap-2 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm">
+                          <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>{screenshotName ? 'Change Receipt' : 'Upload Screenshot Image'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleScreenshotChange}
+                            className="hidden"
+                          />
+                        </label>
+                        {screenshotName && (
+                          <span className="text-[11px] font-mono text-emerald-600 truncate max-w-[220px]">
+                            ✓ {screenshotName}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Upload receipt image for fastest 1-click verification by admin.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
                         Notes / Account Name (Optional)
                       </label>
                       <input
@@ -399,15 +443,25 @@ export default function UpiPaymentModal({
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <a
+                    href={`https://t.me/${UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'}?start=pay_${workspaceId}_${selectedPlan.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-[#1B2237] hover:bg-black transition shadow-md col-span-full sm:col-span-2"
+                  >
+                    <Send className="w-4 h-4 text-emerald-400" />
+                    <span>Send Screenshot in Private DM (@{UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'})</span>
+                  </a>
+
                   {telegramUrl && (
                     <a
                       href={telegramUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-[#229ED9] hover:bg-[#1E88C7] transition shadow-md"
+                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#229ED9] hover:bg-[#1E88C7] transition shadow-sm"
                     >
-                      <Send className="w-4 h-4" />
-                      Verify on Telegram Channel
+                      <Send className="w-3.5 h-3.5" />
+                      Post in Channel
                     </a>
                   )}
 
@@ -415,9 +469,9 @@ export default function UpiPaymentModal({
                     href={UPI_CONFIG.discordSupportUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-[#5865F2] hover:bg-[#4752C4] transition shadow-md"
+                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#5865F2] hover:bg-[#4752C4] transition shadow-sm"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink className="w-3.5 h-3.5" />
                     Verify on Discord
                   </a>
                 </div>

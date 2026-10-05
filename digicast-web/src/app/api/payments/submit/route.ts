@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid authentication token" }, { status: 401 });
     }
 
-    const { workspaceId, planId, utrNumber, note } = await req.json();
+    const { workspaceId, planId, utrNumber, note, screenshotUrl } = await req.json();
 
     if (!workspaceId || !planId || !utrNumber) {
       return NextResponse.json({ error: "Workspace ID, Plan, and UTR number are required" }, { status: 400 });
@@ -62,6 +62,8 @@ export async function POST(req: NextRequest) {
       receiverUpiId: UPI_CONFIG.upiId,
       utrNumber: cleanUtr,
       note: note || "",
+      screenshotUrl: screenshotUrl || null,
+      submittedVia: "web",
       status: "pending_verification", // 'pending_verification' | 'approved' | 'rejected'
       createdAt: now,
       updatedAt: now,

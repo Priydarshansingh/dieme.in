@@ -59,6 +59,101 @@ export async function POST(req: NextRequest) {
 
     console.info(`[telegram/webhook] received command: /${command} from chatId=${chatId}, type=${chatType}`);
 
+    // Handling Private Payment Screenshot Photo
+    if (message.photo && Array.isArray(message.photo) && message.photo.length > 0) {
+      if (chatType !== 'private') {
+        await sendTelegramMessage(
+          chatId,
+          `⚠️ <b>Privacy Warning:</b> Please send payment receipts directly in private DM to @${process.env.TELEGRAM_BOT_USERNAME || 'DIGICAST_BOT'} so other group members cannot see your transaction!`,
+          messageId
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      const photo = message.photo[message.photo.length - 1]; // highest resolution
+      const fileId = photo.file_id;
+      const caption = (message.caption || '').trim();
+
+      try {
+        const fileRes = await fetch(`${TELEGRAM_API_URL}/getFile?file_id=${fileId}`);
+        const fileData = await fileRes.json();
+        const filePath = fileData?.result?.file_path;
+        const directScreenshotUrl = filePath ? `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}` : '';
+
+        // Extract possible 12-digit UTR from caption
+        const utrMatch = caption.match(/\b\d{12}\b/);
+        const utrNumber = utrMatch ? utrMatch[0] : (caption ? caption.slice(0, 50) : `TG-${message.from?.id || chatId}-${Date.now().toString().slice(-6)}`);
+
+        // Check user session
+        const { adminDb } = await import('@/lib/firebase/admin');
+        const sessionDoc = await adminDb.doc(`telegram_sessions/${chatId}`).get();
+        const sessionData = sessionDoc.exists ? sessionDoc.data() : null;
+
+        const workspaceId = sessionData?.workspaceId || `tg_${message.from?.id || chatId}`;
+        const planId = sessionData?.planId || 'pro';
+        const planName = sessionData?.planName || 'Pro Streamer (₹499)';
+        const amount = planId === 'starter' ? 149 : planId === 'studio' ? 999 : 499;
+
+        const paymentId = `pay_tg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        const now = new Date().toISOString();
+
+        const paymentRecord = {
+          id: paymentId,
+          workspaceId,
+          workspaceName: message.from?.first_name ? `${message.from.first_name} (Telegram)` : 'Telegram User',
+          userUid: `tg_${message.from?.id || chatId}`,
+          userEmail: message.from?.username ? `@${message.from.username}` : `tg_${message.from?.id || chatId}`,
+          telegramChatId: String(chatId),
+          telegramUsername: message.from?.username || '',
+          telegramUserId: message.from?.id || null,
+          planId,
+          planName,
+          amount,
+          currency: 'INR',
+          receiverUpiId: 'priyadarshankishnawat@ybl',
+          utrNumber,
+          note: caption || 'Submitted via Telegram bot private chat',
+          screenshotUrl: directScreenshotUrl,
+          submittedVia: 'telegram_bot',
+          status: 'pending_verification',
+          createdAt: now,
+          updatedAt: now,
+          verifiedAt: null,
+          verifiedBy: null,
+        };
+
+        // Save in global payments collection for GodPanel
+        await adminDb.collection('payments').doc(paymentId).set(paymentRecord);
+        if (workspaceId && !workspaceId.startsWith('tg_')) {
+          await adminDb.doc(`workspaces/${workspaceId}/payments/${paymentId}`).set(paymentRecord);
+        }
+
+        const replyMsg = `
+✅ <b>Payment Screenshot Received!</b>
+
+• <b>Receipt Image:</b> Captured & Uploaded
+• <b>Reference / UTR:</b> <code>${utrNumber}</code>
+• <b>Plan:</b> ${planName}
+• <b>Status:</b> 🟡 <b>Pending Admin Verification</b>
+
+🛡️ <b>Privacy Guarantee:</b>
+Your payment receipt is stored privately and is only visible to the Digicast Administrator in the GodPanel.
+
+Our team will verify this against the UPI account and activate your subscription shortly!
+        `.trim();
+
+        await sendTelegramMessage(chatId, replyMsg, messageId);
+      } catch (err) {
+        console.error('[telegram/webhook] Error processing payment photo:', err);
+        await sendTelegramMessage(
+          chatId,
+          '❌ Could not process payment screenshot. Please try sending again or submit via the web dashboard.',
+          messageId
+        );
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     // A. Handle /chatid or /id command
     if (command === 'chatid' || command === 'id') {
       const response = `
@@ -71,6 +166,42 @@ export async function POST(req: NextRequest) {
 
     // B. Handle /start command
     else if (command === 'start') {
+      // Check if start is for payment (e.g. /start pay_WS123_pro)
+      if (args && args.toLowerCase().startsWith('pay_')) {
+        const parts = args.split('_');
+        const wsId = parts[1] || '';
+        const planId = parts[2] || 'pro';
+        const planName = planId === 'starter' ? 'Starter Creator (₹149)' : planId === 'studio' ? 'Studio VIP (₹999)' : 'Pro Streamer (₹499)';
+
+        try {
+          const { adminDb } = await import('@/lib/firebase/admin');
+          await adminDb.doc(`telegram_sessions/${chatId}`).set({
+            chatId: String(chatId),
+            workspaceId: wsId,
+            planId,
+            planName,
+            updatedAt: new Date().toISOString(),
+          }, { merge: true });
+
+          const msg = `
+💳 <b>Digicast Subscription Payment</b>
+
+• <b>Plan:</b> ${planName}
+• <b>Workspace ID:</b> <code>${wsId}</code>
+• <b>Receiver UPI:</b> <code>priyadarshankishnawat@ybl</code>
+
+📸 <b>Please reply with your Payment Screenshot now.</b>
+<i>Include your 12-digit UTR in the photo caption!</i>
+
+🔒 <i>Notice: This 1-on-1 private chat is strictly confidential. No other users can see your payment details.</i>
+          `.trim();
+          await sendTelegramMessage(chatId, msg, messageId);
+          return NextResponse.json({ ok: true });
+        } catch (e) {
+          console.error('[telegram/webhook] pay_ session error:', e);
+        }
+      }
+
       // Check if code was passed (e.g. /start A8X91K)
       if (args) {
         const code = args.toUpperCase();

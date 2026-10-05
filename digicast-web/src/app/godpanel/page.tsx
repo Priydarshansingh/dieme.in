@@ -55,6 +55,8 @@ interface PaymentItem {
   amount: number;
   utrNumber: string;
   note?: string;
+  screenshotUrl?: string | null;
+  submittedVia?: string;
   status: 'pending_verification' | 'approved' | 'rejected';
   createdAt: string;
   verifiedAt?: string | null;
@@ -78,6 +80,7 @@ export default function GodPanelPage() {
   const [admins, setAdmins] = useState<AdminItem[]>([]);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
+  const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'trial' | 'expired'>('all');
@@ -843,6 +846,7 @@ export default function GodPanelPage() {
                     <th className="py-3 px-4">Workspace / User</th>
                     <th className="py-3 px-4">Plan &amp; Amount</th>
                     <th className="py-3 px-4">UTR / Ref Number</th>
+                    <th className="py-3 px-4">Receipt</th>
                     <th className="py-3 px-4">Submitted</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
@@ -851,7 +855,7 @@ export default function GodPanelPage() {
                 <tbody className="divide-y divide-[#1E2536]">
                   {payments.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-gray-500 font-mono">
+                      <td colSpan={7} className="py-8 text-center text-gray-500 font-mono">
                         No UPI payment submissions found
                       </td>
                     </tr>
@@ -882,6 +886,19 @@ export default function GodPanelPage() {
                             <code className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/40 px-2 py-1 rounded border border-emerald-800/50">
                               {p.utrNumber}
                             </code>
+                          </td>
+
+                          <td className="py-4 px-4">
+                            {p.screenshotUrl ? (
+                              <button
+                                onClick={() => setSelectedScreenshot(p.screenshotUrl || null)}
+                                className="flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-mono text-[11px] transition border border-indigo-500/30"
+                              >
+                                <span>📷 View Image</span>
+                              </button>
+                            ) : (
+                              <span className="text-[10px] font-mono text-gray-500 italic">No receipt</span>
+                            )}
                           </td>
 
                           <td className="py-4 px-4 font-mono text-gray-400">
@@ -1024,6 +1041,51 @@ export default function GodPanelPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── SCREENSHOT LIGHTBOX MODAL ────────────────────────────────────── */}
+      {selectedScreenshot && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0D111A] border border-[#232D42] rounded-2xl max-w-2xl w-full p-5 space-y-4 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-[#1E2536] pb-3">
+              <h4 className="font-bold text-sm text-white font-mono flex items-center gap-2">
+                <span>📷 Payment Receipt Image</span>
+              </h4>
+              <button
+                onClick={() => setSelectedScreenshot(null)}
+                className="text-gray-400 hover:text-white font-mono text-xs"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="max-h-[70vh] overflow-auto flex items-center justify-center bg-black/40 rounded-xl p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={selectedScreenshot}
+                alt="Payment Receipt Screenshot"
+                className="max-h-[65vh] object-contain rounded-lg shadow-md"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <a
+                href={selectedScreenshot}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-indigo-400 hover:underline flex items-center gap-1 font-mono"
+              >
+                Open Original &rarr;
+              </a>
+              <button
+                onClick={() => setSelectedScreenshot(null)}
+                className="px-4 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs font-mono"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

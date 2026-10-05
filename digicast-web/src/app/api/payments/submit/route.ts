@@ -21,14 +21,18 @@ export async function POST(req: NextRequest) {
 
     const { workspaceId, planId, utrNumber, note, screenshotUrl, userEmail: clientEmail } = await req.json();
 
-    if (!workspaceId || !planId || !utrNumber) {
-      return NextResponse.json({ error: "Workspace ID, Plan, and UTR number are required" }, { status: 400 });
+    if (!workspaceId || !planId) {
+      return NextResponse.json({ error: "Workspace ID and Plan are required" }, { status: 400 });
     }
 
-    const cleanUtr = String(utrNumber).trim();
-    if (cleanUtr.length < 6) {
-      return NextResponse.json({ error: "Please enter a valid UPI Reference / UTR Number" }, { status: 400 });
+    const cleanUtr = utrNumber ? String(utrNumber).trim() : "";
+    
+    // Require at least one proof indicator (UTR, Screenshot, or Note)
+    if (!cleanUtr && !screenshotUrl && !note) {
+      return NextResponse.json({ error: "Please provide either a 12-digit UPI UTR number or attach a payment screenshot" }, { status: 400 });
     }
+
+    const finalUtr = cleanUtr || (screenshotUrl ? "Attached in Screenshot" : "Pending Verification");
 
     const selectedPlan = PRICING_PLANS.find(p => p.id === planId);
     if (!selectedPlan) {
@@ -67,7 +71,7 @@ export async function POST(req: NextRequest) {
       amount: selectedPlan.priceINR,
       currency: "INR",
       receiverUpiId: UPI_CONFIG.upiId,
-      utrNumber: cleanUtr,
+      utrNumber: finalUtr,
       note: note || "",
       screenshotUrl: screenshotUrl || null,
       submittedVia: "web",
@@ -126,7 +130,7 @@ export async function POST(req: NextRequest) {
           planName: selectedPlan.name,
           periodLabel: selectedPlan.periodLabel,
           amount: selectedPlan.priceINR,
-          utrNumber: cleanUtr,
+          utrNumber: finalUtr,
           note: note || "",
           screenshotUrl: screenshotUrl || null,
           submissionCount: currentUploadCount,
@@ -147,7 +151,7 @@ export async function POST(req: NextRequest) {
       userEmail,
       planName: selectedPlan.name,
       amount: selectedPlan.priceINR,
-      utrNumber: cleanUtr,
+      utrNumber: finalUtr,
     });
 
     return NextResponse.json({

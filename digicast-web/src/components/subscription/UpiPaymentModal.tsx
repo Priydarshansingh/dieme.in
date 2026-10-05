@@ -151,8 +151,12 @@ export default function UpiPaymentModal({
 
   const handleSubmitProof = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!utrNumber.trim() || utrNumber.trim().length < 6) {
-      setSubmitError('Please enter a valid 12-digit UPI UTR / Reference ID');
+    const cleanUtr = utrNumber.trim();
+    const hasScreenshot = Boolean(screenshotFile);
+    const hasNote = Boolean(userNote.trim());
+
+    if (!cleanUtr && !hasScreenshot && !hasNote) {
+      setSubmitError('Please enter your 12-digit UPI UTR number or attach a payment receipt screenshot.');
       return;
     }
 
@@ -171,7 +175,7 @@ export default function UpiPaymentModal({
         body: JSON.stringify({
           workspaceId,
           planId: selectedPlan.id,
-          utrNumber: utrNumber.trim(),
+          utrNumber: cleanUtr,
           note: userNote.trim(),
           screenshotUrl: screenshotFile || null,
           userEmail: userEmail || auth.currentUser?.email || '',
@@ -471,15 +475,19 @@ export default function UpiPaymentModal({
 
                   <form onSubmit={handleSubmitProof} className="space-y-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        12-Digit UPI Transaction ID / UTR Number <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-slate-700">
+                          12-Digit UPI Transaction ID / UTR Number
+                        </label>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          Optional if Receipt Attached
+                        </span>
+                      </div>
                       <input
                         type="text"
-                        placeholder="e.g. 428190382910"
+                        placeholder="e.g. 428190382910 (or leave empty if on receipt)"
                         value={utrNumber}
                         onChange={(e) => setUtrNumber(e.target.value)}
-                        required
                         className="w-full px-3.5 py-2.5 text-sm font-mono bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-600 transition shadow-2xs"
                       />
                     </div>
@@ -651,7 +659,7 @@ export default function UpiPaymentModal({
 
                     <button
                       type="submit"
-                      disabled={isSubmitting || !utrNumber.trim()}
+                      disabled={isSubmitting || (!utrNumber.trim() && !screenshotFile && !userNote.trim())}
                       className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
                       style={{ backgroundColor: '#1B2237' }}
                     >

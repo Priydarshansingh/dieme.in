@@ -57,9 +57,12 @@ export async function POST(req: NextRequest) {
     const command = commandMatch ? commandMatch[1].toLowerCase() : '';
     const args = commandMatch ? (commandMatch[2] || '').trim() : '';
 
-    console.info(`[telegram/webhook] received command: /${command} from chatId=${chatId}, type=${chatType}`);
+    console.info(`[telegram/webhook] received message from chatId=${chatId}, type=${chatType}, command=/${command}`);
 
-    // Handling Private Payment Screenshot Photo
+    const { adminDb, adminAuth } = await import('@/lib/firebase/admin');
+    const { PRICING_PLANS } = await import('@/lib/pricingPlans');
+
+    // ─── 1. Handling Payment Screenshot Photo (Private DM) ────────────────────
     if (message.photo && Array.isArray(message.photo) && message.photo.length > 0) {
       if (chatType !== 'private') {
         await sendTelegramMessage(
@@ -85,14 +88,15 @@ export async function POST(req: NextRequest) {
         const utrNumber = utrMatch ? utrMatch[0] : (caption ? caption.slice(0, 50) : `TG-${message.from?.id || chatId}-${Date.now().toString().slice(-6)}`);
 
         // Check user session
-        const { adminDb } = await import('@/lib/firebase/admin');
         const sessionDoc = await adminDb.doc(`telegram_sessions/${chatId}`).get();
         const sessionData = sessionDoc.exists ? sessionDoc.data() : null;
 
         const workspaceId = sessionData?.workspaceId || `tg_${message.from?.id || chatId}`;
         const planId = sessionData?.planId || 'pro';
-        const planName = sessionData?.planName || 'Pro Streamer (₹499)';
-        const amount = planId === 'starter' ? 149 : planId === 'studio' ? 999 : 499;
+        const targetPlan = PRICING_PLANS.find(p => p.id === planId) || PRICING_PLANS[1];
+        const planName = targetPlan.name;
+        const amount = targetPlan.priceINR;
+        const userEmail = sessionData?.userEmail || (message.from?.username ? `@${message.from.username}` : `Telegram User`);
 
         const paymentId = `pay_tg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
         const now = new Date().toISOString();
@@ -100,14 +104,14 @@ export async function POST(req: NextRequest) {
         const paymentRecord = {
           id: paymentId,
           workspaceId,
-          workspaceName: message.from?.first_name ? `${message.from.first_name} (Telegram)` : 'Telegram User',
-          userUid: `tg_${message.from?.id || chatId}`,
-          userEmail: message.from?.username ? `@${message.from.username}` : `tg_${message.from?.id || chatId}`,
+          workspaceName: sessionData?.workspaceName || (message.from?.first_name ? `${message.from.first_name} (Telegram)` : 'Telegram User'),
+          userUid: sessionData?.userId || `tg_${message.from?.id || chatId}`,
+          userEmail,
           telegramChatId: String(chatId),
           telegramUsername: message.from?.username || '',
           telegramUserId: message.from?.id || null,
-          planId,
-          planName,
+          planId: targetPlan.id,
+          planName: `${planName} (₹${amount})`,
           amount,
           currency: 'INR',
           receiverUpiId: 'priydarshankishnawat@axl',
@@ -128,18 +132,51 @@ export async function POST(req: NextRequest) {
           await adminDb.doc(`workspaces/${workspaceId}/payments/${paymentId}`).set(paymentRecord);
         }
 
+        // Forward screenshot to Admin Payments Group if configured
+        const paymentsChatId = process.env.TELEGRAM_PAYMENTS_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID;
+        if (paymentsChatId) {
+          const adminCaption = [
+            `⚡ <b>NEW PAYMENT PROOF (VIA TELEGRAM BOT)</b>`,
+            ``,
+            `👤 <b>User:</b> <code>${userEmail}</code>`,
+            `🆔 <b>Account ID:</b> <code>${paymentRecord.userUid}</code>`,
+            `🏢 <b>Workspace:</b> <code>${paymentRecord.workspaceName}</code> (<code>${workspaceId}</code>)`,
+            `📦 <b>Plan:</b> <b>${planName}</b> (₹${amount})`,
+            `🔢 <b>UTR / Ref ID:</b> <code>${utrNumber}</code>`,
+            caption ? `📝 <b>Caption:</b> ${caption}` : null,
+            `⏰ <b>Time:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`,
+            ``,
+            `👉 <i>Approve in GodPanel: /godpanel</i>`,
+          ].filter(Boolean).join('\n');
+
+          try {
+            await fetch(`${TELEGRAM_API_URL}/sendPhoto`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: paymentsChatId,
+                photo: fileId,
+                caption: adminCaption,
+                parse_mode: 'HTML',
+              }),
+            });
+          } catch (e) {
+            console.error('[telegram/webhook] Failed to forward photo to admin group:', e);
+          }
+        }
+
         const replyMsg = `
-✅ <b>Payment Screenshot Received!</b>
+✅ <b>Payment Screenshot Received & Forwarded!</b>
 
 • <b>Receipt Image:</b> Captured & Uploaded
 • <b>Reference / UTR:</b> <code>${utrNumber}</code>
-• <b>Plan:</b> ${planName}
+• <b>Plan:</b> ${planName} (₹${amount})
 • <b>Status:</b> 🟡 <b>Pending Admin Verification</b>
 
 🛡️ <b>Privacy Guarantee:</b>
-Your payment receipt is stored privately and is only visible to the Digicast Administrator in the GodPanel.
+Your payment receipt is stored privately and has been forwarded directly to the Digicast Administrator for immediate verification.
 
-Our team will verify this against the UPI account and activate your subscription shortly!
+Our team will verify the payment and activate your subscription shortly!
         `.trim();
 
         await sendTelegramMessage(chatId, replyMsg, messageId);
@@ -154,7 +191,7 @@ Our team will verify this against the UPI account and activate your subscription
       return NextResponse.json({ ok: true });
     }
 
-    // A. Handle /chatid or /id command
+    // ─── 2. Handle /chatid or /id command ────────────────────────────────────
     if (command === 'chatid' || command === 'id') {
       const response = `
 🆔 <b>Chat ID:</b> <code>${chatId}</code>
@@ -164,36 +201,35 @@ Our team will verify this against the UPI account and activate your subscription
       await sendTelegramMessage(chatId, response, messageId);
     }
 
-    // B. Handle /start command
+    // ─── 3. Handle /start command ───────────────────────────────────────────
     else if (command === 'start') {
-      // Check if start is for payment (e.g. /start pay_WS123_pro)
+      // Handle payment initiation link (e.g. /start pay_WS123_starter or /start pay_WS123_pro)
       if (args && args.toLowerCase().startsWith('pay_')) {
         const parts = args.split('_');
         const wsId = parts[1] || '';
         const planId = parts[2] || 'pro';
-        const planName = planId === 'starter' ? 'Starter Creator (₹149)' : planId === 'studio' ? 'Studio VIP (₹999)' : 'Pro Streamer (₹499)';
+        const targetPlan = PRICING_PLANS.find(p => p.id === planId) || PRICING_PLANS[1];
 
         try {
-          const { adminDb } = await import('@/lib/firebase/admin');
           await adminDb.doc(`telegram_sessions/${chatId}`).set({
             chatId: String(chatId),
             workspaceId: wsId,
-            planId,
-            planName,
+            planId: targetPlan.id,
+            planName: targetPlan.name,
             updatedAt: new Date().toISOString(),
           }, { merge: true });
 
           const msg = `
-💳 <b>Digicast Subscription Payment</b>
+💳 <b>Digicast Subscription Activation</b>
 
-• <b>Plan:</b> ${planName}
-• <b>Workspace ID:</b> <code>${wsId}</code>
+• <b>Plan:</b> <b>${targetPlan.name}</b> (₹${targetPlan.priceINR} ${targetPlan.periodLabel})
+• <b>Workspace ID:</b> <code>${wsId || 'Pending'}</code>
 • <b>Receiver UPI:</b> <code>priydarshankishnawat@axl</code>
 
-📸 <b>Please reply with your Payment Screenshot now.</b>
-<i>Include your 12-digit UTR in the photo caption!</i>
+📸 <b>Please send your Payment Screenshot / QR Receipt right here in this chat.</b>
+<i>Tip: Include your 12-digit UTR in the photo caption or as a reply!</i>
 
-🔒 <i>Notice: This 1-on-1 private chat is strictly confidential. No other users can see your payment details.</i>
+🔒 <i>Notice: This 1-on-1 private chat is strictly confidential. Your screenshot is forwarded directly to the admin for instant activation.</i>
           `.trim();
           await sendTelegramMessage(chatId, msg, messageId);
           return NextResponse.json({ ok: true });
@@ -202,13 +238,11 @@ Our team will verify this against the UPI account and activate your subscription
         }
       }
 
-      // Check if code was passed (e.g. /start A8X91K)
-      if (args) {
+      // Check if connection code was passed (e.g. /start A8X91K)
+      if (args && args.length >= 4 && !args.includes(' ')) {
         const code = args.toUpperCase();
         try {
-          const { adminDb } = await import('@/lib/firebase/admin');
           const { col } = await import('@/lib/firestore/collections');
-
           const codeDoc = await adminDb.doc(`telegram_codes/${code}`).get();
 
           if (codeDoc.exists) {
@@ -246,38 +280,47 @@ Our team will verify this against the UPI account and activate your subscription
       const welcomeMessage = `
 🎬 <b>Welcome to Digicast Bot!</b>
 
-<b>Purpose:</b>
-Digicast is the real-time Live Intelligence & Instant Clip Delivery Platform for YouTube Creators and live streamers. 
+Digicast is the real-time Live Intelligence & Instant Clip Delivery Platform for YouTube Creators.
 
-When viewers type <code>!clip</code> in your YouTube live chat, Digicast automatically captures the moment, creates markers, and delivers alerts straight to this Telegram group for your video editors!
-
-👨‍💻 <b>Developer & Creator:</b> @livehellboy
+<b>What I Can Do For You:</b>
+• 💳 <b>Submit Payment Proof:</b> Send your payment screenshot in this chat for instant verification.
+• 🔍 <b>Account Details Lookup:</b> Type your <b>Gmail address</b> or <b>Workspace ID</b> anytime to view your active plan and renewal status.
+• ⚡ <b>Clip Notifications:</b> Add me to your team's group to receive instant stream markers & clip trims.
 
 <b>Available Commands:</b>
-• <code>/chatid</code> — Get the Chat ID of this group/chat
-• <code>/status</code> — Check current livestream & capture status
-• <code>/help</code> — View bot documentation and commands
+• <code>/help</code> — Complete documentation & support guide
+• <code>/chatid</code> — Get Chat ID of this group/channel
+• <code>/status</code> — Check server connection & clip delivery health
       `.trim();
       await sendTelegramMessage(chatId, welcomeMessage, messageId);
     }
 
-    // C. Handle /help command
+    // ─── 4. Handle /help command ────────────────────────────────────────────
     else if (command === 'help') {
       const helpMessage = `
-📖 <b>Digicast Bot Commands:</b>
+📖 <b>Digicast Support & Help Menu:</b>
 
-• <code>/chatid</code> — Get this group's Chat ID
-• <code>/status</code> — Check active stream & clip capture
-• <code>/start</code> — Bot introduction & connection
-• <code>/help</code> — Show this help message
+💳 <b>1. Instant Payment Verification:</b>
+• Send your payment receipt screenshot directly in this chat!
+• Include your 12-digit UPI UTR in the caption or text.
+• Verified and approved by admin in GodPanel.
 
-👨‍💻 <b>Developer:</b> @livehellboy
-🚀 <b>Platform:</b> Digicast Live Intelligence
+🔍 <b>2. Account & Plan Lookup:</b>
+• Send your <b>Gmail address</b> (e.g. <code>creator@gmail.com</code>) or <b>Workspace ID</b> in this chat.
+• I will fetch your account info, connected YouTube channel, active plan, and renewal date.
+
+🤖 <b>3. Group Commands:</b>
+• <code>/chatid</code> — Get this group or channel's Chat ID.
+• <code>/status</code> — Check server connection & clip delivery health.
+• <code>/help</code> — Show this help menu.
+
+👨‍💻 <b>Need direct personal assistance?</b>
+Contact our team on Discord or Telegram: @livehellboy
       `.trim();
       await sendTelegramMessage(chatId, helpMessage, messageId);
     }
 
-    // D. Handle /status command
+    // ─── 5. Handle /status command ──────────────────────────────────────────
     else if (command === 'status') {
       const statusMessage = `
 ⚡ <b>Digicast Status:</b>
@@ -288,7 +331,167 @@ When viewers type <code>!clip</code> in your YouTube live chat, Digicast automat
       await sendTelegramMessage(chatId, statusMessage, messageId);
     }
 
-    // E. When Bot is added to a new group
+    // ─── 6. User Account Identification (Gmail / Workspace ID / UTR query) ──
+    else if (chatType === 'private' && rawText && !command) {
+      // Check if message contains an email address, workspace ID, or 12-digit UTR
+      const emailMatch = rawText.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/);
+      const utrMatch = rawText.match(/\b\d{12}\b/);
+      const isWorkspaceId = rawText.startsWith('ws_') || (rawText.length >= 20 && !rawText.includes(' '));
+
+      if (emailMatch || isWorkspaceId || utrMatch) {
+        try {
+          let userDoc: any = null;
+          let wsDoc: any = null;
+          let targetEmail = emailMatch ? emailMatch[0].toLowerCase() : '';
+          let targetWsId = isWorkspaceId ? rawText.trim() : '';
+
+          // 1. Search by email
+          if (targetEmail) {
+            const userQuerySnap = await adminDb
+              .collection('users')
+              .where('email', '==', targetEmail)
+              .limit(1)
+              .get();
+
+            if (!userQuerySnap.empty) {
+              userDoc = userQuerySnap.docs[0];
+            } else {
+              // Try searching workspaces by ownerEmail
+              const wsQuerySnap = await adminDb
+                .collection('workspaces')
+                .where('ownerEmail', '==', targetEmail)
+                .limit(1)
+                .get();
+              if (!wsQuerySnap.empty) {
+                wsDoc = wsQuerySnap.docs[0];
+              }
+            }
+          }
+
+          // 2. Search by workspace ID
+          if (!wsDoc && targetWsId) {
+            const directWs = await adminDb.doc(`workspaces/${targetWsId}`).get();
+            if (directWs.exists) {
+              wsDoc = directWs;
+            }
+          }
+
+          if (userDoc && !wsDoc) {
+            const userData = userDoc.data();
+            const wid = userData.defaultWorkspaceId || userDoc.id;
+            const directWs = await adminDb.doc(`workspaces/${wid}`).get();
+            if (directWs.exists) wsDoc = directWs;
+          }
+
+          if (wsDoc || userDoc) {
+            const wsData = wsDoc?.data() || {};
+            const userData = userDoc?.data() || {};
+            const finalWsId = wsDoc ? wsDoc.id : (userData.defaultWorkspaceId || userDoc.id);
+            const finalEmail = userData.email || wsData.ownerEmail || targetEmail;
+            const finalUid = userDoc ? userDoc.id : (wsData.ownerUid || 'N/A');
+            const wsName = wsData.name || userData.displayName || 'Creator Studio';
+
+            // Check active subscription
+            const rawPlan = (wsData.plan || wsData.subscription || 'free_trial').toLowerCase();
+            const planObj = PRICING_PLANS.find(p => p.id === rawPlan);
+            const planName = planObj ? planObj.name : rawPlan === 'free_trial' ? '14-Day Free Trial' : rawPlan;
+
+            let statusText = '🟢 Active';
+            let expiresText = 'Active';
+            if (wsData.subscriptionExpiresAt) {
+              const expDate = new Date(wsData.subscriptionExpiresAt);
+              const now = Date.now();
+              const daysLeft = Math.max(0, Math.ceil((expDate.getTime() - now) / (24 * 60 * 60 * 1000)));
+              if (now > expDate.getTime()) {
+                statusText = '🔴 Expired';
+                expiresText = `Expired on ${expDate.toLocaleDateString('en-IN')}`;
+              } else {
+                expiresText = `Renews on ${expDate.toLocaleDateString('en-IN')} (${daysLeft} days left)`;
+              }
+            } else if (wsData.trialEndsAt) {
+              const trialDate = new Date(wsData.trialEndsAt);
+              expiresText = `Trial ends on ${trialDate.toLocaleDateString('en-IN')}`;
+            }
+
+            // Check connected YouTube channel
+            let channelTitle = 'None connected';
+            try {
+              const ytSnap = await adminDb.collection(`workspaces/${finalWsId}/youtube`).limit(1).get();
+              if (!ytSnap.empty) {
+                channelTitle = ytSnap.docs[0].data().channelName || ytSnap.docs[0].data().channelTitle || 'Connected';
+              }
+            } catch {}
+
+            // Check latest payment
+            let latestPaymentStr = 'No payments on file';
+            try {
+              const paySnap = await adminDb
+                .collection('payments')
+                .where('workspaceId', '==', finalWsId)
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .get();
+
+              if (!paySnap.empty) {
+                const payData = paySnap.docs[0].data();
+                latestPaymentStr = `₹${payData.amount} (${payData.planName}) — ${payData.status === 'approved' ? '🟢 Approved' : payData.status === 'rejected' ? '🔴 Rejected' : '🟡 Pending Verification'}`;
+              }
+            } catch {}
+
+            // Save session so user can upload payment directly
+            await adminDb.doc(`telegram_sessions/${chatId}`).set({
+              chatId: String(chatId),
+              workspaceId: finalWsId,
+              workspaceName: wsName,
+              userEmail: finalEmail,
+              userId: finalUid,
+              planId: rawPlan,
+              planName,
+              updatedAt: new Date().toISOString(),
+            }, { merge: true });
+
+            const infoCard = `
+👤 <b>Digicast Account Details Found</b>
+
+📧 <b>Gmail / Email:</b> <code>${finalEmail}</code>
+🆔 <b>Account ID:</b> <code>${finalUid}</code>
+🏢 <b>Workspace:</b> <b>${wsName}</b> (<code>${finalWsId}</code>)
+📦 <b>Active Plan:</b> <b>${planName}</b>
+⏳ <b>Subscription Status:</b> ${statusText}
+📅 <b>Validity:</b> ${expiresText}
+📺 <b>Connected YouTube:</b> <b>${channelTitle}</b>
+💳 <b>Recent Payment:</b> ${latestPaymentStr}
+
+💬 <i>You can now send your payment screenshot or UTR number directly in this chat to activate or renew!</i>
+            `.trim();
+
+            await sendTelegramMessage(chatId, infoCard, messageId);
+            return NextResponse.json({ ok: true });
+          } else {
+            await sendTelegramMessage(
+              chatId,
+              `🔍 Could not find an active Digicast account for <code>${targetEmail || targetWsId}</code>.\n\nPlease double check the email address or sign in at https://digicast-web.vercel.app`,
+              messageId
+            );
+            return NextResponse.json({ ok: true });
+          }
+        } catch (queryErr) {
+          console.error('[telegram/webhook] account lookup error:', queryErr);
+        }
+      }
+
+      // Default helper reply for other private chat text
+      const defaultReply = `
+👋 <b>How can I help you?</b>
+
+• <b>Look Up Your Account:</b> Reply with your <b>Gmail address</b> (e.g. <code>creator@gmail.com</code>) or <b>Workspace ID</b> to see your active plan and details.
+• <b>Activate Subscription:</b> Send your UPI payment screenshot directly in this chat with the 12-digit UTR.
+• <b>Help Menu:</b> Type <code>/help</code> for all commands and guides.
+      `.trim();
+      await sendTelegramMessage(chatId, defaultReply, messageId);
+    }
+
+    // ─── 7. When Bot is added to a new group ────────────────────────────────
     if (message.new_chat_members && Array.isArray(message.new_chat_members)) {
       const isBotAdded = message.new_chat_members.some((m: any) => m.is_bot && m.username?.toLowerCase() === 'digicast_bot');
       if (isBotAdded) {

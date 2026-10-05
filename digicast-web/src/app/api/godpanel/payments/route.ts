@@ -90,7 +90,14 @@ export async function POST(req: NextRequest) {
 
       const wsData = wsDoc.data();
       const currentSub = computeWorkspaceSubscription(wsData);
-      const additionMs = Number(days) * 24 * 60 * 60 * 1000;
+      const assignedPlan = payment.planId || "pro";
+
+      // Compute days based on plan tier (30d for intro/starter, 90d for 3-month pro, 365d for 1-year studio)
+      let planDays = 30;
+      if (assignedPlan === 'pro') planDays = 90;
+      if (assignedPlan === 'studio') planDays = 365;
+      const effectiveDays = (days && Number(days) !== 30) ? Number(days) : planDays;
+      const additionMs = effectiveDays * 24 * 60 * 60 * 1000;
       let newExpiresMs = now + additionMs;
 
       if (!currentSub.isExpired && currentSub.status === "active" && currentSub.subscriptionExpiresAt) {
@@ -99,8 +106,6 @@ export async function POST(req: NextRequest) {
           newExpiresMs = existingMs + additionMs;
         }
       }
-
-      const assignedPlan = payment.planId || "pro";
 
       // 1. Update workspace subscription
       await wsRef.update({

@@ -8,6 +8,8 @@ export interface PricingPlan {
   badge?: string;
   priceINR: number;
   period: 'month';
+  periodLabel: string;
+  durationDays: number;
   description: string;
   features: string[];
   recommended?: boolean;
@@ -31,14 +33,16 @@ export const PRICING_PLANS: PricingPlan[] = [
     badge: 'EXCLUSIVE INTRO OFFER',
     priceINR: 29,
     period: 'month',
-    description: 'First month special intro offer — get all Pro & VIP perks unlocked for 30 days for just ₹29!',
+    periodLabel: '/ 30 days',
+    durationDays: 30,
+    description: 'Special first month intro offer — get full access to all live clipping & trimming features for 30 days for just ₹29!',
     features: [
-      '⚡ All Pro & Studio VIP Features Unlocked',
-      '30 Days Full Access for only ₹29',
-      'Unlimited Live Clips & High-Speed Trimming',
-      'Up to 5 Team Members (Editors & Admins)',
-      '1080p 60fps & 4K Video Quality',
-      'Instant Telegram Bot & Multi-Stream Sync',
+      '⚡ 30 Days Full Access for only ₹29',
+      'Unlimited Live Clips & Stream Markers',
+      'High-Speed On-Device Hardware Trimming',
+      'Full YouTube Live Stream Auto-Sync',
+      'Instant Direct Telegram Video Delivery',
+      'Mobile Editor & Admin Access',
       'Protects against multi-account trial bans',
     ],
     color: '#EC4899',
@@ -47,17 +51,20 @@ export const PRICING_PLANS: PricingPlan[] = [
   },
   {
     id: 'starter',
-    name: 'Starter Creator',
+    name: '1 Month Unlimited Pass',
+    badge: 'STANDARD PACK',
     priceINR: 149,
     period: 'month',
-    description: 'Ideal for solo creators looking for streamlined live clip creation & delivery.',
+    periodLabel: '/ 1 month',
+    durationDays: 30,
+    description: 'Full live clipping access for 30 days. No clip limits, no restrictions, high-speed on-device processing.',
     features: [
-      '1 Connected YouTube Channel',
-      'Up to 150 Clip Markers per month',
-      '1 Mobile Editor / Admin login',
-      '720p & 1080p Standard Clip Trimming',
-      'Instant Telegram Channel delivery',
-      '14-Day Cloud Clip History',
+      '⚡ 30 Days Full Access (1 Month Pack)',
+      'Zero Limits — Unlimited Live Clips',
+      'Unlimited Nightbot !clip Chat Commands',
+      'High-Speed On-Device Hardware Trimming',
+      'Instant Direct Telegram Channel Delivery',
+      'Mobile App Editor & Admin Access',
       'Standard Discord & Chat Support',
     ],
     color: '#0284C7',
@@ -66,21 +73,23 @@ export const PRICING_PLANS: PricingPlan[] = [
   },
   {
     id: 'pro',
-    name: 'Pro Streamer',
+    name: '3 Month Quarter Pass',
     badge: 'MOST POPULAR',
     recommended: true,
     priceINR: 499,
     period: 'month',
-    description: 'Designed for active streamers with high viewer engagement and team collaboration.',
+    periodLabel: '/ 3 months',
+    durationDays: 90,
+    description: 'Designed for active seasonal streamers — 90 days of complete uninterrupted on-device clipping power.',
     features: [
+      '⚡ 90 Days Full Access (Quarterly Pack)',
+      'Zero Limits — Unlimited Live Clips',
+      'Unlimited Nightbot !clip Chat Commands',
       'Multi-Stream Live Detection & Auto-Sync',
-      'Unlimited Live Clips (!clip Nightbot integration)',
-      'Up to 5 Team Members (Editors & Admins)',
-      'Full HD 1080p 60fps High-Speed Trimming',
-      'Priority Telegram Group & Channel Delivery',
-      '90-Day Cloud Storage & Clip Archive',
-      'Priority Cloud Video Render Queue',
-      'Dedicated Community Support',
+      'Full HD 1080p 60fps Device Video Export',
+      'Priority Telegram Channel Delivery',
+      'Multiple Mobile Editors & Team Logins',
+      'Priority Community & Discord Support',
     ],
     color: '#10B981',
     lightBg: 'rgba(16, 185, 129, 0.08)',
@@ -88,20 +97,22 @@ export const PRICING_PLANS: PricingPlan[] = [
   },
   {
     id: 'studio',
-    name: 'Studio VIP Agency',
-    badge: 'ULTIMATE PERKS',
+    name: '1 Year Annual Pass',
+    badge: 'BEST VALUE • SAVE BIG',
     priceINR: 999,
     period: 'month',
-    description: 'For creator houses, multi-channel networks, and professional video agencies.',
+    periodLabel: '/ 1 year',
+    durationDays: 365,
+    description: 'Ultimate value for serious creators & studios — 365 days of full unlimited access for less than ₹84/month!',
     features: [
-      'Unlimited YouTube Channels & Workspaces',
-      'Unlimited Team Members & Mobile Logins',
-      '4K & 1080p Uncompressed Clip Generation',
-      'AI Smart Highlight & Chat Velocity Spike Detection',
-      'Custom Watermark & Outro Branding Overlay',
-      'Dedicated VIP Telegram Bot Instance',
-      'Permanent Lifetime Cloud Storage & Archive',
-      '24/7 Priority Discord & Telegram Concierge Support',
+      '⚡ 365 Days Complete Access (Full 1 Year)',
+      'Zero Limits — Unlimited Live Clips & Streams',
+      'Zero Expiration Worries for 365 Days',
+      'Unlimited Nightbot !clip Chat Commands',
+      'Highest Bitrate On-Device Hardware Export',
+      '1080p 60fps & 4K Quality App Trimming',
+      'Unlimited Mobile Editors & Team Logins',
+      '24/7 Priority Discord & Concierge Support',
     ],
     color: '#7C3AED',
     lightBg: 'rgba(124, 58, 237, 0.08)',
@@ -153,7 +164,7 @@ export function buildVerificationTelegramUrl(params: {
   utrNumber: string;
 }): string {
   const message = `🎉 *Digicast Payment Confirmation Request*\n\n` +
-    `• *Plan:* ${params.planName} (₹${params.amount}/month)\n` +
+    `• *Plan:* ${params.planName} (₹${params.amount})\n` +
     `• *UTR / Ref ID:* \`${params.utrNumber}\`\n` +
     `• *User Email:* ${params.userEmail}\n` +
     `• *Workspace:* ${params.workspaceName} (\`${params.workspaceId}\`)\n\n` +

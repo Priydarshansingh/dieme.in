@@ -614,11 +614,11 @@ function SettingsContent() {
                   {subscription?.plan === 'intro_29'
                     ? '1st Month VIP Pass Active'
                     : subscription?.plan === 'studio'
-                    ? 'Studio VIP Active'
-                    : subscription?.plan === 'starter'
-                    ? 'Starter Creator Active'
+                    ? '1 Year Annual Pass Active'
                     : subscription?.plan === 'pro'
-                    ? 'Pro Studio Active'
+                    ? '3 Month Quarter Pass Active'
+                    : subscription?.plan === 'starter'
+                    ? '1 Month Unlimited Pass Active'
                     : '14-Day Free Trial'}
                 </p>
                 <span
@@ -668,7 +668,7 @@ function SettingsContent() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Available Subscription Plans</h3>
-                <p className="text-xs text-gray-500">Pick any plan — optimized for PhonePe, Google Pay, Paytm, and BHIM UPI.</p>
+                <p className="text-xs text-gray-500">Zero limits — unlimited live clips, fast on-device trimming, full YouTube &amp; Telegram sync.</p>
               </div>
             </div>
 
@@ -695,7 +695,7 @@ function SettingsContent() {
                     <h4 className="font-extrabold text-base text-gray-900">{plan.name}</h4>
                     <div className="flex items-baseline gap-1 my-2">
                       <span className="text-3xl font-black text-gray-900">₹{plan.priceINR}</span>
-                      <span className="text-xs text-gray-500 font-medium">/ month</span>
+                      <span className="text-xs text-gray-500 font-medium">{plan.periodLabel}</span>
                     </div>
                     <p className="text-xs text-gray-600 mb-4 leading-relaxed min-h-[34px]">{plan.description}</p>
 

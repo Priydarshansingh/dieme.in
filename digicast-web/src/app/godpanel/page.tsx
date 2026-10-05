@@ -1768,61 +1768,61 @@ export default function GodPanelPage() {
                                 <span className="text-[10px] font-mono text-purple-400 font-bold">₹149/mo</span>
                               </div>
                               <ul className="text-[11px] text-gray-400 space-y-1 mt-2 font-mono">
-                                <li>• 1 Connected Channel</li>
-                                <li>• 3 Team Members</li>
-                                <li>• 1080p HD Streaming</li>
+                                <li>• Zero Limits — All Features</li>
+                                <li>• High-Speed On-Device Export</li>
+                                <li>• Unlimited Live Clips &amp; Delivery</li>
                               </ul>
                             </div>
                             <button
                               onClick={() => handleSetPlan(activeControlWorkspace.id, 'starter', 30)}
                               disabled={actionLoading !== null}
-                              className="w-full py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
+                              className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
                             >
-                              Assign Starter (30D)
+                              Assign 1 Month (30D)
                             </button>
                           </div>
 
-                          {/* Pro Card */}
+                          {/* Pro Card (3 Months) */}
                           <div className="bg-[#101522] border border-emerald-900/40 hover:border-emerald-500 rounded-xl p-3.5 flex flex-col justify-between space-y-3 transition">
                             <div>
                               <div className="flex items-center justify-between">
-                                <span className="font-bold text-emerald-300 text-xs">Pro Studio</span>
-                                <span className="text-[10px] font-mono text-emerald-400 font-bold">₹499/mo</span>
+                                <span className="font-bold text-emerald-300 text-xs">3 Month Quarter</span>
+                                <span className="text-[10px] font-mono text-emerald-400 font-bold">₹499 (90D)</span>
                               </div>
                               <ul className="text-[11px] text-gray-400 space-y-1 mt-2 font-mono">
-                                <li>• 3 Connected Channels</li>
-                                <li>• 10 Team Members</li>
-                                <li>• AI Auto-Clips &amp; 4K</li>
+                                <li>• 90 Days Uninterrupted Access</li>
+                                <li>• 1080p 60fps Device Video Export</li>
+                                <li>• Priority Telegram Delivery</li>
                               </ul>
                             </div>
                             <button
-                              onClick={() => handleSetPlan(activeControlWorkspace.id, 'pro', 30)}
+                              onClick={() => handleSetPlan(activeControlWorkspace.id, 'pro', 90)}
                               disabled={actionLoading !== null}
                               className="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
                             >
-                              Assign Pro (30D)
+                              Assign 3 Months (90D)
                             </button>
                           </div>
 
-                          {/* Studio VIP Card */}
-                          <div className="bg-[#101522] border border-amber-900/40 hover:border-amber-500 rounded-xl p-3.5 flex flex-col justify-between space-y-3 transition">
+                          {/* Studio VIP Card (1 Year) */}
+                          <div className="bg-[#101522] border border-purple-900/40 hover:border-purple-500 rounded-xl p-3.5 flex flex-col justify-between space-y-3 transition">
                             <div>
                               <div className="flex items-center justify-between">
-                                <span className="font-bold text-amber-300 text-xs">👑 Studio VIP</span>
-                                <span className="text-[10px] font-mono text-amber-400 font-bold">₹999/mo</span>
+                                <span className="font-bold text-purple-300 text-xs">1 Year Annual Pass</span>
+                                <span className="text-[10px] font-mono text-purple-400 font-bold">₹999 (365D)</span>
                               </div>
                               <ul className="text-[11px] text-gray-400 space-y-1 mt-2 font-mono">
-                                <li>• Unlimited Channels</li>
-                                <li>• 50 Team Members</li>
-                                <li>• Priority Cloud Pipeline</li>
+                                <li>• 365 Days Full Access (Best Value)</li>
+                                <li>• Highest Bitrate &amp; 4K Device Export</li>
+                                <li>• 24/7 Priority Concierge Support</li>
                               </ul>
                             </div>
                             <button
-                              onClick={() => handleSetPlan(activeControlWorkspace.id, 'studio', 30)}
+                              onClick={() => handleSetPlan(activeControlWorkspace.id, 'studio', 365)}
                               disabled={actionLoading !== null}
-                              className="w-full py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
+                              className="w-full py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
                             >
-                              Assign VIP (30D)
+                              Assign 1 Year (365D)
                             </button>
                           </div>
 

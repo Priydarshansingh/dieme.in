@@ -70,10 +70,12 @@ export function computeWorkspaceSubscription(wsData: any): WorkspaceSubscription
       expiresMs = typeof wsData.subscriptionExpiresAt === 'number'
         ? wsData.subscriptionExpiresAt
         : Date.parse(wsData.subscriptionExpiresAt);
-    } else if (wsData?.updatedAt?._seconds) {
-      expiresMs = (wsData.updatedAt._seconds * 1000) + (30 * 24 * 60 * 60 * 1000);
     } else {
-      expiresMs = now + (30 * 24 * 60 * 60 * 1000);
+      let defaultDays = 30;
+      if (rawPlan === 'pro') defaultDays = 90;
+      if (rawPlan === 'studio') defaultDays = 365;
+      const baseMs = wsData?.updatedAt?._seconds ? (wsData.updatedAt._seconds * 1000) : now;
+      expiresMs = baseMs + (defaultDays * 24 * 60 * 60 * 1000);
     }
 
     if (isNaN(expiresMs) || now > expiresMs) {

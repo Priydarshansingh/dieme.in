@@ -18,7 +18,7 @@ export interface PricingPlan {
 
 export const UPI_CONFIG = {
   upiId: 'priyadarshankishnawat@ybl',
-  payeeName: 'Digicast',
+  payeeName: 'Priyadarshan Singh',
   telegramSupportUrl: 'https://t.me/digicast_support',
   telegramBotUsername: 'DIGICAST_BOT',
   discordSupportUrl: 'https://discord.gg/digicast',
@@ -109,20 +109,54 @@ export const PRICING_PLANS: PricingPlan[] = [
   },
 ];
 
+/**
+ * Standard NPCI-compliant UPI deep link
+ */
 export function buildUpiDeepLink(params: {
-  amount: number;
-  planName: string;
-  workspaceId: string;
+  amount?: number;
+  planName?: string;
+  workspaceId?: string;
   email?: string;
+  includeAmount?: boolean;
 }): string {
-  const { amount, planName, workspaceId } = params;
+  const { amount, planName, includeAmount = true } = params;
   const upiId = UPI_CONFIG.upiId;
   const payeeName = UPI_CONFIG.payeeName;
-  const cleanPlan = planName.replace(/\s+/g, '_');
-  const shortWs = workspaceId ? workspaceId.slice(0, 8) : 'ws';
-  const note = `Digicast_${cleanPlan}_${shortWs}`;
+  
+  // Base standard NPCI format
+  let url = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&cu=INR`;
+  
+  if (includeAmount && amount && amount > 0) {
+    const formattedAmount = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+    const cleanNote = planName ? `Digicast ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20) : 'Digicast Plan';
+    url += `&am=${formattedAmount}&tn=${encodeURIComponent(cleanNote)}`;
+  }
+  
+  return url;
+}
 
-  return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent(note)}`;
+/**
+ * Guaranteed 100% universal P2P QR string (Safe for PhonePe, GPay, Paytm, BHIM without "invalid dynamic QR" errors)
+ */
+export function buildUniversalUpiLink(): string {
+  return `upi://pay?pa=${encodeURIComponent(UPI_CONFIG.upiId)}&pn=${encodeURIComponent(UPI_CONFIG.payeeName)}&cu=INR`;
+}
+
+/**
+ * App-specific deep links for direct 1-tap mobile payment triggers
+ */
+export function buildMobileAppUpiLinks(amount: number, planName: string) {
+  const upiId = encodeURIComponent(UPI_CONFIG.upiId);
+  const payeeName = encodeURIComponent(UPI_CONFIG.payeeName);
+  const amtStr = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  const note = encodeURIComponent(`Digicast ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20));
+
+  return {
+    standard: `upi://pay?pa=${upiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
+    phonepe: `phonepe://pay?pa=${upiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
+    gpay: `gpay://upi/pay?pa=${upiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
+    paytm: `paytmmp://pay?pa=${upiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
+  };
 }
 
 export function buildVerificationTelegramUrl(params: {

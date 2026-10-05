@@ -309,7 +309,7 @@ function SettingsContent() {
   };
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="w-full max-w-6xl space-y-8 mx-auto">
       <div>
         <h1 style={{ color: '#1B2237' }}>Settings</h1>
         <p className="text-sm mt-0.5" style={{ color: '#9CA3AF' }}>
@@ -651,10 +651,11 @@ function SettingsContent() {
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedUpiPlan('intro_29');
+                  const defaultPlan = (subscription?.plan && subscription.plan !== 'free_trial') ? subscription.plan as PlanId : 'pro';
+                  setSelectedUpiPlan(defaultPlan);
                   setIsUpiModalOpen(true);
                 }}
-                className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl transition hover:opacity-90 text-white shadow-sm"
+                className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl transition hover:opacity-90 text-white shadow-sm shrink-0"
                 style={{ backgroundColor: '#1B2237' }}
               >
                 <QrCode className="w-4 h-4 text-emerald-400" />
@@ -665,45 +666,45 @@ function SettingsContent() {
 
           {/* 4-Combo Pricing Plans Grid */}
           <div className="pt-2">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-bold text-gray-900">Available Subscription Plans</h3>
-                <p className="text-xs text-gray-500">Pick any plan — the exact amount is pre-filled into the UPI QR scanner.</p>
+                <h3 className="text-base font-bold text-gray-900">Available Subscription Plans</h3>
+                <p className="text-xs text-gray-500">Pick any plan — optimized for PhonePe, Google Pay, Paytm, and BHIM UPI.</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
               {PRICING_PLANS.map((plan) => (
                 <div
                   key={plan.id}
-                  className={`rounded-2xl p-5 border flex flex-col justify-between transition-all duration-200 relative ${
+                  className={`rounded-2xl p-5 sm:p-6 border flex flex-col justify-between transition-all duration-200 relative h-full ${
                     plan.recommended
-                      ? 'border-emerald-500 bg-white shadow-md ring-1 ring-emerald-500/20'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
+                      ? 'border-emerald-500 bg-white shadow-lg ring-2 ring-emerald-500/20'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
                   }`}
                 >
                   {plan.badge && (
                     <span
-                      className="absolute -top-2.5 right-4 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider text-white shadow-sm"
+                      className="absolute -top-2.5 right-4 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider text-white shadow-sm"
                       style={{ backgroundColor: plan.color }}
                     >
                       {plan.badge}
                     </span>
                   )}
 
-                  <div>
-                    <h4 className="font-bold text-sm text-gray-900">{plan.name}</h4>
+                  <div className="flex-1">
+                    <h4 className="font-extrabold text-base text-gray-900">{plan.name}</h4>
                     <div className="flex items-baseline gap-1 my-2">
-                      <span className="text-2xl font-black text-gray-900">₹{plan.priceINR}</span>
-                      <span className="text-xs text-gray-500">/ month</span>
+                      <span className="text-3xl font-black text-gray-900">₹{plan.priceINR}</span>
+                      <span className="text-xs text-gray-500 font-medium">/ month</span>
                     </div>
-                    <p className="text-xs text-gray-500 mb-4 leading-relaxed">{plan.description}</p>
+                    <p className="text-xs text-gray-600 mb-4 leading-relaxed min-h-[34px]">{plan.description}</p>
 
-                    <div className="space-y-2 border-t border-gray-100 pt-3">
+                    <div className="space-y-2.5 border-t border-gray-100 pt-3">
                       {plan.features.map((feat, idx) => (
                         <div key={idx} className="flex items-start gap-2 text-xs text-gray-700">
                           <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                          <span>{feat}</span>
+                          <span className="leading-snug">{feat}</span>
                         </div>
                       ))}
                     </div>
@@ -715,7 +716,7 @@ function SettingsContent() {
                       setSelectedUpiPlan(plan.id);
                       setIsUpiModalOpen(true);
                     }}
-                    className="mt-5 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white transition hover:opacity-95 shadow-sm"
+                    className="mt-6 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white transition hover:opacity-95 shadow-sm active:scale-98"
                     style={{ backgroundColor: plan.color }}
                   >
                     <QrCode className="w-3.5 h-3.5" />

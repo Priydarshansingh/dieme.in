@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
         clipCount,
         memberCount,
         subscription,
+        isSuspended: Boolean(data.isSuspended),
         createdAt: data.createdAt?._seconds
           ? new Date(data.createdAt._seconds * 1000).toISOString()
           : data.createdAt || new Date().toISOString(),

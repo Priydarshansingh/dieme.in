@@ -224,6 +224,15 @@ export async function POST(req: NextRequest) {
     // 4. Verify workspace subscription status
     const finalWsDoc = await adminDb.doc(col.workspace(activeWorkspaceId)).get();
     const finalWsData = finalWsDoc.exists ? finalWsDoc.data() : { plan: "free_trial", createdAt: new Date().toISOString() };
+
+    // Check if workspace is suspended by Administrator
+    if (finalWsData?.isSuspended) {
+      return NextResponse.json({
+        error: "This workspace has been suspended by administration. All app access is temporarily locked. Please contact support.",
+        isSuspended: true,
+      }, { status: 403 });
+    }
+
     const subscription = computeWorkspaceSubscription(finalWsData);
 
     if (subscription.isExpired) {

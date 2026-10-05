@@ -47,7 +47,7 @@ export async function POST(
       updates.subscriptionExpiresAt = new Date(baseMs + daysMs).toISOString();
     } else if (action === "extend_days") {
       let baseMs = now;
-      if (currentSub.plan === "pro" && currentSub.subscriptionExpiresAt) {
+      if (currentSub.status === "active" && currentSub.subscriptionExpiresAt) {
         const existingMs = Date.parse(currentSub.subscriptionExpiresAt);
         if (!isNaN(existingMs) && existingMs > now) baseMs = existingMs;
       } else if (currentSub.trialEndsAt) {
@@ -55,12 +55,12 @@ export async function POST(
         if (!isNaN(existingMs) && existingMs > now) baseMs = existingMs;
       }
       const newExpire = new Date(baseMs + daysMs).toISOString();
-      if (currentSub.plan === "pro") {
-        updates.subscriptionExpiresAt = newExpire;
-        updates.subscriptionStatus = "active";
-      } else {
+      if (currentSub.plan === "free_trial") {
         updates.trialEndsAt = newExpire;
         updates.subscriptionStatus = "trial";
+      } else {
+        updates.subscriptionExpiresAt = newExpire;
+        updates.subscriptionStatus = "active";
       }
     } else if (action === "expire_now") {
       updates.subscriptionStatus = "expired";
@@ -74,12 +74,16 @@ export async function POST(
     } else if (action === "set_plan") {
       updates.plan = plan;
       updates.subscription = plan;
-      if (plan === "pro") {
-        updates.subscriptionStatus = "active";
-        updates.subscriptionExpiresAt = new Date(now + (30 * 24 * 60 * 60 * 1000)).toISOString();
-      } else {
+      if (plan === "free_trial") {
         updates.subscriptionStatus = "trial";
         updates.trialEndsAt = new Date(now + (14 * 24 * 60 * 60 * 1000)).toISOString();
+      } else if (plan === "lifetime") {
+        updates.subscriptionStatus = "active";
+        updates.subscriptionExpiresAt = new Date(now + (3650 * 24 * 60 * 60 * 1000)).toISOString();
+      } else {
+        // starter, pro, studio
+        updates.subscriptionStatus = "active";
+        updates.subscriptionExpiresAt = new Date(now + (days * 24 * 60 * 60 * 1000)).toISOString();
       }
     }
 

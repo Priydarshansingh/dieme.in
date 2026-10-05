@@ -1,39 +1,57 @@
 // Central subscription calculation and enforcement helper for Digicast.
 
+export type PlanType = 'free_trial' | 'starter' | 'pro' | 'studio' | 'lifetime' | string;
+
 export interface WorkspaceSubscription {
   status: 'trial' | 'active' | 'expired';
-  plan: 'free_trial' | 'pro';
+  plan: PlanType;
   trialEndsAt: string; // ISO string
   subscriptionExpiresAt?: string; // ISO string
   isExpired: boolean;
   daysRemaining: number;
+  isSuspended?: boolean;
 }
 
 export function computeWorkspaceSubscription(wsData: any): WorkspaceSubscription {
   const now = Date.now();
-  const plan: 'free_trial' | 'pro' = wsData?.plan === 'pro' || wsData?.subscription === 'pro' ? 'pro' : 'free_trial';
+  const rawPlan = (wsData?.plan || wsData?.subscription || 'free_trial').toLowerCase();
+  const isSuspended = Boolean(wsData?.isSuspended);
 
-  // Explicit override by admin
-  if (wsData?.subscriptionStatus === 'expired') {
+  // Explicit suspension or override by admin
+  if (isSuspended || wsData?.subscriptionStatus === 'expired') {
     return {
       status: 'expired',
-      plan,
+      plan: rawPlan,
       trialEndsAt: wsData?.trialEndsAt || new Date(now).toISOString(),
       subscriptionExpiresAt: wsData?.subscriptionExpiresAt,
       isExpired: true,
       daysRemaining: 0,
+      isSuspended,
     };
   }
 
-  // 1. Pro Subscription (Monthly)
-  if (plan === 'pro') {
+  // Lifetime plan
+  if (rawPlan === 'lifetime') {
+    return {
+      status: 'active',
+      plan: 'lifetime',
+      trialEndsAt: wsData?.trialEndsAt || new Date(now).toISOString(),
+      subscriptionExpiresAt: new Date(now + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
+      isExpired: false,
+      daysRemaining: 3650,
+      isSuspended: false,
+    };
+  }
+
+  // Paid Plans: starter, pro, studio
+  const isPaidPlan = ['starter', 'pro', 'studio'].includes(rawPlan) || rawPlan.startsWith('tier_');
+  if (isPaidPlan) {
     let expiresMs = 0;
     if (wsData?.subscriptionExpiresAt) {
       expiresMs = typeof wsData.subscriptionExpiresAt === 'number'
         ? wsData.subscriptionExpiresAt
         : Date.parse(wsData.subscriptionExpiresAt);
     } else if (wsData?.updatedAt?._seconds) {
-      // Default 30 days from update if not explicitly set
       expiresMs = (wsData.updatedAt._seconds * 1000) + (30 * 24 * 60 * 60 * 1000);
     } else {
       expiresMs = now + (30 * 24 * 60 * 60 * 1000);
@@ -42,26 +60,28 @@ export function computeWorkspaceSubscription(wsData: any): WorkspaceSubscription
     if (isNaN(expiresMs) || now > expiresMs) {
       return {
         status: 'expired',
-        plan: 'pro',
+        plan: rawPlan,
         trialEndsAt: wsData?.trialEndsAt || new Date(now).toISOString(),
         subscriptionExpiresAt: new Date(expiresMs).toISOString(),
         isExpired: true,
         daysRemaining: 0,
+        isSuspended: false,
       };
     }
 
     const daysRemaining = Math.max(1, Math.ceil((expiresMs - now) / (24 * 60 * 60 * 1000)));
     return {
       status: 'active',
-      plan: 'pro',
+      plan: rawPlan,
       trialEndsAt: wsData?.trialEndsAt || new Date(now).toISOString(),
       subscriptionExpiresAt: new Date(expiresMs).toISOString(),
       isExpired: false,
       daysRemaining,
+      isSuspended: false,
     };
   }
 
-  // 2. Free Trial (14 days default from creation)
+  // Free Trial (14 days default from creation)
   let createdMs = now;
   if (wsData?.createdAt?._seconds) {
     createdMs = wsData.createdAt._seconds * 1000;
@@ -83,6 +103,7 @@ export function computeWorkspaceSubscription(wsData: any): WorkspaceSubscription
       trialEndsAt: new Date(trialEndMs).toISOString(),
       isExpired: true,
       daysRemaining: 0,
+      isSuspended: false,
     };
   }
 
@@ -93,5 +114,6 @@ export function computeWorkspaceSubscription(wsData: any): WorkspaceSubscription
     trialEndsAt: new Date(trialEndMs).toISOString(),
     isExpired: false,
     daysRemaining,
+    isSuspended: false,
   };
 }

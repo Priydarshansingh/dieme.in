@@ -672,7 +672,7 @@ export default function UpiPaymentModal({
               </div>
             </div>
           ) : (
-            /* Step 3: Success Screen with 24-Hour Notice, Full Platform Access & Support */
+            /* Step 3: Success Screen with Thank You, Instant Access & Support */
             <div className="max-w-xl mx-auto text-center py-6 space-y-5 animate-fade-in">
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
                 <Check className="w-8 h-8 stroke-[3]" />
@@ -683,30 +683,30 @@ export default function UpiPaymentModal({
                   ✓ Proof Received
                 </span>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
-                  Payment Submitted Successfully!
+                  Thank You for Subscribing to Digicast!
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 mt-1">
                   We received your UTR: <code className="bg-slate-100 font-mono font-bold px-2 py-0.5 rounded text-indigo-700">{submittedPayment.utrNumber}</code> for the <span className="font-bold text-slate-900">{selectedPlan.name} (₹{selectedPlan.priceINR})</span>.
                 </p>
               </div>
 
-              {/* 24-Hour Activation Notice Banner */}
+              {/* Instant Access Activated Banner */}
               <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border border-indigo-200/80 text-left shadow-2xs space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                    <Clock className="w-4 h-4" />
+                  <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    <Sparkles className="w-4 h-4" />
                   </div>
                   <div>
                     <h4 className="text-xs sm:text-sm font-bold text-slate-900">
-                      Plan Activation Window: Within 24 Hours
+                      Instant Access Activated
                     </h4>
                     <p className="text-[11px] text-slate-500">
-                      Your payment proof is being verified by our team.
+                      Enjoy uninterrupted streaming while our team finalizes your verification.
                     </p>
                   </div>
                 </div>
                 <p className="text-xs text-slate-700 leading-relaxed font-medium bg-white/80 p-3 rounded-xl border border-indigo-100">
-                  🎉 <b>Your plan will be activated within 24 hours.</b> Till then, you can continue to enjoy full access to the platform, YouTube stream sync, and on-device trimming!
+                  🎉 You have <b>immediate full access</b> to all platform features, YouTube live stream auto-sync, and on-device trimming!
                 </p>
               </div>
 
@@ -726,7 +726,7 @@ export default function UpiPaymentModal({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Status:</span>
-                  <span className="font-bold text-amber-600 uppercase">🟡 Pending Admin Approval</span>
+                  <span className="font-bold text-emerald-600 uppercase">🟢 Active (Verification in Progress)</span>
                 </div>
               </div>
 

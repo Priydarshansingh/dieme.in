@@ -1176,8 +1176,18 @@ export default function GodPanelPage() {
                             )}
                           </td>
 
-                          <td className="py-4 px-4 font-mono text-gray-400">
-                            {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A'}
+                          <td className="py-4 px-4 font-mono text-gray-400 text-xs">
+                            <p>{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A'}</p>
+                            <div className="flex flex-wrap items-center gap-1 mt-1">
+                              <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${((p as any).submissionCount || 1) > 2 ? 'bg-amber-900/40 text-amber-300 border-amber-600/50' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>
+                                Upload #{((p as any).submissionCount || 1)}
+                              </span>
+                              {(p as any).graceGranted && (
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-300 border border-blue-700/40">
+                                  24H Grace
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           <td className="py-4 px-4">

@@ -49,6 +49,13 @@ export async function POST(req: NextRequest) {
     const paymentId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = new Date().toISOString();
 
+    const currentUploadCount = ((wsData.proofUploadCount as number) || 0) + 1;
+    const currentUnverifiedGraceCount = ((wsData.unverifiedGraceCount as number) || 0);
+
+    // Abuse Prevention: Allow max 2 unverified grace submissions before requiring official admin approval
+    const canGrantGrace = currentUnverifiedGraceCount < 2;
+    const graceExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
     const paymentRecord = {
       id: paymentId,
       workspaceId,
@@ -64,6 +71,8 @@ export async function POST(req: NextRequest) {
       note: note || "",
       screenshotUrl: screenshotUrl || null,
       submittedVia: "web",
+      submissionCount: currentUploadCount,
+      graceGranted: canGrantGrace,
       status: "pending_verification", // 'pending_verification' | 'approved' | 'rejected'
       createdAt: now,
       updatedAt: now,
@@ -76,6 +85,29 @@ export async function POST(req: NextRequest) {
 
     // Also store under workspace for user history
     await adminDb.doc(`workspaces/${workspaceId}/payments/${paymentId}`).set(paymentRecord);
+
+    // Update workspace with instant 1-day access & proof count tracking
+    const wsUpdatePayload: any = {
+      proofUploadCount: currentUploadCount,
+      lastProofSubmittedAt: now,
+      updatedAt: now,
+    };
+
+    if (canGrantGrace) {
+      wsUpdatePayload.plan = selectedPlan.id;
+      wsUpdatePayload.subscriptionTier = selectedPlan.id;
+      wsUpdatePayload.subscription = selectedPlan.id;
+      wsUpdatePayload.subscriptionStatus = "active";
+      wsUpdatePayload.temporaryGraceActive = true;
+      wsUpdatePayload.subscriptionExpiresAt = graceExpiresAt;
+      wsUpdatePayload.unverifiedGraceCount = currentUnverifiedGraceCount + 1;
+      wsUpdatePayload.lastGraceGrantedAt = now;
+      wsUpdatePayload.trialBypassDetected = false;
+    } else {
+      wsUpdatePayload.potentialAbuseFlag = true;
+    }
+
+    await wsRef.set(wsUpdatePayload, { merge: true });
 
     // Notify Telegram Admin Group if configured in environment
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -97,6 +129,8 @@ export async function POST(req: NextRequest) {
           utrNumber: cleanUtr,
           note: note || "",
           screenshotUrl: screenshotUrl || null,
+          submissionCount: currentUploadCount,
+          graceGranted: canGrantGrace,
         });
         telegramDispatched = Boolean(tgRes.ok);
       } catch (tgErr) {
@@ -118,8 +152,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Payment proof for ${selectedPlan.name} (₹${selectedPlan.priceINR}) submitted successfully!`,
+      message: `Thank you for subscribing! Payment proof for ${selectedPlan.name} (₹${selectedPlan.priceINR}) received.`,
       payment: paymentRecord,
+      graceGranted: canGrantGrace,
       telegramUrl,
       telegramDispatched,
       discordUrl: UPI_CONFIG.discordSupportUrl,
@@ -151,6 +186,8 @@ async function notifyAdminTelegramGroup(params: {
   utrNumber: string;
   note?: string;
   screenshotUrl?: string | null;
+  submissionCount?: number;
+  graceGranted?: boolean;
 }) {
   const {
     botToken,
@@ -165,7 +202,17 @@ async function notifyAdminTelegramGroup(params: {
     utrNumber,
     note,
     screenshotUrl,
+    submissionCount = 1,
+    graceGranted = true,
   } = params;
+
+  const countTag = submissionCount > 1
+    ? `⚠️ <b>Proof Upload Count:</b> #${submissionCount} (Repeated Submission)`
+    : `📊 <b>Proof Upload Count:</b> #1 (First Submission)`;
+
+  const graceTag = graceGranted
+    ? `⚡ <b>Instant Access:</b> 🟢 24-Hour Grace Granted`
+    : `⚡ <b>Instant Access:</b> 🔴 Blocked (Abuse Protection - Max Grace Exceeded)`;
 
   const captionHtml = [
     `⚡ <b>NEW PAYMENT PROOF SUBMITTED</b>`,
@@ -176,6 +223,8 @@ async function notifyAdminTelegramGroup(params: {
     `📦 <b>Purchased Plan:</b> <b>${escapeHtml(planName)}</b> (${escapeHtml(periodLabel)})`,
     `💰 <b>Amount:</b> <b>₹${amount}</b>`,
     `🔢 <b>UTR / Ref ID:</b> <code>${escapeHtml(utrNumber)}</code>`,
+    countTag,
+    graceTag,
     note ? `📝 <b>Note:</b> ${escapeHtml(note)}` : null,
     `⏰ <b>Submitted At:</b> ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST`,
     ``,

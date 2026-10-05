@@ -78,6 +78,14 @@ export async function POST(req: NextRequest) {
         verifiedBy: admin.username,
       }, { merge: true });
 
+      // If user had temporary grace, expire it immediately upon rejection
+      await adminDb.doc(col.workspace(payment.workspaceId)).set({
+        subscriptionStatus: "expired",
+        temporaryGraceActive: false,
+        potentialAbuseFlag: true,
+        updatedAt: nowIso,
+      }, { merge: true });
+
       return NextResponse.json({ success: true, message: "Payment rejected" });
     }
 
@@ -113,6 +121,9 @@ export async function POST(req: NextRequest) {
         subscriptionTier: assignedPlan,
         subscription: assignedPlan,
         subscriptionStatus: "active",
+        temporaryGraceActive: false,
+        unverifiedGraceCount: 0, // Reset unverified counter on official approval!
+        potentialAbuseFlag: false,
         trialBypassDetected: false, // Reset any trial abuse flags upon verified payment
         subscriptionExpiresAt: new Date(newExpiresMs).toISOString(),
         lastPaymentAt: nowIso,

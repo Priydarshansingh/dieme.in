@@ -16,21 +16,8 @@ export interface PricingPlan {
   darkBg: string;
 }
 
-export const UPI_HANDLES = [
-  { id: 'axl', handle: '@axl', bank: 'Axis Bank', vpa: 'priydarshankishnawat@axl', recommended: true },
-  { id: 'ibl', handle: '@ibl', bank: 'ICICI Bank', vpa: 'priydarshankishnawat@ibl' },
-  { id: 'ybl', handle: '@ybl', bank: 'YES Bank', vpa: 'priydarshankishnawat@ybl' },
-] as const;
-
-export type UpiHandleId = 'axl' | 'ibl' | 'ybl';
-
 export const UPI_CONFIG = {
   upiId: 'priydarshankishnawat@axl',
-  allUpiIds: [
-    'priydarshankishnawat@axl',
-    'priydarshankishnawat@ibl',
-    'priydarshankishnawat@ybl',
-  ],
   payeeName: 'Digicast',
   telegramSupportUrl: 'https://t.me/digicast_support',
   telegramBotUsername: 'DIGICAST_BOT',
@@ -123,52 +110,37 @@ export const PRICING_PLANS: PricingPlan[] = [
 ];
 
 /**
- * Standard NPCI-compliant UPI deep link
+ * Standard NPCI-compliant UPI deep link with pre-filled amount
  */
 export function buildUpiDeepLink(params: {
-  amount?: number;
+  amount: number;
   planName?: string;
   workspaceId?: string;
   email?: string;
-  includeAmount?: boolean;
-  upiId?: string;
 }): string {
-  const { amount, planName, includeAmount = true, upiId = UPI_CONFIG.upiId } = params;
+  const { amount, planName } = params;
+  const upiId = UPI_CONFIG.upiId;
   const payeeName = UPI_CONFIG.payeeName;
-  
-  // Base standard NPCI format
-  let url = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&cu=INR`;
-  
-  if (includeAmount && amount && amount > 0) {
-    const formattedAmount = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
-    const cleanNote = planName ? `Digicast ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20) : 'Digicast Plan';
-    url += `&am=${formattedAmount}&tn=${encodeURIComponent(cleanNote)}`;
-  }
-  
-  return url;
-}
+  const formattedAmount = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  const cleanNote = planName ? `Digicast ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20) : 'Digicast';
 
-/**
- * Guaranteed 100% universal P2P QR string (Safe for PhonePe, GPay, Paytm, BHIM without "invalid dynamic QR" errors)
- */
-export function buildUniversalUpiLink(upiId: string = UPI_CONFIG.upiId): string {
-  return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(UPI_CONFIG.payeeName)}&cu=INR`;
+  return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${formattedAmount}&cu=INR&tn=${encodeURIComponent(cleanNote)}`;
 }
 
 /**
  * App-specific deep links for direct 1-tap mobile payment triggers
  */
-export function buildMobileAppUpiLinks(amount: number, planName: string, upiId: string = UPI_CONFIG.upiId) {
-  const encUpiId = encodeURIComponent(upiId);
+export function buildMobileAppUpiLinks(amount: number, planName: string) {
+  const upiId = encodeURIComponent(UPI_CONFIG.upiId);
   const payeeName = encodeURIComponent(UPI_CONFIG.payeeName);
   const amtStr = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
   const note = encodeURIComponent(`Digicast ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20));
 
   return {
-    standard: `upi://pay?pa=${encUpiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
-    phonepe: `phonepe://pay?pa=${encUpiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
-    gpay: `gpay://upi/pay?pa=${encUpiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
-    paytm: `paytmmp://pay?pa=${encUpiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
+    standard: `upi://pay?pa=${upiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
+    phonepe: `phonepe://pay?pa=${upiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
+    gpay: `gpay://upi/pay?pa=${upiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
+    paytm: `paytmmp://pay?pa=${upiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
   };
 }
 

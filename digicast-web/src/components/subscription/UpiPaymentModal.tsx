@@ -7,17 +7,13 @@ import {
   PricingPlan,
   PlanId,
   UPI_CONFIG,
-  UPI_HANDLES,
-  UpiHandleId,
   buildUpiDeepLink,
-  buildUniversalUpiLink,
   buildMobileAppUpiLinks,
   buildVerificationTelegramUrl,
 } from '@/lib/pricingPlans';
 import {
   X, Check, Copy, ExternalLink, QrCode, Smartphone,
   Send, ShieldCheck, Sparkles, AlertCircle, Loader2, ArrowRight, Upload,
-  Info, Shield, RefreshCw
 } from 'lucide-react';
 
 interface UpiPaymentModalProps {
@@ -40,8 +36,6 @@ export default function UpiPaymentModal({
   onPaymentSubmitted,
 }: UpiPaymentModalProps) {
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(initialPlanId);
-  const [selectedHandleId, setSelectedHandleId] = useState<UpiHandleId>('axl');
-  const [qrMode, setQrMode] = useState<'universal' | 'amount'>('universal');
   const [activePayTab, setActivePayTab] = useState<'qr' | 'mobile'>('qr');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -59,8 +53,11 @@ export default function UpiPaymentModal({
 
   // Auto-detect mobile device on mount to optimize tab
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setActivePayTab('mobile');
+    if (typeof window !== 'undefined') {
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+      if (isMobile) {
+        setActivePayTab('mobile');
+      }
     }
   }, [isOpen]);
 
@@ -80,27 +77,33 @@ export default function UpiPaymentModal({
   };
 
   const selectedPlan = PRICING_PLANS.find(p => p.id === selectedPlanId) || PRICING_PLANS[1];
-  const activeHandle = UPI_HANDLES.find(h => h.id === selectedHandleId) || UPI_HANDLES[0];
-  const selectedUpiId = activeHandle.vpa;
+  const upiId = UPI_CONFIG.upiId; // priydarshankishnawat@axl
 
-  // Build the target QR URI based on mode and active handle
-  const currentQrUri = qrMode === 'universal'
-    ? buildUniversalUpiLink(selectedUpiId)
-    : buildUpiDeepLink({
-        amount: selectedPlan.priceINR,
-        planName: selectedPlan.name,
-        workspaceId,
-        email: userEmail,
-        includeAmount: true,
-        upiId: selectedUpiId,
-      });
+  // Target pre-filled UPI link
+  const upiDeepLink = buildUpiDeepLink({
+    amount: selectedPlan.priceINR,
+    planName: selectedPlan.name,
+    workspaceId,
+    email: userEmail,
+  });
 
-  const appLinks = buildMobileAppUpiLinks(selectedPlan.priceINR, selectedPlan.name, selectedUpiId);
+  const appLinks = buildMobileAppUpiLinks(selectedPlan.priceINR, selectedPlan.name);
 
-  // Generate QR Code dynamically when selected plan, mode, or handle changes
+  // Handler for the "Pay on Phone" button (redirects on mobile)
+  const handlePayOnPhoneClick = () => {
+    setActivePayTab('mobile');
+    if (typeof window !== 'undefined') {
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+      if (isMobile) {
+        window.location.href = upiDeepLink;
+      }
+    }
+  };
+
+  // Generate QR Code dynamically when selected plan changes
   useEffect(() => {
     if (!isOpen) return;
-    QRCode.toDataURL(currentQrUri, {
+    QRCode.toDataURL(upiDeepLink, {
       width: 320,
       margin: 2,
       color: {
@@ -111,12 +114,12 @@ export default function UpiPaymentModal({
     })
       .then(url => setQrDataUrl(url))
       .catch(err => console.error('QR generation error:', err));
-  }, [selectedPlanId, qrMode, selectedHandleId, currentQrUri, isOpen]);
+  }, [selectedPlanId, upiDeepLink, isOpen]);
 
   if (!isOpen) return null;
 
   const handleCopyUpi = () => {
-    navigator.clipboard.writeText(selectedUpiId);
+    navigator.clipboard.writeText(upiId);
     setCopiedUpi(true);
     setTimeout(() => setCopiedUpi(false), 2500);
   };
@@ -150,7 +153,7 @@ export default function UpiPaymentModal({
           workspaceId,
           planId: selectedPlan.id,
           utrNumber: utrNumber.trim(),
-          note: `${userNote.trim()} [Paid via ${selectedUpiId}]`.trim(),
+          note: userNote.trim(),
           screenshotUrl: screenshotFile || null,
         }),
       });
@@ -195,7 +198,7 @@ export default function UpiPaymentModal({
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight">Choose Your Digicast Plan</h2>
             <p className="text-slate-300 text-xs sm:text-sm mt-1">
-              Supports PhonePe, Google Pay, Paytm, &amp; BHIM. Switch between @axl, @ibl, or @ybl extensions anytime.
+              Exact amount is pre-filled. Scan QR code or tap to pay directly on your phone.
             </p>
           </div>
 
@@ -247,11 +250,11 @@ export default function UpiPaymentModal({
               <div className="lg:col-span-5 flex flex-col items-center text-center p-4 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-sm">
                 
                 {/* Mobile vs PC View Switcher */}
-                <div className="w-full flex rounded-xl bg-slate-200/80 p-1 mb-3">
+                <div className="w-full flex rounded-xl bg-slate-200/80 p-1 mb-4">
                   <button
                     type="button"
                     onClick={() => setActivePayTab('qr')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition ${
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${
                       activePayTab === 'qr'
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
@@ -262,8 +265,8 @@ export default function UpiPaymentModal({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActivePayTab('mobile')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition ${
+                    onClick={handlePayOnPhoneClick}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${
                       activePayTab === 'mobile'
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
@@ -274,138 +277,76 @@ export default function UpiPaymentModal({
                   </button>
                 </div>
 
-                {/* Bank / Extension Selector: @axl, @ibl, @ybl */}
-                <div className="w-full bg-white p-2.5 rounded-xl border border-slate-200 text-left mb-3 shadow-2xs">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">UPI Server / Extension:</span>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-200">
-                      {activeHandle.handle} ({activeHandle.bank})
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {UPI_HANDLES.map((h) => {
-                      const active = h.id === selectedHandleId;
-                      return (
-                        <button
-                          key={h.id}
-                          type="button"
-                          onClick={() => setSelectedHandleId(h.id)}
-                          className={`py-1.5 px-1.5 rounded-lg text-xs font-bold transition flex flex-col items-center border ${
-                            active
-                              ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-1 ring-slate-900'
-                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
-                          }`}
-                        >
-                          <span className="font-mono text-xs font-black">{h.handle}</span>
-                          <span className="text-[9px] opacity-80 font-medium">{h.bank.replace(' Bank', '')}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1.5 leading-snug">
-                    Pick Axis (@axl), ICICI (@ibl), or YES Bank (@ybl) depending on which server your UPI app connects to best.
-                  </p>
-                </div>
-
                 {activePayTab === 'qr' ? (
-                  /* ─── SCAN QR CODE VIEW (Optimized for PC & Dual Devices) ─── */
+                  /* ─── SCAN QR CODE VIEW (Clean Pre-filled Amount QR) ─── */
                   <div className="w-full flex flex-col items-center">
-                    {/* QR Mode Switcher (Universal vs Auto-Amount) */}
-                    <div className="w-full mb-3 flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setQrMode('universal')}
-                        className={`text-[11px] font-bold px-3 py-1 rounded-full border transition flex items-center gap-1 ${
-                          qrMode === 'universal'
-                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                            : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Shield className="w-3 h-3" />
-                        <span>Universal QR (100% PhonePe)</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setQrMode('amount')}
-                        className={`text-[11px] font-bold px-3 py-1 rounded-full border transition flex items-center gap-1 ${
-                          qrMode === 'amount'
-                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                            : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        <span>Pre-filled ₹{selectedPlan.priceINR}</span>
-                      </button>
-                    </div>
-
-                    {/* The QR Container */}
                     <div className="relative p-3 bg-white rounded-2xl shadow-md border-2 border-slate-200">
                       {qrDataUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={qrDataUrl}
                           alt="UPI Payment QR Code"
-                          className="w-52 h-52 sm:w-60 sm:h-60 rounded-xl object-contain mx-auto"
+                          className="w-56 h-56 sm:w-60 sm:h-60 rounded-xl object-contain mx-auto"
                         />
                       ) : (
-                        <div className="w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center text-slate-400">
+                        <div className="w-56 h-56 sm:w-60 sm:h-60 flex items-center justify-center text-slate-400">
                           <Loader2 className="w-8 h-8 animate-spin" />
                         </div>
                       )}
 
                       {/* Payee name & amount indicator */}
                       <div className="absolute inset-x-0 bottom-4 flex justify-center pointer-events-none">
-                        <span className="px-3 py-1 rounded-full text-xs font-black bg-slate-900 text-white shadow-lg border border-slate-700">
-                          {qrMode === 'amount' ? `Pre-filled: ₹${selectedPlan.priceINR}` : 'Digicast Official UPI'}
+                        <span className="px-3.5 py-1 rounded-full text-xs font-black bg-slate-900 text-white shadow-lg border border-slate-700">
+                          Pre-filled: ₹{selectedPlan.priceINR}
                         </span>
                       </div>
                     </div>
 
-                    {/* Friendly Explanatory Note for PhonePe */}
-                    <div className="w-full mt-3 p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-left text-[11px] text-emerald-950 flex items-start gap-2">
-                      <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <div>
-                        {qrMode === 'universal' ? (
-                          <p>
-                            <strong>PhonePe Verified:</strong> Scan with PhonePe, GPay, or Paytm and enter <strong>₹{selectedPlan.priceINR}</strong>. This avoids the &quot;QR invalid&quot; block.
-                          </p>
-                        ) : (
-                          <p>
-                            <strong>Auto-Amount Mode:</strong> Amount ₹{selectedPlan.priceINR} is locked in. If PhonePe shows &quot;QR is invalid&quot;, switch to <em>Universal QR</em> above.
-                          </p>
-                        )}
-                      </div>
-                    </div>
+                    <p className="text-xs text-slate-500 mt-3 font-medium">
+                      Scan with PhonePe, Google Pay, Paytm, or BHIM. Amount ₹{selectedPlan.priceINR} is pre-filled.
+                    </p>
                   </div>
                 ) : (
                   /* ─── PAY ON PHONE VIEW (1-Tap Direct UPI Apps) ─── */
                   <div className="w-full space-y-3">
-                    <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-100 text-left">
-                      <p className="text-xs font-bold text-indigo-950">Pay directly from this device</p>
-                      <p className="text-[11px] text-indigo-800/80 mt-0.5">
-                        Tap an app below to open your payment app with ₹{selectedPlan.priceINR} ready to pay.
-                      </p>
-                    </div>
+                    {/* Primary Direct Pay Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof window !== 'undefined') {
+                          window.location.href = upiDeepLink;
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-xl text-sm font-black text-white shadow-md transition hover:opacity-95 active:scale-98"
+                      style={{ backgroundColor: selectedPlan.color }}
+                    >
+                      <Smartphone className="w-5 h-5" />
+                      <span>Open UPI App (Pay ₹{selectedPlan.priceINR})</span>
+                    </button>
 
-                    {/* Direct App Launch Buttons */}
+                    <p className="text-[11px] text-slate-500 text-left">
+                      Tap above or choose an installed app below to open directly with ₹{selectedPlan.priceINR} pre-filled:
+                    </p>
+
+                    {/* Specific App Launch Buttons */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                       <a
                         href={appLinks.phonepe}
                         className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#5f259f] hover:bg-[#4d1d82] transition shadow-sm"
                       >
-                        <span>⚡ Pay via PhonePe</span>
+                        <span>⚡ PhonePe</span>
                       </a>
                       <a
                         href={appLinks.gpay}
                         className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#1a73e8] hover:bg-[#1557b0] transition shadow-sm"
                       >
-                        <span>⚡ Pay via Google Pay</span>
+                        <span>⚡ Google Pay</span>
                       </a>
                       <a
                         href={appLinks.paytm}
                         className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#002e6e] hover:bg-[#002252] transition shadow-sm"
                       >
-                        <span>⚡ Pay via Paytm</span>
+                        <span>⚡ Paytm</span>
                       </a>
                       <a
                         href={appLinks.standard}
@@ -418,13 +359,13 @@ export default function UpiPaymentModal({
                   </div>
                 )}
 
-                {/* 1-Tap Copy UPI Details (Always accessible) */}
+                {/* 1-Tap Copy UPI Details (Single clean VPA) */}
                 <div className="w-full mt-4 pt-4 border-t border-slate-200 text-left space-y-2">
                   <div className="flex items-center justify-between text-xs bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
                     <div>
-                      <p className="text-[10px] uppercase font-bold text-slate-400">Verified UPI ID ({activeHandle.handle})</p>
-                      <p className="font-mono font-bold text-slate-800 text-[11px] sm:text-xs truncate max-w-[200px] sm:max-w-none">
-                        {selectedUpiId}
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Verified UPI ID</p>
+                      <p className="font-mono font-bold text-slate-800 text-[11px] sm:text-xs">
+                        {upiId}
                       </p>
                     </div>
                     <button
@@ -609,7 +550,7 @@ export default function UpiPaymentModal({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Receiver VPA:</span>
-                  <span className="font-bold text-indigo-600">{selectedUpiId}</span>
+                  <span className="font-bold text-indigo-600">{upiId}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Status:</span>

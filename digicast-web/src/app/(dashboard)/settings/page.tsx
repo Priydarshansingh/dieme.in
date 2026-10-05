@@ -9,8 +9,7 @@ import {
   Youtube, Send, Bell, CreditCard, Key, ChevronRight, Check,
   Loader2, AlertCircle, Bot, Copy, ExternalLink, QrCode, Sparkles
 } from 'lucide-react';
-import Image from 'next/image';
-import { PRICING_PLANS, PricingPlan, PlanId } from '@/lib/pricingPlans';
+import { PRICING_PLANS, PricingPlan, PlanId, buildUpiDeepLink } from '@/lib/pricingPlans';
 import UpiPaymentModal from '@/components/subscription/UpiPaymentModal';
 
 // ─── Reusable card wrapper ─────────────────────────────────────────────────────
@@ -715,6 +714,18 @@ function SettingsContent() {
                     onClick={() => {
                       setSelectedUpiPlan(plan.id);
                       setIsUpiModalOpen(true);
+                      if (typeof window !== 'undefined') {
+                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+                        if (isMobile) {
+                          const link = buildUpiDeepLink({
+                            amount: plan.priceINR,
+                            planName: plan.name,
+                            workspaceId: workspaceId || '',
+                            email: user?.email || '',
+                          });
+                          window.location.href = link;
+                        }
+                      }
                     }}
                     className="mt-6 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white transition hover:opacity-95 shadow-sm active:scale-98"
                     style={{ backgroundColor: plan.color }}

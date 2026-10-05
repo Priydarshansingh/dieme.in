@@ -188,7 +188,7 @@ Our team will verify this against the UPI account and activate your subscription
 
 • <b>Plan:</b> ${planName}
 • <b>Workspace ID:</b> <code>${wsId}</code>
-• <b>Receiver UPI:</b> <code>priydarshankishnawat@axl</code> (also accepts: <code>@ibl</code>, <code>@ybl</code>)
+• <b>Receiver UPI:</b> <code>priydarshankishnawat@axl</code>
 
 📸 <b>Please reply with your Payment Screenshot now.</b>
 <i>Include your 12-digit UTR in the photo caption!</i>

@@ -356,7 +356,7 @@ export default function UpiPaymentModal({
                       {/* Payee name & amount indicator */}
                       <div className="absolute inset-x-0 bottom-4 flex justify-center pointer-events-none">
                         <span className="px-3 py-1 rounded-full text-xs font-black bg-slate-900 text-white shadow-lg border border-slate-700">
-                          {qrMode === 'amount' ? `Pre-filled: ₹${selectedPlan.priceINR}` : `Payee: Priydarshan Singh`}
+                          {qrMode === 'amount' ? `Pre-filled: ₹${selectedPlan.priceINR}` : 'Digicast Official UPI'}
                         </span>
                       </div>
                     </div>
@@ -555,7 +555,7 @@ export default function UpiPaymentModal({
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. Paid via PhonePe / Priydarshan"
+                        placeholder="e.g. Paid via PhonePe / GPay"
                         value={userNote}
                         onChange={(e) => setUserNote(e.target.value)}
                         className="w-full px-3.5 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-600 transition shadow-2xs"

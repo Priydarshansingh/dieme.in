@@ -31,7 +31,7 @@ export const UPI_CONFIG = {
     'priydarshankishnawat@ibl',
     'priydarshankishnawat@ybl',
   ],
-  payeeName: 'Priydarshan Singh',
+  payeeName: 'Digicast',
   telegramSupportUrl: 'https://t.me/digicast_support',
   telegramBotUsername: 'DIGICAST_BOT',
   discordSupportUrl: 'https://discord.gg/digicast',

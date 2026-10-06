@@ -1,5 +1,10 @@
 package com.digicast.app.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -72,7 +77,35 @@ fun DigicastNavGraph(
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier.padding(paddingValues),
+            enterTransition = {
+                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                        slideIntoContainer(
+                            towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                            animationSpec = tween(220, easing = FastOutSlowInEasing)
+                        )
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                        slideOutOfContainer(
+                            towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                            animationSpec = tween(180, easing = FastOutSlowInEasing)
+                        )
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                        slideIntoContainer(
+                            towards = AnimatedContentTransitionScope.SlideDirection.End,
+                            animationSpec = tween(220, easing = FastOutSlowInEasing)
+                        )
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                        slideOutOfContainer(
+                            towards = AnimatedContentTransitionScope.SlideDirection.End,
+                            animationSpec = tween(180, easing = FastOutSlowInEasing)
+                        )
+            }
         ) {
             composable(Screen.Onboarding.route) {
                 OnboardingScreen(

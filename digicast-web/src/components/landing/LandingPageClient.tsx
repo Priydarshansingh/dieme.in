@@ -8,7 +8,8 @@ import {
   ArrowRight, Play, MessageSquare, Flame, Check, HelpCircle,
   ExternalLink, ChevronDown, Award, Globe, Smartphone, Laptop, Tv,
   Activity, Layers, Eye, Cpu, Terminal, Disc, Volume2, ShieldCheck,
-  TrendingUp, RefreshCw, BarChart3, Clock, Lock
+  TrendingUp, RefreshCw, BarChart3, Clock, Lock, Sliders, PlayCircle,
+  Copy, CheckCheck, Share2, Sparkle
 } from 'lucide-react';
 import { PRICING_PLANS } from '@/lib/pricingPlans';
 
@@ -22,17 +23,26 @@ interface LandingPageClientProps {
 }
 
 export default function LandingPageClient({ faqs }: LandingPageClientProps) {
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [activeTab, setActiveTab] = useState<'stream' | 'chat' | 'markers'>('stream');
-  const [markerCount, setMarkerCount] = useState(14);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [recentMarkers, setRecentMarkers] = useState<Array<{ id: string; time: string; label: string; type: string }>>([
-    { id: '1', time: '01:42:18', label: '🔥 Triple Kill Clutch in Apex', type: 'clutch' },
-    { id: '2', time: '01:15:04', label: '💬 ₹1,000 Super Chat & Song Request', type: 'donation' },
-    { id: '3', time: '00:48:30', label: '😂 Funny Mic Bug Reaction', type: 'highlight' },
+  const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 });
+  const [activeRoleView, setActiveRoleView] = useState<'owner' | 'editor'>('owner');
+  const [markerCount, setMarkerCount] = useState(24);
+  const [isPressingMarker, setIsPressingMarker] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<'CLUTCH' | 'SUPERCHAT' | 'HYPE' | 'TOPIC'>('CLUTCH');
+  const [playbackSeconds, setPlaybackSeconds] = useState(5840); // 01:37:20
+  const [hasCopiedMarkers, setHasCopiedMarkers] = useState(false);
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const audioCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const [streamLog, setStreamLog] = useState([
+    { id: '1', time: '01:36:50', label: '1v4 Clutch Defusal & Ace', tag: 'CLUTCH', author: 'Streamer (Phone)' },
+    { id: '2', time: '01:14:10', label: '₹2,000 Superchat from AlexGaming', tag: 'SUPERCHAT', author: 'Editor (Web)' },
+    { id: '3', time: '00:48:32', label: 'Funny Mic Drop Reaction', tag: 'HYPE', author: 'Streamer (Phone)' },
+    { id: '4', time: '00:22:15', label: 'New Season Patch Breakdown', tag: 'TOPIC', author: 'Streamer (Phone)' },
   ]);
 
-  // Global cursor spotlight tracker for Web3 glow effect
+  // Track cursor coordinates
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePos({ x: e.clientX, y: e.clientY });
@@ -41,96 +51,275 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Interactive Live Marker simulator trigger
-  const handleDropSimulatedMarker = () => {
-    setIsSimulating(true);
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+  // Increment simulated playback seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaybackSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Interactive Web3 Canvas Node Mesh in Hero Background
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = 700);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = 700;
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Particle nodes
+    const nodeCount = Math.min(Math.floor(width / 24), 50);
+    const nodes = Array.from({ length: nodeCount }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      radius: Math.random() * 1.5 + 1,
+    }));
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      // Update and draw nodes
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        node.x += node.vx;
+        node.y += node.vy;
+
+        if (node.x < 0 || node.x > width) node.vx *= -1;
+        if (node.y < 0 || node.y > height) node.vy *= -1;
+
+        // Interaction with mouse cursor
+        const dxMouse = node.x - mousePos.x;
+        const dyMouse = node.y - mousePos.y;
+        const distMouse = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
+
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        ctx.fillStyle = distMouse < 180 ? 'rgba(214, 248, 48, 0.8)' : 'rgba(255, 255, 255, 0.25)';
+        ctx.fill();
+
+        // Draw connections
+        for (let j = i + 1; j < nodes.length; j++) {
+          const other = nodes[j];
+          const dx = node.x - other.x;
+          const dy = node.y - other.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 130) {
+            ctx.beginPath();
+            ctx.moveTo(node.x, node.y);
+            ctx.lineTo(other.x, other.y);
+            const alpha = (1 - dist / 130) * 0.12;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = 0.75;
+            ctx.stroke();
+          }
+        }
+
+        // Draw line to mouse if close
+        if (distMouse < 160) {
+          ctx.beginPath();
+          ctx.moveTo(node.x, node.y);
+          ctx.lineTo(mousePos.x, mousePos.y);
+          const alpha = (1 - distMouse / 160) * 0.25;
+          ctx.strokeStyle = `rgba(214, 248, 48, ${alpha})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [mousePos]);
+
+  // Procedural Live Audio Waveform Canvas
+  useEffect(() => {
+    const canvas = audioCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let step = 0;
+
+    const render = () => {
+      step += 0.05;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Base line
+      ctx.beginPath();
+      ctx.moveTo(0, h / 2);
+
+      for (let x = 0; x < w; x += 3) {
+        const freq1 = Math.sin(x * 0.04 + step) * 12;
+        const freq2 = Math.cos(x * 0.08 - step * 1.5) * 6;
+        const freq3 = Math.sin(x * 0.015 + step * 0.8) * 8;
+        const y = h / 2 + freq1 + freq2 + freq3;
+        ctx.lineTo(x, y);
+      }
+
+      ctx.strokeStyle = '#D6F830'; // Electric Lime Web3 accent
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Secondary cyber wave
+      ctx.beginPath();
+      ctx.moveTo(0, h / 2);
+      for (let x = 0; x < w; x += 3) {
+        const freq1 = Math.cos(x * 0.035 - step * 1.2) * 9;
+        const freq2 = Math.sin(x * 0.06 + step * 0.7) * 5;
+        const y = h / 2 + freq1 + freq2;
+        ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = 'rgba(0, 245, 255, 0.45)'; // Cyber Cyan
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  const formatSeconds = (sec: number) => {
+    const hrs = Math.floor(sec / 3600);
+    const mins = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return `0${hrs}:${mins < 10 ? '0' : ''}${mins}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const handleCaptureMarker = () => {
+    setIsPressingMarker(true);
+    const timeStr = formatSeconds(playbackSeconds);
+
+    const tagTitles: Record<string, string> = {
+      CLUTCH: 'Intense 1v3 Clutch Moment',
+      SUPERCHAT: 'Superchat Shoutout & Interaction',
+      HYPE: 'Crowd Hype & Chat Reaction',
+      TOPIC: 'Main Topic & Strategy Discussion',
+    };
+
     const newMarker = {
       id: String(Date.now()),
       time: timeStr,
-      label: '⚡ Live Highlight Marker Dropped',
-      type: 'instant'
+      label: tagTitles[selectedTag] || 'Live Stream Highlight Marked',
+      tag: selectedTag,
+      author: 'Streamer (1-Tap)',
     };
-    setRecentMarkers(prev => [newMarker, ...prev.slice(0, 3)]);
-    setMarkerCount(prev => prev + 1);
-    setTimeout(() => setIsSimulating(false), 600);
+
+    setStreamLog((prev) => [newMarker, ...prev.slice(0, 3)]);
+    setMarkerCount((prev) => prev + 1);
+
+    setTimeout(() => setIsPressingMarker(false), 300);
+  };
+
+  const handleCopyTimestamps = () => {
+    const text = streamLog
+      .map((item) => `${item.time} - ${item.label} [${item.tag}]`)
+      .join('\n');
+    navigator.clipboard.writeText(text);
+    setHasCopiedMarkers(true);
+    setTimeout(() => setHasCopiedMarkers(false), 2500);
   };
 
   return (
-    <div className="relative min-h-screen bg-[#07080C] text-[#F8FAFC] overflow-x-hidden selection:bg-cyan-500/20 selection:text-cyan-300 font-sans">
-      {/* ── Web3 Dynamic Interactive Mouse Cursor Spotlight ─────────────── */}
+    <div className="relative min-h-screen bg-[#040508] text-[#F8FAFC] selection:bg-[#D6F830]/30 selection:text-[#D6F830] font-sans overflow-x-hidden">
+      {/* ── Raycast Spotlight Tracker ───────────────────────────────────── */}
       <div
-        className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300 opacity-60"
+        className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300 opacity-30"
         style={{
-          background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, rgba(34, 211, 238, 0.08), rgba(139, 92, 246, 0.03), transparent 80%)`,
+          background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, rgba(214, 248, 48, 0.06), rgba(0, 245, 255, 0.02), transparent 75%)`,
         }}
       />
 
-      {/* ── Cyber Matrix Grid Background ──────────────────────────────────── */}
+      {/* ── Precision Obsidian Grid ──────────────────────────────────────── */}
       <div className="fixed inset-0 pointer-events-none z-0 opacity-20">
         <div
           className="w-full h-full"
           style={{
-            backgroundImage: `linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px)`,
-            backgroundSize: '48px 48px',
-            maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)',
-            WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)',
+            backgroundImage: `radial-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px)`,
+            backgroundSize: '28px 28px',
+            maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 90%)',
+            WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 90%)',
           }}
         />
       </div>
 
-      {/* ── Top Navigation Bar ───────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 backdrop-blur-2xl bg-[#07080C]/80 border-b border-white/[0.08]">
+      {/* ── Fixed Floating Navigation Capsule ─────────────────────────────── */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#040508]/85 border-b border-white/[0.07]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl blur-sm opacity-40 group-hover:opacity-80 transition duration-300" />
-              <div className="relative bg-[#0E1118] border border-white/10 rounded-xl p-1.5 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-[#090C15] border border-white/10 p-2 flex items-center justify-center group-hover:border-[#D6F830]/50 transition duration-300 shadow-lg">
                 <Image
                   src="/logo-mark.png"
                   alt="Digicast Logo"
-                  width={28}
-                  height={28}
+                  width={24}
+                  height={24}
                   className="object-contain"
                   priority
                 />
               </div>
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-lg tracking-wider text-white flex items-center gap-1.5">
+              <span className="font-black text-lg tracking-tight text-white flex items-center gap-2">
                 DIGICAST
-                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 tracking-normal">
-                  STUDIO
+                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#D6F830]/10 text-[#D6F830] border border-[#D6F830]/25 uppercase tracking-widest">
+                  LIVE HUD
                 </span>
               </span>
-              <span className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">
-                Creator Live Intelligence
+              <span className="text-[10px] text-slate-400 font-mono tracking-wider">
+                BROADCAST COMPANION
               </span>
             </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-8 text-xs uppercase tracking-widest font-mono text-slate-400">
-            <a href="#features" className="hover:text-cyan-400 transition flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-cyan-400" />
-              Features
-            </a>
-            <a href="#simulator" className="hover:text-cyan-400 transition flex items-center gap-1.5">
+          <nav className="hidden md:flex items-center gap-8 text-xs font-mono uppercase tracking-widest text-slate-400">
+            <a href="#console" className="hover:text-[#D6F830] transition flex items-center gap-1.5">
               <Radio className="w-3.5 h-3.5 text-rose-400" />
-              Live HUD
+              Director HUD
             </a>
-            <a href="#workflow" className="hover:text-cyan-400 transition flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <a href="#workflow" className="hover:text-[#D6F830] transition flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-cyan-400" />
               Workflow
             </a>
-            <a href="#pricing" className="hover:text-cyan-400 transition flex items-center gap-1.5">
-              <Award className="w-3.5 h-3.5 text-emerald-400" />
+            <a href="#passes" className="hover:text-[#D6F830] transition flex items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-amber-400" />
               Passes
             </a>
-            <a href="#faq" className="hover:text-cyan-400 transition flex items-center gap-1.5">
+            <a href="#faq" className="hover:text-[#D6F830] transition flex items-center gap-1.5">
               <HelpCircle className="w-3.5 h-3.5 text-blue-400" />
               FAQ
             </a>
+            <Link href="/contact" className="hover:text-[#D6F830] transition flex items-center gap-1.5 text-slate-300">
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+              Support Bot
+            </Link>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -142,182 +331,211 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
             </Link>
             <Link
               href="/login"
-              className="relative group overflow-hidden px-5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider text-[#07080C] bg-gradient-to-r from-cyan-400 via-teal-300 to-cyan-400 bg-[length:200%_auto] hover:bg-right transition-all duration-300 shadow-lg shadow-cyan-500/20 active:scale-95"
+              className="px-5 py-2.5 rounded-xl text-xs font-mono font-black uppercase tracking-wider text-[#040508] bg-[#D6F830] hover:bg-[#c5ea1f] shadow-lg shadow-[#D6F830]/20 hover:shadow-[#D6F830]/35 hover:scale-[1.02] active:scale-[0.98] transition duration-150"
             >
-              <span className="relative z-10 flex items-center gap-1.5 font-black">
-                Launch Studio
-                <ArrowRight className="w-3.5 h-3.5" />
-              </span>
+              Launch Studio
             </Link>
           </div>
         </div>
       </header>
 
-      {/* ── Web3 Hero Section with Live Telemetry ────────────────────────── */}
-      <section className="relative pt-16 pb-24 md:pt-24 md:pb-32 overflow-hidden border-b border-white/[0.08]">
-        {/* Luminous Web3 Background Orbs */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-r from-cyan-500/20 via-blue-600/15 to-purple-600/20 blur-[130px] pointer-events-none rounded-full" />
-        <div className="absolute top-20 right-10 w-72 h-72 bg-amber-500/10 blur-[100px] pointer-events-none rounded-full" />
-        <div className="absolute top-40 left-10 w-72 h-72 bg-emerald-500/10 blur-[100px] pointer-events-none rounded-full" />
+      {/* ── Hero Section with Interactive Canvas Mesh ────────────────────── */}
+      <section className="relative pt-16 pb-20 md:pt-24 md:pb-28 overflow-hidden border-b border-white/[0.07]">
+        {/* Interactive canvas node background */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 pointer-events-none z-0 opacity-60"
+        />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          {/* Top Live Telemetry Chip */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#11141E]/90 border border-white/10 text-xs font-mono text-cyan-300 mb-8 backdrop-blur-xl shadow-xl shadow-cyan-950/40">
+          {/* Telemetry Micro-Badge */}
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#090C15] border border-white/10 text-xs font-mono text-slate-300 mb-8 backdrop-blur-md shadow-2xl">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D6F830] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D6F830]" />
             </span>
-            <span className="tracking-wider">TELEMETRY ONLINE</span>
+            <span className="text-[#D6F830] font-bold">STREAM SYNC 2.4</span>
             <span className="text-white/20">|</span>
-            <span className="text-slate-400 font-sans">0ms Companion Latency</span>
+            <span className="text-slate-400">0ms Capture Overhead</span>
           </div>
 
-          {/* Main Title with Metallic Gradient */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white leading-[1.08] mb-6">
-            Real-Time Livestream Tagging{' '}
-            <br className="hidden sm:inline" />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 via-teal-200 to-indigo-300 drop-shadow-sm">
-              for Next-Gen YouTube Studios.
+          {/* Punchy Monolithic Display Title */}
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white leading-[1.06] mb-6">
+            Frame-Precise Livestream Tagging <br className="hidden sm:inline" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400">
+              For High-Stakes Streamers.
             </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="max-w-2xl mx-auto text-base sm:text-lg text-slate-400 font-normal leading-relaxed mb-10">
-            Monitor broadcasts, drop frame-precise highlight markers with a single tap, and sync seamless clip generation with your entire production crew.
+          <p className="max-w-2xl mx-auto text-base sm:text-lg text-slate-400 leading-relaxed mb-10 font-normal">
+            Never scrub through 6-hour video vods again. Tag hype moments with one tap on your mobile phone or companion keypad while live, and export instant timestamp logs to your editors.
           </p>
 
-          {/* CTAs */}
+          {/* Hero CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
             <Link
               href="/login"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-400 to-blue-500 text-[#07080C] shadow-2xl shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:scale-[1.02] active:scale-[0.98] transition font-mono"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-mono font-black text-xs uppercase tracking-wider bg-[#D6F830] text-[#040508] shadow-2xl shadow-[#D6F830]/25 hover:shadow-[#D6F830]/40 hover:scale-[1.02] active:scale-[0.98] transition"
             >
-              <span>ACCESS STUDIO WORKSPACE</span>
+              <span>ACTIVATE DURATION PASS</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
             <a
-              href="#simulator"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl font-semibold text-sm bg-[#11141E] hover:bg-[#161A26] text-white border border-white/10 transition font-mono"
+              href="#console"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl font-mono font-bold text-xs uppercase tracking-wider bg-[#090C15] hover:bg-[#0E1322] text-white border border-white/10 transition"
             >
-              <Terminal className="w-4 h-4 text-cyan-400" />
-              INTERACTIVE DEMO HUD
+              <Play className="w-3.5 h-3.5 text-[#D6F830]" />
+              TRY DIRECTOR HUD SANDBOX
             </a>
           </div>
 
-          {/* Web3 Live Telemetry HUD Mockup */}
-          <div id="simulator" className="max-w-5xl mx-auto text-left">
-            <div className="rounded-3xl p-1 bg-gradient-to-b from-cyan-500/30 via-white/10 to-white/5 shadow-2xl shadow-cyan-950/50 backdrop-blur-2xl">
-              <div className="rounded-[22px] bg-[#0A0C13] border border-white/10 overflow-hidden">
-                {/* HUD Top Bar */}
-                <div className="px-6 py-4 bg-[#0E111A] border-b border-white/[0.08] flex flex-wrap items-center justify-between gap-4">
+          {/* ── Interactive Director HUD Simulator ─────────────────────────── */}
+          <div id="console" className="max-w-5xl mx-auto text-left">
+            <div className="rounded-2xl p-1 bg-[#090C15] border border-white/[0.09] shadow-2xl shadow-black/80 backdrop-blur-2xl">
+              <div className="rounded-xl bg-[#06080E] border border-white/[0.06] overflow-hidden">
+                {/* Console Top Header */}
+                <div className="px-6 py-3.5 bg-[#090C15] border-b border-white/[0.07] flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-3 rounded-full bg-rose-500 animate-pulse" />
-                      <span className="font-mono text-xs font-black text-rose-400 tracking-wider">LIVE</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                      <span className="font-mono text-xs font-black text-rose-400 tracking-wider">LIVE_FEED</span>
                     </div>
                     <span className="text-white/20 font-mono">|</span>
-                    <span className="font-bold text-sm text-white truncate">Apex Legends Championship Grand Finals</span>
+                    <span className="font-bold text-sm text-white truncate">Championship Final Stream</span>
                   </div>
 
                   <div className="flex items-center gap-3 text-xs font-mono">
-                    <span className="px-2.5 py-1 rounded bg-white/[0.05] border border-white/10 text-cyan-300">
-                      1080p60 • SYNCED
+                    <span className="px-2.5 py-1 rounded bg-white/[0.04] border border-white/10 text-slate-300">
+                      REC TIME: {formatSeconds(playbackSeconds)}
                     </span>
-                    <span className="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      24.8K VIEWERS
+                    <span className="px-2.5 py-1 rounded bg-[#D6F830]/10 text-[#D6F830] border border-[#D6F830]/20 font-bold">
+                      FEED SYNCED
                     </span>
                   </div>
                 </div>
 
-                {/* HUD Main Workspace Display */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-white/[0.08]">
-                  {/* Stream Canvas Simulation */}
-                  <div className="lg:col-span-2 p-6 flex flex-col justify-between relative bg-gradient-to-br from-[#0C0F17] to-[#07080C] min-h-[300px]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-slate-500">CANVAS_FEED #01</span>
-                      <span className="text-xs font-mono text-emerald-400 flex items-center gap-1">
-                        <Activity className="w-3.5 h-3.5 animate-pulse" />
-                        ACTIVE_STREAM_INGEST
-                      </span>
-                    </div>
-
-                    {/* Interactive Stream HUD Center */}
-                    <div className="my-8 text-center">
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 mb-4 shadow-xl shadow-cyan-500/20">
-                        <Radio className="w-8 h-8 animate-pulse" />
+                {/* Console Body */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-white/[0.07]">
+                  {/* Left 2 Cols: Waveform & Tactile Pad */}
+                  <div className="lg:col-span-2 p-6 flex flex-col justify-between bg-[#06080E]">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-mono text-slate-400">AUDIO_CARRIER: 48kHz PCM</span>
+                        <span className="text-xs font-mono text-[#D6F830] flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 animate-pulse" />
+                          COMPANION CONNECTED
+                        </span>
                       </div>
-                      <p className="text-sm font-mono text-slate-300">YouTube Stream Buffer Synced</p>
-                      <p className="text-xs text-slate-500 mt-1">Tap below to simulate dropping a live marker</p>
+
+                      {/* Live Procedural Audio Canvas Waveform */}
+                      <div className="w-full h-16 bg-[#090C15] rounded-xl border border-white/[0.07] p-2 flex items-center justify-center relative overflow-hidden mb-6">
+                        <canvas
+                          ref={audioCanvasRef}
+                          width={480}
+                          height={64}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     </div>
 
-                    {/* Timeline & Interactive Marker Action */}
-                    <div className="space-y-3">
-                      {/* Audio Waveform Simulator */}
-                      <div className="flex items-end justify-between h-8 gap-1 px-2 py-1 bg-[#11141E] rounded-lg border border-white/[0.06]">
-                        {[40, 65, 30, 80, 95, 45, 70, 85, 60, 90, 100, 75, 40, 60, 85, 95, 50, 70, 90, 100, 65, 80, 45, 90, 70].map((h, i) => (
-                          <div
-                            key={i}
-                            className="flex-1 bg-gradient-to-t from-cyan-500 to-blue-400 rounded-sm transition-all duration-300"
-                            style={{ height: `${h}%`, opacity: (i % 2 === 0 ? 0.9 : 0.6) }}
-                          />
+                    {/* Tag Selection & 1-Tap Trigger */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+                          Select Tag Type:
+                        </span>
+                        <span className="text-[11px] font-mono text-slate-500">HOTKEY: [SPACE]</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {(['CLUTCH', 'SUPERCHAT', 'HYPE', 'TOPIC'] as const).map((tag) => (
+                          <button
+                            key={tag}
+                            onClick={() => setSelectedTag(tag)}
+                            className={`py-2 px-2.5 rounded-lg text-[10px] font-mono font-bold uppercase transition border ${
+                              selectedTag === tag
+                                ? 'bg-[#D6F830]/15 text-[#D6F830] border-[#D6F830]/40 shadow-sm'
+                                : 'bg-[#090C15] text-slate-400 border-white/[0.06] hover:text-white'
+                            }`}
+                          >
+                            {tag === 'CLUTCH' && '🎯 CLUTCH'}
+                            {tag === 'SUPERCHAT' && '💰 SUPERCHAT'}
+                            {tag === 'HYPE' && '⚡ HYPE'}
+                            {tag === 'TOPIC' && '🗣️ TOPIC'}
+                          </button>
                         ))}
                       </div>
 
-                      <div className="flex items-center justify-between gap-4 pt-2">
-                        <button
-                          onClick={handleDropSimulatedMarker}
-                          className={`flex-1 py-3 px-4 rounded-xl font-mono text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 transition duration-200 ${
-                            isSimulating
-                              ? 'bg-emerald-400 text-[#07080C] scale-95 shadow-lg shadow-emerald-400/40'
-                              : 'bg-gradient-to-r from-cyan-400 to-blue-500 text-[#07080C] hover:shadow-lg hover:shadow-cyan-400/30'
-                          }`}
-                        >
-                          <Scissors className="w-4 h-4" />
-                          <span>{isSimulating ? 'MARKER SAVED TO ROOM DB!' : 'DROP 1-TAP LIVE MARKER'}</span>
-                        </button>
-                      </div>
+                      {/* Tactile Push Button */}
+                      <button
+                        onClick={handleCaptureMarker}
+                        className={`w-full py-4 px-6 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2.5 transition duration-150 ${
+                          isPressingMarker
+                            ? 'bg-emerald-400 text-[#040508] scale-[0.98] shadow-lg shadow-emerald-400/40'
+                            : 'bg-[#D6F830] text-[#040508] hover:bg-[#c5ea1f] hover:shadow-xl hover:shadow-[#D6F830]/25 active:scale-[0.97]'
+                        }`}
+                      >
+                        <Scissors className="w-4 h-4" />
+                        <span>
+                          {isPressingMarker
+                            ? 'MARKER CAPTURED TO TIMELINE!'
+                            : `DROP 1-TAP HIGHLIGHT [${selectedTag}]`}
+                        </span>
+                      </button>
                     </div>
                   </div>
 
-                  {/* Right Telemetry & Marker Feed */}
-                  <div className="p-6 bg-[#0B0E16] flex flex-col justify-between">
+                  {/* Right Col: Live Marker Queue & Export */}
+                  <div className="p-6 bg-[#090C15] flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between mb-4">
-                        <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                        <span className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider">
                           LIVE MARKER QUEUE
                         </span>
-                        <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                          {markerCount} TAGGED
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#D6F830]/10 text-[#D6F830] border border-[#D6F830]/20 font-bold">
+                          {markerCount} LOGGED
                         </span>
                       </div>
 
-                      <div className="space-y-2.5">
-                        {recentMarkers.map((m) => (
+                      <div className="space-y-2">
+                        {streamLog.map((item) => (
                           <div
-                            key={m.id}
-                            className="p-3 rounded-xl bg-[#11141E] border border-white/[0.08] flex items-center justify-between animate-fadeIn"
+                            key={item.id}
+                            className="p-2.5 rounded-xl bg-[#0D111C] border border-white/[0.06] flex items-center justify-between group hover:border-white/20 transition"
                           >
                             <div className="min-w-0 pr-2">
-                              <p className="text-xs font-bold text-white truncate">{m.label}</p>
-                              <p className="text-[10px] font-mono text-cyan-400 mt-0.5">{m.time}</p>
+                              <p className="text-xs font-bold text-white truncate">{item.label}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] font-mono text-[#D6F830]">{item.time}</span>
+                                <span className="text-[9px] text-slate-500 font-mono">• {item.author}</span>
+                              </div>
                             </div>
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.05] text-slate-300 shrink-0">
-                              READY
+                            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-white/[0.05] text-slate-300 shrink-0">
+                              {item.tag}
                             </span>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="pt-6 border-t border-white/[0.08] mt-6">
-                      <div className="flex items-center justify-between text-xs font-mono text-slate-400 mb-2">
-                        <span>WORKSPACE_AUTH</span>
-                        <span className="text-emerald-400">VERIFIED</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs font-mono text-slate-400">
-                        <span>TEAM_EDITORS</span>
-                        <span className="text-cyan-400">3 CONNECTED</span>
-                      </div>
+                    <div className="pt-4 border-t border-white/[0.07] mt-4">
+                      <button
+                        onClick={handleCopyTimestamps}
+                        className="w-full py-2.5 px-3 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-mono text-slate-200 flex items-center justify-center gap-2 transition"
+                      >
+                        {hasCopiedMarkers ? (
+                          <>
+                            <CheckCheck className="w-3.5 h-3.5 text-[#D6F830]" />
+                            <span className="text-[#D6F830] font-bold">COPIED TO CLIPBOARD</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-slate-400" />
+                            <span>EXPORT TIMESTAMPS (.MD)</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -327,84 +545,129 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
         </div>
       </section>
 
-      {/* ── Web3 Bento Grid Features ─────────────────────────────────────── */}
-      <section id="features" className="py-24 border-b border-white/[0.08] relative">
+      {/* ── Interactive Role Matrix: Creator vs Editor ──────────────────── */}
+      <section id="workflow" className="py-24 border-b border-white/[0.07] relative bg-[#06080E]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs font-mono font-bold text-cyan-400 mb-4">
-              <Cpu className="w-3.5 h-3.5" />
-              INTELLIGENCE MODULES
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-xs font-mono text-slate-300 mb-4">
+              <Users className="w-3.5 h-3.5 text-[#D6F830]" />
+              SYMMETRICAL WORKFLOW
             </div>
             <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
-              Architected for Speed & High Volume.
+              Engineered for Streamer & Editor Harmony.
             </h2>
             <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
-              Eliminate hours of manual timeline scrubbing. Equip your team with instantaneous stream capture tools.
+              Streamers stay in the zone during broadcasts while video editors access live timecodes instantly.
             </p>
+
+            {/* Interactive Toggle */}
+            <div className="inline-flex p-1 rounded-xl bg-[#090C15] border border-white/10 mt-8">
+              <button
+                onClick={() => setActiveRoleView('owner')}
+                className={`px-5 py-2 rounded-lg text-xs font-mono font-bold uppercase transition ${
+                  activeRoleView === 'owner'
+                    ? 'bg-[#D6F830] text-[#040508] shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Streamer Cockpit
+              </button>
+              <button
+                onClick={() => setActiveRoleView('editor')}
+                className={`px-5 py-2 rounded-lg text-xs font-mono font-bold uppercase transition ${
+                  activeRoleView === 'editor'
+                    ? 'bg-[#D6F830] text-[#040508] shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Editor Terminal
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Bento 1: Stream Sync */}
-            <div className="p-8 rounded-3xl bg-[#10131C] border border-white/[0.08] hover:border-cyan-500/40 transition duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition" />
-              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-6">
-                <Radio className="w-6 h-6" />
+          <div className="max-w-4xl mx-auto">
+            {activeRoleView === 'owner' ? (
+              <div className="p-8 rounded-3xl bg-[#090C15] border border-white/[0.08] shadow-2xl">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-[#D6F830]/10 border border-[#D6F830]/25 flex items-center justify-center text-[#D6F830]">
+                    <Smartphone className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Streamer Companion Node</h3>
+                    <p className="text-xs font-mono text-slate-400">Android / Companion Keypad</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-2xl bg-[#0D111C] border border-white/[0.06]">
+                    <p className="text-xs font-mono text-[#D6F830] font-bold mb-1">ZERO BATTERY DRAIN</p>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Optimized dark UI with minimal CPU overhead so your phone stays cool during 8+ hour marathon streams.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-[#0D111C] border border-white/[0.06]">
+                    <p className="text-xs font-mono text-[#D6F830] font-bold mb-1">1-TAP HOTKEYS</p>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Giant tactile touch pads calibrated for no-look tapping during gameplay or live podcasts.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-[#0D111C] border border-white/[0.06]">
+                    <p className="text-xs font-mono text-[#D6F830] font-bold mb-1">PRIVATE & SECURE</p>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Team access codes grant your editors workspace access without handing over Google credentials.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Live Stream Auto-Ingest</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                Direct integration with YouTube Live. Broadcasts and chat messages synchronize into your studio workspace with zero manual stream key sharing.
-              </p>
-              <div className="font-mono text-[11px] text-cyan-400/80 bg-cyan-950/30 px-3 py-1.5 rounded-lg border border-cyan-500/20 inline-block">
-                INGEST_PROTOCOL: AUTO_DISCOVER
+            ) : (
+              <div className="p-8 rounded-3xl bg-[#090C15] border border-white/[0.08] shadow-2xl">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400">
+                    <Laptop className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Editor Web Terminal</h3>
+                    <p className="text-xs font-mono text-slate-400">Desktop Browser Interface</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-2xl bg-[#0D111C] border border-white/[0.06]">
+                    <p className="text-xs font-mono text-cyan-400 font-bold mb-1">REAL-TIME INGEST</p>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Markers appear on the editor screen in milliseconds as the creator taps their mobile companion.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-[#0D111C] border border-white/[0.06]">
+                    <p className="text-xs font-mono text-cyan-400 font-bold mb-1">TIMELINE EXPORT</p>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      1-click copy formatted timestamps ready for YouTube description chapters, Premiere, or DaVinci Resolve.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-[#0D111C] border border-white/[0.06]">
+                    <p className="text-xs font-mono text-cyan-400 font-bold mb-1">SUPERCHAT ARCHIVE</p>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Auto-tagged superchat notes allow instant compilation of shoutout shorts and highlight reels.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-
-            {/* Bento 2: Marker Engine */}
-            <div className="p-8 rounded-3xl bg-[#10131C] border border-white/[0.08] hover:border-blue-500/40 transition duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition" />
-              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-6">
-                <Scissors className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">1-Click Marker Tagging</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                Tag highlight ranges instantly with notes. When a hype battle or joke occurs, one tap flags the starting and ending frames for editor handoff.
-              </p>
-              <div className="font-mono text-[11px] text-blue-400/80 bg-blue-950/30 px-3 py-1.5 rounded-lg border border-blue-500/20 inline-block">
-                TAGGING_SPEED: 0ms_LATENCY
-              </div>
-            </div>
-
-            {/* Bento 3: Team Collaboration */}
-            <div className="p-8 rounded-3xl bg-[#10131C] border border-white/[0.08] hover:border-emerald-500/40 transition duration-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition" />
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-6">
-                <Users className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">Editor Team Workspaces</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                Create dedicated login credentials for video editors and production assistants. Share real-time marker lists without sharing Google account passwords.
-              </p>
-              <div className="font-mono text-[11px] text-emerald-400/80 bg-emerald-950/30 px-3 py-1.5 rounded-lg border border-emerald-500/20 inline-block">
-                ROLE_RBAC: OWNER_ADMIN_EDITOR
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* ── Web3 Duration Passes (Pricing) ─────────────────────────────────── */}
-      <section id="pricing" className="py-24 border-b border-white/[0.08] relative">
+      {/* ── Transparent Duration Passes ─────────────────────────────────── */}
+      <section id="passes" className="py-24 border-b border-white/[0.07] relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-mono font-bold text-amber-400 mb-4">
-              <Award className="w-3.5 h-3.5" />
-              DURATION PASS PROTOCOL
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-xs font-mono text-slate-300 mb-4">
+              <Award className="w-3.5 h-3.5 text-[#D6F830]" />
+              PASS ACCESS PROTOCOL
             </div>
             <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
-              Transparent Access Passes.
+              Flexible Duration Passes.
             </h2>
             <p className="text-slate-400 text-sm sm:text-base">
-              No hidden fees or recurring traps. Activate access passes on-demand via direct UPI with instant 24-hour grace access.
+              No hidden contracts or involuntary renewals. Activate passes on-demand with instant grace access via UPI.
             </p>
           </div>
 
@@ -416,12 +679,12 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
                   key={plan.id}
                   className={`p-6 rounded-3xl flex flex-col justify-between transition-all duration-300 relative group ${
                     isPopular
-                      ? 'bg-gradient-to-b from-[#182136] to-[#10131D] border-2 border-cyan-400/60 shadow-2xl shadow-cyan-950/60 scale-[1.02]'
-                      : 'bg-[#10131D] border border-white/[0.08] hover:border-white/20'
+                      ? 'bg-[#090C15] border-2 border-[#D6F830]/80 shadow-2xl shadow-black/80 scale-[1.02]'
+                      : 'bg-[#090C15] border border-white/[0.08] hover:border-white/20'
                   }`}
                 >
                   {plan.badge && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-cyan-400 text-[#07080C] text-[10px] font-mono font-black uppercase tracking-wider whitespace-nowrap shadow-lg shadow-cyan-400/30">
+                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-[#D6F830] text-[#040508] text-[10px] font-mono font-black uppercase tracking-wider whitespace-nowrap shadow-lg">
                       {plan.badge}
                     </div>
                   )}
@@ -438,7 +701,7 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
                     <ul className="space-y-2.5 mb-8">
                       {plan.features.map((feature, idx) => (
                         <li key={idx} className="flex items-start gap-2 text-xs text-slate-300">
-                          <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                          <Check className="w-3.5 h-3.5 text-[#D6F830] shrink-0 mt-0.5" />
                           <span>{feature}</span>
                         </li>
                       ))}
@@ -449,8 +712,8 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
                     href="/login"
                     className={`w-full py-3 rounded-xl font-mono font-bold text-xs text-center transition tracking-wider uppercase ${
                       isPopular
-                        ? 'bg-cyan-400 hover:bg-cyan-300 text-[#07080C] shadow-lg shadow-cyan-400/20'
-                        : 'bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/10'
+                        ? 'bg-[#D6F830] hover:bg-[#c5ea1f] text-[#040508] shadow-lg shadow-[#D6F830]/20'
+                        : 'bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/10'
                     }`}
                   >
                     Activate Pass
@@ -462,19 +725,19 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
         </div>
       </section>
 
-      {/* ── FAQ Section (Optimized for AI Search & Google Crawling) ────────── */}
-      <section id="faq" className="py-24 border-b border-white/[0.08] bg-[#0A0D14]/50 relative">
+      {/* ── FAQ Knowledge Base ───────────────────────────────────────────── */}
+      <section id="faq" className="py-24 border-b border-white/[0.07] bg-[#06080E] relative">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-xs font-mono font-bold text-slate-300 mb-4">
-              <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-xs font-mono text-slate-300 mb-4">
+              <HelpCircle className="w-3.5 h-3.5 text-[#D6F830]" />
               KNOWLEDGE BASE & FAQ
             </div>
             <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
               Frequently Asked Questions
             </h2>
             <p className="text-slate-400 text-sm sm:text-base">
-              Detailed answers structured for stream teams and AI conversational models.
+              Clear answers designed for creators, editors, and search engines.
             </p>
           </div>
 
@@ -482,7 +745,7 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
             {faqs.map((item, index) => (
               <details
                 key={index}
-                className="group p-6 rounded-2xl bg-[#10131D] border border-white/[0.08] open:border-cyan-500/40 transition duration-200 cursor-pointer"
+                className="group p-6 rounded-2xl bg-[#090C15] border border-white/[0.08] open:border-[#D6F830]/40 transition duration-200 cursor-pointer"
               >
                 <summary className="font-bold text-white text-base flex items-center justify-between list-none">
                   <span>{item.q}</span>
@@ -497,22 +760,21 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
         </div>
       </section>
 
-      {/* ── Web3 Studio CTA Banner ───────────────────────────────────────── */}
-      <section className="py-24 relative overflow-hidden">
+      {/* ── Bottom Call to Action ────────────────────────────────────────── */}
+      <section className="py-24 relative overflow-hidden bg-[#040508]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <div className="p-12 sm:p-16 rounded-3xl bg-gradient-to-r from-cyan-950/40 via-blue-950/30 to-purple-950/40 border border-cyan-500/30 backdrop-blur-2xl shadow-2xl shadow-cyan-950/60 relative overflow-hidden">
-            <div className="absolute -top-24 -left-24 w-64 h-64 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="p-12 sm:p-16 rounded-3xl bg-[#090C15] border border-white/10 shadow-2xl relative overflow-hidden">
             <h2 className="text-3xl sm:text-5xl font-black text-white mb-4">
-              Upgrade Your Broadcast Workflow Today.
+              Level Up Your Stream Production.
             </h2>
             <p className="text-slate-300 text-sm sm:text-base max-w-xl mx-auto mb-8 font-normal leading-relaxed">
-              Launch your studio workspace and give your production team the real-time highlight capture edge.
+              Launch your studio workspace and capture broadcast highlights in real-time.
             </p>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-mono font-bold text-sm bg-gradient-to-r from-cyan-400 to-blue-500 text-[#07080C] shadow-2xl shadow-cyan-500/40 hover:shadow-cyan-500/60 hover:scale-[1.02] active:scale-[0.98] transition"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-mono font-black text-xs uppercase tracking-wider bg-[#D6F830] text-[#040508] shadow-2xl shadow-[#D6F830]/30 hover:shadow-[#D6F830]/50 hover:scale-[1.02] active:scale-[0.98] transition"
             >
-              <span>ENTER STUDIO DASHBOARD</span>
+              <span>ENTER STUDIO WORKSPACE</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -520,7 +782,7 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
       </section>
 
       {/* ── Web3 Footer ──────────────────────────────────────────────────── */}
-      <footer className="py-14 border-t border-white/[0.08] bg-[#07080C] text-xs text-slate-500 font-mono">
+      <footer className="py-14 border-t border-white/[0.07] bg-[#040508] text-xs text-slate-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <Image
@@ -530,13 +792,13 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
               height={22}
               className="object-contain"
             />
-            <span className="font-bold text-white tracking-wider">DIGICAST</span>
+            <span className="font-black text-white tracking-wider">DIGICAST</span>
             <span className="text-slate-700">|</span>
             <span className="text-slate-500 font-sans">© 2026 Digicast Technologies. All rights reserved.</span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-6 text-slate-400 font-sans text-xs">
-            <Link href="/contact" className="hover:text-cyan-400 transition font-semibold text-cyan-300">
+            <Link href="/contact" className="hover:text-[#D6F830] transition font-semibold text-slate-300">
               Contact & Support
             </Link>
             <Link href="/terms" className="hover:text-white transition">
@@ -552,7 +814,7 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
               href="https://t.me/digicast_bot"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-cyan-400 transition flex items-center gap-1 font-mono text-cyan-400"
+              className="hover:text-[#D6F830] transition flex items-center gap-1 font-mono text-[#D6F830]"
             >
               @digicast_bot
               <ExternalLink className="w-3 h-3" />

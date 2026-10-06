@@ -4,50 +4,34 @@
 
 @layer base {
   :root {
-    /* ── Digicast brand palette ── */
-    --navy:        #1B2237;   /* logo mark colour */
-    --navy-deep:   #111827;   /* darker navy for hover states */
-    --slate:       #6B7280;   /* "cast" grey */
-    --off-white:   #F4F6F9;   /* page background */
+    --navy:        #1B2237;
+    --navy-deep:   #111827;
+    --slate:       #6B7280;
+    --off-white:   #F4F6F9;
     --white:       #FFFFFF;
     --border:      #E5E7EB;
     --border-dark: #D1D5DB;
 
-    /* ── Semantic tokens ── */
-    --background:         var(--off-white);
-    --foreground:         var(--navy);
-    --card:               var(--white);
-    --card-foreground:    var(--navy);
-    --muted:              #F4F6F9;
-    --muted-foreground:   var(--slate);
-    --primary:            var(--navy);
-    --primary-foreground: var(--white);
-    --border-color:       var(--border);
-    --accent:             #F4F6F9;
-    --accent-foreground:  var(--navy);
-    --destructive:        #EF4444;
-
-    /* shadcn compat */
-    --background: 0 0% 96%;
-    --foreground: 222 35% 17%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 35% 17%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 35% 17%;
-    --primary: 222 35% 17%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 35% 17%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 220 14% 96%;
-    --accent-foreground: 222 35% 17%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 222 35% 17%;
-    --radius: 0.625rem;
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 4%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 215 20.2% 65.1%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 222.2 47.4% 11.2%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215.4 16.3% 56.9%;
+    --accent: 216 34% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --ring: 216 34% 17%;
+    --radius: 0.75rem;
   }
 
   * {
@@ -56,15 +40,50 @@
   }
 
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+    background-color: #05070B;
+    color: #F8FAFC;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
   }
-
-  /* Tight, intentional type scale */
-  h1 { font-size: 1.5rem;  font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
-  h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; }
-  h3 { font-size: 0.9375rem; font-weight: 600; }
 }
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 4s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.glass-panel {
+  background: rgba(14, 18, 27, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-interactive {
+  background: rgba(14, 18, 27, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-panel-interactive:hover {
+  background: rgba(18, 24, 38, 0.85);
+  border-color: rgba(34, 211, 238, 0.3);
+  box-shadow: 0 12px 32px -8px rgba(0, 240, 255, 0.08);
+  transform: translateY(-2px);
+}
+

@@ -520,8 +520,8 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
       </section>
 
       {/* ── Web3 Footer ──────────────────────────────────────────────────── */}
-      <footer className="py-12 border-t border-white/[0.08] bg-[#07080C] text-xs text-slate-500 font-mono">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <footer className="py-14 border-t border-white/[0.08] bg-[#07080C] text-xs text-slate-500 font-mono">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <Image
               src="/logo-mark.png"
@@ -535,19 +535,28 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
             <span className="text-slate-500 font-sans">© 2026 Digicast Technologies. All rights reserved.</span>
           </div>
 
-          <div className="flex items-center gap-6 text-slate-400 font-sans">
+          <div className="flex flex-wrap items-center justify-center gap-6 text-slate-400 font-sans text-xs">
+            <Link href="/contact" className="hover:text-cyan-400 transition font-semibold text-cyan-300">
+              Contact & Support
+            </Link>
+            <Link href="/terms" className="hover:text-white transition">
+              Terms of Service
+            </Link>
+            <Link href="/privacy" className="hover:text-white transition">
+              Privacy Policy
+            </Link>
+            <Link href="/refund" className="hover:text-white transition">
+              Refund Policy
+            </Link>
             <a
               href="https://t.me/digicast_bot"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-cyan-400 transition flex items-center gap-1.5"
+              className="hover:text-cyan-400 transition flex items-center gap-1 font-mono text-cyan-400"
             >
-              Telegram Bot (@digicast_bot)
+              @digicast_bot
               <ExternalLink className="w-3 h-3" />
             </a>
-            <Link href="/login" className="hover:text-white transition">
-              Creator Login
-            </Link>
           </div>
         </div>
       </footer>

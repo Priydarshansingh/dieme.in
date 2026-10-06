@@ -309,18 +309,73 @@ Digicast is the real-time Live Intelligence & Instant Clip Delivery Platform for
 • Send your <b>Gmail address</b> (e.g. <code>creator@gmail.com</code>) or <b>Workspace ID</b> in this chat.
 • I will fetch your account info, connected YouTube channel, active plan, and renewal date.
 
-🤖 <b>3. Group Commands:</b>
+🎫 <b>3. Contact Support & Report Issues:</b>
+• Send <code>/support &lt;your message&gt;</code> or simply describe your issue or concern here.
+• Your ticket will be logged instantly and dispatched to our engineering team.
+
+🤖 <b>4. Group Commands:</b>
 • <code>/chatid</code> — Get this group or channel's Chat ID.
 • <code>/status</code> — Check server connection & clip delivery health.
 • <code>/help</code> — Show this help menu.
 
-👨‍💻 <b>Need direct personal assistance?</b>
-Contact our team on Discord or Telegram: @livehellboy
+👨‍💻 <b>Official Telegram Bot:</b> @${process.env.TELEGRAM_BOT_USERNAME || 'digicast_bot'}
       `.trim();
       await sendTelegramMessage(chatId, helpMessage, messageId);
     }
 
-    // ─── 5. Handle /status command ──────────────────────────────────────────
+    // ─── 5. Handle /support, /contact, /bug, /ticket commands ────────────────
+    else if (['support', 'contact', 'bug', 'ticket'].includes(command)) {
+      const userQuery = args || 'General Support Request';
+      const ticketId = `tkt_${Date.now().toString().slice(-6)}`;
+      const senderName = message.from?.first_name || message.from?.username || 'Creator';
+      const senderUsername = message.from?.username ? `@${message.from.username}` : `ID: ${chatId}`;
+
+      try {
+        await adminDb.collection('support_tickets').doc(ticketId).set({
+          id: ticketId,
+          chatId: String(chatId),
+          senderName,
+          senderUsername,
+          telegramUserId: message.from?.id || null,
+          query: userQuery,
+          commandUsed: command,
+          status: 'open',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+
+        // Forward to Admin Telegram Group
+        const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || process.env.TELEGRAM_PAYMENTS_CHAT_ID;
+        if (adminChatId) {
+          const ticketAlert = [
+            `🚨 <b>NEW SUPPORT TICKET (#${ticketId})</b>`,
+            ``,
+            `👤 <b>From:</b> ${senderName} (${senderUsername})`,
+            `💬 <b>Concern / Query:</b>`,
+            `<i>${userQuery}</i>`,
+            ``,
+            `⏰ <b>Received:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`,
+          ].join('\n');
+          await sendTelegramMessage(adminChatId, ticketAlert);
+        }
+      } catch (ticketErr) {
+        console.error('[telegram/webhook] failed to save ticket:', ticketErr);
+      }
+
+      const ticketResponse = `
+🎫 <b>Support Ticket Registered (#${ticketId})</b>
+
+Thank you <b>${senderName}</b>! Your concern has been recorded and dispatched to our support team.
+
+📝 <b>Query Noted:</b> <i>"${userQuery}"</i>
+⚡ <b>Status:</b> 🟡 Active / Under Review
+
+💡 <i>Need immediate assistance with payment or account login? Send your <b>Gmail address</b> or <b>Payment Screenshot</b> directly in this chat for instant automated resolution!</i>
+      `.trim();
+      await sendTelegramMessage(chatId, ticketResponse, messageId);
+    }
+
+    // ─── 6. Handle /status command ──────────────────────────────────────────
     else if (command === 'status') {
       const statusMessage = `
 ⚡ <b>Digicast Status:</b>

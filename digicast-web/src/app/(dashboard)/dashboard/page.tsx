@@ -221,7 +221,7 @@ function DashboardContent() {
   return (
     <div className="max-w-4xl space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             {firstName ? `Hey, ${firstName}` : 'Dashboard'}
@@ -230,20 +230,20 @@ function DashboardContent() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsUpiModalOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border transition shadow-sm bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20"
+            className="flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl border transition shadow-sm bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20"
             title="Upgrade or Renew Plan with UPI QR"
           >
-            <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{subscription?.plan === 'pro' && !subscription?.isExpired ? 'Pro Active (UPI)' : 'Plans & UPI (₹149 - ₹999)'}</span>
+            <QrCode className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>{subscription?.plan === 'pro' && !subscription?.isExpired ? 'Pro Active' : 'Plans & UPI (₹149+)'}</span>
           </button>
 
           <button
             onClick={handleSyncStreams}
             disabled={isSyncing}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border bg-white/10 border-white/15 hover:bg-white/20 transition shadow-sm disabled:opacity-50 text-white"
+            className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl border bg-white/10 border-white/15 hover:bg-white/20 transition shadow-sm disabled:opacity-50 text-white"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-red-400' : ''}`} />
             {isSyncing ? 'Syncing...' : 'Sync YouTube'}
@@ -261,19 +261,21 @@ function DashboardContent() {
       {/* Live banner */}
       {liveStream && (
         <div
-          className="flex items-center gap-4 px-5 py-4 rounded-2xl shadow-lg bg-red-500/10 border border-red-500/30 backdrop-blur-xl"
+          className="flex flex-col sm:flex-row sm:items-center gap-4 px-5 py-4 rounded-2xl shadow-lg bg-red-500/10 border border-red-500/30 backdrop-blur-xl"
         >
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-red-400 uppercase tracking-wide">Live now on YouTube</p>
-            <p className="text-sm font-semibold text-white truncate">{liveStream.title}</p>
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-red-400 uppercase tracking-wide">Live now on YouTube</p>
+              <p className="text-sm font-semibold text-white truncate">{liveStream.title}</p>
+            </div>
           </div>
           <a
             href={`/streams/${liveStream.id}`}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-white/10 border border-white/15 text-white hover:bg-white/20 transition shrink-0"
+            className="flex items-center justify-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-white/10 border border-white/15 text-white hover:bg-white/20 transition shrink-0"
           >
             Monitor Live <ArrowRight className="w-3.5 h-3.5" />
           </a>
@@ -281,7 +283,7 @@ function DashboardContent() {
       )}
 
       {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard label={`Streams — ${monthLabel}`} value={streamsThisMonth} icon={Radio} />
         <StatCard label={`Clips Recorded`} value={clipsThisMonth} icon={Scissors} live={clipsThisMonth > 0} />
         <StatCard label="Telegram Uploads" value={telegramUploads} icon={Send} />
@@ -290,7 +292,7 @@ function DashboardContent() {
       {/* Recent streams */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white tracking-tight">Recent Streams & Broadcasts</h2>
+          <h2 className="text-lg font-bold text-white tracking-tight">Recent Streams &amp; Broadcasts</h2>
           {recentStreams.length > 0 && (
             <a href="/streams" className="text-xs font-medium text-slate-400 hover:text-white transition">
               View all
@@ -307,17 +309,17 @@ function DashboardContent() {
             {recentStreams.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.04] transition"
+                className="flex items-center justify-between px-4 py-3.5 sm:px-5 sm:py-4 hover:bg-white/[0.04] transition gap-3"
               >
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
                   {s.thumbnailUrl ? (
                     <img
                       src={s.thumbnailUrl}
                       alt={s.title}
-                      className="w-14 h-9 rounded-lg object-cover shrink-0 border border-white/10"
+                      className="w-12 h-8 sm:w-14 sm:h-9 rounded-lg object-cover shrink-0 border border-white/10"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
                       <Radio className="w-4 h-4 text-slate-400" />
                     </div>
                   )}
@@ -328,18 +330,18 @@ function DashboardContent() {
                           LIVE
                         </span>
                       )}
-                      <p className="text-sm font-semibold truncate text-white">
+                      <p className="text-xs sm:text-sm font-semibold truncate text-white">
                         {s.title || (s.startedAt ? formatDate(s.startedAt) : 'Untitled stream')}
                       </p>
                     </div>
-                    <p className="text-xs mt-0.5 text-slate-400">
+                    <p className="text-[11px] sm:text-xs mt-0.5 text-slate-400 truncate">
                       {s.startedAt ? formatDate(s.startedAt) : '—'}
                       {s.startedAt && ` · ${formatDuration(s.startedAt, s.endedAt)}`}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-6 shrink-0">
-                  <div className="text-right">
+                <div className="flex items-center gap-3 sm:gap-6 shrink-0">
+                  <div className="text-right hidden sm:block">
                     <p className="text-sm font-bold text-white">{s.clipCount ?? 0}</p>
                     <p className="text-xs text-slate-400">clips</p>
                   </div>

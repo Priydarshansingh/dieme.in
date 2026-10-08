@@ -151,7 +151,7 @@ function StreamsContent() {
 
   return (
     <div className="max-w-4xl space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Streams</h1>
           <p className="text-sm mt-1 text-slate-400">
@@ -161,7 +161,7 @@ function StreamsContent() {
         <button
           onClick={handleSyncStreams}
           disabled={isSyncing}
-          className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border bg-white/10 border-white/15 hover:bg-white/20 transition shadow-sm disabled:opacity-50 text-white"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 text-xs font-semibold rounded-xl border bg-white/10 border-white/15 hover:bg-white/20 transition shadow-sm disabled:opacity-50 text-white w-full sm:w-auto"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-red-400' : ''}`} />
           {isSyncing ? 'Syncing...' : 'Sync YouTube'}
@@ -188,18 +188,18 @@ function StreamsContent() {
               <a
                 key={s.id}
                 href={`/streams/${s.id}`}
-                className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.04] transition group"
+                className="flex items-center gap-3 sm:gap-4 px-3.5 sm:px-5 py-3 sm:py-4 hover:bg-white/[0.04] active:bg-white/[0.08] transition group"
               >
                 {/* Thumbnail / Icon */}
                 {s.thumbnailUrl ? (
                   <img
                     src={s.thumbnailUrl}
                     alt={s.title}
-                    className="w-16 h-10 rounded-lg object-cover shrink-0 border border-white/10"
+                    className="w-14 h-9 sm:w-16 sm:h-10 rounded-lg object-cover shrink-0 border border-white/10"
                   />
                 ) : (
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-white/10"
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-white/10"
                   >
                     {isLive ? (
                       <span className="relative flex h-2.5 w-2.5">
@@ -216,15 +216,15 @@ function StreamsContent() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     {isLive && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white uppercase shadow-sm">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold bg-red-500 text-white uppercase shadow-sm">
                         LIVE
                       </span>
                     )}
-                    <p className="text-sm font-semibold truncate text-white">
+                    <p className="text-xs sm:text-sm font-semibold truncate text-white">
                       {s.title || (s.startedAt ? formatDate(s.startedAt) : 'Untitled stream')}
                     </p>
                   </div>
-                  <p className="text-xs mt-0.5 text-slate-400">
+                  <p className="text-[11px] sm:text-xs mt-0.5 text-slate-400 truncate">
                     {s.startedAt ? formatDate(s.startedAt) : '—'}
                     {s.startedAt && ` · ${formatDuration(s.startedAt, s.endedAt)}`}
                   </p>
@@ -232,21 +232,21 @@ function StreamsContent() {
 
                 {/* Status badge */}
                 <span
-                  className="text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0 border"
+                  className="text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg shrink-0 border"
                   style={{ color: cfg.color, backgroundColor: cfg.bg, borderColor: cfg.border }}
                 >
                   {cfg.label}
                 </span>
 
                 {/* Clips count */}
-                <div className="text-right shrink-0 w-12">
-                  <p className="text-sm font-bold text-white">{s.clipCount ?? 0}</p>
-                  <p className="text-xs text-slate-400">
-                    <Scissors className="inline w-3 h-3 mr-0.5" />clips
+                <div className="text-right shrink-0 min-w-[32px] sm:w-12">
+                  <p className="text-xs sm:text-sm font-bold text-white">{s.clipCount ?? 0}</p>
+                  <p className="text-[10px] sm:text-xs text-slate-400">
+                    <Scissors className="inline w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5" /><span className="hidden sm:inline">clips</span>
                   </p>
                 </div>
 
-                <ArrowRight className="w-4 h-4 shrink-0 text-slate-500 opacity-0 group-hover:opacity-100 group-hover:text-white transition" />
+                <ArrowRight className="w-4 h-4 shrink-0 text-slate-500 opacity-0 group-hover:opacity-100 group-hover:text-white transition hidden sm:block" />
               </a>
             );
           })}

@@ -7,7 +7,8 @@ import {
   Radio, Scissors, Users, Award, Laptop,
   Activity, Check, ExternalLink, ChevronDown,
   Smartphone, ArrowRight, Play, MessageSquare,
-  HelpCircle, Cpu, Terminal, Copy, CheckCheck, Flame, ShieldCheck, Youtube, Send
+  HelpCircle, Cpu, Terminal, Copy, CheckCheck, Flame, ShieldCheck, Youtube, Send,
+  Menu, X
 } from 'lucide-react';
 import { PRICING_PLANS } from '@/lib/pricingPlans';
 import { DigicastSidebarLogo, DigicastBrandLogo } from '@/components/brand/DigicastLogo';
@@ -49,6 +50,7 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
   const [playbackSeconds, setPlaybackSeconds] = useState(9102); // 02:31:42
   const [hasCopiedMarkers, setHasCopiedMarkers] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -264,14 +266,86 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
             <Link href="#workflow" className="hover:text-white transition flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-300" /> Team Access</Link>
             <Link href="#passes" className="hover:text-white transition flex items-center gap-1.5"><Award className="w-3.5 h-3.5 text-[#22C55E]" /> Passes</Link>
           </nav>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link href="/login" className="hidden sm:block text-[11px] font-bold text-[#8B93A7] hover:text-white uppercase tracking-wider transition">Sign In</Link>
-            <Link href="/login" className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#22D3EE] text-[#070910] text-[11px] font-extrabold uppercase tracking-wider hover:bg-[#38bdf8] transition-all focus:ring-2 focus:ring-[#22D3EE] focus:ring-offset-2 focus:ring-offset-[#070910]">
+            <Link href="/login" className="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#22D3EE] text-[#070910] text-[11px] font-extrabold uppercase tracking-wider hover:bg-[#38bdf8] transition-all focus:ring-2 focus:ring-[#22D3EE] focus:ring-offset-2 focus:ring-offset-[#070910]">
               <Terminal className="w-3.5 h-3.5" />
               Launch Studio
             </Link>
+            {/* Mobile Hamburger Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-xl bg-white/[0.05] border border-white/10 text-slate-300 hover:text-white transition active:scale-95"
+              aria-label="Toggle mobile menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5 text-cyan-400" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Collapsible Mobile Navigation Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-[#090C13]/95 backdrop-blur-2xl border-b border-white/10 px-6 py-6 space-y-4 animate-fade-in shadow-2xl">
+            <Link
+              onClick={() => setMobileMenuOpen(false)}
+              href="#console"
+              className="flex items-center gap-3 text-sm font-bold text-white hover:text-cyan-400 transition py-1.5"
+            >
+              <Radio className="w-4 h-4 text-[#F43F5E]" /> Live HUD
+            </Link>
+            <Link
+              onClick={() => setMobileMenuOpen(false)}
+              href="#intelligence"
+              className="flex items-center gap-3 text-sm font-bold text-white hover:text-cyan-400 transition py-1.5"
+            >
+              <Cpu className="w-4 h-4 text-[#22D3EE]" /> Intelligence Engine
+            </Link>
+            <Link
+              onClick={() => setMobileMenuOpen(false)}
+              href="#community-pipeline"
+              className="flex items-center gap-3 text-sm font-bold text-white hover:text-cyan-400 transition py-1.5"
+            >
+              <Send className="w-4 h-4 text-[#22D3EE]" /> Mod &amp; !clip Pipeline
+            </Link>
+            <Link
+              onClick={() => setMobileMenuOpen(false)}
+              href="#workflow"
+              className="flex items-center gap-3 text-sm font-bold text-white hover:text-cyan-400 transition py-1.5"
+            >
+              <Users className="w-4 h-4 text-slate-300" /> Team Access
+            </Link>
+            <Link
+              onClick={() => setMobileMenuOpen(false)}
+              href="#passes"
+              className="flex items-center gap-3 text-sm font-bold text-white hover:text-cyan-400 transition py-1.5"
+            >
+              <Award className="w-4 h-4 text-[#22C55E]" /> Passes &amp; Pricing
+            </Link>
+            <Link
+              onClick={() => setMobileMenuOpen(false)}
+              href="#faq"
+              className="flex items-center gap-3 text-sm font-bold text-white hover:text-cyan-400 transition py-1.5"
+            >
+              <HelpCircle className="w-4 h-4 text-slate-400" /> FAQ
+            </Link>
+            <div className="pt-4 border-t border-white/10 grid grid-cols-2 gap-3">
+              <Link
+                onClick={() => setMobileMenuOpen(false)}
+                href="/login"
+                className="py-3 text-center rounded-xl font-bold text-xs uppercase tracking-wider bg-white/10 text-white border border-white/15"
+              >
+                Sign In
+              </Link>
+              <Link
+                onClick={() => setMobileMenuOpen(false)}
+                href="/login"
+                className="py-3 text-center rounded-xl font-extrabold text-xs uppercase tracking-wider bg-cyan-400 text-slate-950"
+              >
+                Launch Studio
+              </Link>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* ── MAIN HERO: COMMAND CENTER ───────────────────────────────────── */}

@@ -33,3 +33,5 @@ client_secret*.json
 google-services.json
 GoogleService-Info.plist
 *.pem
+typeui-extracted/
+typeui-main.zip

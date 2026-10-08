@@ -118,31 +118,33 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
   return (
     <div className="max-w-7xl space-y-6">
       {/* Back + header */}
-      <div className="flex items-start gap-4">
-        <Link
-          href="/streams"
-          className="mt-1 flex items-center gap-1 text-sm text-slate-400 hover:text-white transition shrink-0"
-        >
-          <ChevronLeft className="w-4 h-4" /> Back
-        </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight truncate">
-              {stream.title || 'Untitled stream'}
-            </h1>
-            <span
-              className="text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0 border"
-              style={{ color: statusCfg.color, backgroundColor: statusCfg.bg, borderColor: statusCfg.border }}
-            >
-              {statusCfg.label}
-            </span>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <Link
+            href="/streams"
+            className="mt-1 flex items-center gap-1 text-xs sm:text-sm text-slate-400 hover:text-white transition shrink-0 p-1.5 rounded-lg bg-white/5 sm:bg-transparent"
+          >
+            <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Back</span>
+          </Link>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight truncate">
+                {stream.title || 'Untitled stream'}
+              </h1>
+              <span
+                className="text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg shrink-0 border"
+                style={{ color: statusCfg.color, backgroundColor: statusCfg.bg, borderColor: statusCfg.border }}
+              >
+                {statusCfg.label}
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm mt-1 text-slate-400">
+              {stream.startedAt?.toDate().toLocaleDateString('en-US', { dateStyle: 'long' })}
+              {stream.durationSeconds && ` · ${formatDuration(stream.durationSeconds)}`}
+            </p>
           </div>
-          <p className="text-sm mt-1 text-slate-400">
-            {stream.startedAt?.toDate().toLocaleDateString('en-US', { dateStyle: 'long' })}
-            {stream.durationSeconds && ` · ${formatDuration(stream.durationSeconds)}`}
-          </p>
         </div>
-        <div className="flex gap-5 shrink-0 text-right">
+        <div className="flex items-center gap-4 sm:gap-5 shrink-0 self-end sm:self-auto text-right">
           {stream.messageCount != null && (
             <div>
               <p className="text-sm font-bold text-white">{stream.messageCount.toLocaleString()}</p>
@@ -236,35 +238,35 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
         ) : (
           <div className="divide-y divide-white/[0.06]">
             {markers.map((m) => (
-              <div key={m.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.03] transition">
+              <div key={m.id} className="flex items-center gap-2.5 sm:gap-4 px-3.5 sm:px-5 py-3 sm:py-3.5 hover:bg-white/[0.03] transition">
                 <span
-                  className="font-mono text-xs w-16 shrink-0 font-semibold text-cyan-300"
+                  className="font-mono text-xs w-14 sm:w-16 shrink-0 font-semibold text-cyan-300"
                 >
                   {m.markerTimestampDisplay}
                 </span>
                 <div className="flex-1 min-w-0">
                   {m.aiTopic ? (
-                    <p className="text-sm font-medium truncate text-white">{m.aiTopic}</p>
+                    <p className="text-xs sm:text-sm font-medium truncate text-white">{m.aiTopic}</p>
                   ) : (
-                    <p className="text-sm text-slate-400">No topic</p>
+                    <p className="text-xs sm:text-sm text-slate-400">No topic</p>
                   )}
-                  <p className="text-xs font-mono text-slate-500">{m.id}</p>
+                  <p className="text-[10px] sm:text-xs font-mono text-slate-500 truncate">{m.id}</p>
                 </div>
                 {m.aiEngagementScore != null && (
-                  <div className="shrink-0 text-right">
+                  <div className="shrink-0 text-right hidden sm:block">
                     <p className="text-sm font-bold text-white">{m.aiEngagementScore}</p>
                     <p className="text-xs text-slate-400">score</p>
                   </div>
                 )}
                 {m.telegramSent ? (
                   <span
-                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0 border border-blue-500/30 text-blue-300 bg-blue-500/15"
+                    className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold px-2 sm:px-2.5 py-1 rounded-lg shrink-0 border border-blue-500/30 text-blue-300 bg-blue-500/15"
                   >
                     <Send className="w-3 h-3 text-cyan-400" /> Sent
                   </span>
                 ) : (
                   <button
-                    className="text-xs font-semibold px-3 py-1.5 rounded-xl transition hover:opacity-90 shrink-0 bg-white/10 hover:bg-white/20 text-white border border-white/15"
+                    className="text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition hover:opacity-90 shrink-0 bg-white/10 hover:bg-white/20 text-white border border-white/15"
                   >
                     Generate
                   </button>

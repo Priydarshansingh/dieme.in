@@ -112,14 +112,14 @@ export default function ClipsPage() {
       </div>
 
       {/* Filter pills */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none">
         {FILTERS.map((f) => {
           const isActive = activeFilter === f.key;
           return (
             <button
               key={f.key}
               onClick={() => setActiveFilter(f.key)}
-              className={`text-xs font-semibold px-4 py-2 rounded-xl transition duration-150 ${
+              className={`text-xs font-semibold px-4 py-2 rounded-xl transition duration-150 shrink-0 whitespace-nowrap ${
                 isActive
                   ? 'bg-white/15 text-white border border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.06)]'
                   : 'bg-white/[0.04] text-slate-400 border border-white/10 hover:bg-white/[0.08] hover:text-white'
@@ -140,7 +140,7 @@ export default function ClipsPage() {
           {filtered.map((clip) => {
             const dlCfg = DL_STATUS_CONFIG[clip.downloadStatus ?? 'not_started'];
             return (
-              <div key={clip.id} className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.04] transition">
+              <div key={clip.id} className="flex items-center gap-3 sm:gap-4 px-4 py-3.5 sm:px-5 sm:py-4 hover:bg-white/[0.04] transition">
                 {/* Icon */}
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-white/10"

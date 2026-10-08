@@ -65,36 +65,36 @@ export default function EditorPage() {
         <h2 className="text-base font-bold text-white">Pending Clips</h2>
         <div className="glass-card rounded-2xl overflow-hidden divide-y divide-white/[0.06] shadow-xl">
           {mockAssignedClips.map((clip) => (
-            <div key={clip.id} className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.03] transition">
-              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+            <div key={clip.id} className="flex items-center gap-3 sm:gap-4 px-3.5 sm:px-5 py-3.5 sm:py-4 hover:bg-white/[0.03] transition">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
                 <Scissors className="w-4 h-4 text-cyan-400" />
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono font-medium text-white">{clip.id}</span>
-                  <span className="text-xs text-slate-400">{clip.timestamp}</span>
+                  <span className="text-xs sm:text-sm font-mono font-medium text-white">{clip.id}</span>
+                  <span className="text-[11px] sm:text-xs text-slate-400">{clip.timestamp}</span>
                 </div>
-                <p className="text-xs text-slate-300 mt-0.5">{clip.topic}</p>
-                <p className="text-xs text-slate-400">{clip.streamTitle}</p>
+                <p className="text-xs text-slate-300 mt-0.5 truncate">{clip.topic}</p>
+                <p className="text-[11px] sm:text-xs text-slate-400 truncate">{clip.streamTitle}</p>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 {clip.downloadStatus === 'completed' ? (
-                  <span className="text-xs px-2.5 py-1 rounded-lg font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <span className="text-[11px] sm:text-xs px-2.5 py-1 rounded-lg font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                     Downloaded
                   </span>
                 ) : (
-                  <button className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/20 text-white transition">
+                  <button className="flex items-center gap-1.5 text-[11px] sm:text-xs px-3 sm:px-3.5 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/20 text-white transition">
                     <Download className="w-3.5 h-3.5 text-cyan-400" />
-                    Generate
+                    <span className="hidden sm:inline">Generate</span>
                   </button>
                 )}
 
                 {clip.canSendTelegram && clip.downloadStatus === 'completed' && (
-                  <button className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-500 transition shadow-sm">
+                  <button className="flex items-center gap-1.5 text-[11px] sm:text-xs px-3 sm:px-3.5 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-500 transition shadow-sm">
                     <Send className="w-3.5 h-3.5" />
-                    Send
+                    <span className="hidden sm:inline">Send</span>
                   </button>
                 )}
               </div>

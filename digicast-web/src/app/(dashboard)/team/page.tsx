@@ -411,14 +411,14 @@ export default function TeamPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             <p className="text-xs text-slate-400">
               Your login ID is your email: <code className="font-semibold text-cyan-300 font-mono">{user?.email}</code>
             </p>
             <button
               onClick={handleSetOwnerPassword}
               disabled={isSavingOwnerPassword || !ownerPassword || Boolean(subscription?.isExpired)}
-              className="px-5 py-2.5 text-sm font-semibold rounded-xl transition disabled:opacity-50 hover:opacity-90 shadow-sm bg-purple-600 hover:bg-purple-500 text-white"
+              className="px-5 py-2.5 text-sm font-semibold rounded-xl transition disabled:opacity-50 hover:opacity-90 shadow-sm bg-purple-600 hover:bg-purple-500 text-white shrink-0"
             >
               {isSavingOwnerPassword ? 'Saving...' : 'Save App Password'}
             </button>

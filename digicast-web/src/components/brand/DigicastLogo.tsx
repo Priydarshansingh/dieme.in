@@ -8,29 +8,39 @@ interface DigicastLogoProps {
   className?: string;
 }
 
-// Sidebar — dark navy background
-// Mark shows white bolt directly (transparent bg). Text inverted to white.
-export function DigicastSidebarLogo({ className = '' }: DigicastLogoProps) {
+export function DigicastBrandLogo({ className = '', size = 'md' }: { className?: string; size?: 'sm' | 'md' | 'lg' }) {
+  const dims = {
+    sm: { mark: 26, textW: 96, textH: 26 },
+    md: { mark: 34, textW: 110, textH: 30 },
+    lg: { mark: 42, textW: 135, textH: 36 },
+  }[size];
+
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center gap-2.5 ${className}`}>
       <Image
         src="/logo-mark.png"
-        alt=""
-        width={36}
-        height={36}
-        className="object-contain"
+        alt="Digicast Logo"
+        width={dims.mark}
+        height={dims.mark}
+        className="object-contain shrink-0"
         priority
       />
       <Image
         src="/logo-text.png"
         alt="Digicast"
-        width={110}
-        height={30}
+        width={dims.textW}
+        height={dims.textH}
         className="object-contain brightness-0 invert"
         priority
       />
     </div>
   );
+}
+
+// Sidebar — dark navy background
+// Mark shows white bolt directly (transparent bg). Text inverted to white.
+export function DigicastSidebarLogo({ className = '' }: DigicastLogoProps) {
+  return <DigicastBrandLogo className={className} size="md" />;
 }
 
 // Light background (login right panel, onboarding, etc.)

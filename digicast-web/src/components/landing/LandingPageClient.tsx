@@ -10,7 +10,7 @@ import {
   HelpCircle, Cpu, Terminal, Copy, CheckCheck, Flame, ShieldCheck, Youtube, Send
 } from 'lucide-react';
 import { PRICING_PLANS } from '@/lib/pricingPlans';
-import { DigicastSidebarLogo } from '@/components/brand/DigicastLogo';
+import { DigicastSidebarLogo, DigicastBrandLogo } from '@/components/brand/DigicastLogo';
 
 // --- Premium Reusable Sub-Components ---
 const SectionHeader = ({ label, title, subtitle }: { label: string; title: string; subtitle: string }) => (
@@ -914,10 +914,9 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
       <footer className="border-t border-[#151925] py-16 px-6 bg-[#0B0D14]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
            <div className="flex items-center gap-4">
-              <Image src="/logo-mark.png" alt="Digicast Logo" width={24} height={24} className="opacity-90" />
+              <DigicastBrandLogo size="sm" />
               <div className="flex flex-col">
-                <span className="text-xs font-extrabold text-white tracking-widest uppercase">Digicast Technologies</span>
-                <span className="text-[10px] font-mono text-[#8B93A7] mt-0.5">© 2026 Systems Operational</span>
+                <span className="text-[10px] font-mono text-[#8B93A7]">© 2026 Systems Operational</span>
               </div>
            </div>
            <div className="flex flex-wrap items-center justify-center gap-8 text-[11px] font-bold text-[#8B93A7] uppercase tracking-wider">

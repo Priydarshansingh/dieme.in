@@ -7,6 +7,8 @@ import {
   Mail, Sparkles, ChevronDown
 } from 'lucide-react';
 
+import { DigicastBrandLogo } from '@/components/brand/DigicastLogo';
+
 export const metadata: Metadata = {
   title: 'Contact Support & Helpdesk — Digicast',
   description:
@@ -38,25 +40,16 @@ export default function ContactPage() {
       {/* ── Top Navigation Bar ───────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 backdrop-blur-2xl bg-[#07080C]/80 border-b border-white/[0.08]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/logo-mark.png"
-              alt="Digicast Logo"
-              width={30}
-              height={30}
-              className="object-contain"
-              priority
-            />
-            <span className="font-extrabold text-xl tracking-tight text-white">
-              DIGICAST
-            </span>
+          <Link href="/" className="flex items-center">
+            <DigicastBrandLogo size="md" />
           </Link>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
-            <Link href="/#features" className="hover:text-white transition">Features</Link>
-            <Link href="/#pricing" className="hover:text-white transition">Pricing Passes</Link>
+          <nav className="hidden md:flex items-center gap-7 text-xs font-mono uppercase tracking-wider text-slate-400">
+            <Link href="/#console" className="hover:text-white transition">Live HUD</Link>
+            <Link href="/#community-pipeline" className="hover:text-white transition">Pipeline</Link>
+            <Link href="/#passes" className="hover:text-white transition">Passes</Link>
             <Link href="/#faq" className="hover:text-white transition">FAQ</Link>
-            <Link href="/contact" className="text-cyan-400 font-semibold">Contact & Bot</Link>
+            <Link href="/contact" className="text-cyan-400 font-bold">Support</Link>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -173,14 +166,7 @@ export default function ContactPage() {
       <footer className="py-12 border-t border-white/[0.08] bg-[#07080C] text-xs text-slate-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <Image
-              src="/logo-mark.png"
-              alt="Digicast"
-              width={22}
-              height={22}
-              className="object-contain"
-            />
-            <span className="font-bold text-white tracking-wider">DIGICAST</span>
+            <DigicastBrandLogo size="sm" />
             <span className="text-slate-700">|</span>
             <span className="text-slate-500 font-sans">© 2026 Digicast Technologies. All rights reserved.</span>
           </div>

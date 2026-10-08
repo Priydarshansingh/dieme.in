@@ -4,6 +4,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Digicast — Creator Live Intelligence Platform',
   description: 'Capture, clip, and deliver your YouTube livestream moments.',
+  icons: {
+    icon: '/logo-mark.png',
+    shortcut: '/logo-mark.png',
+    apple: '/logo-mark.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

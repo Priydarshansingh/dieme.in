@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Shield, FileText, ArrowLeft, ExternalLink } from 'lucide-react';
+import { DigicastBrandLogo } from '@/components/brand/DigicastLogo';
 
 export const metadata: Metadata = {
   title: 'Terms of Service — Digicast',
@@ -14,15 +15,8 @@ export default function TermsPage() {
       {/* Navigation */}
       <header className="sticky top-0 z-50 backdrop-blur-2xl bg-[#07080C]/80 border-b border-white/[0.08]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/logo-mark.png"
-              alt="Digicast Logo"
-              width={28}
-              height={28}
-              className="object-contain"
-            />
-            <span className="font-extrabold text-lg text-white">DIGICAST</span>
+          <Link href="/" className="flex items-center">
+            <DigicastBrandLogo size="md" />
           </Link>
           <Link
             href="/"
@@ -106,8 +100,20 @@ export default function TermsPage() {
       </main>
 
       {/* Footer */}
-      <footer className="py-10 border-t border-white/[0.08] bg-[#07080C] text-xs text-slate-500 font-mono text-center">
-        <p>© 2026 Digicast Technologies. All rights reserved.</p>
+      <footer className="py-10 border-t border-white/[0.08] bg-[#07080C] text-xs text-slate-500 font-mono">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <DigicastBrandLogo size="sm" />
+            <span className="text-slate-700">|</span>
+            <span>© 2026 Digicast Technologies. All rights reserved.</span>
+          </div>
+          <div className="flex items-center gap-4 text-slate-400">
+            <Link href="/terms" className="hover:text-white transition">Terms</Link>
+            <Link href="/privacy" className="hover:text-white transition">Privacy</Link>
+            <Link href="/refund" className="hover:text-white transition">Refund</Link>
+            <Link href="/contact" className="hover:text-white transition">Support</Link>
+          </div>
+        </div>
       </footer>
     </div>
   );

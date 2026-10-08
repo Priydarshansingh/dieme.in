@@ -7,7 +7,7 @@ import {
   Radio, Scissors, Users, Award, Laptop,
   Activity, Check, ExternalLink, ChevronDown,
   Smartphone, ArrowRight, Play, MessageSquare,
-  HelpCircle, Cpu, Terminal, Copy, CheckCheck, Flame, ShieldCheck, Youtube
+  HelpCircle, Cpu, Terminal, Copy, CheckCheck, Flame, ShieldCheck, Youtube, Send
 } from 'lucide-react';
 import { PRICING_PLANS } from '@/lib/pricingPlans';
 import { DigicastSidebarLogo } from '@/components/brand/DigicastLogo';
@@ -257,9 +257,10 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
           <Link href="/" className="flex items-center gap-3">
              <DigicastSidebarLogo />
           </Link>
-          <nav className="hidden md:flex items-center gap-8 text-[11px] font-bold text-[#8B93A7] uppercase tracking-[0.1em]">
+          <nav className="hidden md:flex items-center gap-7 text-[11px] font-bold text-[#8B93A7] uppercase tracking-[0.1em]">
             <Link href="#console" className="hover:text-white transition flex items-center gap-1.5"><Radio className="w-3.5 h-3.5 text-[#F43F5E]" /> Live HUD</Link>
             <Link href="#intelligence" className="hover:text-white transition flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5 text-[#22D3EE]" /> Intelligence</Link>
+            <Link href="#community-pipeline" className="hover:text-white transition flex items-center gap-1.5"><Send className="w-3.5 h-3.5 text-[#22D3EE]" /> Mod &amp; !clip</Link>
             <Link href="#workflow" className="hover:text-white transition flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-300" /> Team Access</Link>
             <Link href="#passes" className="hover:text-white transition flex items-center gap-1.5"><Award className="w-3.5 h-3.5 text-[#22C55E]" /> Passes</Link>
           </nav>
@@ -703,6 +704,127 @@ export default function LandingPageClient({ faqs }: LandingPageClientProps) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── REAL COMMUNITY & MOD CLIPPING PIPELINE ────────────────────── */}
+      <section id="community-pipeline" className="py-28 border-b border-[#252A38] bg-[#070910] relative">
+        <div className="max-w-7xl mx-auto px-6">
+          <SectionHeader
+            label="Real-World Execution Architecture"
+            title="Community Triggers. 45-Second Lookback."
+            subtitle="How Digicast actually captures your stream's greatest moments: zero cloud lag, no heavy GPU costs, and zero YouTube quota burn."
+          />
+
+          {/* 4-Step Interactive Pipeline Flow */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-16 max-w-6xl mx-auto">
+            <div className="p-6 rounded-2xl bg-[#10131C] border border-[#252A38] hover:border-[#22D3EE]/40 transition group shadow-xl">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center font-bold text-sm mb-4">
+                01
+              </div>
+              <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-1 font-bold">Step 1 · In-Chat</p>
+              <h4 className="text-base font-bold text-white mb-2">Viewers &amp; Mods Type !clip</h4>
+              <p className="text-xs text-[#8B93A7] leading-relaxed">
+                Whenever something insane happens, viewers or moderators drop <code className="text-cyan-300 font-mono bg-white/5 px-1 py-0.5 rounded">!clip clutch shot</code> in live YouTube chat.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-[#10131C] border border-[#252A38] hover:border-[#22D3EE]/40 transition group shadow-xl">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-sm mb-4">
+                02
+              </div>
+              <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-1 font-bold">Step 2 · Zero Quota</p>
+              <h4 className="text-base font-bold text-white mb-2">Nightbot Webhook Ingest</h4>
+              <p className="text-xs text-[#8B93A7] leading-relaxed">
+                Nightbot calls our lightweight serverless endpoint via <code className="text-cyan-300 font-mono bg-white/5 px-1 py-0.5 rounded">$(urlfetch)</code> with zero YouTube API quota cost.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-[#10131C] border border-[#252A38] hover:border-[#22D3EE]/40 transition group shadow-xl">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm mb-4">
+                03
+              </div>
+              <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-1 font-bold">Step 3 · Smart Buffer</p>
+              <h4 className="text-base font-bold text-white mb-2">45s Lookback Engine</h4>
+              <p className="text-xs text-[#8B93A7] leading-relaxed">
+                Highlights are called <em>after</em> they happen. Digicast automatically winds back 45 seconds so you capture the full play and buildup.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-[#10131C] border border-[#252A38] hover:border-[#22D3EE]/40 transition group shadow-xl">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm mb-4">
+                04
+              </div>
+              <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-1 font-bold">Step 4 · Real-Time</p>
+              <h4 className="text-base font-bold text-white mb-2">Telegram &amp; Editor Sync</h4>
+              <p className="text-xs text-[#8B93A7] leading-relaxed">
+                Instant alert pinged to Telegram with a direct YouTube replay jump link (<code className="text-cyan-300 font-mono bg-white/5 px-1 py-0.5 rounded">?t=...</code>) and real-time dashboard sync.
+              </p>
+            </div>
+          </div>
+
+          {/* Interactive Live Comparison / Command Showcase */}
+          <div className="max-w-5xl mx-auto rounded-3xl bg-[#10131C] border border-[#252A38] p-8 sm:p-10 shadow-2xl relative overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+              <div>
+                <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold tracking-widest uppercase bg-cyan-400/10 text-cyan-400 border border-cyan-400/20 mb-4 inline-block">
+                  ONE-COMMAND SETUP
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-extrabold text-white mb-4 tracking-tight">
+                  Connect Nightbot in 10 Seconds.
+                </h3>
+                <p className="text-sm text-[#8B93A7] leading-relaxed mb-6">
+                  Paste this exact command into your YouTube live chat or Nightbot dashboard. Your community and moderators immediately gain highlight powers:
+                </p>
+                <div className="p-4 rounded-xl bg-[#0B0D14] border border-[#252A38] font-mono text-xs text-cyan-300 select-all mb-4 break-all">
+                  !addcom !clip $(urlfetch https://studio.digicast.app/api/webhooks/nightbot?workspaceId=YOUR_ID&amp;user=$(user)&amp;query=$(querystring))
+                </div>
+                <div className="flex flex-wrap gap-4 text-xs text-slate-300 font-medium">
+                  <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-400" /> Zero YouTube quota burn</span>
+                  <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-400" /> Runs on free Vercel serverless</span>
+                  <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-400" /> Instant Telegram dispatch</span>
+                </div>
+              </div>
+
+              {/* Mock Telegram Alert Message */}
+              <div className="rounded-2xl bg-[#0B0D14] border border-[#252A38] p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-[#229ED9] text-white flex items-center justify-center font-bold text-xs">
+                      ✈️
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">Digicast Highlight Bot</p>
+                      <p className="text-[10px] text-slate-400">@digicast_bot • Just now</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                    INSTANT PUSH
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-200 space-y-1.5 font-mono leading-relaxed bg-white/[0.02] p-4 rounded-xl border border-white/5">
+                  <p className="text-white font-bold">🎬 New Clip Marker Recorded!</p>
+                  <p className="text-slate-400">🔴 Stream: Gaming Championship Finals</p>
+                  <p className="text-slate-400">👤 Clipped by: <span className="text-cyan-300 font-bold">@ApexMod</span></p>
+                  <p className="text-slate-400">📝 Note: &quot;Insane 1v3 Clutch Round&quot;</p>
+                  <p className="text-slate-400">⏱️ Trigger Time: <span className="text-white font-bold">01:42:18</span></p>
+                  <p className="text-slate-400">⏪ Clip Window: <span className="text-emerald-400 font-bold">01:41:33 - 01:42:18 (45s lookback)</span></p>
+                  <div className="pt-2">
+                    <span className="text-cyan-400 font-bold underline cursor-pointer">
+                      🔗 Replay Jump: Watch Lookback (-45s) on YouTube →
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-[11px] text-slate-400">
+                    Editors tap the link to watch the exact 45s without downloading 6 hours of raw stream.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

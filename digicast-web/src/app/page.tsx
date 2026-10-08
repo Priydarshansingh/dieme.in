@@ -52,6 +52,14 @@ const faqs = [
     a: 'Digicast provides flexible duration passes tailored for every creator: the ₹29 First Month VIP Pass (30 days), the ₹149 1 Month Unlimited Pass, the ₹499 3 Month Quarter Pass, and the ₹999 1 Year Annual Studio Pass.'
   },
   {
+    q: 'How do viewers and moderators trigger clips during a broadcast?',
+    a: 'Viewers and moderators simply type !clip [optional note] directly in your live YouTube chat. Through our zero-quota Nightbot or StreamElements webhook integration, Digicast registers the event and automatically computes a 45-second lookback buffer so the entire play and buildup are captured.'
+  },
+  {
+    q: 'How do video editors receive instant highlight alerts?',
+    a: 'Whenever a clip is marked, Digicast immediately pings your private Telegram channel or group via @digicast_bot. The alert includes the clipper name, note, exact timestamp, and a direct one-tap YouTube replay jump link (?t=...) so editors can review the moment in seconds.'
+  },
+  {
     q: 'How quickly does access activate after subscribing?',
     a: 'Instantly! When you activate or submit payment proof for any pass, you receive immediate 24-hour platform access while our verification process finalizes your full membership duration.'
   }

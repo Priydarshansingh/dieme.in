@@ -30,15 +30,15 @@ export default function EditorPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-bold">Editor Workspace</h1>
-        <p className="text-muted-foreground text-sm mt-1">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Editor Workspace</h1>
+        <p className="text-slate-400 text-sm mt-1">
           Clips assigned to you. Your access is limited to this workspace only.
         </p>
       </div>
 
       {/* Permissions summary */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold mb-3">Your Permissions</h2>
+      <div className="glass-card rounded-2xl p-5 sm:p-6 space-y-3">
+        <h2 className="text-sm font-semibold text-white">Your Permissions</h2>
         <div className="flex flex-wrap gap-2">
           {[
             { label: 'View Streams', granted: true, icon: Eye },
@@ -47,13 +47,13 @@ export default function EditorPage() {
           ].map(({ label, granted, icon: Icon }) => (
             <div
               key={label}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium ${
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-medium border ${
                 granted
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-muted text-muted-foreground line-through'
+                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                  : 'bg-white/5 text-slate-500 border-white/5 line-through'
               }`}
             >
-              <Icon className="w-3 h-3" />
+              <Icon className="w-3.5 h-3.5" />
               {label}
             </div>
           ))}
@@ -62,37 +62,37 @@ export default function EditorPage() {
 
       {/* Clip list */}
       <div className="space-y-3">
-        <h2 className="text-base font-semibold">Pending Clips</h2>
-        <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
+        <h2 className="text-base font-bold text-white">Pending Clips</h2>
+        <div className="glass-card rounded-2xl overflow-hidden divide-y divide-white/[0.06] shadow-xl">
           {mockAssignedClips.map((clip) => (
-            <div key={clip.id} className="flex items-center gap-4 px-5 py-4 bg-card">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <Scissors className="w-4 h-4 text-muted-foreground" />
+            <div key={clip.id} className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.03] transition">
+              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                <Scissors className="w-4 h-4 text-cyan-400" />
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono font-medium">{clip.id}</span>
-                  <span className="text-xs text-muted-foreground">{clip.timestamp}</span>
+                  <span className="text-sm font-mono font-medium text-white">{clip.id}</span>
+                  <span className="text-xs text-slate-400">{clip.timestamp}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">{clip.topic}</p>
-                <p className="text-xs text-muted-foreground">{clip.streamTitle}</p>
+                <p className="text-xs text-slate-300 mt-0.5">{clip.topic}</p>
+                <p className="text-xs text-slate-400">{clip.streamTitle}</p>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 {clip.downloadStatus === 'completed' ? (
-                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">
+                  <span className="text-xs px-2.5 py-1 rounded-lg font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                     Downloaded
                   </span>
                 ) : (
-                  <button className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted transition">
-                    <Download className="w-3.5 h-3.5" />
+                  <button className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/20 text-white transition">
+                    <Download className="w-3.5 h-3.5 text-cyan-400" />
                     Generate
                   </button>
                 )}
 
                 {clip.canSendTelegram && clip.downloadStatus === 'completed' && (
-                  <button className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+                  <button className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-500 transition shadow-sm">
                     <Send className="w-3.5 h-3.5" />
                     Send
                   </button>

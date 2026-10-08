@@ -33,12 +33,12 @@ interface ClipMarkerDoc {
   authorName?: string;
 }
 
-const STATUS_CONFIG: Record<StreamDoc['status'], { label: string; color: string; bg: string }> = {
-  live:           { label: 'Live',       color: '#EF4444', bg: 'rgba(239,68,68,0.08)' },
-  ended:          { label: 'Ended',      color: '#6B7280', bg: '#F4F6F9' },
-  vod_processing: { label: 'Processing', color: '#D97706', bg: 'rgba(217,119,6,0.08)' },
-  vod_ready:      { label: 'VOD Ready',  color: '#059669', bg: 'rgba(5,150,105,0.08)' },
-  archived:       { label: 'Archived',   color: '#9CA3AF', bg: '#F9FAFB' },
+const STATUS_CONFIG: Record<StreamDoc['status'], { label: string; color: string; bg: string; border: string }> = {
+  live:           { label: 'Live',       color: '#F87171', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)' },
+  ended:          { label: 'Ended',      color: '#94A3B8', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)' },
+  vod_processing: { label: 'Processing', color: '#FBBF24', bg: 'rgba(217,119,6,0.15)', border: 'rgba(217,119,6,0.3)' },
+  vod_ready:      { label: 'VOD Ready',  color: '#34D399', bg: 'rgba(5,150,105,0.15)', border: 'rgba(5,150,105,0.3)' },
+  archived:       { label: 'Archived',   color: '#64748B', bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.08)' },
 };
 
 function formatDuration(secs: number) {
@@ -89,22 +89,21 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1B2237', borderTopColor: 'transparent' }} />
+        <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!stream) {
     return (
-      <div className="max-w-4xl">
-        <Link href="/streams" className="flex items-center gap-1 text-sm mb-6 hover:underline" style={{ color: '#6B7280' }}>
+      <div className="max-w-4xl space-y-6">
+        <Link href="/streams" className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition">
           <ChevronLeft className="w-4 h-4" /> Back to Streams
         </Link>
         <div
-          className="rounded-2xl p-16 text-center border border-dashed"
-          style={{ borderColor: '#E5E7EB' }}
+          className="glass-card rounded-2xl p-16 text-center border border-dashed border-white/15"
         >
-          <p className="text-sm" style={{ color: '#9CA3AF' }}>Stream not found.</p>
+          <p className="text-sm text-slate-400">Stream not found.</p>
         </div>
       </div>
     );
@@ -122,22 +121,23 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
       <div className="flex items-start gap-4">
         <Link
           href="/streams"
-          className="mt-0.5 flex items-center gap-1 text-sm transition hover:opacity-70 shrink-0"
-          style={{ color: '#6B7280' }}
+          className="mt-1 flex items-center gap-1 text-sm text-slate-400 hover:text-white transition shrink-0"
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="truncate" style={{ color: '#1B2237' }}>{stream.title || 'Untitled stream'}</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight truncate">
+              {stream.title || 'Untitled stream'}
+            </h1>
             <span
-              className="text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0"
-              style={{ color: statusCfg.color, backgroundColor: statusCfg.bg }}
+              className="text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0 border"
+              style={{ color: statusCfg.color, backgroundColor: statusCfg.bg, borderColor: statusCfg.border }}
             >
               {statusCfg.label}
             </span>
           </div>
-          <p className="text-sm mt-0.5" style={{ color: '#9CA3AF' }}>
+          <p className="text-sm mt-1 text-slate-400">
             {stream.startedAt?.toDate().toLocaleDateString('en-US', { dateStyle: 'long' })}
             {stream.durationSeconds && ` · ${formatDuration(stream.durationSeconds)}`}
           </p>
@@ -145,22 +145,22 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
         <div className="flex gap-5 shrink-0 text-right">
           {stream.messageCount != null && (
             <div>
-              <p className="text-sm font-bold" style={{ color: '#1B2237' }}>{stream.messageCount.toLocaleString()}</p>
-              <p className="text-xs" style={{ color: '#9CA3AF' }}><MessageSquare className="inline w-3 h-3 mr-0.5" />msgs</p>
+              <p className="text-sm font-bold text-white">{stream.messageCount.toLocaleString()}</p>
+              <p className="text-xs text-slate-400"><MessageSquare className="inline w-3 h-3 mr-0.5" />msgs</p>
             </div>
           )}
           <div>
-            <p className="text-sm font-bold" style={{ color: '#1B2237' }}>{markers.length}</p>
-            <p className="text-xs" style={{ color: '#9CA3AF' }}><Scissors className="inline w-3 h-3 mr-0.5" />clips</p>
+            <p className="text-sm font-bold text-white">{markers.length}</p>
+            <p className="text-xs text-slate-400"><Scissors className="inline w-3 h-3 mr-0.5" />clips</p>
           </div>
         </div>
       </div>
 
       {/* Main workspace: video + chat */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Video embed */}
         <div className="lg:col-span-2">
-          <div className="aspect-video rounded-2xl overflow-hidden bg-black">
+          <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl">
             {stream.youtubeVideoId ? (
               <iframe
                 src={`https://www.youtube.com/embed/${stream.youtubeVideoId}`}
@@ -170,7 +170,7 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>No video ID</p>
+                <p className="text-sm text-slate-500">No video ID</p>
               </div>
             )}
           </div>
@@ -178,17 +178,17 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
 
         {/* Chat panel */}
         <div
-          className="rounded-2xl overflow-hidden flex flex-col"
-          style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', minHeight: '280px' }}
+          className="glass-card rounded-2xl overflow-hidden flex flex-col"
+          style={{ minHeight: '280px' }}
         >
-          <div className="px-4 py-3 border-b" style={{ borderColor: '#E5E7EB' }}>
-            <p className="text-sm font-semibold" style={{ color: '#1B2237' }}>Chat Replay</p>
-            <p className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>Local only — not stored in the cloud.</p>
+          <div className="px-5 py-3.5 border-b border-white/[0.08]">
+            <p className="text-sm font-semibold text-white">Chat Replay</p>
+            <p className="text-xs mt-0.5 text-slate-400">Local only — not stored in the cloud.</p>
           </div>
           <div className="flex-1 flex items-center justify-center p-6 text-center">
             <div>
-              <MessageSquare className="w-8 h-8 mx-auto mb-2" style={{ color: '#E5E7EB' }} />
-              <p className="text-sm" style={{ color: '#9CA3AF' }}>Connect the Android app to view local chat.</p>
+              <MessageSquare className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+              <p className="text-sm text-slate-400">Connect the Android app to view local chat.</p>
             </div>
           </div>
         </div>
@@ -196,34 +196,33 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
 
       {/* Clip marker section */}
       <div
-        className="rounded-2xl overflow-hidden"
-        style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB' }}
+        className="glass-card rounded-2xl overflow-hidden shadow-xl"
       >
-        <div className="px-5 py-4 border-b" style={{ borderColor: '#E5E7EB' }}>
-          <p className="text-sm font-semibold" style={{ color: '#1B2237' }}>Clip Markers</p>
-          <p className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>
+        <div className="px-5 py-4 border-b border-white/[0.08]">
+          <p className="text-sm font-semibold text-white">Clip Markers</p>
+          <p className="text-xs mt-0.5 text-slate-400">
             Created when viewers type !clip in live chat.
           </p>
         </div>
 
         {/* Visual timeline */}
         {stream.durationSeconds && markers.length > 0 && (
-          <div className="px-5 py-4 border-b" style={{ borderColor: '#F4F6F9' }}>
-            <div className="relative w-full h-1.5 rounded-full" style={{ backgroundColor: '#F4F6F9' }}>
+          <div className="px-5 py-4 border-b border-white/[0.06] bg-white/[0.02]">
+            <div className="relative w-full h-2 rounded-full bg-white/10">
               {markers.map((m) => (
                 <div
                   key={m.id}
                   title={`${m.markerTimestampDisplay} — ${m.aiTopic ?? ''}`}
                   style={{ left: durationPct(m.markerTimestamp) }}
-                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full cursor-pointer hover:scale-125 transition"
-                  >
-                  <div className="w-full h-full rounded-full" style={{ backgroundColor: '#1B2237' }} />
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full cursor-pointer hover:scale-125 transition"
+                >
+                  <div className="w-full h-full rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
                 </div>
               ))}
             </div>
-            <div className="flex justify-between mt-1">
-              <span className="text-xs" style={{ color: '#D1D5DB' }}>0:00</span>
-              <span className="text-xs" style={{ color: '#D1D5DB' }}>{formatDuration(stream.durationSeconds)}</span>
+            <div className="flex justify-between mt-2">
+              <span className="text-xs text-slate-500 font-mono">0:00</span>
+              <span className="text-xs text-slate-500 font-mono">{formatDuration(stream.durationSeconds)}</span>
             </div>
           </div>
         )}
@@ -231,44 +230,41 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
         {/* Marker list */}
         {markers.length === 0 ? (
           <div className="px-5 py-12 text-center">
-            <Scissors className="w-8 h-8 mx-auto mb-2" style={{ color: '#E5E7EB' }} />
-            <p className="text-sm" style={{ color: '#9CA3AF' }}>No clip markers for this stream yet.</p>
+            <Scissors className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+            <p className="text-sm text-slate-400">No clip markers for this stream yet.</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-white/[0.06]">
             {markers.map((m) => (
-              <div key={m.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition">
+              <div key={m.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.03] transition">
                 <span
-                  className="font-mono text-xs w-16 shrink-0 font-semibold"
-                  style={{ color: '#1B2237' }}
+                  className="font-mono text-xs w-16 shrink-0 font-semibold text-cyan-300"
                 >
                   {m.markerTimestampDisplay}
                 </span>
                 <div className="flex-1 min-w-0">
                   {m.aiTopic ? (
-                    <p className="text-sm font-medium truncate" style={{ color: '#1B2237' }}>{m.aiTopic}</p>
+                    <p className="text-sm font-medium truncate text-white">{m.aiTopic}</p>
                   ) : (
-                    <p className="text-sm" style={{ color: '#9CA3AF' }}>No topic</p>
+                    <p className="text-sm text-slate-400">No topic</p>
                   )}
-                  <p className="text-xs font-mono" style={{ color: '#D1D5DB' }}>{m.id}</p>
+                  <p className="text-xs font-mono text-slate-500">{m.id}</p>
                 </div>
                 {m.aiEngagementScore != null && (
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-bold" style={{ color: '#1B2237' }}>{m.aiEngagementScore}</p>
-                    <p className="text-xs" style={{ color: '#9CA3AF' }}>score</p>
+                    <p className="text-sm font-bold text-white">{m.aiEngagementScore}</p>
+                    <p className="text-xs text-slate-400">score</p>
                   </div>
                 )}
                 {m.telegramSent ? (
                   <span
-                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0"
-                    style={{ color: '#3B82F6', backgroundColor: 'rgba(59,130,246,0.08)' }}
+                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0 border border-blue-500/30 text-blue-300 bg-blue-500/15"
                   >
-                    <Send className="w-3 h-3" /> Sent
+                    <Send className="w-3 h-3 text-cyan-400" /> Sent
                   </span>
                 ) : (
                   <button
-                    className="text-xs font-semibold px-3 py-1.5 rounded-xl transition hover:opacity-90 shrink-0"
-                    style={{ backgroundColor: '#F4F6F9', color: '#1B2237', border: '1px solid #E5E7EB' }}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl transition hover:opacity-90 shrink-0 bg-white/10 hover:bg-white/20 text-white border border-white/15"
                   >
                     Generate
                   </button>

@@ -54,19 +54,19 @@ function StatCard({
 }) {
   return (
     <div
-      className="rounded-2xl p-5 space-y-3"
-      style={{
-        backgroundColor: live ? '#1B2237' : '#FFFFFF',
-        border: `1px solid ${live ? 'transparent' : '#E5E7EB'}`,
-      }}
+      className={`glass-card rounded-2xl p-5 space-y-3 transition-all duration-200 ${
+        live ? 'border-cyan-500/40 bg-cyan-500/[0.06] shadow-[0_0_25px_rgba(6,182,212,0.12)]' : ''
+      }`}
     >
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium" style={{ color: live ? 'rgba(255,255,255,0.55)' : '#6B7280' }}>
+        <p className="text-xs font-medium text-slate-400">
           {label}
         </p>
-        <Icon className="w-4 h-4" style={{ color: live ? 'rgba(255,255,255,0.4)' : '#D1D5DB' }} />
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${live ? 'bg-cyan-500/20 text-cyan-400' : 'bg-white/5 text-slate-400'}`}>
+          <Icon className="w-4 h-4" />
+        </div>
       </div>
-      <p className="text-3xl font-extrabold tracking-tight" style={{ color: live ? '#FFFFFF' : '#1B2237' }}>
+      <p className="text-3xl font-extrabold tracking-tight text-white">
         {value}
       </p>
     </div>
@@ -77,24 +77,23 @@ function StatCard({
 function EmptyStreams({ onSync, isSyncing }: { onSync: () => void; isSyncing: boolean }) {
   return (
     <div
-      className="rounded-2xl p-10 text-center space-y-4 border border-dashed"
-      style={{ borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' }}
+      className="glass-card rounded-2xl p-10 text-center space-y-4 border border-dashed border-white/15"
     >
       <div
-        className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto bg-red-50 text-red-600"
+        className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto bg-red-500/10 text-red-400 border border-red-500/20"
       >
         <Youtube className="w-6 h-6" />
       </div>
       <div>
-        <p className="font-bold text-sm" style={{ color: '#1B2237' }}>No streams detected yet</p>
-        <p className="text-xs mt-1 leading-relaxed max-w-sm mx-auto" style={{ color: '#9CA3AF' }}>
+        <p className="font-bold text-sm text-white">No streams detected yet</p>
+        <p className="text-xs mt-1 leading-relaxed max-w-sm mx-auto text-slate-400">
           Sync with your connected YouTube channel to pull recent streams, or start a live stream in YouTube Studio.
         </p>
       </div>
       <button
         onClick={onSync}
         disabled={isSyncing}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gray-900 hover:bg-black transition disabled:opacity-50"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/15 transition disabled:opacity-50 shadow-sm"
       >
         <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
         {isSyncing ? 'Syncing YouTube...' : 'Sync YouTube Streams Now'}
@@ -193,7 +192,7 @@ function DashboardContent() {
       } catch (e) {
         console.error('Subscription load error in dashboard:', e);
       }
-      
+
       const count = await loadData(wid);
       // Auto-trigger sync on first load if empty
       if (count === 0) {
@@ -211,7 +210,7 @@ function DashboardContent() {
   if (loadingData) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1B2237', borderTopColor: 'transparent' }} />
+        <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -221,51 +220,48 @@ function DashboardContent() {
 
   return (
     <div className="max-w-4xl space-y-8">
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 style={{ color: '#1B2237' }}>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             {firstName ? `Hey, ${firstName}` : 'Dashboard'}
           </h1>
-          <p className="text-sm mt-0.5" style={{ color: '#9CA3AF' }}>
+          <p className="text-sm mt-1 text-slate-400">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsUpiModalOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border transition shadow-sm bg-gradient-to-r from-emerald-500/10 to-teal-500/10 text-emerald-800 border-emerald-300 hover:bg-emerald-100/50"
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border transition shadow-sm bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20"
             title="Upgrade or Renew Plan with UPI QR"
           >
-            <QrCode className="w-3.5 h-3.5 text-emerald-600" />
+            <QrCode className="w-3.5 h-3.5 text-emerald-400" />
             <span>{subscription?.plan === 'pro' && !subscription?.isExpired ? 'Pro Active (UPI)' : 'Plans & UPI (₹149 - ₹999)'}</span>
           </button>
 
           <button
             onClick={handleSyncStreams}
             disabled={isSyncing}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border bg-white hover:bg-gray-50 transition shadow-sm disabled:opacity-50 text-gray-800"
-            style={{ borderColor: '#E5E7EB' }}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl border bg-white/10 border-white/15 hover:bg-white/20 transition shadow-sm disabled:opacity-50 text-white"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-red-500' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-red-400' : ''}`} />
             {isSyncing ? 'Syncing...' : 'Sync YouTube'}
           </button>
         </div>
       </div>
 
       {syncFeedback && (
-        <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-800 flex items-center justify-between">
+        <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 flex items-center justify-between">
           <span>{syncFeedback}</span>
-          <button onClick={() => setSyncFeedback(null)} className="text-blue-500 font-bold hover:underline">Dismiss</button>
+          <button onClick={() => setSyncFeedback(null)} className="text-cyan-400 font-bold hover:underline">Dismiss</button>
         </div>
       )}
 
       {/* Live banner */}
       {liveStream && (
         <div
-          className="flex items-center gap-4 px-5 py-4 rounded-2xl shadow-sm"
-          style={{ backgroundColor: '#1B2237' }}
+          className="flex items-center gap-4 px-5 py-4 rounded-2xl shadow-lg bg-red-500/10 border border-red-500/30 backdrop-blur-xl"
         >
           <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -277,7 +273,7 @@ function DashboardContent() {
           </div>
           <a
             href={`/streams/${liveStream.id}`}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition shrink-0"
+            className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-white/10 border border-white/15 text-white hover:bg-white/20 transition shrink-0"
           >
             Monitor Live <ArrowRight className="w-3.5 h-3.5" />
           </a>
@@ -294,9 +290,9 @@ function DashboardContent() {
       {/* Recent streams */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 style={{ color: '#1B2237' }}>Recent Streams & Broadcasts</h2>
+          <h2 className="text-lg font-bold text-white tracking-tight">Recent Streams & Broadcasts</h2>
           {recentStreams.length > 0 && (
-            <a href="/streams" className="text-xs font-medium hover:underline" style={{ color: '#6B7280' }}>
+            <a href="/streams" className="text-xs font-medium text-slate-400 hover:text-white transition">
               View all
             </a>
           )}
@@ -306,38 +302,37 @@ function DashboardContent() {
           <EmptyStreams onSync={handleSyncStreams} isSyncing={isSyncing} />
         ) : (
           <div
-            className="rounded-2xl overflow-hidden divide-y shadow-sm"
-            style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB' }}
+            className="glass-card rounded-2xl overflow-hidden divide-y divide-white/[0.06] shadow-xl"
           >
             {recentStreams.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition"
+                className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.04] transition"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
                   {s.thumbnailUrl ? (
                     <img
                       src={s.thumbnailUrl}
                       alt={s.title}
-                      className="w-14 h-9 rounded-lg object-cover shrink-0 border border-gray-100"
+                      className="w-14 h-9 rounded-lg object-cover shrink-0 border border-white/10"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                      <Radio className="w-4 h-4 text-gray-500" />
+                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                      <Radio className="w-4 h-4 text-slate-400" />
                     </div>
                   )}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       {s.status === 'live' && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white uppercase">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white uppercase shadow-sm">
                           LIVE
                         </span>
                       )}
-                      <p className="text-sm font-semibold truncate" style={{ color: '#1B2237' }}>
+                      <p className="text-sm font-semibold truncate text-white">
                         {s.title || (s.startedAt ? formatDate(s.startedAt) : 'Untitled stream')}
                       </p>
                     </div>
-                    <p className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>
+                    <p className="text-xs mt-0.5 text-slate-400">
                       {s.startedAt ? formatDate(s.startedAt) : '—'}
                       {s.startedAt && ` · ${formatDuration(s.startedAt, s.endedAt)}`}
                     </p>
@@ -345,15 +340,14 @@ function DashboardContent() {
                 </div>
                 <div className="flex items-center gap-6 shrink-0">
                   <div className="text-right">
-                    <p className="text-sm font-bold" style={{ color: '#1B2237' }}>{s.clipCount ?? 0}</p>
-                    <p className="text-xs" style={{ color: '#9CA3AF' }}>clips</p>
+                    <p className="text-sm font-bold text-white">{s.clipCount ?? 0}</p>
+                    <p className="text-xs text-slate-400">clips</p>
                   </div>
                   <a
                     href={`/streams/${s.id}`}
-                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
-                    style={{ color: '#1B2237' }}
+                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white transition"
                   >
-                    View <ArrowRight className="w-3 h-3" />
+                    View <ArrowRight className="w-3.5 h-3.5" />
                   </a>
                 </div>
               </div>

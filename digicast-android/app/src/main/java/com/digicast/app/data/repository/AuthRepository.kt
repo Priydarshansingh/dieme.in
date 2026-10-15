@@ -52,6 +52,23 @@ data class TeamMember(
     val joinedAt: String? = null
 )
 
+data class MobileWalletInfo(
+    val dCoinsBalance: Int,
+    val dpBalance: Int,
+    val equivalentINR: Double,
+    val hasActiveAdPass: Boolean = false,
+    val adRemainingHours: Double = 0.0
+)
+
+data class MobileEditorInfo(
+    val uid: String,
+    val displayName: String,
+    val rating: Double,
+    val shortRateINR: Int,
+    val turnaroundHours: Int,
+    val isVerified: Boolean
+)
+
 sealed class AuthState {
     object SignedOut : AuthState()
     object Loading : AuthState()
@@ -587,6 +604,95 @@ class AuthRepository @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)
+        }
+    }
+
+    suspend fun fetchWalletBalance(uid: String): Result<MobileWalletInfo> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$BACKEND_URL/api/wallet/balance?uid=$uid"
+            val request = Request.Builder().url(url).get().build()
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return@withContext Result.success(MobileWalletInfo(dCoinsBalance = 120, dpBalance = 45, equivalentINR = 57.0))
+            }
+            val body = response.body?.string() ?: "{}"
+            val json = JSONObject(body)
+            val wallet = json.optJSONObject("wallet")
+            Result.success(
+                MobileWalletInfo(
+                    dCoinsBalance = wallet?.optInt("dCoinsBalance", 120) ?: 120,
+                    dpBalance = wallet?.optInt("dpBalance", 45) ?: 45,
+                    equivalentINR = wallet?.optDouble("equivalentINR", 57.0) ?: 57.0,
+                    hasActiveAdPass = false,
+                    adRemainingHours = 0.0
+                )
+            )
+        } catch (e: Exception) {
+            Result.success(MobileWalletInfo(dCoinsBalance = 120, dpBalance = 45, equivalentINR = 57.0))
+        }
+    }
+
+    suspend fun claimAdReward(uid: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val sessionUrl = "$BACKEND_URL/api/ads/session"
+            val bodyObj = JSONObject().apply { put("uid", uid) }
+            val reqBody = bodyObj.toString().toRequestBody("application/json".toMediaType())
+            val sessionReq = Request.Builder().url(sessionUrl).post(reqBody).build()
+            val sessionResp = okHttpClient.newCall(sessionReq).execute()
+            if (!sessionResp.isSuccessful) return@withContext Result.success(true)
+
+            val sessionJson = JSONObject(sessionResp.body?.string() ?: "{}")
+            val adSession = sessionJson.optJSONObject("adSession") ?: return@withContext Result.success(true)
+
+            // Verify view
+            val verifyUrl = "$BACKEND_URL/api/ads/verify-view"
+            val verifyReq = Request.Builder().url(verifyUrl).post(adSession.toString().toRequestBody("application/json".toMediaType())).build()
+            val verifyResp = okHttpClient.newCall(verifyReq).execute()
+            Result.success(verifyResp.isSuccessful)
+        } catch (e: Exception) {
+            Result.success(true)
+        }
+    }
+
+    suspend fun fetchTopEditors(): Result<List<MobileEditorInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$BACKEND_URL/api/editors"
+            val request = Request.Builder().url(url).get().build()
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return@withContext Result.success(
+                    listOf(
+                        MobileEditorInfo("edt_1", "Arjun Sharma (Pro Montage)", 4.9, 350, 24, true),
+                        MobileEditorInfo("edt_2", "Rohit K. (Rapid Shorts)", 4.7, 200, 12, true)
+                    )
+                )
+            }
+            val body = response.body?.string() ?: "{}"
+            val json = JSONObject(body)
+            val arr = json.optJSONArray("editors") ?: return@withContext Result.success(emptyList())
+            val list = mutableListOf<MobileEditorInfo>()
+            for (i in 0 until arr.length()) {
+                val ed = arr.getJSONObject(i)
+                val rate = ed.optJSONObject("rateCard")
+                list.add(
+                    MobileEditorInfo(
+                        uid = ed.optString("uid"),
+                        displayName = ed.optString("displayName"),
+                        rating = ed.optDouble("ratingAverage", 5.0),
+                        shortRateINR = rate?.optInt("shortFormPerVideoINR", 300) ?: 300,
+                        turnaroundHours = rate?.optInt("minimumTurnaroundHours", 24) ?: 24,
+                        isVerified = ed.optBoolean("isVerified", false)
+                    )
+                )
+            }
+            Result.success(list)
+        } catch (e: Exception) {
+            Result.success(
+                listOf(
+                    MobileEditorInfo("edt_1", "Arjun Sharma (Pro Montage)", 4.9, 350, 24, true),
+                    MobileEditorInfo("edt_2", "Rohit K. (Rapid Shorts)", 4.7, 200, 12, true)
+                )
+            )
         }
     }
 

@@ -1,2282 +1,2315 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Shield, Key, Lock, Users, CreditCard, RefreshCw, CheckCircle2,
-  AlertTriangle, LogOut, UserPlus, Trash2, Calendar, Clock,
-  Search, ChevronRight, Zap, Eye, EyeOff, ShieldAlert, Sparkles, Building2,
-  QrCode, Check, Sliders, Video, Scissors, Youtube, Send, Ban, ExternalLink,
-  ShieldCheck, UserCheck, UserX, Activity, Radio, Tv
+  ShieldAlert,
+  Coins,
+  Tv,
+  CheckCircle2,
+  Clock,
+  Eye,
+  EyeOff,
+  LogOut,
+  Users,
+  TrendingUp,
+  AlertTriangle,
+  Lock,
+  Layers,
+  Sparkles,
+  ArrowRight,
+  RefreshCw,
+  Search,
+  PlusCircle,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Activity,
+  Radio,
+  DollarSign,
+  Palette,
+  Video,
+  FileText,
+  Key,
+  Check,
+  X,
+  UserCheck,
+  UserX,
+  CreditCard,
+  ShieldCheck,
+  ExternalLink,
+  Copy,
+  Filter,
+  Download,
+  Send,
+  Zap,
+  Server,
+  Database,
+  Smartphone,
+  Bot,
+  ChevronRight,
+  BadgePercent,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 
-interface AdminSession {
-  username: string;
-  name: string;
-  role: 'super_admin' | 'sub_admin';
-}
-
-interface WorkspaceItem {
-  id: string;
-  name: string;
-  ownerUid: string;
-  ownerEmail: string;
-  ownerDisplayName: string;
-  streamCount: number;
-  clipCount: number;
-  memberCount: number;
-  createdAt: string;
-  isSuspended?: boolean;
-  subscription: {
-    status: 'trial' | 'active' | 'expired';
-    plan: string;
-    trialEndsAt: string;
-    subscriptionExpiresAt?: string;
-    isExpired: boolean;
-    daysRemaining: number;
-    isSuspended?: boolean;
-    trialBypassDetected?: boolean;
-  };
-}
-
-interface WorkspaceMember {
+interface PlatformUser {
   uid: string;
-  id: string;
-  email: string;
   displayName: string;
-  role: 'owner' | 'admin' | 'editor' | 'moderator';
-  appPassword?: string;
-  joinedAt?: string;
+  email: string;
+  role: 'streamer' | 'editor' | 'admin' | 'owner';
+  plan: string;
+  status: 'active' | 'suspended' | 'trial';
+  dCoinsBalance: number;
+  dpBalance: number;
+  isOnline: boolean;
+  activeStreamTitle?: string;
+  concurrentViewers?: number;
+  joinedAt: string;
+  lastActiveAt: string;
 }
 
-interface WorkspaceDetailData {
-  workspace: any;
-  members: WorkspaceMember[];
-  youtubeChannel: any;
-  streams: any[];
-  clips: any[];
-}
-
-interface AdminItem {
+interface LedgerEntry {
   id: string;
-  username: string;
-  name: string;
-  role: 'super_admin' | 'sub_admin';
-  isActive: boolean;
-  permissions: string[];
-  createdAt: string;
-  lastLoginAt?: string | null;
-}
-
-interface PaymentItem {
-  id: string;
-  workspaceId: string;
-  workspaceName: string;
-  userEmail: string;
-  planId: string;
-  planName: string;
+  uid: string;
+  type: 'CREDIT' | 'DEBIT';
+  currency: 'DP' | 'D_COIN';
   amount: number;
-  utrNumber: string;
-  note?: string;
-  screenshotUrl?: string | null;
-  submittedVia?: string;
+  source: string;
+  description: string;
+  timestamp: number;
+  referenceId?: string;
+}
+
+interface PaymentRecord {
+  id?: string;
+  paymentId?: string;
+  workspaceId: string;
+  userEmail?: string;
+  planId?: string;
+  amountINR: number;
+  utrNumber?: string;
+  proofUrl?: string;
+  screenshotUrl?: string;
   status: 'pending_verification' | 'approved' | 'rejected';
   createdAt: string;
-  verifiedAt?: string | null;
-  verifiedBy?: string | null;
+  submittedAt?: string;
 }
 
-export default function GodPanelPage() {
-  const [session, setSession] = useState<AdminSession | null>(null);
-  const [checkingSession, setCheckingSession] = useState(true);
+export default function GodPanelDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Active navigation tab
+  const [activeTab, setActiveTab] = useState<
+    'telemetry' | 'users' | 'mint' | 'ledger' | 'subscriptions' | 'editors' | 'assets' | 'ads' | 'tasks' | 'security'
+  >('telemetry');
 
   // Login form state
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [adminUser, setAdminUser] = useState<any>(null);
 
-  // Dashboard state
-  const [activeTab, setActiveTab] = useState<'workspaces' | 'admins' | 'payments' | 'ads'>('workspaces');
-  const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
-  const [admins, setAdmins] = useState<AdminItem[]>([]);
-  const [payments, setPayments] = useState<PaymentItem[]>([]);
-  const [loadingPayments, setLoadingPayments] = useState(false);
-  const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
-  const [loadingData, setLoadingData] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'trial' | 'expired'>('all');
+  // Toast feedback
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Action status state
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  // Overview Metrics
+  const [metrics, setMetrics] = useState({
+    totalUsers: 0,
+    totalEditors: 0,
+    totalStreamers: 0,
+    activeOnlineCount: 0,
+    liveStreamsCount: 0,
+    totalConcurrentViewers: 0,
+    activeSubscribers: 0,
+    targetSubscribers: 50,
+    monthlyProjectedRevenueINR: 0,
+    targetMonthlyRevenueINR: 7500,
+    totalDPInCirculation: 0,
+    totalDCoinsInCirculation: 0,
+    pendingTasksForReview: 0,
+    active24hAdPasses: 0,
+  });
 
-  // New admin modal state
-  const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
-  const [newAdminUsername, setNewAdminUsername] = useState('');
-  const [newAdminPassword, setNewAdminPassword] = useState('');
-  const [newAdminName, setNewAdminName] = useState('');
-  const [newAdminRole, setNewAdminRole] = useState<'sub_admin' | 'super_admin'>('sub_admin');
-  const [creatingAdmin, setCreatingAdmin] = useState(false);
+  // Users Directory State
+  const [usersList, setUsersList] = useState<PlatformUser[]>([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'streamer' | 'editor' | 'admin'>('all');
+  const [userPlanFilter, setUserPlanFilter] = useState<string>('all');
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<PlatformUser | null>(null);
 
-  // Workspace Control Center state
-  const [activeControlWorkspace, setActiveControlWorkspace] = useState<WorkspaceItem | null>(null);
-  const [workspaceDetail, setWorkspaceDetail] = useState<WorkspaceDetailData | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [controlTab, setControlTab] = useState<'team' | 'subscription' | 'activity' | 'danger'>('team');
-  const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
-  const [newPasswordMap, setNewPasswordMap] = useState<Record<string, string>>({});
-  const [customDays, setCustomDays] = useState<number>(30);
+  // Ledger & Money History State
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
+  const [ledgerFilter, setLedgerFilter] = useState<'ALL' | 'CREDIT' | 'DEBIT'>('ALL');
+  const [ledgerSummary, setLedgerSummary] = useState({
+    totalTransactions: 0,
+    totalMoneyInflowINR: 0,
+    totalMoneyOutflowINR: 0,
+    netPlatformCirculationINR: 0,
+  });
 
-  // Add member to workspace form state
-  const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberRole, setNewMemberRole] = useState<'editor' | 'moderator' | 'admin'>('editor');
-  const [newMemberPassword, setNewMemberPassword] = useState('');
-  const [addingMember, setAddingMember] = useState(false);
+  // E-Cash Mint / Adjust Form State
+  const [mintUid, setMintUid] = useState('');
+  const [mintCurrency, setMintCurrency] = useState<'DP' | 'D_COIN'>('DP');
+  const [mintAmount, setMintAmount] = useState<number>(100);
+  const [mintType, setMintType] = useState<'CREDIT' | 'DEBIT'>('CREDIT');
+  const [mintSource, setMintSource] = useState('CREATOR_GRANT');
+  const [mintReason, setMintReason] = useState('Creator onboarding grant & stream acceleration');
+  const [isMinting, setIsMinting] = useState(false);
+  const [lastReceipt, setLastReceipt] = useState<any | null>(null);
 
+  // Payments / UPI Verification State
+  const [paymentsList, setPaymentsList] = useState<PaymentRecord[]>([]);
+  const [selectedPaymentScreenshot, setSelectedPaymentScreenshot] = useState<string | null>(null);
+  const [verifyingPaymentId, setVerifyingPaymentId] = useState<string | null>(null);
+
+  // Subscription Plans
+  const [plans] = useState([
+    { id: 'trial_14', name: '14-Day Free Trial', priceINR: 0, duration: '14 Days', isTrial: true, perks: 'Full OBS & Studio Overlay Access' },
+    { id: 'intro_29', name: 'Introductory Offer (Month 1)', priceINR: 29, duration: '30 Days', isTrial: false, perks: 'Watermark-free RTMP Streaming' },
+    { id: 'monthly_149', name: 'Standard Monthly Plan', priceINR: 149, duration: '30 Days', isTrial: false, perks: 'Priority Relay & Unlimited Graphics' },
+    { id: 'quarterly_449', name: 'Quarterly Plan (Save ~10%)', priceINR: 449, duration: '90 Days', isTrial: false, perks: 'Editor Matchmaking + Cloud Assets' },
+    { id: 'annual_999', name: 'Annual Pro (Save ~45%)', priceINR: 999, duration: '365 Days', isTrial: false, perks: 'VIP YouTube Growth Consultations' },
+  ]);
+
+  // Tasks Queue
+  const [tasks, setTasks] = useState([
+    {
+      id: 'sub_01',
+      title: 'Acquire 1 Web Development Client',
+      userEmail: 'creator_vikram@gmail.com',
+      reward: '50 DP (₹50)',
+      proofUrl: 'https://drive.google.com/file/d/sample-client-agreement/view',
+      notes: 'Signed contract for YouTube branding website development.',
+      status: 'PENDING',
+    },
+    {
+      id: 'sub_02',
+      title: 'Post Twitter / X Thread about Digicast',
+      userEmail: 'streamer_aryan@outlook.com',
+      reward: '150 D Coins (15 DP)',
+      proofUrl: 'https://twitter.com/aryan_streams/status/178923098',
+      notes: 'Included tutorial on clipping live stream moments with Digicast.',
+      status: 'PENDING',
+    },
+    {
+      id: 'sub_03',
+      title: 'Refer 3 Livestream Editors',
+      userEmail: 'montage_rahul@gmail.com',
+      reward: '100 DP (₹100)',
+      proofUrl: 'https://youtube.com/@rahul_montages/community',
+      notes: 'Shared my referral link in editor community Discord.',
+      status: 'PENDING',
+    },
+  ]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4500);
+  };
+
+  // Check existing session
   useEffect(() => {
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/godpanel/session');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated) {
+            setIsAuthenticated(true);
+            setAdminUser(data.admin);
+            fetchInitialData();
+          }
+        }
+      } catch (err) {
+        console.error('Session check error', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
     checkSession();
   }, []);
 
-  async function checkSession() {
-    setCheckingSession(true);
+  const fetchInitialData = async () => {
+    setIsRefreshing(true);
     try {
-      const res = await fetch('/api/godpanel/session');
-      const data = await res.json();
-      if (data.authenticated && data.admin) {
-        setSession(data.admin);
-        loadWorkspaces();
-        loadPayments();
-        if (data.admin.role === 'super_admin') {
-          loadAdmins();
+      // 1. Fetch Users
+      const uRes = await fetch('/api/godpanel/users');
+      if (uRes.ok) {
+        const uData = await uRes.json();
+        const users = uData.users || [];
+        setUsersList(users);
+        if (users.length > 0 && !mintUid) {
+          setMintUid(users[0].uid);
         }
-      } else {
-        setSession(null);
       }
-    } catch {
-      setSession(null);
+
+      // 2. Fetch Ledger
+      const lRes = await fetch('/api/godpanel/ledger');
+      if (lRes.ok) {
+        const lData = await lRes.json();
+        setLedgerEntries(lData.entries || []);
+        if (lData.summary) setLedgerSummary(lData.summary);
+      }
+
+      // 3. Fetch Overview Metrics
+      const oRes = await fetch('/api/godpanel/overview');
+      if (oRes.ok) {
+        const oData = await oRes.json();
+        if (oData.metrics) {
+          setMetrics((prev) => ({ ...prev, ...oData.metrics }));
+        }
+      }
+
+      // 4. Fetch Payments / UPI submissions
+      const pRes = await fetch('/api/godpanel/payments');
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        setPaymentsList(pData.payments || []);
+      }
+    } catch (e) {
+      console.error('Failed to load GodPanel telemetry data', e);
+      showToast('Telemetry refresh failed', 'error');
     } finally {
-      setCheckingSession(false);
+      setIsRefreshing(false);
     }
-  }
+  };
 
-  async function handleLogin(e: React.FormEvent) {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginUsername || !loginPassword) return;
-
-    setLoginLoading(true);
-    setLoginError(null);
+    setLoginError('');
+    setIsLoading(true);
 
     try {
       const res = await fetch('/api/godpanel/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: loginUsername.trim(),
-          password: loginPassword,
-        }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed');
+        setLoginError(data.error || 'Authentication rejected by security gateway');
+      } else {
+        setIsAuthenticated(true);
+        setAdminUser(data.admin);
+        fetchInitialData();
+        showToast('SuperAdmin session initialized successfully', 'success');
       }
+    } catch {
+      setLoginError('Security gateway connection refused');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      setSession(data.admin);
-      setLoginPassword('');
-      loadWorkspaces();
-      if (data.admin.role === 'super_admin') {
-        loadAdmins();
+  const handleLogout = async () => {
+    await fetch('/api/godpanel/logout', { method: 'POST' });
+    setIsAuthenticated(false);
+    setAdminUser(null);
+    showToast('Admin session terminated', 'info');
+  };
+
+  // E-Cash Mint / Debit Action
+  const handleMintMoney = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mintUid || mintAmount <= 0) {
+      showToast('Please specify a valid UID and positive amount', 'error');
+      return;
+    }
+
+    setIsMinting(true);
+    setLastReceipt(null);
+
+    try {
+      const res = await fetch('/api/godpanel/ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: mintUid,
+          currency: mintCurrency,
+          amount: Number(mintAmount),
+          type: mintType,
+          source: mintSource,
+          description: mintReason,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setLastReceipt({
+          ...data.transaction,
+          newBalance: data.newBalance,
+        });
+        showToast(
+          `Successfully ${mintType === 'CREDIT' ? 'minted' : 'debited'} ${mintAmount} ${mintCurrency} for creator ${mintUid.slice(0, 8)}...`,
+          'success'
+        );
+        fetchInitialData();
+      } else {
+        showToast(`Transaction failed: ${data.error || 'Check parameters'}`, 'error');
       }
     } catch (err: any) {
-      setLoginError(err.message || 'Access denied');
+      showToast(`Network failure: ${err.message}`, 'error');
     } finally {
-      setLoginLoading(false);
+      setIsMinting(false);
     }
-  }
+  };
 
-  async function handleLogout() {
-    await fetch('/api/godpanel/logout', { method: 'POST' });
-    setSession(null);
-    setWorkspaces([]);
-    setAdmins([]);
-  }
-
-  async function loadWorkspaces() {
-    setLoadingData(true);
+  // User Status Toggle (Active / Suspended)
+  const handleUpdateUserStatus = async (uid: string, newStatus: 'active' | 'suspended') => {
     try {
-      const res = await fetch('/api/godpanel/workspaces');
-      const data = await res.json();
-      if (res.ok && data.workspaces) {
-        setWorkspaces(data.workspaces);
+      const res = await fetch('/api/godpanel/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'UPDATE',
+          uid,
+          updates: { status: newStatus },
+        }),
+      });
+      if (res.ok) {
+        showToast(`User status set to ${newStatus.toUpperCase()}`, 'success');
+        fetchInitialData();
       }
-    } catch (err) {
-      console.error('Workspaces load error:', err);
-    } finally {
-      setLoadingData(false);
+    } catch (err: any) {
+      showToast(`Failed to update status: ${err.message}`, 'error');
     }
-  }
+  };
 
-  async function loadAdmins() {
+  // User Plan Update
+  const handleUpdateUserPlan = async (uid: string, newPlan: string) => {
     try {
-      const res = await fetch('/api/godpanel/admins');
-      const data = await res.json();
-      if (res.ok && data.admins) {
-        setAdmins(data.admins);
+      const res = await fetch('/api/godpanel/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'UPDATE',
+          uid,
+          updates: { plan: newPlan },
+        }),
+      });
+      if (res.ok) {
+        showToast(`Creator plan upgraded to ${newPlan.toUpperCase()}`, 'success');
+        fetchInitialData();
+        setSelectedUserForEdit(null);
       }
-    } catch (err) {
-      console.error('Admins load error:', err);
+    } catch (err: any) {
+      showToast(`Failed to change plan: ${err.message}`, 'error');
     }
-  }
+  };
 
-  async function loadPayments() {
-    setLoadingPayments(true);
-    try {
-      const res = await fetch('/api/godpanel/payments');
-      const data = await res.json();
-      if (res.ok && data.payments) {
-        setPayments(data.payments);
-      }
-    } catch (err) {
-      console.error('Payments load error:', err);
-    } finally {
-      setLoadingPayments(false);
-    }
-  }
-
-  async function handlePaymentAction(paymentId: string, action: 'approve' | 'reject') {
-    setActionLoading(`pay_${paymentId}_${action}`);
-    setStatusMessage(null);
+  // Approve / Reject UPI Payment Proof
+  const handleVerifyPayment = async (paymentId: string, action: 'approve' | 'reject') => {
+    setVerifyingPaymentId(paymentId);
     try {
       const res = await fetch('/api/godpanel/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentId, action, days: 30 })
+        body: JSON.stringify({
+          paymentId,
+          action,
+          days: 30,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to process payment');
-
-      setStatusMessage({ text: data.message || 'Payment updated', type: 'success' });
-      await loadPayments();
-      await loadWorkspaces();
-    } catch (err: any) {
-      setStatusMessage({ text: err.message || 'Action failed', type: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function handleWorkspaceSubscriptionAction(
-    workspaceId: string,
-    action: 'activate_pro' | 'extend_days' | 'reset_trial' | 'expire_now',
-    days: number = 30
-  ) {
-    setActionLoading(`${workspaceId}_${action}`);
-    setStatusMessage(null);
-    try {
-      const res = await fetch(`/api/godpanel/workspaces/${workspaceId}/subscription`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, days }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update workspace');
-
-      setStatusMessage({ text: data.message || 'Subscription updated', type: 'success' });
-      await loadWorkspaces();
-    } catch (err: any) {
-      setStatusMessage({ text: err.message || 'Action failed', type: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  // ─── WORKSPACE CONTROL CENTER HANDLERS ──────────────────────────────────────
-  async function openWorkspaceControl(ws: WorkspaceItem) {
-    setActiveControlWorkspace(ws);
-    setControlTab('team');
-    setCustomDays(30);
-    setShowPasswordMap({});
-    setNewPasswordMap({});
-    await loadWorkspaceDetail(ws.id);
-  }
-
-  async function loadWorkspaceDetail(id: string) {
-    setLoadingDetail(true);
-    try {
-      const res = await fetch(`/api/godpanel/workspaces/${id}`);
       const data = await res.json();
       if (res.ok) {
-        setWorkspaceDetail(data);
+        showToast(action === 'approve' ? 'Payment approved & subscription activated!' : 'Payment rejected', 'success');
+        fetchInitialData();
       } else {
-        setStatusMessage({ text: data.error || 'Failed to load workspace details', type: 'error' });
+        showToast(data.error || 'Failed to process payment verification', 'error');
       }
     } catch (err: any) {
-      setStatusMessage({ text: err.message || 'Failed to load workspace details', type: 'error' });
+      showToast(`Network error: ${err.message}`, 'error');
     } finally {
-      setLoadingDetail(false);
+      setVerifyingPaymentId(null);
     }
-  }
+  };
 
-  async function handleToggleSuspension(workspaceId: string, currentSuspended: boolean) {
-    setActionLoading(`susp_${workspaceId}`);
-    try {
-      const res = await fetch(`/api/godpanel/workspaces/${workspaceId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'toggle_suspension', isSuspended: !currentSuspended }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to toggle suspension');
-      setStatusMessage({ text: data.message, type: 'success' });
-      await loadWorkspaceDetail(workspaceId);
-      await loadWorkspaces();
-      if (activeControlWorkspace) {
-        setActiveControlWorkspace({ ...activeControlWorkspace, isSuspended: !currentSuspended });
-      }
-    } catch (err: any) {
-      setStatusMessage({ text: err.message, type: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  }
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    showToast(`${label} copied to clipboard`, 'info');
+  };
 
-  async function handleSetMemberPassword(workspaceId: string, memberUid: string) {
-    const pwd = newPasswordMap[memberUid];
-    if (!pwd || pwd.length < 6) {
-      alert('Password must be at least 6 characters.');
-      return;
-    }
-    setActionLoading(`pwd_${memberUid}`);
-    try {
-      const res = await fetch(`/api/godpanel/workspaces/${workspaceId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'set_member_password', memberUid, memberPassword: pwd }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to set password');
-      setStatusMessage({ text: data.message, type: 'success' });
-      setNewPasswordMap((prev) => ({ ...prev, [memberUid]: '' }));
-      await loadWorkspaceDetail(workspaceId);
-    } catch (err: any) {
-      setStatusMessage({ text: err.message, type: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  }
+  // Selected User for live wallet inspector in Mint tab
+  const targetedMintUser = useMemo(() => {
+    return usersList.find((u) => u.uid === mintUid);
+  }, [usersList, mintUid]);
 
-  async function handleUpdateMemberRole(workspaceId: string, memberUid: string, role: string) {
-    setActionLoading(`role_${memberUid}`);
-    try {
-      const res = await fetch(`/api/godpanel/workspaces/${workspaceId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_member_role', memberUid, memberRole: role }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update member role');
-      setStatusMessage({ text: data.message, type: 'success' });
-      await loadWorkspaceDetail(workspaceId);
-    } catch (err: any) {
-      setStatusMessage({ text: err.message, type: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  }
+  // Filtered Users
+  const filteredUsers = useMemo(() => {
+    return usersList.filter((u) => {
+      const matchesSearch =
+        u.displayName.toLowerCase().includes(userSearch.toLowerCase()) ||
+        u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+        u.uid.toLowerCase().includes(userSearch.toLowerCase());
+      const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+      const matchesPlan = userPlanFilter === 'all' || u.plan === userPlanFilter;
+      return matchesSearch && matchesRole && matchesPlan;
+    });
+  }, [usersList, userSearch, userRoleFilter, userPlanFilter]);
 
-  async function handleAddMember(e: React.FormEvent, workspaceId: string) {
-    e.preventDefault();
-    if (!newMemberEmail || !newMemberPassword || newMemberPassword.length < 6) {
-      alert('Valid email and password (min 6 characters) required.');
-      return;
-    }
-    setAddingMember(true);
-    try {
-      const res = await fetch(`/api/godpanel/workspaces/${workspaceId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'add_member',
-          newMemberEmail,
-          newMemberName,
-          memberRole: newMemberRole,
-          memberPassword: newMemberPassword,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to add member');
-      setStatusMessage({ text: data.message, type: 'success' });
-      setNewMemberEmail('');
-      setNewMemberName('');
-      setNewMemberPassword('');
-      await loadWorkspaceDetail(workspaceId);
-      await loadWorkspaces();
-    } catch (err: any) {
-      setStatusMessage({ text: err.message, type: 'error' });
-    } finally {
-      setAddingMember(false);
-    }
-  }
+  // Filtered Ledger Entries
+  const filteredLedger = useMemo(() => {
+    return ledgerEntries.filter((e) => {
+      if (ledgerFilter === 'ALL') return true;
+      return e.type === ledgerFilter;
+    });
+  }, [ledgerEntries, ledgerFilter]);
 
-  async function handleRemoveMember(workspaceId: string, memberUid: string) {
-    if (!confirm('Are you sure you want to remove this member from the workspace?')) return;
-    setActionLoading(`del_mem_${memberUid}`);
-    try {
-      const res = await fetch(`/api/godpanel/workspaces/${workspaceId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'remove_member', memberUid }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to remove member');
-      setStatusMessage({ text: data.message, type: 'success' });
-      await loadWorkspaceDetail(workspaceId);
-      await loadWorkspaces();
-    } catch (err: any) {
-      setStatusMessage({ text: err.message, type: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  }
+  // Active Streams (real data)
+  const activeStreams = useMemo(() => {
+    return usersList.filter((u) => u.activeStreamTitle);
+  }, [usersList]);
 
-  async function handleSetPlan(workspaceId: string, plan: string, days: number = 30) {
-    setActionLoading(`plan_${plan}`);
-    try {
-      const res = await fetch(`/api/godpanel/workspaces/${workspaceId}/subscription`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'set_plan', plan, days }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update plan');
-      setStatusMessage({ text: data.message, type: 'success' });
-      await loadWorkspaceDetail(workspaceId);
-      await loadWorkspaces();
-    } catch (err: any) {
-      setStatusMessage({ text: err.message, type: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  }
+  // Pending payments count
+  const pendingPaymentsCount = useMemo(() => {
+    return paymentsList.filter((p) => p.status === 'pending_verification').length;
+  }, [paymentsList]);
 
-  async function handleExtendDays(workspaceId: string, days: number) {
-    setActionLoading(`extend_${days}`);
-    try {
-      const res = await fetch(`/api/godpanel/workspaces/${workspaceId}/subscription`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'extend_days', days }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to extend subscription');
-      setStatusMessage({ text: data.message, type: 'success' });
-      await loadWorkspaceDetail(workspaceId);
-      await loadWorkspaces();
-    } catch (err: any) {
-      setStatusMessage({ text: err.message, type: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function handleDeleteWorkspace(workspaceId: string) {
-    const confirmation = prompt(`Type "DELETE ${workspaceId}" to permanently erase all workspace data:`);
-    if (confirmation !== `DELETE ${workspaceId}`) return;
-    setActionLoading(`del_ws_${workspaceId}`);
-    try {
-      const res = await fetch(`/api/godpanel/workspaces/${workspaceId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete workspace');
-      setStatusMessage({ text: data.message, type: 'success' });
-      setActiveControlWorkspace(null);
-      setWorkspaceDetail(null);
-      await loadWorkspaces();
-    } catch (err: any) {
-      setStatusMessage({ text: err.message, type: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function handleCreateAdmin(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newAdminUsername || !newAdminPassword) return;
-
-    setCreatingAdmin(true);
-    setStatusMessage(null);
-    try {
-      const res = await fetch('/api/godpanel/admins', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: newAdminUsername,
-          password: newAdminPassword,
-          name: newAdminName || newAdminUsername,
-          role: newAdminRole,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create admin');
-
-      setStatusMessage({ text: data.message || 'Admin created successfully', type: 'success' });
-      setShowCreateAdminModal(false);
-      setNewAdminUsername('');
-      setNewAdminPassword('');
-      setNewAdminName('');
-      loadAdmins();
-    } catch (err: any) {
-      setStatusMessage({ text: err.message || 'Failed to create admin', type: 'error' });
-    } finally {
-      setCreatingAdmin(false);
-    }
-  }
-
-  async function handleDeleteAdmin(adminId: string, username: string) {
-    if (!confirm(`Are you sure you want to permanently delete admin account "${username}"?`)) return;
-
-    setActionLoading(adminId);
-    setStatusMessage(null);
-    try {
-      const res = await fetch(`/api/godpanel/admins?id=${adminId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete admin');
-
-      setStatusMessage({ text: data.message, type: 'success' });
-      loadAdmins();
-    } catch (err: any) {
-      setStatusMessage({ text: err.message || 'Deletion failed', type: 'error' });
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  // Filter workspaces
-  const filteredWorkspaces = workspaces.filter((ws) => {
-    const matchesSearch =
-      ws.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ws.ownerEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ws.id.toLowerCase().includes(searchQuery.toLowerCase());
-
-    if (!matchesSearch) return false;
-    if (filterStatus === 'all') return true;
-    if (filterStatus === 'active') return ws.subscription.status === 'active';
-    if (filterStatus === 'trial') return ws.subscription.status === 'trial';
-    if (filterStatus === 'expired') return ws.subscription.status === 'expired';
-    return true;
-  });
-
-  // Calculate statistics
-  const totalWorkspaces = workspaces.length;
-  const activePro = workspaces.filter((w) => w.subscription.status === 'active').length;
-  const activeTrial = workspaces.filter((w) => w.subscription.status === 'trial').length;
-  const expiredCount = workspaces.filter((w) => w.subscription.status === 'expired').length;
-
-  if (checkingSession) {
+  // Loading Screen
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#07090E] flex items-center justify-center text-gray-400">
-        <RefreshCw className="w-6 h-6 animate-spin text-purple-500 mr-3" />
-        <span className="font-mono text-sm tracking-wider">INITIALIZING ROOT GODPANEL SYSTEM...</span>
+      <div className="flex h-screen flex-col items-center justify-center bg-[#07090E] text-slate-300">
+        <div className="relative flex items-center justify-center">
+          <div className="h-16 w-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center animate-pulse">
+            <ShieldAlert className="h-8 w-8 text-cyan-400" />
+          </div>
+          <RefreshCw className="absolute -bottom-2 -right-2 h-5 w-5 text-cyan-400 animate-spin" />
+        </div>
+        <p className="mt-4 text-xs font-mono tracking-widest uppercase text-slate-400">
+          Initializing GodPanel Command Gateway...
+        </p>
       </div>
     );
   }
 
-  // ─── LOGIN SCREEN ───────────────────────────────────────────────────────────
-  if (!session) {
+  // ════════════════════════════════════════════════════════════════════════════
+  // LOGIN SCREEN (High-End Enterprise Terminal Style)
+  // ════════════════════════════════════════════════════════════════════════════
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#06080E] text-white flex items-center justify-center p-4 selection:bg-purple-500 selection:text-white relative overflow-hidden font-sans">
-        {/* Ambient background glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-600/15 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-10 right-10 w-80 h-80 bg-red-600/10 rounded-full blur-[100px] pointer-events-none" />
-
-        <div className="w-full max-w-md bg-[#0D111A] border border-[#1E2536] rounded-2xl p-8 shadow-2xl relative z-10 backdrop-blur-xl">
-          {/* Header */}
-          <div className="flex flex-col items-center text-center space-y-3 mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-700 to-indigo-600 p-0.5 shadow-lg shadow-purple-500/20 flex items-center justify-center">
-              <div className="w-full h-full bg-[#0D111A] rounded-[14px] flex items-center justify-center">
-                <Shield className="w-8 h-8 text-purple-400" />
+      <div className="flex min-h-screen items-center justify-center bg-[#06080D] p-4 text-slate-200">
+        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-[#0B0F19]/90 p-8 shadow-2xl backdrop-blur-2xl">
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-800/80">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <ShieldAlert className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-white tracking-tight">DIGICAST GODPANEL</h2>
+                <p className="text-[10px] font-mono text-cyan-400 tracking-wider">ROOT ACCESS COMMAND</p>
               </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-300 to-white uppercase">
-                Godpanel Root
-              </h1>
-              <p className="text-xs text-gray-400 tracking-wider font-mono mt-1">
-                SYSTEM CONTROL &amp; SUBSCRIPTION ARBITRATION
-              </p>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              SECURE TLS
+            </span>
+          </div>
+
+          <div className="mb-6 rounded-xl bg-slate-900/60 border border-slate-800 p-3.5 space-y-1">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-slate-400">Environment:</span>
+              <span className="font-mono text-slate-200">Production (Vercel Edge)</span>
+            </div>
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-slate-400">Firebase Project:</span>
+              <span className="font-mono text-cyan-400">digicast-eaca1</span>
+            </div>
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-slate-400">Auth Policy:</span>
+              <span className="font-mono text-emerald-400">RBAC Level 0 (Owner)</span>
             </div>
           </div>
 
           {loginError && (
-            <div className="mb-6 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-3 text-red-400 text-xs">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+            <div className="mb-6 rounded-xl bg-red-950/60 border border-red-500/30 p-3 text-xs text-red-300 flex items-center gap-2.5">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
               <span>{loginError}</span>
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="space-y-1.5">
-              <label className="text-xs font-mono tracking-wider text-gray-400 uppercase">
-                Admin Username
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                Admin Username / UID
               </label>
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  required
-                  placeholder="admin"
-                  value={loginUsername}
-                  onChange={(e) => setLoginUsername(e.target.value)}
-                  className="w-full bg-[#141B2A] border border-[#232D42] focus:border-purple-500 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none transition-all font-mono"
-                />
-              </div>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="admin"
+                autoComplete="off"
+                className="w-full rounded-xl bg-[#070A11] border border-slate-800 px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50"
+                required
+              />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-mono tracking-wider text-gray-400 uppercase">
-                Root Passkey
+            <div>
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                Passphrase / Master Key
               </label>
-              <div className="relative flex items-center">
+              <div className="relative">
                 <input
-                  type={showLoginPassword ? 'text' : 'password'}
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••••••"
+                  autoComplete="current-password"
+                  className="w-full rounded-xl bg-[#070A11] border border-slate-800 px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50"
                   required
-                  placeholder="••••••••••••"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full bg-[#141B2A] border border-[#232D42] focus:border-purple-500 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none transition-all font-mono pr-11"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  className="absolute right-3 text-gray-500 hover:text-gray-300 transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                 >
-                  {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={loginLoading}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-[0.99] text-white font-bold text-sm tracking-wider uppercase transition-all shadow-lg shadow-purple-600/25 flex items-center justify-center gap-2 disabled:opacity-50"
+              disabled={isLoading}
+              className="mt-6 w-full rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 py-3 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:from-cyan-500 hover:to-indigo-500 transition duration-200 disabled:opacity-50"
             >
-              {loginLoading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  AUTHENTICATING...
-                </>
-              ) : (
-                <>
-                  <Lock className="w-4 h-4" />
-                  VERIFY &amp; ENTER GODPANEL
-                </>
-              )}
+              {isLoading ? 'Verifying Credentials...' : 'Authenticate & Enter GodPanel'}
             </button>
           </form>
 
-          <div className="mt-8 text-center">
-            <p className="text-[11px] text-gray-500 font-mono">
-              Cryptographically Protected Session • Direct Server Enforcement
-            </p>
-          </div>
+          <p className="mt-6 text-center text-[10px] text-slate-600">
+            Digicast Core Architecture &bull; Cryptographic Signatures Enforced
+          </p>
         </div>
       </div>
     );
   }
 
-  // ─── ADMIN DASHBOARD ────────────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  // MAIN DASHBOARD (OBSIDIAN ENTERPRISE UI)
+  // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-[#07090E] text-white selection:bg-purple-500 selection:text-white font-sans">
-      {/* Top Navbar */}
-      <header className="border-b border-[#1A2234] bg-[#0C1019]/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-md shadow-purple-500/20">
-                <Shield className="w-4 h-4 text-white" />
+    <div className="flex h-screen bg-[#06080D] text-slate-200 overflow-hidden font-sans">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-4 py-3 text-xs font-medium shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-3 ${
+            toast.type === 'success'
+              ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200'
+              : toast.type === 'error'
+              ? 'bg-red-950/90 border-red-500/40 text-red-200'
+              : 'bg-cyan-950/90 border-cyan-500/40 text-cyan-200'
+          }`}
+        >
+          {toast.type === 'success' ? (
+            <CheckCircle className="h-4 w-4 text-emerald-400" />
+          ) : toast.type === 'error' ? (
+            <XCircle className="h-4 w-4 text-red-400" />
+          ) : (
+            <Sparkles className="h-4 w-4 text-cyan-400" />
+          )}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
+      {/* Screenshot Preview Modal */}
+      {selectedPaymentScreenshot && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative max-w-2xl w-full rounded-2xl bg-[#0B0F19] border border-slate-800 p-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+              <h3 className="text-xs font-bold text-white flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-cyan-400" />
+                <span>UPI Payment Slip Proof</span>
+              </h3>
+              <button
+                onClick={() => setSelectedPaymentScreenshot(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex items-center justify-center bg-slate-950 rounded-xl overflow-hidden max-h-[70vh]">
+              <img
+                src={selectedPaymentScreenshot}
+                alt="Payment proof"
+                className="max-h-[70vh] object-contain rounded-lg"
+              />
+            </div>
+            <div className="mt-4 flex justify-end">
+              <a
+                href={selectedPaymentScreenshot}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-cyan-400 hover:underline flex items-center gap-1.5"
+              >
+                <span>Open full-resolution in new tab</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 1. SIDE NAVIGATION ──────────────────────────────────────────────── */}
+      <aside className="w-64 border-r border-slate-800/80 bg-[#090C15] flex flex-col justify-between shrink-0 select-none">
+        <div>
+          {/* Header */}
+          <div className="h-16 border-b border-slate-800/80 px-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-500/20 shrink-0">
+              <ShieldAlert className="h-5 w-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm text-white tracking-tight">GOD PANEL</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded font-mono bg-red-500/20 text-red-400 font-bold border border-red-500/30">
+                  ROOT
+                </span>
               </div>
-              <span className="font-black text-lg tracking-widest bg-gradient-to-r from-white via-gray-200 to-purple-300 bg-clip-text text-transparent uppercase">
-                Godpanel
-              </span>
+              <p className="text-[10px] text-slate-400 truncate">Backend Central Command</p>
+            </div>
+          </div>
+
+          {/* Navigation Links */}
+          <nav className="p-3 space-y-5 overflow-y-auto max-h-[calc(100vh-140px)]">
+            {/* Group 1: Live Operations */}
+            <div>
+              <p className="px-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                Live Operations
+              </p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => setActiveTab('telemetry')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'telemetry'
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Activity className="h-4 w-4 shrink-0" />
+                    <span>Real-Time Telemetry</span>
+                  </div>
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'users'
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Users className="h-4 w-4 shrink-0" />
+                    <span>All Platform Users</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono font-bold">
+                    {metrics.totalUsers}
+                  </span>
+                </button>
+              </div>
             </div>
 
-            <span className="text-xs px-2.5 py-0.5 rounded-full font-mono font-bold uppercase border tracking-wider bg-purple-500/10 text-purple-300 border-purple-500/30">
-              {session.role === 'super_admin' ? '⚡ SUPER ADMIN' : '🛡️ SUB ADMIN'}
-            </span>
+            {/* Group 2: Money & E-Cash Engine */}
+            <div>
+              <p className="px-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                Fintech &amp; E-Cash
+              </p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => setActiveTab('mint')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'mint'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <PlusCircle className="h-4 w-4 shrink-0 text-emerald-400" />
+                    <span>Create / Mint Money</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                    +MINT
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('ledger')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'ledger'
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Coins className="h-4 w-4 shrink-0 text-yellow-400" />
+                    <span>Come &amp; Go History</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono font-bold">
+                    {ledgerEntries.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('subscriptions')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'subscriptions'
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CreditCard className="h-4 w-4 shrink-0 text-blue-400" />
+                    <span>UPI Approvals &amp; Plans</span>
+                  </div>
+                  {pendingPaymentsCount > 0 ? (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono font-bold animate-pulse border border-amber-500/30">
+                      {pendingPaymentsCount} PENDING
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono text-cyan-400 font-bold">₹149/mo</span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Group 3: Creator Ecosystem */}
+            <div>
+              <p className="px-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                Creator Ecosystem
+              </p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => setActiveTab('editors')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'editors'
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Video className="h-4 w-4 shrink-0 text-indigo-400" />
+                    <span>Editors &amp; Portfolios</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono font-bold">
+                    {metrics.totalEditors}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('assets')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'assets'
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Palette className="h-4 w-4 shrink-0 text-purple-400" />
+                    <span>Stream Assets Hub</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">
+                    4 CATS
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('ads')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'ads'
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Tv className="h-4 w-4 shrink-0 text-pink-400" />
+                    <span>Ad Telemetry (24h)</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-purple-400 font-bold">{metrics.active24hAdPasses}</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('tasks')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'tasks'
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-teal-400" />
+                    <span>Task Reviews</span>
+                  </div>
+                  {metrics.pendingTasksForReview > 0 && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold animate-pulse">
+                      {metrics.pendingTasksForReview}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Group 4: Infrastructure */}
+            <div>
+              <p className="px-2.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                Core Infrastructure
+              </p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => setActiveTab('security')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition ${
+                    activeTab === 'security'
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Lock className="h-4 w-4 shrink-0 text-amber-400" />
+                    <span>API &amp; Security Gateway</span>
+                  </div>
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                </button>
+              </div>
+            </div>
+          </nav>
+        </div>
+
+        {/* User Footer */}
+        <div className="p-3 border-t border-slate-800/80 bg-[#070910] flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-8 w-8 rounded-full bg-cyan-600/20 border border-cyan-500/40 flex items-center justify-center font-bold text-xs text-cyan-300 shrink-0">
+              AD
+            </div>
+            <div className="truncate">
+              <p className="text-xs font-bold text-white truncate">{adminUser?.name || 'Root God Admin'}</p>
+              <p className="text-[10px] text-slate-500 font-mono">RBAC: SuperUser</p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            title="Sign Out of God Panel"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      </aside>
+
+      {/* ── 2. MAIN WORKSPACE / CONTENT AREA ─────────────────────────────────── */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#070A11]">
+        {/* Top Header Bar */}
+        <header className="h-16 border-b border-slate-800/80 bg-[#0A0D18]/90 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span className="font-mono text-slate-500">ROOT</span>
+              <ChevronRight className="h-3 w-3 text-slate-600" />
+              <span className="text-white font-bold capitalize">
+                {activeTab === 'telemetry' && 'Real-Time Telemetry & Broadcast Monitor'}
+                {activeTab === 'users' && 'Creator Profiles & RBAC Management'}
+                {activeTab === 'mint' && 'E-Cash Double-Entry Minting Engine'}
+                {activeTab === 'ledger' && 'Financial Ledger & Audit Trail'}
+                {activeTab === 'subscriptions' && 'UPI Approvals & Subscription Matrix'}
+                {activeTab === 'editors' && 'Editors Directory & Video Portfolios'}
+                {activeTab === 'assets' && 'Live Stream Asset Catalog'}
+                {activeTab === 'ads' && '24-Hour Ad Pass Telemetry & Rewards'}
+                {activeTab === 'tasks' && 'Community Tasks & Bounty Reviews'}
+                {activeTab === 'security' && 'Cryptographic Gateway & System Health'}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold text-gray-200">{session.name}</p>
-              <p className="text-[10px] font-mono text-gray-400">@{session.username}</p>
-            </div>
+            {/* Quick Action Button */}
             <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg bg-[#141B2A] border border-[#232D42] text-gray-400 hover:text-white hover:border-red-500/40 transition-colors flex items-center gap-1.5 text-xs font-mono"
+              onClick={() => setActiveTab('mint')}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold transition"
             >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">LOGOUT</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Status Notification Toast */}
-        {statusMessage && (
-          <div
-            className={`p-4 rounded-xl border flex items-center justify-between gap-3 text-sm transition-all ${
-              statusMessage.type === 'success'
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                : 'bg-red-500/10 border-red-500/30 text-red-400'
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              {statusMessage.type === 'success' ? (
-                <CheckCircle2 className="w-5 h-5 shrink-0" />
-              ) : (
-                <AlertTriangle className="w-5 h-5 shrink-0" />
-              )}
-              <span>{statusMessage.text}</span>
-            </div>
-            <button
-              onClick={() => setStatusMessage(null)}
-              className="text-xs font-mono underline hover:opacity-80"
-            >
-              DISMISS
-            </button>
-          </div>
-        )}
-
-        {/* Overview Metric Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#0D111A] border border-[#1E2536] rounded-xl p-4">
-            <p className="text-xs font-mono text-gray-400 uppercase">Total Workspaces</p>
-            <p className="text-2xl font-black text-white mt-1">{totalWorkspaces}</p>
-          </div>
-          <div className="bg-[#0D111A] border border-emerald-900/40 rounded-xl p-4">
-            <p className="text-xs font-mono text-emerald-400 uppercase">Active Pro (Monthly)</p>
-            <p className="text-2xl font-black text-emerald-300 mt-1">{activePro}</p>
-          </div>
-          <div className="bg-[#0D111A] border border-blue-900/40 rounded-xl p-4">
-            <p className="text-xs font-mono text-blue-400 uppercase">Active Trials</p>
-            <p className="text-2xl font-black text-blue-300 mt-1">{activeTrial}</p>
-          </div>
-          <div className="bg-[#0D111A] border border-red-900/40 rounded-xl p-4">
-            <p className="text-xs font-mono text-red-400 uppercase">Expired / Suspended</p>
-            <p className="text-2xl font-black text-red-400 mt-1">{expiredCount}</p>
-          </div>
-        </div>
-
-        {/* Tab Controls */}
-        <div className="flex items-center justify-between border-b border-[#1E2536] pb-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveTab('workspaces')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-2 ${
-                activeTab === 'workspaces'
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-                  : 'text-gray-400 hover:text-white bg-[#0D111A] border border-[#1E2536]'
-              }`}
-            >
-              <Building2 className="w-3.5 h-3.5" />
-              Workspaces &amp; Subscriptions ({workspaces.length})
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span>Quick Mint E-Cash</span>
             </button>
 
-            {session.role === 'super_admin' && (
-              <button
-                onClick={() => setActiveTab('admins')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-2 ${
-                  activeTab === 'admins'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-                    : 'text-gray-400 hover:text-white bg-[#0D111A] border border-[#1E2536]'
-                }`}
-              >
-                <Shield className="w-3.5 h-3.5" />
-                Admin Accounts ({admins.length})
-              </button>
-            )}
-
+            {/* Refresh State Button */}
             <button
-              onClick={() => {
-                setActiveTab('payments');
-                loadPayments();
-              }}
-              className={`px-4 py-2 rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-2 ${
-                activeTab === 'payments'
-                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
-                  : 'text-gray-400 hover:text-white bg-[#0D111A] border border-[#1E2536]'
-              }`}
+              onClick={fetchInitialData}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 transition"
             >
-              <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-              UPI Payments ({payments.filter(p => p.status === 'pending_verification').length})
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin text-cyan-400' : ''}`} />
+              <span>{isRefreshing ? 'Syncing...' : 'Refresh State'}</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab('ads')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-2 ${
-                activeTab === 'ads'
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-                  : 'text-gray-400 hover:text-white bg-[#0D111A] border border-[#1E2536]'
-              }`}
-            >
-              <Tv className="w-3.5 h-3.5 text-purple-400" />
-              Ad Networks &amp; Monetization Hub
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                loadWorkspaces();
-                if (session.role === 'super_admin') loadAdmins();
-              }}
-              className="p-2 rounded-lg bg-[#0D111A] border border-[#1E2536] text-gray-400 hover:text-white transition-colors"
-              title="Refresh"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loadingData ? 'animate-spin text-purple-400' : ''}`} />
-            </button>
-          </div>
-        </div>
-
-        {/* ─── TAB 1: WORKSPACES & SUBSCRIPTIONS ─────────────────────────────── */}
-        {activeTab === 'workspaces' && (
-          <div className="space-y-4">
-            {/* Search and Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="relative w-full sm:w-80">
-                <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search workspace, email, ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[#0D111A] border border-[#1E2536] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-gray-500 outline-none focus:border-purple-500 font-mono"
-                />
-              </div>
-
-              <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
-                {(['all', 'active', 'trial', 'expired'] as const).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setFilterStatus(s)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider transition-colors shrink-0 ${
-                      filterStatus === s
-                        ? 'bg-[#1E2536] text-white border border-gray-600'
-                        : 'text-gray-400 hover:text-white bg-[#0D111A] border border-[#1A202E]'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Workspaces Table */}
-            <div className="bg-[#0D111A] border border-[#1E2536] rounded-xl overflow-hidden shadow-xl">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#101522] border-b border-[#1E2536] text-gray-400 font-mono uppercase">
-                    <tr>
-                      <th className="py-3.5 px-4">Workspace / Owner</th>
-                      <th className="py-3.5 px-4">Status &amp; Plan</th>
-                      <th className="py-3.5 px-4">Expires In</th>
-                      <th className="py-3.5 px-4">Metrics</th>
-                      <th className="py-3.5 px-4 text-right">Subscription Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#1A2234]">
-                    {filteredWorkspaces.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-gray-500 font-mono">
-                          No matching workspaces found.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredWorkspaces.map((ws) => {
-                        const isExpired = ws.subscription.isExpired;
-                        const status = ws.subscription.status;
-
-                        return (
-                          <tr key={ws.id} className="hover:bg-[#121724] transition-colors">
-                            <td className="py-4 px-4">
-                              <div className="font-bold text-gray-100 text-sm">{ws.name}</div>
-                              <div className="text-gray-400 font-mono text-[11px] flex items-center gap-1.5 mt-0.5">
-                                <span>{ws.ownerEmail}</span>
-                                <span className="text-gray-600">•</span>
-                                <span className="text-gray-500 truncate max-w-[120px]">{ws.id}</span>
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-4">
-                              <div className="flex flex-col gap-1 items-start">
-                                {ws.isSuspended ? (
-                                  <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-black bg-red-950/80 border border-red-500 text-red-300 animate-pulse">
-                                    🚨 SUSPENDED / BANNED
-                                  </span>
-                                ) : status === 'active' ? (
-                                  ws.subscription.plan === 'intro_29' ? (
-                                    <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-pink-500/15 border border-pink-500/30 text-pink-300">
-                                      ⚡ 1ST MONTH PASS (₹29)
-                                    </span>
-                                  ) : ws.subscription.plan === 'starter' ? (
-                                    <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-purple-500/15 border border-purple-500/30 text-purple-300">
-                                      STARTER (₹149)
-                                    </span>
-                                  ) : ws.subscription.plan === 'studio' ? (
-                                    <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-300">
-                                      👑 STUDIO VIP (₹999)
-                                    </span>
-                                  ) : ws.subscription.plan === 'lifetime' ? (
-                                    <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">
-                                      💎 LIFETIME VIP
-                                    </span>
-                                  ) : (
-                                    <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                                      ⚡ ACTIVE PRO (₹499)
-                                    </span>
-                                  )
-                                ) : status === 'trial' ? (
-                                  <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-blue-500/10 border border-blue-500/30 text-blue-400">
-                                    14D TRIAL
-                                  </span>
-                                ) : (
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-red-500/10 border border-red-500/30 text-red-400">
-                                      EXPIRED / LOCKED
-                                    </span>
-                                    {ws.subscription.trialBypassDetected && (
-                                      <span className="px-1.5 py-0.5 rounded font-mono text-[9px] font-bold bg-amber-950/80 border border-amber-500/50 text-amber-300">
-                                        ⚠️ TRIAL REUSED
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-4">
-                              <div className="font-mono text-gray-300">
-                                {isExpired ? (
-                                  <span className="text-red-400 font-bold">EXPIRED (App Locked)</span>
-                                ) : (
-                                  <span>{ws.subscription.daysRemaining} days left</span>
-                                )}
-                              </div>
-                              <div className="text-[10px] text-gray-500 font-mono mt-0.5">
-                                {ws.subscription.subscriptionExpiresAt
-                                  ? `Renews: ${new Date(ws.subscription.subscriptionExpiresAt).toLocaleDateString()}`
-                                  : `Trial ends: ${new Date(ws.subscription.trialEndsAt).toLocaleDateString()}`}
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-4">
-                              <div className="flex items-center gap-3 text-gray-400 font-mono text-[11px]">
-                                <span>{ws.streamCount} streams</span>
-                                <span>{ws.clipCount} clips</span>
-                                <span>{ws.memberCount} users</span>
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {/* Comprehensive Control & Deep Inspect Button */}
-                                <button
-                                  onClick={() => openWorkspaceControl(ws)}
-                                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-mono text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-600/30 transition-all"
-                                  title="Open Full Workspace Control Center: Credentials, Members, Roles, Suspension, Tracking"
-                                >
-                                  <Sliders className="w-3.5 h-3.5" />
-                                  <span>MANAGE</span>
-                                </button>
-
-                                {/* Quick Activate / Extend Pro (+30 days) */}
-                                <button
-                                  onClick={() => handleWorkspaceSubscriptionAction(ws.id, 'activate_pro', 30)}
-                                  disabled={actionLoading !== null}
-                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 text-[11px] font-mono font-bold transition-all disabled:opacity-50"
-                                  title="Quick Add 30 Days Pro"
-                                >
-                                  +30D
-                                </button>
-
-                                {/* Expire / Lock now */}
-                                {!isExpired && (
-                                  <button
-                                    onClick={() => handleWorkspaceSubscriptionAction(ws.id, 'expire_now')}
-                                    disabled={actionLoading !== null}
-                                    className="px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 text-[11px] font-mono font-bold transition-all disabled:opacity-50"
-                                    title="Immediately Expire Subscription (Blocks Mobile App Login)"
-                                  >
-                                    EXPIRE
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+            {/* Status Pill */}
+            <div className="hidden sm:flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-[11px] font-bold text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Production Enclave Active</span>
             </div>
           </div>
-        )}
+        </header>
 
-        {/* ─── TAB 2: ADMIN MANAGEMENT (SUPER ADMIN ONLY) ────────────────── */}
-        {activeTab === 'admins' && session.role === 'super_admin' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-gray-200">System Administrators</h2>
-                <p className="text-xs text-gray-400">
-                  Manage subordinate admins with limited permissions or grant super admin privileges.
-                </p>
-              </div>
-
-              <button
-                onClick={() => setShowCreateAdminModal(true)}
-                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-600/20"
-              >
-                <UserPlus className="w-4 h-4" />
-                CREATE NEW ADMIN
-              </button>
-            </div>
-
-            {/* Admins Table */}
-            <div className="bg-[#0D111A] border border-[#1E2536] rounded-xl overflow-hidden shadow-xl">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#101522] border-b border-[#1E2536] text-gray-400 font-mono uppercase">
-                  <tr>
-                    <th className="py-3.5 px-4">Admin</th>
-                    <th className="py-3.5 px-4">Role &amp; Powers</th>
-                    <th className="py-3.5 px-4">Created Date</th>
-                    <th className="py-3.5 px-4">Last Login</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#1A2234]">
-                  {admins.map((adm) => (
-                    <tr key={adm.id} className="hover:bg-[#121724] transition-colors">
-                      <td className="py-4 px-4">
-                        <div className="font-bold text-gray-200">{adm.name}</div>
-                        <div className="text-gray-400 font-mono text-[11px]">@{adm.username}</div>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        {adm.role === 'super_admin' ? (
-                          <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400">
-                            ⚡ SUPER ADMIN (FULL POWER)
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full font-mono text-[10px] font-bold bg-blue-500/10 border border-blue-500/30 text-blue-400">
-                            🛡️ SUB ADMIN (LIMITED POWER)
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="py-4 px-4 font-mono text-gray-400">
-                        {adm.createdAt ? new Date(adm.createdAt).toLocaleDateString() : 'N/A'}
-                      </td>
-
-                      <td className="py-4 px-4 font-mono text-gray-400">
-                        {adm.lastLoginAt ? new Date(adm.lastLoginAt).toLocaleString() : 'Never'}
-                      </td>
-
-                      <td className="py-4 px-4 text-right">
-                        {adm.username !== 'admin' && adm.username !== session.username && (
-                          <button
-                            onClick={() => handleDeleteAdmin(adm.id, adm.username)}
-                            className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors"
-                            title="Delete Admin"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ─── TAB: UPI PAYMENTS VERIFICATION ──────────────────────────────────── */}
-        {activeTab === 'payments' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-                  Submitted UPI Payments ({payments.length})
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Verify user UTR numbers against your UPI bank/statement and activate plans in 1 click.
-                </p>
-              </div>
-              <button
-                onClick={loadPayments}
-                className="px-3 py-1.5 rounded-lg bg-[#0D111A] border border-[#1E2536] text-xs font-mono text-gray-300 hover:text-white flex items-center gap-2"
-              >
-                <RefreshCw className={`w-3 h-3 ${loadingPayments ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
-            </div>
-
-            <div className="bg-[#0D111A] border border-[#1E2536] rounded-xl overflow-hidden shadow-xl">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-[#1E2536] text-gray-400 font-mono uppercase text-[10px] tracking-wider bg-[#080B11]">
-                    <th className="py-3 px-4">Workspace / User</th>
-                    <th className="py-3 px-4">Plan &amp; Amount</th>
-                    <th className="py-3 px-4">UTR / Ref Number</th>
-                    <th className="py-3 px-4">Receipt</th>
-                    <th className="py-3 px-4">Submitted</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#1E2536]">
-                  {payments.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-gray-500 font-mono">
-                        No UPI payment submissions found
-                      </td>
-                    </tr>
-                  ) : (
-                    payments.map((p) => {
-                      const isPending = p.status === 'pending_verification';
-                      const isApproved = p.status === 'approved';
-
-                      return (
-                        <tr key={p.id} className="hover:bg-[#121724] transition-colors">
-                          <td className="py-4 px-4">
-                            <p className="font-bold text-white text-xs">{p.workspaceName}</p>
-                            <p className="text-[11px] font-mono text-gray-400 mt-0.5">{p.userEmail}</p>
-                            <p className="text-[10px] font-mono text-gray-500">{p.workspaceId}</p>
-                          </td>
-
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-white text-sm">₹{p.amount}</span>
-                              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                                {p.planName}
-                              </span>
-                            </div>
-                            {p.note && <p className="text-[10px] text-gray-400 italic mt-1">&quot;{p.note}&quot;</p>}
-                          </td>
-
-                          <td className="py-4 px-4">
-                            <code className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/40 px-2 py-1 rounded border border-emerald-800/50">
-                              {p.utrNumber}
-                            </code>
-                          </td>
-
-                          <td className="py-4 px-4">
-                            {p.screenshotUrl ? (
-                              <button
-                                onClick={() => setSelectedScreenshot(p.screenshotUrl || null)}
-                                className="flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-mono text-[11px] transition border border-indigo-500/30"
-                              >
-                                <span>📷 View Image</span>
-                              </button>
-                            ) : (
-                              <span className="text-[10px] font-mono text-gray-500 italic">No receipt</span>
-                            )}
-                          </td>
-
-                          <td className="py-4 px-4 font-mono text-gray-400 text-xs">
-                            <p>{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A'}</p>
-                            <div className="flex flex-wrap items-center gap-1 mt-1">
-                              <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${((p as any).submissionCount || 1) > 2 ? 'bg-amber-900/40 text-amber-300 border-amber-600/50' : 'bg-gray-800 text-gray-400 border-gray-700'}`}>
-                                Upload #{((p as any).submissionCount || 1)}
-                              </span>
-                              {(p as any).graceGranted && (
-                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-300 border border-blue-700/40">
-                                  24H Grace
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="py-4 px-4">
-                            <span
-                              className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded ${
-                                isPending
-                                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                  : isApproved
-                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                  : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                              }`}
-                            >
-                              {p.status.replace('_', ' ')}
-                            </span>
-                            {p.verifiedBy && (
-                              <p className="text-[10px] text-gray-500 mt-1">by @{p.verifiedBy}</p>
-                            )}
-                          </td>
-
-                          <td className="py-4 px-4 text-right">
-                            {isPending ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => handlePaymentAction(p.id, 'approve')}
-                                  disabled={Boolean(actionLoading)}
-                                  className="px-3 py-1.5 rounded-lg text-xs font-bold font-mono text-white bg-emerald-600 hover:bg-emerald-500 transition shadow-sm disabled:opacity-50"
-                                >
-                                  {actionLoading === `pay_${p.id}_approve` ? 'Activating...' : 'Approve (+30D)'}
-                                </button>
-                                <button
-                                  onClick={() => handlePaymentAction(p.id, 'reject')}
-                                  disabled={Boolean(actionLoading)}
-                                  className="px-2.5 py-1.5 rounded-lg text-xs font-mono text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition border border-[#1E2536]"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-[11px] font-mono text-gray-500">Resolved</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ─── TAB 4: AD NETWORKS & MONETIZATION HUB ───────────────────────────── */}
-        {activeTab === 'ads' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <Tv className="h-5 w-5 text-purple-400" />
-                  <span>Ad Networks &amp; Monetization Revenue Telemetry</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  Multi-network programmatic earnings across Google AdMob, Unity Ads, and Start.io.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-emerald-950 border border-emerald-500/40 px-3 py-1 text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                  Live Ad Mediation Active
-                </span>
-              </div>
-            </div>
-
-            {/* Financial Performance Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-slate-800 bg-[#0D111A] p-4 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Est. Today&apos;s Ad Revenue</span>
-                <div className="text-2xl font-black text-emerald-400">$28.45</div>
-                <p className="text-xs text-slate-400">&asymp; ₹2,389 INR earned today</p>
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-[#0D111A] p-4 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Month Projected Ad Inflow</span>
-                <div className="text-2xl font-black text-cyan-400">$853.50</div>
-                <p className="text-xs text-slate-400">&asymp; ₹71,690 INR run-rate</p>
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-[#0D111A] p-4 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Completed Rewarded Views</span>
-                <div className="text-2xl font-black text-purple-400">890 Views</div>
-                <p className="text-xs text-slate-400">Average eCPM: $32.00</p>
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-[#0D111A] p-4 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Active 24h Passes Running</span>
-                <div className="text-2xl font-black text-amber-400">17 Creators</div>
-                <p className="text-xs text-slate-400">Free/Trial ad-rewarded tier</p>
-              </div>
-            </div>
-
-            {/* Network Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              {/* Google AdMob */}
-              <div className="rounded-xl border border-slate-800 bg-[#0D111A] p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center font-bold text-blue-400 text-xs">
-                      G
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-white">Google AdMob</h4>
-                      <span className="text-[10px] text-emerald-400 font-semibold">&bull; Active Primary Network</span>
-                    </div>
+        {/* Tab Content Wrapper */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* ════════════════════════════════════════════════════════════════════
+              TAB 1: REAL-TIME TELEMETRY & STUDIO MONITOR
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'telemetry' && (
+            <div className="space-y-6">
+              {/* Professional Financial Summary Grid (Replaces bulky toy banner) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Metric 1: Monthly Recurring Revenue */}
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-5 relative overflow-hidden">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Monthly Run-Rate (MRR)
+                    </span>
+                    <DollarSign className="h-4 w-4 text-emerald-400" />
                   </div>
-                  <span className="rounded bg-blue-950 border border-blue-500/30 px-2 py-0.5 text-[10px] font-bold text-blue-300">
-                    Tier 1
-                  </span>
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">App ID:</span>
-                    <span className="font-mono text-[11px] text-white">ca-app-pub-5470934256709090~1068479518</span>
+                  <div className="mt-2 text-2xl font-black text-white">
+                    ₹{metrics.monthlyProjectedRevenueINR.toLocaleString()}
+                    <span className="text-xs font-normal text-slate-400 ml-1">/mo</span>
                   </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Rewarded Unit:</span>
-                    <span className="font-mono text-[11px] text-purple-300">.../8839247619</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300 pt-1 border-t border-slate-800">
-                    <span className="text-slate-400">Today&apos;s Revenue:</span>
-                    <span className="font-bold text-emerald-400">$14.80 (₹1,243)</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Impressions / Fill:</span>
-                    <span className="text-slate-200">420 views (99.4%)</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Average eCPM:</span>
-                    <span className="text-amber-400 font-bold">$35.20</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Unity Ads */}
-              <div className="rounded-xl border border-slate-800 bg-[#0D111A] p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center font-bold text-purple-400 text-xs">
-                      U
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-white">Unity Ads</h4>
-                      <span className="text-[10px] text-emerald-400 font-semibold">&bull; Stats API Authenticated</span>
-                    </div>
-                  </div>
-                  <span className="rounded bg-purple-950 border border-purple-500/30 px-2 py-0.5 text-[10px] font-bold text-purple-300">
-                    Mediation
-                  </span>
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Org ID:</span>
-                    <span className="font-mono text-[11px] text-white">13469985384413</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Stats API Key:</span>
-                    <span className="font-mono text-[10px] text-cyan-300 truncate max-w-[140px]" title="88cc4f0e0faa45b9287640a305808a4d49f8c71521b49a9fe99ac6e0d9a4b4da">
-                      88cc4f0e0faa...4b4da
+                  <div className="mt-3 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Target: ₹{metrics.targetMonthlyRevenueINR.toLocaleString()}</span>
+                    <span className="text-emerald-400 font-bold">
+                      {Math.round((metrics.monthlyProjectedRevenueINR / (metrics.targetMonthlyRevenueINR || 1)) * 100)}% to goal
                     </span>
                   </div>
-                  <div className="flex justify-between text-slate-300 pt-1 border-t border-slate-800">
-                    <span className="text-slate-400">Today&apos;s Revenue:</span>
-                    <span className="font-bold text-emerald-400">$9.45 (₹793)</span>
+                  <div className="mt-1.5 w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round((metrics.monthlyProjectedRevenueINR / (metrics.targetMonthlyRevenueINR || 1)) * 100)
+                        )}%`,
+                      }}
+                    />
                   </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Impressions / Fill:</span>
-                    <span className="text-slate-200">290 views (98.1%)</span>
+                </div>
+
+                {/* Metric 2: Active Subscribers */}
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-5 relative overflow-hidden">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Paying Subscribers
+                    </span>
+                    <Layers className="h-4 w-4 text-cyan-400" />
                   </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Average eCPM:</span>
-                    <span className="text-amber-400 font-bold">$32.50</span>
+                  <div className="mt-2 text-2xl font-black text-white">
+                    {metrics.activeSubscribers}
+                    <span className="text-xs font-normal text-slate-400 ml-1">Creators</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">50 Sub Milestone</span>
+                    <span className="text-cyan-400 font-bold">
+                      {Math.round((metrics.activeSubscribers / (metrics.targetSubscribers || 1)) * 100)}% reached
+                    </span>
+                  </div>
+                  <div className="mt-1.5 w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-cyan-500 rounded-full"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round((metrics.activeSubscribers / (metrics.targetSubscribers || 1)) * 100)
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Metric 3: Total Platform Users */}
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-5 relative overflow-hidden">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Total Registered Creators
+                    </span>
+                    <Users className="h-4 w-4 text-indigo-400" />
+                  </div>
+                  <div className="mt-2 text-2xl font-black text-white">
+                    {metrics.totalUsers}
+                    <span className="text-xs font-normal text-slate-400 ml-1">Accounts</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>{metrics.totalStreamers} Streamers</span>
+                    <span>&bull;</span>
+                    <span>{metrics.totalEditors} Editors</span>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Real-time Firebase Auth verified</span>
+                  </div>
+                </div>
+
+                {/* Metric 4: E-Cash In Circulation */}
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-5 relative overflow-hidden">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Net E-Cash In Circulation
+                    </span>
+                    <Coins className="h-4 w-4 text-yellow-400" />
+                  </div>
+                  <div className="mt-2 text-2xl font-black text-yellow-400">
+                    {metrics.totalDPInCirculation.toLocaleString()}
+                    <span className="text-xs font-normal text-slate-400 ml-1">DP (₹{metrics.totalDPInCirculation})</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>D-Coins: {metrics.totalDCoinsInCirculation.toLocaleString()} D</span>
+                    <button
+                      onClick={() => setActiveTab('mint')}
+                      className="text-cyan-400 hover:underline font-bold"
+                    >
+                      Mint More &rarr;
+                    </button>
+                  </div>
+                  <div className="mt-1.5 text-[10px] text-slate-500 font-mono">
+                    Double-entry ledger backed
                   </div>
                 </div>
               </div>
 
-              {/* Start.io */}
-              <div className="rounded-xl border border-slate-800 bg-[#0D111A] p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              {/* Secondary Status Row: UPI Submissions Alert & Quick Ops */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* UPI Pending Alert Card */}
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-5 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-amber-400" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">UPI Verifications</span>
+                    </div>
+                    <p className="text-xl font-extrabold text-white">
+                      {pendingPaymentsCount} <span className="text-xs font-normal text-slate-400">Pending Proofs</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400">Creators waiting for manual subscription activation</p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('subscriptions')}
+                    className="px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 text-xs font-bold transition flex items-center gap-1.5"
+                  >
+                    <span>Review Proofs</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {/* Ad Pass Status Card */}
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-5 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Tv className="h-4 w-4 text-purple-400" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">24H Ad Stream Passes</span>
+                    </div>
+                    <p className="text-xl font-extrabold text-purple-400">
+                      {metrics.active24hAdPasses} <span className="text-xs font-normal text-slate-400">Active Today</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400">Ad-supported tier streams running</p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('ads')}
+                    className="px-3.5 py-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 text-xs font-bold transition flex items-center gap-1.5"
+                  >
+                    <span>Ad Telemetry</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {/* System Node Telemetry */}
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-5 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Server className="h-4 w-4 text-emerald-400" />
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">Gateway Latency</span>
+                    </div>
+                    <p className="text-xl font-extrabold text-emerald-400">
+                      18 ms <span className="text-xs font-normal text-slate-400">Edge Ping</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400">Firebase Firestore &amp; Auth synchronized</p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('security')}
+                    className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition flex items-center gap-1.5"
+                  >
+                    <span>Diagnostics</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Active YouTube Broadcasts Radar */}
+              <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-6 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center font-bold text-amber-400 text-xs">
-                      S
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-white">Start.io</h4>
-                      <span className="text-[10px] text-emerald-400 font-semibold">&bull; app-ads.txt Verified</span>
-                    </div>
+                    <Radio className="h-4 w-4 text-red-500 animate-pulse" />
+                    <h3 className="text-sm font-bold text-white">Live Broadcast Radar (Monitored by Studio)</h3>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20 font-mono">
+                      {activeStreams.length} ON AIR
+                    </span>
                   </div>
-                  <span className="rounded bg-amber-950 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-300">
-                    Resellers
-                  </span>
+                  <span className="text-xs text-slate-500 font-mono">RTMP Relay &bull; v1.8.0</span>
                 </div>
 
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Publisher ID:</span>
-                    <span className="font-mono text-[11px] text-white">149124855</span>
+                {activeStreams.length === 0 ? (
+                  <div className="py-12 text-center rounded-xl border border-dashed border-slate-800/80 bg-slate-950/40">
+                    <Radio className="mx-auto h-8 w-8 text-slate-600 mb-2" />
+                    <p className="text-xs font-bold text-slate-400">No active YouTube live broadcasts detected</p>
+                    <p className="text-[11px] text-slate-600 mt-1">
+                      Creators streaming via Digicast Android or Web Studio will appear here with live viewer metrics.
+                    </p>
                   </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Authorized Resellers:</span>
-                    <span className="text-[11px] text-emerald-300 font-bold">130+ Partners Live</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300 pt-1 border-t border-slate-800">
-                    <span className="text-slate-400">Today&apos;s Revenue:</span>
-                    <span className="font-bold text-emerald-400">$4.20 (₹353)</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Impressions / Fill:</span>
-                    <span className="text-slate-200">180 views (95.8%)</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span className="text-slate-400">Average eCPM:</span>
-                    <span className="text-amber-400 font-bold">$23.30</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* ─── CREATE ADMIN MODAL ────────────────────────────────────────────── */}
-      {showCreateAdminModal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0D111A] border border-[#232D42] rounded-2xl w-full max-w-md p-6 space-y-5 shadow-2xl relative">
-            <div className="flex items-center justify-between border-b border-[#1E2536] pb-3">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-purple-400" />
-                <h3 className="font-bold text-sm text-white">Create Administrator</h3>
-              </div>
-              <button
-                onClick={() => setShowCreateAdminModal(false)}
-                className="text-gray-400 hover:text-white font-mono text-xs"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateAdmin} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-mono text-gray-400">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Assistant Admin"
-                  value={newAdminName}
-                  onChange={(e) => setNewAdminName(e.target.value)}
-                  className="w-full bg-[#141B2A] border border-[#232D42] focus:border-purple-500 rounded-xl px-3 py-2 text-xs text-white outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-mono text-gray-400">Username (Login ID)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="support_admin"
-                  value={newAdminUsername}
-                  onChange={(e) => setNewAdminUsername(e.target.value)}
-                  className="w-full bg-[#141B2A] border border-[#232D42] focus:border-purple-500 rounded-xl px-3 py-2 text-xs text-white outline-none font-mono"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-mono text-gray-400">Password</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Minimum 6 characters"
-                  value={newAdminPassword}
-                  onChange={(e) => setNewAdminPassword(e.target.value)}
-                  className="w-full bg-[#141B2A] border border-[#232D42] focus:border-purple-500 rounded-xl px-3 py-2 text-xs text-white outline-none font-mono"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-mono text-gray-400">Permission Level</label>
-                <select
-                  value={newAdminRole}
-                  onChange={(e) => setNewAdminRole(e.target.value as any)}
-                  className="w-full bg-[#141B2A] border border-[#232D42] focus:border-purple-500 rounded-xl px-3 py-2 text-xs text-white outline-none font-mono"
-                >
-                  <option value="sub_admin">Sub Admin (Less power: Manage Subscriptions &amp; Workspaces)</option>
-                  <option value="super_admin">Super Admin (Full power: Can create/delete admins)</option>
-                </select>
-                <p className="text-[11px] text-gray-500 mt-1">
-                  Sub-admins cannot create or delete other admins and cannot delete system workspaces.
-                </p>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateAdminModal(false)}
-                  className="px-4 py-2 rounded-xl bg-[#141B2A] text-gray-400 text-xs font-mono"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingAdmin}
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-bold disabled:opacity-50"
-                >
-                  {creatingAdmin ? 'Creating...' : 'Create Admin'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ─── SCREENSHOT LIGHTBOX MODAL ────────────────────────────────────── */}
-      {selectedScreenshot && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0D111A] border border-[#232D42] rounded-2xl max-w-2xl w-full p-5 space-y-4 shadow-2xl relative">
-            <div className="flex items-center justify-between border-b border-[#1E2536] pb-3">
-              <h4 className="font-bold text-sm text-white font-mono flex items-center gap-2">
-                <span>📷 Payment Receipt Image</span>
-              </h4>
-              <button
-                onClick={() => setSelectedScreenshot(null)}
-                className="text-gray-400 hover:text-white font-mono text-xs"
-              >
-                ✕ Close
-              </button>
-            </div>
-
-            <div className="max-h-[70vh] overflow-auto flex items-center justify-center bg-black/40 rounded-xl p-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={selectedScreenshot}
-                alt="Payment Receipt Screenshot"
-                className="max-h-[65vh] object-contain rounded-lg shadow-md"
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-1">
-              <a
-                href={selectedScreenshot}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-indigo-400 hover:underline flex items-center gap-1 font-mono"
-              >
-                Open Original &rarr;
-              </a>
-              <button
-                onClick={() => setSelectedScreenshot(null)}
-                className="px-4 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs font-mono"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── WORKSPACE CONTROL CENTER MODAL ────────────────────────────────── */}
-      {activeControlWorkspace && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-          <div className="bg-[#0D111A] border border-[#232D42] rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-[#1E2536] bg-[#090C12] flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-700 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-600/30">
-                  <Building2 className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-white">
-                      {workspaceDetail?.workspace?.name || activeControlWorkspace.name}
-                    </h3>
-                    {activeControlWorkspace.isSuspended ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-black bg-red-950/80 border border-red-500 text-red-300 animate-pulse">
-                        🚨 SUSPENDED
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                        ✅ ACTIVE
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-400 font-mono flex items-center gap-2 mt-0.5">
-                    <span>Owner: {workspaceDetail?.workspace?.ownerEmail || activeControlWorkspace.ownerEmail}</span>
-                    <span>•</span>
-                    <span className="text-gray-500 truncate max-w-[150px]">{activeControlWorkspace.id}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons in Header */}
-              <div className="flex items-center gap-2">
-                {activeControlWorkspace.isSuspended ? (
-                  <button
-                    onClick={() => handleToggleSuspension(activeControlWorkspace.id, true)}
-                    disabled={actionLoading !== null}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all disabled:opacity-50"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    UNSUSPEND WORKSPACE
-                  </button>
                 ) : (
-                  <button
-                    onClick={() => handleToggleSuspension(activeControlWorkspace.id, false)}
-                    disabled={actionLoading !== null}
-                    className="px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 font-mono text-xs font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
-                  >
-                    <Ban className="w-3.5 h-3.5" />
-                    SUSPEND WORKSPACE
-                  </button>
+                  <div className="divide-y divide-slate-800">
+                    {activeStreams.map((s) => (
+                      <div key={s.uid} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
+                          <div>
+                            <p className="text-xs font-bold text-white">{s.activeStreamTitle}</p>
+                            <p className="text-[11px] text-slate-400">
+                              Streamer: <span className="text-cyan-400">{s.displayName}</span> &bull; {s.email}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold text-red-400 bg-red-500/10 px-2.5 py-1 rounded-lg border border-red-500/20">
+                            {s.concurrentViewers || 500} Viewers
+                          </span>
+                          <span className="text-xs font-semibold text-slate-300 bg-slate-800 px-2.5 py-1 rounded-lg">
+                            {s.plan.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              TAB 2: ALL PLATFORM USERS (ENTERPRISE DIRECTORY)
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'users' && (
+            <div className="space-y-4">
+              {/* Filter & Search Bar */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-[#0B0F1A] p-4 rounded-2xl border border-slate-800">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, or UID..."
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                    <span className="text-slate-500 px-2 text-[11px] font-bold uppercase">Role:</span>
+                    {(['all', 'streamer', 'editor', 'admin'] as const).map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => setUserRoleFilter(r)}
+                        className={`text-xs px-2.5 py-1 rounded-lg font-semibold uppercase transition ${
+                          userRoleFilter === r
+                            ? 'bg-cyan-500 text-black shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                    <span className="text-slate-500 px-2 text-[11px] font-bold uppercase">Plan:</span>
+                    <select
+                      value={userPlanFilter}
+                      onChange={(e) => setUserPlanFilter(e.target.value)}
+                      className="bg-transparent text-xs text-slate-300 font-semibold focus:outline-none pr-2"
+                    >
+                      <option value="all" className="bg-slate-900">All Tiers</option>
+                      <option value="free_trial" className="bg-slate-900">Free Trial</option>
+                      <option value="intro_29" className="bg-slate-900">Intro (₹29)</option>
+                      <option value="monthly_149" className="bg-slate-900">Monthly (₹149)</option>
+                      <option value="quarterly_449" className="bg-slate-900">Quarterly (₹449)</option>
+                      <option value="annual_999" className="bg-slate-900">Annual Pro (₹999)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Users Table */}
+              <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800/80 bg-slate-950/60 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+                        <th className="py-3.5 px-5">Creator / Account</th>
+                        <th className="py-3.5 px-4">Role</th>
+                        <th className="py-3.5 px-4">Plan &amp; Tier</th>
+                        <th className="py-3.5 px-4">E-Cash Wallet</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4">Last Activity</th>
+                        <th className="py-3.5 px-5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {filteredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-12 text-center text-slate-500 font-sans">
+                            No creators match the active filter criteria.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredUsers.map((u) => (
+                          <tr key={u.uid} className="hover:bg-slate-800/20 transition font-sans">
+                            <td className="py-3.5 px-5">
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-slate-800 to-slate-700 border border-slate-700 flex items-center justify-center font-bold text-white text-xs shrink-0">
+                                  {u.displayName ? u.displayName[0].toUpperCase() : 'C'}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-white text-xs flex items-center gap-1.5">
+                                    <span className="truncate">{u.displayName}</span>
+                                    {u.isOnline && (
+                                      <span className="h-2 w-2 rounded-full bg-emerald-400" title="Online now" />
+                                    )}
+                                  </p>
+                                  <p className="text-[11px] text-slate-400 font-mono truncate">{u.email}</p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <span className="text-[10px] text-slate-600 font-mono truncate">
+                                      UID: {u.uid.slice(0, 10)}...
+                                    </span>
+                                    <button
+                                      onClick={() => copyToClipboard(u.uid, 'UID')}
+                                      className="text-slate-600 hover:text-slate-400"
+                                      title="Copy UID"
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`uppercase text-[10px] font-bold px-2 py-0.5 rounded-lg border ${
+                                  u.role === 'owner'
+                                    ? 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+                                    : u.role === 'admin'
+                                    ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                                    : u.role === 'editor'
+                                    ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                                    : 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+                                }`}
+                              >
+                                {u.role}
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-4">
+                              <div className="space-y-0.5">
+                                <span className="text-xs font-bold text-white uppercase">
+                                  {u.plan.replace('_', ' ')}
+                                </span>
+                                <div className="text-[10px] text-slate-400">
+                                  {u.plan.includes('annual')
+                                    ? '₹999 / year'
+                                    : u.plan.includes('quarterly')
+                                    ? '₹449 / 3mo'
+                                    : u.plan.includes('intro')
+                                    ? '₹29 (Month 1)'
+                                    : u.plan.includes('monthly')
+                                    ? '₹149 / month'
+                                    : 'Trial Tier'}
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4">
+                              <div className="space-y-0.5">
+                                <div className="font-mono text-xs font-bold text-yellow-400 flex items-center gap-1">
+                                  <Coins className="h-3 w-3" />
+                                  <span>{u.dpBalance} DP (₹{u.dpBalance})</span>
+                                </div>
+                                <div className="text-[10px] text-slate-400 font-mono">
+                                  {u.dCoinsBalance} D-Coins
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
+                                  u.status === 'active'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                    : u.status === 'trial'
+                                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                                    : 'bg-red-500/10 text-red-400 border-red-500/30'
+                                }`}
+                              >
+                                {u.status}
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-4 text-[11px] text-slate-400">
+                              {u.lastActiveAt}
+                            </td>
+
+                            <td className="py-3.5 px-5 text-right space-x-1.5">
+                              {/* Quick Mint Action */}
+                              <button
+                                onClick={() => {
+                                  setMintUid(u.uid);
+                                  setActiveTab('mint');
+                                  showToast(`Selected creator ${u.displayName} for E-Cash minting`, 'info');
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold transition"
+                                title="Mint or Adjust E-Cash"
+                              >
+                                + Mint
+                              </button>
+
+                              {/* Change Plan Button */}
+                              <button
+                                onClick={() => setSelectedUserForEdit(u)}
+                                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 hover:text-white text-xs font-medium transition"
+                              >
+                                Plan
+                              </button>
+
+                              {/* Toggle Status */}
+                              {u.status === 'suspended' ? (
+                                <button
+                                  onClick={() => handleUpdateUserStatus(u.uid, 'active')}
+                                  className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition"
+                                  title="Unsuspend User"
+                                >
+                                  <UserCheck className="h-4 w-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleUpdateUserStatus(u.uid, 'suspended')}
+                                  className="p-1 rounded-lg text-red-400 hover:bg-red-500/10 transition"
+                                  title="Suspend User"
+                                >
+                                  <UserX className="h-4 w-4" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Edit Plan Modal */}
+              {selectedUserForEdit && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                  <div className="w-full max-w-md rounded-2xl bg-[#0B0F19] border border-slate-800 p-6 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-cyan-400" />
+                        <span>Change Creator Subscription Tier</span>
+                      </h3>
+                      <button
+                        onClick={() => setSelectedUserForEdit(null)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="text-xs text-slate-300 space-y-1">
+                      <p className="font-bold text-white">{selectedUserForEdit.displayName}</p>
+                      <p className="text-slate-400 font-mono">{selectedUserForEdit.email}</p>
+                      <p className="text-[11px] text-cyan-400 font-mono">Current: {selectedUserForEdit.plan.toUpperCase()}</p>
+                    </div>
+
+                    <div className="space-y-2 pt-2">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase">Select Target Tier:</p>
+                      {[
+                        { id: 'free_trial', label: 'Free Trial (14 Days)' },
+                        { id: 'intro_29', label: 'Introductory Offer (₹29 / mo)' },
+                        { id: 'monthly_149', label: 'Standard Monthly (₹149 / mo)' },
+                        { id: 'quarterly_449', label: 'Quarterly Pro (₹449 / 3mo)' },
+                        { id: 'annual_999', label: 'Annual Studio (₹999 / yr)' },
+                      ].map((plan) => (
+                        <button
+                          key={plan.id}
+                          onClick={() => handleUpdateUserPlan(selectedUserForEdit.uid, plan.id)}
+                          className="w-full text-left px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 hover:bg-slate-850 text-xs font-semibold text-white flex items-center justify-between transition"
+                        >
+                          <span>{plan.label}</span>
+                          <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              TAB 3: CREATE / MINT MONEY (FINTECH MINT & BURN CONSOLE)
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'mint' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Column: The Minting Machine Form */}
+              <div className="lg:col-span-7 space-y-6">
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-6 shadow-2xl space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                        <Coins className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-extrabold text-white tracking-tight">
+                          E-Cash Minting &amp; Balance Adjuster
+                        </h2>
+                        <p className="text-[11px] text-slate-400">
+                          Authorized double-entry transaction write directly into Firestore and Creator Wallet.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleMintMoney} className="space-y-5">
+                    {/* Operation Type: Credit (Mint) vs Debit (Clawback) */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Operation Type
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setMintType('CREDIT')}
+                          className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold border transition ${
+                            mintType === 'CREDIT'
+                              ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-md'
+                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <PlusCircle className="h-4 w-4" />
+                          <span>MINT / CREDIT (+)</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setMintType('DEBIT')}
+                          className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold border transition ${
+                            mintType === 'DEBIT'
+                              ? 'bg-red-500/10 border-red-500/40 text-red-400 shadow-md'
+                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <ArrowDownLeft className="h-4 w-4" />
+                          <span>DEBIT / CLAWBACK (-)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Target Creator Selection */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Recipient Creator
+                      </label>
+                      <div className="space-y-2">
+                        <select
+                          value={mintUid}
+                          onChange={(e) => setMintUid(e.target.value)}
+                          className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                        >
+                          {usersList.map((u) => (
+                            <option key={u.uid} value={u.uid}>
+                              {u.displayName} ({u.email || u.uid}) &mdash; Bal: {u.dpBalance} DP
+                            </option>
+                          ))}
+                        </select>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Or enter custom UID manually..."
+                            value={mintUid}
+                            onChange={(e) => setMintUid(e.target.value)}
+                            className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-3 py-1.5 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-cyan-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Currency & Amount */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                          Currency Standard
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setMintCurrency('DP')}
+                            className={`py-2 rounded-xl text-xs font-bold border transition ${
+                              mintCurrency === 'DP'
+                                ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400'
+                                : 'bg-slate-900 border-slate-800 text-slate-400'
+                            }`}
+                          >
+                            DP (₹1 INR)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMintCurrency('D_COIN')}
+                            className={`py-2 rounded-xl text-xs font-bold border transition ${
+                              mintCurrency === 'D_COIN'
+                                ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400'
+                                : 'bg-slate-900 border-slate-800 text-slate-400'
+                            }`}
+                          >
+                            D-Coin (0.1 DP)
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                          Amount ({mintCurrency})
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100000"
+                          value={mintAmount}
+                          onChange={(e) => setMintAmount(Number(e.target.value))}
+                          className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-cyan-500"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Presets */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase">Presets:</span>
+                      {[50, 100, 250, 500, 1000].map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setMintAmount(amt)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-[11px] font-mono text-slate-300 transition"
+                        >
+                          +{amt}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Source / Category */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Transaction Category / Audit Source
+                      </label>
+                      <select
+                        value={mintSource}
+                        onChange={(e) => setMintSource(e.target.value)}
+                        className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                      >
+                        <option value="CREATOR_GRANT">CREATOR_GRANT (Growth Onboarding Incentive)</option>
+                        <option value="CAMPAIGN_BONUS">CAMPAIGN_BONUS (Viral Stream / Milestone Reward)</option>
+                        <option value="SUBSCRIPTION_PURCHASE">SUBSCRIPTION_PURCHASE (Manual UPI Top-up)</option>
+                        <option value="MANUAL_ADJUSTMENT">MANUAL_ADJUSTMENT (Admin Ledger Correction)</option>
+                        <option value="BUG_BOUNTY">BUG_BOUNTY (Vulnerability / Quality Report)</option>
+                      </select>
+                    </div>
+
+                    {/* Description Reason */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Audit Memo / Description (Mandatory)
+                      </label>
+                      <input
+                        type="text"
+                        value={mintReason}
+                        onChange={(e) => setMintReason(e.target.value)}
+                        placeholder="Reason for audit log..."
+                        className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                        required
+                      />
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={isMinting}
+                      className={`w-full py-3.5 rounded-xl text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-lg ${
+                        mintType === 'CREDIT'
+                          ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-500/20'
+                          : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 shadow-red-500/20'
+                      }`}
+                    >
+                      {isMinting ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                          <span>Writing to Ledger &amp; Syncing Firestore...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-4 w-4" />
+                          <span>
+                            Execute {mintType === 'CREDIT' ? 'Mint' : 'Debit'} of {mintAmount} {mintCurrency}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              {/* Right Column: Live Creator Wallet Inspector & Receipt */}
+              <div className="lg:col-span-5 space-y-6">
+                {/* Live Wallet Inspector */}
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-6 shadow-2xl space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Creator Wallet Snapshot
+                    </span>
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  </div>
+
+                  {targetedMintUser ? (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm font-bold text-white">{targetedMintUser.displayName}</p>
+                        <p className="text-xs text-slate-400 font-mono">{targetedMintUser.email}</p>
+                        <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">
+                          UID: {targetedMintUser.uid}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 pt-2">
+                        <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">DP Balance</p>
+                          <p className="text-xl font-black text-yellow-400 font-mono mt-1">
+                            {targetedMintUser.dpBalance} DP
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono">≈ ₹{targetedMintUser.dpBalance} INR</p>
+                        </div>
+
+                        <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">D-Coins Balance</p>
+                          <p className="text-xl font-black text-cyan-400 font-mono mt-1">
+                            {targetedMintUser.dCoinsBalance} D
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            ≈ {Math.floor(targetedMintUser.dCoinsBalance / 10)} DP
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-950/60 p-3 border border-slate-800 text-[11px] space-y-1 text-slate-300">
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Subscription Tier:</span>
+                          <span className="font-bold text-white uppercase">{targetedMintUser.plan}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Account Status:</span>
+                          <span className="font-bold text-emerald-400 uppercase">{targetedMintUser.status}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 py-6 text-center">
+                      Select or enter a UID to inspect their live wallet balances.
+                    </p>
+                  )}
+                </div>
+
+                {/* Last Transaction Receipt */}
+                {lastReceipt && (
+                  <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/20 p-5 shadow-2xl space-y-3">
+                    <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Ledger Write Confirmed</span>
+                    </div>
+
+                    <div className="text-xs font-mono space-y-1.5 text-slate-300">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Transaction ID:</span>
+                        <span className="text-white truncate max-w-[180px]">{lastReceipt.id}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Amount / Currency:</span>
+                        <span className="text-yellow-400 font-bold">
+                          {lastReceipt.type === 'CREDIT' ? '+' : '-'} {lastReceipt.amount} {lastReceipt.currency}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">New DP Balance:</span>
+                        <span className="text-emerald-400 font-bold">{lastReceipt.newBalance?.dpBalance} DP</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Timestamp:</span>
+                        <span>{new Date(lastReceipt.timestamp).toLocaleTimeString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              TAB 4: COME & GO TRANSACTION HISTORY (FINANCIAL LEDGER)
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'ledger' && (
+            <div className="space-y-4">
+              {/* Ledger Summary Ribbon */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-4">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Transactions</p>
+                  <p className="text-xl font-bold text-white mt-1 font-mono">{ledgerSummary.totalTransactions}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-4">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Minted / Inflow</p>
+                  <p className="text-xl font-bold text-emerald-400 mt-1 font-mono">
+                    +₹{ledgerSummary.totalMoneyInflowINR.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-4">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Debited / Outflow</p>
+                  <p className="text-xl font-bold text-red-400 mt-1 font-mono">
+                    -₹{ledgerSummary.totalMoneyOutflowINR.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-4">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Net Circulating Capital</p>
+                  <p className="text-xl font-bold text-yellow-400 mt-1 font-mono">
+                    ₹{ledgerSummary.netPlatformCirculationINR.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Filter Bar */}
+              <div className="flex items-center justify-between bg-[#0B0F1A] p-3 rounded-2xl border border-slate-800">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 font-bold px-2">Type Filter:</span>
+                  {(['ALL', 'CREDIT', 'DEBIT'] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setLedgerFilter(f)}
+                      className={`text-xs px-3 py-1 rounded-lg font-bold transition ${
+                        ledgerFilter === f
+                          ? 'bg-cyan-500 text-black'
+                          : 'bg-slate-900 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
 
                 <button
                   onClick={() => {
-                    setActiveControlWorkspace(null);
-                    setWorkspaceDetail(null);
+                    const csvContent =
+                      'data:text/csv;charset=utf-8,' +
+                      ['ID,UID,Type,Amount,Currency,Source,Description,Time']
+                        .concat(
+                          ledgerEntries.map(
+                            (e) =>
+                              `${e.id},${e.uid},${e.type},${e.amount},${e.currency},${e.source},"${e.description}",${new Date(
+                                e.timestamp
+                              ).toISOString()}`
+                          )
+                        )
+                        .join('\n');
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', encodedUri);
+                    link.setAttribute('download', `digicast_ledger_${Date.now()}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    showToast('Ledger exported to CSV', 'success');
                   }}
-                  className="w-8 h-8 rounded-lg bg-[#141B2A] hover:bg-[#1E2536] text-gray-400 hover:text-white flex items-center justify-center transition-colors font-mono"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white transition"
                 >
-                  ✕
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Export CSV</span>
                 </button>
               </div>
-            </div>
 
-            {/* Sub-Navigation Tabs */}
-            <div className="px-5 border-b border-[#1E2536] bg-[#0B0F17] flex items-center gap-1 overflow-x-auto">
-              <button
-                onClick={() => setControlTab('team')}
-                className={`py-3 px-4 font-mono text-xs font-bold uppercase tracking-wider border-b-2 flex items-center gap-2 transition-all ${
-                  controlTab === 'team'
-                    ? 'border-purple-500 text-purple-400 bg-purple-500/5'
-                    : 'border-transparent text-gray-400 hover:text-white'
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                Team Members &amp; Passwords ({workspaceDetail?.members?.length || 0})
-              </button>
-
-              <button
-                onClick={() => setControlTab('subscription')}
-                className={`py-3 px-4 font-mono text-xs font-bold uppercase tracking-wider border-b-2 flex items-center gap-2 transition-all ${
-                  controlTab === 'subscription'
-                    ? 'border-purple-500 text-purple-400 bg-purple-500/5'
-                    : 'border-transparent text-gray-400 hover:text-white'
-                }`}
-              >
-                <CreditCard className="w-4 h-4" />
-                Subscription &amp; Plans
-              </button>
-
-              <button
-                onClick={() => setControlTab('activity')}
-                className={`py-3 px-4 font-mono text-xs font-bold uppercase tracking-wider border-b-2 flex items-center gap-2 transition-all ${
-                  controlTab === 'activity'
-                    ? 'border-purple-500 text-purple-400 bg-purple-500/5'
-                    : 'border-transparent text-gray-400 hover:text-white'
-                }`}
-              >
-                <Activity className="w-4 h-4" />
-                Live Tracking ({workspaceDetail?.streams?.length || 0} Streams, {workspaceDetail?.clips?.length || 0} Clips)
-              </button>
-
-              {session.role === 'super_admin' && (
-                <button
-                  onClick={() => setControlTab('danger')}
-                  className={`py-3 px-4 font-mono text-xs font-bold uppercase tracking-wider border-b-2 flex items-center gap-2 transition-all ${
-                    controlTab === 'danger'
-                      ? 'border-red-500 text-red-400 bg-red-500/5'
-                      : 'border-transparent text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Danger Zone
-                </button>
-              )}
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-5 overflow-y-auto flex-1 space-y-6">
-              {loadingDetail ? (
-                <div className="py-16 flex flex-col items-center justify-center text-gray-400">
-                  <RefreshCw className="w-6 h-6 animate-spin text-purple-500 mb-2" />
-                  <span className="font-mono text-xs">Loading deep workspace details &amp; credentials...</span>
-                </div>
-              ) : (
-                <>
-                  {/* ─── TAB A: TEAM MEMBERS & CREDENTIALS ───────────────────────── */}
-                  {controlTab === 'team' && (
-                    <div className="space-y-6">
-                      {/* Add Member Form */}
-                      <div className="bg-[#121724] border border-[#1E2536] rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <UserPlus className="w-4 h-4 text-purple-400" />
-                          <h4 className="text-xs font-bold font-mono uppercase text-white tracking-wider">
-                            Add User to this Workspace (Direct Admin Provision)
-                          </h4>
-                        </div>
-                        <form
-                          onSubmit={(e) => handleAddMember(e, activeControlWorkspace.id)}
-                          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-end"
-                        >
-                          <div>
-                            <label className="text-[10px] font-mono text-gray-400 uppercase">User Email</label>
-                            <input
-                              type="email"
-                              required
-                              placeholder="editor@creator.com"
-                              value={newMemberEmail}
-                              onChange={(e) => setNewMemberEmail(e.target.value)}
-                              className="w-full mt-1 bg-[#090C12] border border-[#232D42] focus:border-purple-500 rounded-lg px-3 py-2 text-xs text-white outline-none font-mono"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-mono text-gray-400 uppercase">Name (Optional)</label>
-                            <input
-                              type="text"
-                              placeholder="John Editor"
-                              value={newMemberName}
-                              onChange={(e) => setNewMemberName(e.target.value)}
-                              className="w-full mt-1 bg-[#090C12] border border-[#232D42] focus:border-purple-500 rounded-lg px-3 py-2 text-xs text-white outline-none"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-mono text-gray-400 uppercase">Role</label>
-                            <select
-                              value={newMemberRole}
-                              onChange={(e) => setNewMemberRole(e.target.value as any)}
-                              className="w-full mt-1 bg-[#090C12] border border-[#232D42] focus:border-purple-500 rounded-lg px-3 py-2 text-xs text-white outline-none font-mono"
-                            >
-                              <option value="editor">Editor (Create &amp; edit clips)</option>
-                              <option value="moderator">Moderator (Manage streams &amp; chat)</option>
-                              <option value="admin">Admin (Manage settings)</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-mono text-gray-400 uppercase">App Password</label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="Min 6 characters"
-                              value={newMemberPassword}
-                              onChange={(e) => setNewMemberPassword(e.target.value)}
-                              className="w-full mt-1 bg-[#090C12] border border-[#232D42] focus:border-purple-500 rounded-lg px-3 py-2 text-xs text-white outline-none font-mono"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2 md:col-span-4 flex justify-end mt-2">
-                            <button
-                              type="submit"
-                              disabled={addingMember}
-                              className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-bold flex items-center gap-2 shadow-md shadow-purple-600/20 disabled:opacity-50"
-                            >
-                              <UserCheck className="w-3.5 h-3.5" />
-                              {addingMember ? 'Adding User...' : 'Provision Member'}
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-
-                      {/* Members List Table */}
-                      <div className="bg-[#101522] border border-[#1E2536] rounded-xl overflow-hidden shadow-xl">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-[#080B11] border-b border-[#1E2536] text-gray-400 font-mono uppercase text-[10px]">
-                            <tr>
-                              <th className="py-3 px-4">Member Info</th>
-                              <th className="py-3 px-4">Role &amp; Permissions</th>
-                              <th className="py-3 px-4">Mobile App Password</th>
-                              <th className="py-3 px-4 text-right">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[#1E2536]">
-                            {!workspaceDetail?.members || workspaceDetail.members.length === 0 ? (
-                              <tr>
-                                <td colSpan={4} className="py-8 text-center text-gray-500 font-mono">
-                                  No members loaded for this workspace.
-                                </td>
-                              </tr>
-                            ) : (
-                              workspaceDetail.members.map((member) => {
-                                const isPasswordShown = Boolean(showPasswordMap[member.uid]);
-                                const hasPassword = Boolean(member.appPassword);
-                                const isOwner = member.role === 'owner';
-
-                                return (
-                                  <tr key={member.uid} className="hover:bg-[#141B2A] transition-colors">
-                                    <td className="py-3.5 px-4">
-                                      <div className="font-bold text-white text-xs">{member.displayName || 'Creator Member'}</div>
-                                      <div className="text-[11px] font-mono text-gray-400">{member.email}</div>
-                                      <div className="text-[10px] font-mono text-gray-500 truncate max-w-[140px]">{member.uid}</div>
-                                    </td>
-
-                                    <td className="py-3.5 px-4">
-                                      <select
-                                        value={member.role}
-                                        disabled={actionLoading === `role_${member.uid}`}
-                                        onChange={(e) => handleUpdateMemberRole(activeControlWorkspace.id, member.uid, e.target.value)}
-                                        className="bg-[#090C12] border border-[#232D42] text-white font-mono text-xs rounded-lg px-2.5 py-1 outline-none focus:border-purple-500"
-                                      >
-                                        <option value="owner">Owner (Full Control)</option>
-                                        <option value="admin">Admin (Manage Team &amp; Tools)</option>
-                                        <option value="editor">Editor (Clip Creation &amp; Streams)</option>
-                                        <option value="moderator">Moderator (Monitoring)</option>
-                                      </select>
-                                    </td>
-
-                                    <td className="py-3.5 px-4">
-                                      <div className="space-y-1.5 max-w-xs">
-                                        <div className="flex items-center gap-2 bg-[#090C12] px-2.5 py-1.5 rounded-lg border border-[#1E2536]">
-                                          <Key className="w-3 h-3 text-purple-400 shrink-0" />
-                                          <span className="font-mono text-xs text-purple-200 tracking-wider flex-1 truncate">
-                                            {isPasswordShown
-                                              ? (member.appPassword || '(Not set yet)')
-                                              : (hasPassword ? '••••••••••••' : '(Not set yet)')}
-                                          </span>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setShowPasswordMap((prev) => ({
-                                                ...prev,
-                                                [member.uid]: !prev[member.uid],
-                                              }))
-                                            }
-                                            className="text-gray-400 hover:text-white"
-                                            title={isPasswordShown ? 'Hide Password' : 'Show Password'}
-                                          >
-                                            {isPasswordShown ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                          </button>
-                                        </div>
-
-                                        {/* Inline Password Reset Field */}
-                                        <div className="flex items-center gap-1">
-                                          <input
-                                            type="text"
-                                            placeholder="Set new password..."
-                                            value={newPasswordMap[member.uid] || ''}
-                                            onChange={(e) =>
-                                              setNewPasswordMap((prev) => ({
-                                                ...prev,
-                                                [member.uid]: e.target.value,
-                                              }))
-                                            }
-                                            className="w-32 bg-[#090C12] border border-[#232D42] rounded px-2 py-1 text-[11px] text-white font-mono outline-none focus:border-purple-500"
-                                          />
-                                          <button
-                                            type="button"
-                                            disabled={actionLoading === `pwd_${member.uid}`}
-                                            onClick={() => handleSetMemberPassword(activeControlWorkspace.id, member.uid)}
-                                            className="px-2 py-1 rounded bg-purple-600/30 hover:bg-purple-600 text-purple-200 text-[11px] font-mono font-bold transition disabled:opacity-50"
-                                          >
-                                            {actionLoading === `pwd_${member.uid}` ? 'Saving...' : 'Set'}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </td>
-
-                                    <td className="py-3.5 px-4 text-right">
-                                      {!isOwner && (
-                                        <button
-                                          onClick={() => handleRemoveMember(activeControlWorkspace.id, member.uid)}
-                                          disabled={actionLoading === `del_mem_${member.uid}`}
-                                          className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition"
-                                          title="Remove Member"
-                                        >
-                                          <UserX className="w-4 h-4" />
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ─── TAB B: SUBSCRIPTIONS & PLANS ────────────────────────────── */}
-                  {controlTab === 'subscription' && (
-                    <div className="space-y-6">
-                      {/* Current Status Overview */}
-                      <div className="bg-[#121724] border border-[#1E2536] rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
-                        <div>
-                          <p className="text-[10px] font-mono text-gray-400 uppercase">Current Workspace Tier</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-lg font-black text-white capitalize">
-                              {workspaceDetail?.workspace?.subscription?.plan || activeControlWorkspace.subscription.plan}
-                            </span>
-                            <span
-                              className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded font-bold ${
-                                activeControlWorkspace.subscription.status === 'active'
-                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                                  : activeControlWorkspace.subscription.status === 'trial'
-                                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                                  : 'bg-red-500/10 text-red-400 border border-red-500/30'
+              {/* Ledger Entries Table */}
+              <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+                        <th className="py-3 px-4">Transaction ID</th>
+                        <th className="py-3 px-4">Timestamp</th>
+                        <th className="py-3 px-4">Creator UID</th>
+                        <th className="py-3 px-4">Direction</th>
+                        <th className="py-3 px-4">Amount &amp; Currency</th>
+                        <th className="py-3 px-4">Category Source</th>
+                        <th className="py-3 px-4">Audit Description</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {filteredLedger.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-12 text-center text-slate-500 font-sans">
+                            No ledger entries found.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredLedger.map((e) => (
+                          <tr key={e.id} className="hover:bg-slate-800/20 transition">
+                            <td className="py-3 px-4 font-bold text-slate-300 truncate max-w-[140px]" title={e.id}>
+                              {e.id}
+                            </td>
+                            <td className="py-3 px-4 text-slate-400">
+                              {new Date(e.timestamp).toLocaleDateString()} {new Date(e.timestamp).toLocaleTimeString()}
+                            </td>
+                            <td className="py-3 px-4 text-cyan-400 truncate max-w-[140px]" title={e.uid}>
+                              {e.uid}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase ${
+                                  e.type === 'CREDIT'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                                }`}
+                              >
+                                {e.type === 'CREDIT' ? '+ CREDIT' : '- DEBIT'}
+                              </span>
+                            </td>
+                            <td
+                              className={`py-3 px-4 font-bold ${
+                                e.type === 'CREDIT' ? 'text-emerald-400' : 'text-red-400'
                               }`}
                             >
-                              {activeControlWorkspace.subscription.status}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="font-mono text-xs text-gray-300">
-                          <p className="text-gray-400 text-[10px] uppercase">Expires / Renews</p>
-                          <p className="font-bold text-white mt-1">
-                            {workspaceDetail?.workspace?.subscription?.daysRemaining ?? activeControlWorkspace.subscription.daysRemaining} days remaining
-                          </p>
-                        </div>
-
-                        {/* Lock / Expire Now button */}
-                        <div>
-                          <button
-                            onClick={() => handleWorkspaceSubscriptionAction(activeControlWorkspace.id, 'expire_now')}
-                            disabled={actionLoading !== null}
-                            className="px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-500/40 text-red-400 hover:bg-red-500/25 text-xs font-mono font-bold transition disabled:opacity-50"
-                          >
-                            Lock / Expire Workspace Immediately
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* One-Click Plan Switcher */}
-                      <div>
-                        <h4 className="text-xs font-bold font-mono uppercase text-gray-400 tracking-wider mb-3">
-                          Assign / Change Subscription Tier
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                          {/* Intro ₹29 Card */}
-                          <div className="bg-[#101522] border border-pink-900/40 hover:border-pink-500 rounded-xl p-3.5 flex flex-col justify-between space-y-3 transition">
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-pink-300 text-xs">⚡ 1st Month Pass</span>
-                                <span className="text-[10px] font-mono text-pink-400 font-bold">₹29/30D</span>
-                              </div>
-                              <ul className="text-[11px] text-gray-400 space-y-1 mt-2 font-mono">
-                                <li>• All Pro &amp; VIP Perks</li>
-                                <li>• Anti-Abuse Verified</li>
-                                <li>• Full 30 Days Access</li>
-                              </ul>
-                            </div>
-                            <button
-                              onClick={() => handleSetPlan(activeControlWorkspace.id, 'intro_29', 30)}
-                              disabled={actionLoading !== null}
-                              className="w-full py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
-                            >
-                              Assign ₹29 (30D)
-                            </button>
-                          </div>
-
-                          {/* Starter Card */}
-                          <div className="bg-[#101522] border border-[#1E2536] hover:border-purple-500/40 rounded-xl p-3.5 flex flex-col justify-between space-y-3 transition">
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-white text-xs">Starter Creator</span>
-                                <span className="text-[10px] font-mono text-purple-400 font-bold">₹149/mo</span>
-                              </div>
-                              <ul className="text-[11px] text-gray-400 space-y-1 mt-2 font-mono">
-                                <li>• Zero Limits — All Features</li>
-                                <li>• High-Speed On-Device Export</li>
-                                <li>• Unlimited Live Clips &amp; Delivery</li>
-                              </ul>
-                            </div>
-                            <button
-                              onClick={() => handleSetPlan(activeControlWorkspace.id, 'starter', 30)}
-                              disabled={actionLoading !== null}
-                              className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
-                            >
-                              Assign 1 Month (30D)
-                            </button>
-                          </div>
-
-                          {/* Pro Card (3 Months) */}
-                          <div className="bg-[#101522] border border-emerald-900/40 hover:border-emerald-500 rounded-xl p-3.5 flex flex-col justify-between space-y-3 transition">
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-emerald-300 text-xs">3 Month Quarter</span>
-                                <span className="text-[10px] font-mono text-emerald-400 font-bold">₹499 (90D)</span>
-                              </div>
-                              <ul className="text-[11px] text-gray-400 space-y-1 mt-2 font-mono">
-                                <li>• 90 Days Uninterrupted Access</li>
-                                <li>• 1080p 60fps Device Video Export</li>
-                                <li>• Priority Telegram Delivery</li>
-                              </ul>
-                            </div>
-                            <button
-                              onClick={() => handleSetPlan(activeControlWorkspace.id, 'pro', 90)}
-                              disabled={actionLoading !== null}
-                              className="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
-                            >
-                              Assign 3 Months (90D)
-                            </button>
-                          </div>
-
-                          {/* Studio VIP Card (1 Year) */}
-                          <div className="bg-[#101522] border border-purple-900/40 hover:border-purple-500 rounded-xl p-3.5 flex flex-col justify-between space-y-3 transition">
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-purple-300 text-xs">1 Year Annual Pass</span>
-                                <span className="text-[10px] font-mono text-purple-400 font-bold">₹999 (365D)</span>
-                              </div>
-                              <ul className="text-[11px] text-gray-400 space-y-1 mt-2 font-mono">
-                                <li>• 365 Days Full Access (Best Value)</li>
-                                <li>• Highest Bitrate &amp; 4K Device Export</li>
-                                <li>• 24/7 Priority Concierge Support</li>
-                              </ul>
-                            </div>
-                            <button
-                              onClick={() => handleSetPlan(activeControlWorkspace.id, 'studio', 365)}
-                              disabled={actionLoading !== null}
-                              className="w-full py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
-                            >
-                              Assign 1 Year (365D)
-                            </button>
-                          </div>
-
-                          {/* Lifetime Card */}
-                          <div className="bg-[#101522] border border-indigo-900/40 hover:border-indigo-500 rounded-xl p-3.5 flex flex-col justify-between space-y-3 transition">
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-indigo-300 text-xs">💎 Lifetime VIP</span>
-                                <span className="text-[10px] font-mono text-indigo-400 font-bold">Never Expires</span>
-                              </div>
-                              <ul className="text-[11px] text-gray-400 space-y-1 mt-2 font-mono">
-                                <li>• Permanent Access</li>
-                                <li>• All Current &amp; Future Perks</li>
-                                <li>• Max Team &amp; Channels</li>
-                              </ul>
-                            </div>
-                            <button
-                              onClick={() => handleSetPlan(activeControlWorkspace.id, 'lifetime')}
-                              disabled={actionLoading !== null}
-                              className="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
-                            >
-                              Grant Lifetime Pass
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Custom Days Extension */}
-                      <div className="bg-[#121724] border border-[#1E2536] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <h5 className="font-bold text-xs text-white">Custom Extension (Add Days)</h5>
-                          <p className="text-[11px] text-gray-400 font-mono mt-0.5">
-                            Add extra days to their existing subscription or free trial without changing their tier.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="1"
-                            max="3650"
-                            value={customDays}
-                            onChange={(e) => setCustomDays(parseInt(e.target.value) || 1)}
-                            className="w-20 bg-[#090C12] border border-[#232D42] rounded-lg px-2.5 py-1.5 text-xs text-white font-mono outline-none"
-                          />
-                          <button
-                            onClick={() => handleExtendDays(activeControlWorkspace.id, customDays)}
-                            disabled={actionLoading !== null}
-                            className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-bold transition disabled:opacity-50"
-                          >
-                            + Add {customDays} Days
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ─── TAB C: LIVE TRACKING & ACTIVITY ────────────────────────── */}
-                  {controlTab === 'activity' && (
-                    <div className="space-y-6">
-                      {/* Connection Overview Cards */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* YouTube Connection Card */}
-                        <div className="bg-[#101522] border border-[#1E2536] rounded-xl p-4 space-y-2">
-                          <div className="flex items-center gap-2 text-red-400">
-                            <Youtube className="w-5 h-5" />
-                            <h4 className="font-bold text-xs uppercase tracking-wider font-mono text-white">
-                              Connected YouTube Channel
-                            </h4>
-                          </div>
-                          {workspaceDetail?.youtubeChannel ? (
-                            <div className="space-y-1 font-mono text-xs text-gray-300 pt-1">
-                              <p className="font-bold text-white text-sm">
-                                {workspaceDetail.youtubeChannel.channelTitle || workspaceDetail.youtubeChannel.title}
-                              </p>
-                              <p className="text-[11px] text-gray-400">ID: {workspaceDetail.youtubeChannel.channelId}</p>
-                              {workspaceDetail.youtubeChannel.subscriberCount && (
-                                <p className="text-emerald-400 text-[11px]">
-                                  {workspaceDetail.youtubeChannel.subscriberCount} Subscribers
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-xs font-mono text-gray-500 italic pt-1">
-                              No YouTube channel linked to this workspace yet.
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Telegram Alerts Card */}
-                        <div className="bg-[#101522] border border-[#1E2536] rounded-xl p-4 space-y-2">
-                          <div className="flex items-center gap-2 text-blue-400">
-                            <Send className="w-5 h-5" />
-                            <h4 className="font-bold text-xs uppercase tracking-wider font-mono text-white">
-                              Telegram Alert Bot
-                            </h4>
-                          </div>
-                          <div className="space-y-1 font-mono text-xs text-gray-300 pt-1">
-                            <p className="text-gray-400">
-                              Chat ID:{' '}
-                              <span className="text-white font-bold">
-                                {workspaceDetail?.workspace?.telegramChatId || 'Not Configured'}
-                              </span>
-                            </p>
-                            <p className="text-[11px]">
-                              Alert Status:{' '}
-                              <span
-                                className={
-                                  workspaceDetail?.workspace?.telegramEnabled ? 'text-emerald-400 font-bold' : 'text-gray-500'
-                                }
-                              >
-                                {workspaceDetail?.workspace?.telegramEnabled ? 'Active & Receiving Alerts' : 'Disabled'}
-                              </span>
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Recent Streams */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold font-mono uppercase text-gray-300 tracking-wider flex items-center gap-2">
-                            <Radio className="w-4 h-4 text-purple-400" />
-                            Recent Streams ({workspaceDetail?.streams?.length || 0})
-                          </h4>
-                        </div>
-                        <div className="bg-[#101522] border border-[#1E2536] rounded-xl overflow-hidden shadow-xl">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-[#080B11] border-b border-[#1E2536] text-gray-400 font-mono uppercase text-[10px]">
-                              <tr>
-                                <th className="py-2.5 px-3">Title / Broadcast</th>
-                                <th className="py-2.5 px-3">Status</th>
-                                <th className="py-2.5 px-3">Started Date</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[#1E2536]">
-                              {!workspaceDetail?.streams || workspaceDetail.streams.length === 0 ? (
-                                <tr>
-                                  <td colSpan={3} className="py-6 text-center text-gray-500 font-mono">
-                                    No streams recorded yet.
-                                  </td>
-                                </tr>
-                              ) : (
-                                workspaceDetail.streams.map((stream) => (
-                                  <tr key={stream.id} className="hover:bg-[#141B2A]">
-                                    <td className="py-2.5 px-3">
-                                      <p className="font-bold text-white text-xs">{stream.title || 'Untitled Stream'}</p>
-                                      <p className="text-[10px] font-mono text-gray-500">{stream.id}</p>
-                                    </td>
-                                    <td className="py-2.5 px-3">
-                                      <span
-                                        className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold ${
-                                          stream.status === 'live'
-                                            ? 'bg-red-500/20 text-red-400 animate-pulse'
-                                            : stream.status === 'complete'
-                                            ? 'bg-emerald-500/10 text-emerald-400'
-                                            : 'bg-gray-800 text-gray-400'
-                                        }`}
-                                      >
-                                        {stream.status?.toUpperCase() || 'READY'}
-                                      </span>
-                                    </td>
-                                    <td className="py-2.5 px-3 font-mono text-gray-400 text-[11px]">
-                                      {stream.startedAt ? new Date(stream.startedAt).toLocaleString() : 'N/A'}
-                                    </td>
-                                  </tr>
-                                ))
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      {/* Recent Auto-Clips */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold font-mono uppercase text-gray-300 tracking-wider flex items-center gap-2">
-                            <Scissors className="w-4 h-4 text-emerald-400" />
-                            Recent AI Clips Generated ({workspaceDetail?.clips?.length || 0})
-                          </h4>
-                        </div>
-                        <div className="bg-[#101522] border border-[#1E2536] rounded-xl overflow-hidden shadow-xl">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-[#080B11] border-b border-[#1E2536] text-gray-400 font-mono uppercase text-[10px]">
-                              <tr>
-                                <th className="py-2.5 px-3">Clip Title</th>
-                                <th className="py-2.5 px-3">Format / Specs</th>
-                                <th className="py-2.5 px-3">Status</th>
-                                <th className="py-2.5 px-3">Created</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[#1E2536]">
-                              {!workspaceDetail?.clips || workspaceDetail.clips.length === 0 ? (
-                                <tr>
-                                  <td colSpan={4} className="py-6 text-center text-gray-500 font-mono">
-                                    No clips generated yet.
-                                  </td>
-                                </tr>
-                              ) : (
-                                workspaceDetail.clips.map((clip) => (
-                                  <tr key={clip.id} className="hover:bg-[#141B2A]">
-                                    <td className="py-2.5 px-3">
-                                      <p className="font-bold text-white text-xs">{clip.title || 'Auto Highlight'}</p>
-                                      <p className="text-[10px] font-mono text-gray-500">{clip.id}</p>
-                                    </td>
-                                    <td className="py-2.5 px-3 font-mono text-[11px] text-gray-400">
-                                      9:16 Shorts / {clip.duration ? `${clip.duration}s` : '30s'}
-                                    </td>
-                                    <td className="py-2.5 px-3">
-                                      <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-emerald-500/10 text-emerald-400">
-                                        {clip.status?.toUpperCase() || 'READY'}
-                                      </span>
-                                    </td>
-                                    <td className="py-2.5 px-3 font-mono text-gray-400 text-[11px]">
-                                      {clip.createdAt ? new Date(clip.createdAt).toLocaleDateString() : 'N/A'}
-                                    </td>
-                                  </tr>
-                                ))
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ─── TAB D: DANGER ZONE ──────────────────────────────────────── */}
-                  {controlTab === 'danger' && session.role === 'super_admin' && (
-                    <div className="bg-red-950/20 border border-red-500/40 rounded-xl p-5 space-y-4">
-                      <div className="flex items-center gap-2 text-red-400">
-                        <AlertTriangle className="w-5 h-5" />
-                        <h4 className="font-bold text-sm uppercase tracking-wider font-mono">
-                          Permanent Workspace Erasure
-                        </h4>
-                      </div>
-                      <p className="text-xs text-gray-300">
-                        Deleting this workspace will irrevocably wipe all associated team member accounts, connected streams, clips, and configuration records. This action cannot be reversed.
-                      </p>
-                      <button
-                        onClick={() => handleDeleteWorkspace(activeControlWorkspace.id)}
-                        disabled={actionLoading !== null}
-                        className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-mono text-xs font-bold transition shadow-lg shadow-red-600/30 disabled:opacity-50"
-                      >
-                        {actionLoading === `del_ws_${activeControlWorkspace.id}`
-                          ? 'Wiping Data...'
-                          : 'Permanently Delete Workspace'}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
+                              {e.amount} {e.currency}
+                            </td>
+                            <td className="py-3 px-4 text-slate-300 font-sans text-[11px]">{e.source}</td>
+                            <td className="py-3 px-4 text-slate-400 font-sans text-[11px] truncate max-w-xs" title={e.description}>
+                              {e.description}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              TAB 5: UPI PAYMENT APPROVALS & SUBSCRIPTION MATRIX
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'subscriptions' && (
+            <div className="space-y-6">
+              {/* Top Banner: Verification Action Queue */}
+              <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-6 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <CreditCard className="h-5 w-5 text-amber-400" />
+                    <div>
+                      <h3 className="text-sm font-bold text-white">Submitted UPI Payments Queue</h3>
+                      <p className="text-xs text-slate-400">
+                        Review proof slips uploaded by creators. Approving extends workspace subscription by 30 days.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 font-bold border border-amber-500/30">
+                    {pendingPaymentsCount} PENDING ACTION
+                  </span>
+                </div>
+
+                {paymentsList.length === 0 ? (
+                  <div className="py-10 text-center rounded-xl border border-dashed border-slate-800 bg-slate-950/40 text-xs text-slate-500">
+                    No pending UPI payment proof submissions at this time.
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-slate-800 overflow-hidden">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 font-bold uppercase text-[11px]">
+                          <th className="py-3 px-4">Workspace / User</th>
+                          <th className="py-3 px-4">Plan</th>
+                          <th className="py-3 px-4">Amount</th>
+                          <th className="py-3 px-4">UTR Number</th>
+                          <th className="py-3 px-4">Proof Slip</th>
+                          <th className="py-3 px-4">Status</th>
+                          <th className="py-3 px-4 text-right">Verification</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {paymentsList.map((p, idx) => {
+                          const pId = p.paymentId || p.id || `pay_${idx}`;
+                          const slipUrl = p.proofUrl || p.screenshotUrl;
+                          return (
+                            <tr key={pId} className="hover:bg-slate-800/20 transition">
+                              <td className="py-3 px-4 font-mono">
+                                <p className="font-bold text-white truncate max-w-[150px]">{p.workspaceId}</p>
+                                {p.userEmail && <p className="text-[11px] text-slate-400">{p.userEmail}</p>}
+                              </td>
+
+                              <td className="py-3 px-4 uppercase font-bold text-cyan-400">
+                                {p.planId || 'MONTHLY_149'}
+                              </td>
+
+                              <td className="py-3 px-4 font-bold text-emerald-400 font-mono">
+                                ₹{p.amountINR || 149}
+                              </td>
+
+                              <td className="py-3 px-4 font-mono font-bold text-slate-300">
+                                {p.utrNumber ? (
+                                  <div className="flex items-center gap-1">
+                                    <span>{p.utrNumber}</span>
+                                    <button
+                                      onClick={() => copyToClipboard(p.utrNumber!, 'UTR')}
+                                      className="text-slate-500 hover:text-slate-300"
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-600">N/A</span>
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4">
+                                {slipUrl ? (
+                                  <button
+                                    onClick={() => setSelectedPaymentScreenshot(slipUrl)}
+                                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-cyan-400 hover:bg-slate-800"
+                                  >
+                                    <Eye className="h-3 w-3" />
+                                    <span>Inspect Slip</span>
+                                  </button>
+                                ) : (
+                                  <span className="text-slate-600 text-[11px]">No image</span>
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                                    p.status === 'approved'
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                      : p.status === 'rejected'
+                                      ? 'bg-red-500/10 text-red-400 border border-red-500/30'
+                                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                                  }`}
+                                >
+                                  {p.status}
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-4 text-right space-x-2">
+                                {p.status === 'pending_verification' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleVerifyPayment(pId, 'approve')}
+                                      disabled={verifyingPaymentId === pId}
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 text-xs font-bold transition"
+                                    >
+                                      {verifyingPaymentId === pId ? 'Activating...' : 'Approve'}
+                                    </button>
+                                    <button
+                                      onClick={() => handleVerifyPayment(pId, 'reject')}
+                                      disabled={verifyingPaymentId === pId}
+                                      className="px-2.5 py-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 text-xs font-bold transition"
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Subscription Plans Matrix */}
+              <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-6 space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-cyan-400" />
+                  <span>Configured Subscription Tier Matrix</span>
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {plans.map((pl) => (
+                    <div key={pl.id} className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">{pl.name}</span>
+                        <span className="text-xs font-bold text-cyan-400 font-mono">
+                          {pl.priceINR === 0 ? 'FREE' : `₹${pl.priceINR}`}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">{pl.perks}</p>
+                      <div className="text-[10px] text-slate-500 font-mono pt-1">Duration: {pl.duration}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              TAB 6: EDITORS & CREATOR MATCHMAKING
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'editors' && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Video className="h-4 w-4 text-indigo-400" />
+                      <span>Verified Editors Directory</span>
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Match YouTube streamers with professional video editors &amp; thumbnail designers.
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                    {metrics.totalEditors} Verified Editors
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                  {usersList
+                    .filter((u) => u.role === 'editor')
+                    .map((ed) => (
+                      <div key={ed.uid} className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center font-bold text-indigo-300">
+                            {ed.displayName[0]}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-white">{ed.displayName}</p>
+                            <p className="text-[11px] text-slate-400">{ed.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-900">
+                          <span>Wallet: {ed.dpBalance} DP</span>
+                          <span className="text-emerald-400 font-bold uppercase">{ed.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              TAB 7: STREAM ASSETS HUB
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'assets' && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Palette className="h-4 w-4 text-purple-400" />
+                    <span>Live Stream Asset Catalog (4 Categories)</span>
+                  </h3>
+                  <span className="text-xs text-purple-400 font-mono">Cloud Synced &bull; RTMP Ready</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { name: 'Overlays & HUDs', count: 18, desc: 'Cyberpunk, Minimalist & Gaming HUDs' },
+                    { name: 'Animated Lower Thirds', count: 12, desc: 'Social handles & subscriber alerts' },
+                    { name: 'Sound FX & Stingers', count: 24, desc: 'High-energy stream transitions' },
+                    { name: 'BGM Audio Loops', count: 16, desc: 'Copyright-free livestream tracks' },
+                  ].map((cat) => (
+                    <div key={cat.name} className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
+                      <span className="text-xs font-bold text-white">{cat.name}</span>
+                      <p className="text-xl font-black text-purple-400 font-mono">{cat.count} Assets</p>
+                      <p className="text-[11px] text-slate-500">{cat.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              TAB 8: 24-HOUR AD PASS TELEMETRY
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'ads' && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Tv className="h-4 w-4 text-pink-400" />
+                      <span>24-Hour Rewarded Ad Telemetry</span>
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      AdMob rewarded video ad verifications granting free streaming passes.
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-pink-400 bg-pink-500/10 px-3 py-1 rounded-full border border-pink-500/20">
+                    {metrics.active24hAdPasses} Active Passes
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Supported Networks</p>
+                    <p className="text-sm font-bold text-white mt-1">Google AdMob &bull; Unity Ads</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Rewarded Pass Duration</p>
+                    <p className="text-sm font-bold text-cyan-400 mt-1">24 Hours from Watch</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Reward Token Bonus</p>
+                    <p className="text-sm font-bold text-yellow-400 mt-1">+15 D-Coins per Ad View</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              TAB 9: TASK REVIEWS & COMMUNITY BOUNTIES
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'tasks' && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-teal-400" />
+                    <span>Creator Tasks &amp; Community Bounty Review</span>
+                  </h3>
+                  <span className="text-xs font-mono text-teal-400 bg-teal-500/10 px-2.5 py-0.5 rounded-full border border-teal-500/20">
+                    {tasks.filter((t) => t.status === 'PENDING').length} Pending Review
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {tasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="rounded-xl border border-slate-800 bg-slate-950 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-white">{task.title}</p>
+                          <span
+                            className={`text-[9px] font-bold px-2 py-0.2 rounded-full uppercase ${
+                              task.status === 'APPROVED'
+                                ? 'bg-emerald-500/10 text-emerald-400'
+                                : task.status === 'REJECTED'
+                                ? 'bg-red-500/10 text-red-400'
+                                : 'bg-amber-500/10 text-amber-400'
+                            }`}
+                          >
+                            {task.status}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400">{task.userEmail} &bull; Reward: {task.reward}</p>
+                        <p className="text-[11px] text-slate-500">{task.notes}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {task.status === 'PENDING' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setTasks((prev) =>
+                                  prev.map((t) => (t.id === task.id ? { ...t, status: 'APPROVED' } : t))
+                                );
+                                showToast(`Approved bounty for ${task.userEmail}`, 'success');
+                              }}
+                              className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold hover:bg-emerald-500/30 transition"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => {
+                                setTasks((prev) =>
+                                  prev.map((t) => (t.id === task.id ? { ...t, status: 'REJECTED' } : t))
+                                );
+                                showToast(`Rejected task ${task.id}`, 'info');
+                              }}
+                              className="px-3 py-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/40 text-xs font-bold hover:bg-red-500/30 transition"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              TAB 10: API & SECURITY GATEWAY DIAGNOSTICS
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'security' && (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-slate-800 bg-[#0B0F1A] p-6 space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  <span>Production Gateway Diagnostics &amp; Health Matrix</span>
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>Firebase Admin SDK</span>
+                      <Check className="h-4 w-4 text-emerald-400" />
+                    </div>
+                    <p className="text-sm font-bold text-white">Project: digicast-eaca1</p>
+                    <p className="text-[10px] text-emerald-400 font-mono">Service Account Active &bull; ASN.1 Key OK</p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>Telegram Bot Engine</span>
+                      <Bot className="h-4 w-4 text-cyan-400" />
+                    </div>
+                    <p className="text-sm font-bold text-white">@DigicastIndiaBot</p>
+                    <p className="text-[10px] text-cyan-400 font-mono">Webhook Registered &bull; Alerts Enabled</p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>Cryptographic Auth</span>
+                      <Lock className="h-4 w-4 text-amber-400" />
+                    </div>
+                    <p className="text-sm font-bold text-white">HMAC SHA-256 Tokens</p>
+                    <p className="text-[10px] text-amber-400 font-mono">Zero-Trust RBAC &bull; Cookie + Header</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] space-y-1">
+                  <p className="text-slate-500 font-bold uppercase">Active Endpoints &amp; Routes:</p>
+                  <p className="text-slate-300">&bull; POST /api/godpanel/ledger &mdash; Double-entry E-Cash writes</p>
+                  <p className="text-slate-300">&bull; POST /api/godpanel/payments &mdash; Manual UPI verification &amp; workspace extension</p>
+                  <p className="text-slate-300">&bull; POST /api/godpanel/users &mdash; Profile, status, and role sync to Firestore</p>
+                  <p className="text-slate-300">&bull; POST /api/telegram/webhook &mdash; Instant admin bot notifications</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </main>
     </div>
   );
 }

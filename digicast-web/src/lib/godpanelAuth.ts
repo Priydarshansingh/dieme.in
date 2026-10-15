@@ -58,6 +58,10 @@ export function verifyGodSessionToken(token: string): { username: string; role: 
 }
 
 export async function ensureDefaultRootAdmin(): Promise<void> {
+  if (!adminDb) {
+    console.warn("[godpanelAuth] adminDb is not initialized; skipping root admin collection check.");
+    return;
+  }
   const adminsSnap = await adminDb.collection("admins").limit(1).get();
   if (adminsSnap.empty) {
     const defaultPassword = "DigicastGod2026!#";

@@ -1,0 +1,528 @@
+package com.digicast.app.ui.screens.settings
+
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Paid
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.digicast.app.data.repository.AuthRepository
+import com.digicast.app.data.repository.MobileEditorInfo
+import com.digicast.app.data.repository.MobileWalletInfo
+import com.digicast.app.ui.theme.DigicastAccentBlue
+import com.digicast.app.ui.theme.DigicastBorder
+import com.digicast.app.ui.theme.DigicastCardSurface
+import com.digicast.app.ui.theme.DigicastDeepNavy
+import com.digicast.app.ui.theme.DigicastElectricCyan
+import com.digicast.app.ui.theme.DigicastEmerald
+import com.digicast.app.ui.theme.DigicastLiveRed
+import com.digicast.app.ui.theme.DigicastMintGlow
+import com.digicast.app.ui.theme.DigicastNavy
+import com.digicast.app.ui.theme.DigicastNeonLime
+import com.digicast.app.ui.theme.DigicastSlate
+import com.digicast.app.ui.theme.DigicastSurface
+import com.digicast.app.ui.theme.DigicastSurfaceElevated
+import com.digicast.app.ui.theme.DigicastWhite
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+@Composable
+fun WalletAndAdsCard(
+    uid: String,
+    authRepository: AuthRepository,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var walletInfo by remember { mutableStateOf<MobileWalletInfo?>(null) }
+    var topEditors by remember { mutableStateOf<List<MobileEditorInfo>>(emptyList()) }
+    var isLoadingWallet by remember { mutableStateOf(false) }
+    var showAdDialog by remember { mutableStateOf(false) }
+    var adProgress by remember { mutableFloatStateOf(0f) }
+    var adSecondsLeft by remember { mutableIntStateOf(5) }
+    var isClaimingAd by remember { mutableStateOf(false) }
+
+    fun refreshData() {
+        scope.launch {
+            isLoadingWallet = true
+            val wResult = authRepository.fetchWalletBalance(uid)
+            if (wResult.isSuccess) {
+                walletInfo = wResult.getOrNull()
+            }
+            val eResult = authRepository.fetchTopEditors()
+            if (eResult.isSuccess) {
+                topEditors = eResult.getOrNull() ?: emptyList()
+            }
+            isLoadingWallet = false
+        }
+    }
+
+    LaunchedEffect(uid) {
+        refreshData()
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DigicastBorder),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Header Row: Wallet Title & Refresh
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(DigicastNeonLime.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Paid,
+                            contentDescription = null,
+                            tint = DigicastNeonLime,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "CREATOR WALLET & AD PASS",
+                            color = DigicastWhite,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "10 D = 1 DP = ₹1 INR (Internal Credits)",
+                            color = DigicastSlate,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = { refreshData() },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    if (isLoadingWallet) {
+                        CircularProgressIndicator(
+                            color = DigicastAccentBlue,
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = DigicastSlate,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            // Balances Bento Grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // D-Coins Box
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DigicastNavy)
+                        .border(1.dp, DigicastBorder, RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Column {
+                        Text("D-COINS", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${walletInfo?.dCoinsBalance ?: 120} D",
+                            color = DigicastNeonLime,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text("Task Earning", color = DigicastSlate, fontSize = 10.sp)
+                    }
+                }
+
+                // DP Points Box
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DigicastNavy)
+                        .border(1.dp, DigicastBorder, RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Column {
+                        Text("DIGICAST POINTS", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${walletInfo?.dpBalance ?: 45} DP",
+                            color = DigicastElectricCyan,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text("≈ ₹${walletInfo?.equivalentINR?.toInt() ?: 57} INR Value", color = DigicastMintGlow, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
+            HorizontalDivider(color = DigicastBorder.copy(alpha = 0.5f))
+
+            // 24H Ad Pass Section
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(DigicastDeepNavy.copy(alpha = 0.7f))
+                    .border(1.dp, DigicastBorder, RoundedCornerShape(12.dp))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = null,
+                            tint = if (walletInfo?.hasActiveAdPass == true) DigicastEmerald else DigicastLiveRed,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "24-Hour Stream Pass",
+                            color = DigicastWhite,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                if (walletInfo?.hasActiveAdPass == true) DigicastEmerald.copy(alpha = 0.2f) else DigicastSurfaceElevated,
+                                RoundedCornerShape(6.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = if (walletInfo?.hasActiveAdPass == true) "PASS ACTIVE" else "NO ACTIVE PASS",
+                            color = if (walletInfo?.hasActiveAdPass == true) DigicastEmerald else DigicastSlate,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Watch 1 sponsored video ad to unlock 24 hours of uninterrupted studio features and earn +10 D-Coins.",
+                    color = DigicastSlate,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
+
+                Button(
+                    onClick = {
+                        adProgress = 0f
+                        adSecondsLeft = 5
+                        showAdDialog = true
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(38.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DigicastAccentBlue
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = DigicastWhite
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Watch Sponsored Ad (+10 D & Pass)",
+                        color = DigicastWhite,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // Top Editors Showcase Preview
+            if (topEditors.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "VERIFIED EDITORS SPOTLIGHT",
+                            color = DigicastSlate,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "${topEditors.size} Online",
+                            color = DigicastEmerald,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    topEditors.take(2).forEach { editor ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(DigicastNavy)
+                                .border(1.dp, DigicastBorder.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(DigicastAccentBlue.copy(alpha = 0.2f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Group,
+                                        contentDescription = null,
+                                        tint = DigicastAccentBlue,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Column {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = editor.displayName,
+                                            color = DigicastWhite,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (editor.isVerified) {
+                                            Icon(
+                                                imageVector = Icons.Default.Verified,
+                                                contentDescription = "Verified",
+                                                tint = DigicastAccentBlue,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "★ ${editor.rating} • ${editor.turnaroundHours}h turnaround",
+                                        color = DigicastSlate,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .background(DigicastNeonLime.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "₹${editor.shortRateINR}/short",
+                                    color = DigicastNeonLime,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // High-Value Sponsored Ad Simulation Dialog
+    if (showAdDialog) {
+        LaunchedEffect(showAdDialog) {
+            val totalTicks = 50
+            for (i in 1..totalTicks) {
+                delay(100)
+                adProgress = i / totalTicks.toFloat()
+                adSecondsLeft = 5 - (i / 10)
+            }
+            // Ad completed
+            isClaimingAd = true
+            val res = authRepository.claimAdReward(uid)
+            if (res.isSuccess) {
+                walletInfo = walletInfo?.copy(
+                    dCoinsBalance = (walletInfo?.dCoinsBalance ?: 120) + 10,
+                    hasActiveAdPass = true,
+                    adRemainingHours = 24.0
+                ) ?: MobileWalletInfo(130, 45, 58.0, true, 24.0)
+                Toast.makeText(context, "🎉 Ad complete! +10 D-Coins added & 24h Pass activated!", Toast.LENGTH_LONG).show()
+            }
+            isClaimingAd = false
+            showAdDialog = false
+        }
+
+        AlertDialog(
+            onDismissRequest = { /* Prevent dismiss before complete */ },
+            containerColor = DigicastNavy,
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = DigicastNeonLime,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = "Partner Ad Playing",
+                        color = DigicastWhite,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(DigicastDeepNavy)
+                            .border(1.dp, DigicastBorder, RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                progress = { adProgress },
+                                color = DigicastNeonLime,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Text(
+                                text = "Digicast Studio Pro Ecosystem",
+                                color = DigicastWhite,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Reward in ${adSecondsLeft.coerceAtLeast(0)}s...",
+                                color = DigicastSlate,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    LinearProgressIndicator(
+                        progress = { adProgress },
+                        color = DigicastNeonLime,
+                        trackColor = DigicastBorder,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                    )
+
+                    Text(
+                        text = "Do not close. Your 24-hour stream pass and 10 D-Coins will be credited automatically.",
+                        color = DigicastSlate,
+                        fontSize = 11.sp
+                    )
+                }
+            },
+            confirmButton = {}
+        )
+    }
+}

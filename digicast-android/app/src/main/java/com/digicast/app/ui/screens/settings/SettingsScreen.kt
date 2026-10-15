@@ -280,6 +280,14 @@ fun SettingsScreen(
                         )
                     }
 
+                    // 1b. Creator Wallet, 24H Ad Pass & Top Editors Showcase
+                    item(key = "wallet_and_ads_card") {
+                        WalletAndAdsCard(
+                            uid = session.uid,
+                            authRepository = authRepository
+                        )
+                    }
+
                     // 2. Connected YouTube Channel (if connected)
                     if (youtubeAccount != null) {
                         item(key = "youtube_account_card") {

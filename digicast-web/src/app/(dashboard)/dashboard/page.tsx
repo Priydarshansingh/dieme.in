@@ -8,7 +8,7 @@ import {
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSearchParams } from 'next/navigation';
-import { Radio, Scissors, Send, ArrowRight, RefreshCw, CheckCircle, Youtube, QrCode, Sparkles } from 'lucide-react';
+import { Radio, Scissors, Send, ArrowRight, RefreshCw, CheckCircle, Youtube, QrCode, Sparkles, Smartphone, Download } from 'lucide-react';
 import Image from 'next/image';
 import UpiPaymentModal from '@/components/subscription/UpiPaymentModal';
 
@@ -231,6 +231,19 @@ function DashboardContent() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <a
+            href="https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/download/digicast-app-latest.apk"
+            target="_blank"
+            rel="noopener noreferrer"
+            download="digicast-app-latest.apk"
+            className="flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl border transition shadow-sm bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/20"
+            title="Download latest Digicast Studio Android APK"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span>Download Android App</span>
+            <Download className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+          </a>
+
           <button
             onClick={() => setIsUpiModalOpen(true)}
             className="flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl border transition shadow-sm bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20"
@@ -249,6 +262,34 @@ function DashboardContent() {
             {isSyncing ? 'Syncing...' : 'Sync YouTube'}
           </button>
         </div>
+      </div>
+
+      {/* Official Android Companion App Callout */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 border border-cyan-500/20 backdrop-blur-xl">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0">
+            <Smartphone className="w-5 h-5 text-cyan-400" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-white">Digicast Studio Companion App (v1.0.0)</h3>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">LATEST APK</span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Live stream intelligence, clutch moments capture, on-device trimmer, Creator Wallet &amp; 24h pass.
+            </p>
+          </div>
+        </div>
+        <a
+          href="https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/download/digicast-app-latest.apk"
+          target="_blank"
+          rel="noopener noreferrer"
+          download="digicast-app-latest.apk"
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-cyan-400 hover:bg-cyan-300 transition-all shadow-md shrink-0"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>Download APK (~30MB)</span>
+        </a>
       </div>
 
       {syncFeedback && (

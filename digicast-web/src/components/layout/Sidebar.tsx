@@ -17,6 +17,8 @@ import {
   Palette,
   CreditCard,
   LogOut,
+  Smartphone,
+  Download,
 } from 'lucide-react';
 
 const navItems = [
@@ -67,6 +69,35 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Download Mobile App Link */}
+      <div className="px-3 pb-3">
+        <a
+          href="https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/download/digicast-app-latest.apk"
+          target="_blank"
+          rel="noopener noreferrer"
+          download="digicast-app-latest.apk"
+          className="group block p-3 rounded-xl bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-indigo-500/10 border border-cyan-500/25 hover:border-cyan-400/50 transition-all duration-200 shadow-sm"
+          title="Download the latest Digicast Studio Android App (APK)"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-300">
+              <Smartphone className="w-3.5 h-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span>Android App</span>
+            </div>
+            <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+              APK
+            </span>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+            Latest build with Ad Pass, Wallet &amp; Stream capture.
+          </p>
+          <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-white bg-white/10 group-hover:bg-cyan-500/20 px-2 py-1 rounded-lg border border-white/10 group-hover:border-cyan-400/30 transition-all">
+            <span>Download APK</span>
+            <Download className="w-3 h-3 text-cyan-400" />
+          </div>
+        </a>
+      </div>
 
       {/* User footer */}
       {user && (

@@ -1500,7 +1500,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                 <p><a href="#faq" className="hover:text-slate-300">FAQ</a></p>
                 <p><a href="#how-it-works" className="hover:text-slate-300">How It Works</a></p>
                 <p><a href="#reviews" className="hover:text-slate-300">Creator Reviews</a></p>
-                <p><Link href="/godpanel" className="hover:text-slate-300 font-mono">Admin GodPanel</Link></p>
+                <p><a href="#about-us" className="hover:text-slate-300">Our Story</a></p>
               </div>
               <div className="space-y-2">
                 <p className="font-bold text-white">Legal</p>

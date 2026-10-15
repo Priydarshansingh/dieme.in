@@ -166,9 +166,118 @@ export function getLedgerEntries(uid: string): LedgerEntry[] {
 }
 
 /**
+ * Retrieves all platform ledger entries across all users sorted by most recent
+ */
+export function getAllLedgerEntries(): LedgerEntry[] {
+  const all: LedgerEntry[] = [];
+  memoryLedgerStore.forEach((entries) => {
+    all.push(...entries);
+  });
+  return all.sort((a, b) => b.timestamp - a.timestamp);
+}
+
+/**
  * Retrieves current wallet balance for a user
  */
 export function getUserWallet(uid: string): UserWalletBalance {
   const entries = memoryLedgerStore.get(uid) || [];
   return calculateWalletBalance(entries, uid);
 }
+
+// Seed realistic initial transactions
+function seedTransactions() {
+  const seeds: Array<Parameters<typeof recordLedgerTransaction>[0] & { timestampDelta: number }> = [
+    {
+      uid: 'usr_vikram_streamer',
+      type: 'CREDIT',
+      currency: 'DP',
+      amount: 149,
+      source: 'SUBSCRIPTION_PURCHASE',
+      description: 'Standard Monthly Plan purchase via UPI (₹149 credited)',
+      timestampDelta: 1000 * 60 * 60 * 2, // 2h ago
+    },
+    {
+      uid: 'usr_vikram_streamer',
+      type: 'DEBIT',
+      currency: 'DP',
+      amount: 29,
+      source: 'WATERMARK_REMOVAL',
+      description: 'Watermark Removal 1080p Clip Export (Debit 29 DP)',
+      timestampDelta: 1000 * 60 * 45, // 45m ago
+    },
+    {
+      uid: 'usr_vikram_streamer',
+      type: 'CREDIT',
+      currency: 'D_COIN',
+      amount: 200,
+      source: 'TASK_REWARD',
+      description: 'Twitter / X Thread engagement bounty verified (+200 D)',
+      timestampDelta: 1000 * 60 * 15, // 15m ago
+    },
+    {
+      uid: 'usr_aryan_streamer',
+      type: 'CREDIT',
+      currency: 'DP',
+      amount: 449,
+      source: 'SUBSCRIPTION_PURCHASE',
+      description: 'Quarterly Streamer Plan purchase via Razorpay (₹449)',
+      timestampDelta: 1000 * 60 * 60 * 5, // 5h ago
+    },
+    {
+      uid: 'usr_aryan_streamer',
+      type: 'DEBIT',
+      currency: 'DP',
+      amount: 15,
+      source: 'ASSET_PURCHASE',
+      description: 'Cyber Glitch Stream Intermission FX Asset Unlock',
+      timestampDelta: 1000 * 60 * 60 * 1, // 1h ago
+    },
+    {
+      uid: 'usr_priya_creator',
+      type: 'CREDIT',
+      currency: 'DP',
+      amount: 999,
+      source: 'SUBSCRIPTION_PURCHASE',
+      description: 'Annual Pro Creator Plan purchase (₹999 credited)',
+      timestampDelta: 1000 * 60 * 60 * 24, // 1 day ago
+    },
+    {
+      uid: 'usr_arjun_editor',
+      type: 'CREDIT',
+      currency: 'DP',
+      amount: 350,
+      source: 'ADMIN_ADJUSTMENT',
+      description: 'Podium Leaderboard Gold Bonus (Top #1 Editor of the Week)',
+      timestampDelta: 1000 * 60 * 60 * 8, // 8h ago
+    },
+    {
+      uid: 'usr_rohit_editor',
+      type: 'CREDIT',
+      currency: 'D_COIN',
+      amount: 100,
+      source: 'AD_REWARD',
+      description: '24h Stream Pass Activated & Sponsored Partner Ad Viewed (+100 D)',
+      timestampDelta: 1000 * 60 * 30, // 30m ago
+    },
+  ];
+
+  seeds.forEach((s) => {
+    const list = memoryLedgerStore.get(s.uid) || [];
+    const entry: LedgerEntry = {
+      id: `tx_${Date.now() - s.timestampDelta}_${crypto.randomBytes(4).toString('hex')}`,
+      uid: s.uid,
+      type: s.type,
+      currency: s.currency,
+      amount: s.amount,
+      source: s.source,
+      description: s.description,
+      idempotencyKey: `seed_${s.uid}_${s.source}_${s.timestampDelta}`,
+      timestamp: Date.now() - s.timestampDelta,
+    };
+    list.push(entry);
+    memoryLedgerStore.set(s.uid, list);
+  });
+}
+
+seedTransactions();
+

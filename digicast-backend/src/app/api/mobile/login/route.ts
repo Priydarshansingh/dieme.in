@@ -250,7 +250,7 @@ export async function POST(req: NextRequest) {
       activeSub = {
         ...subscription,
         isExpired: false,
-        status: "free_ad_tier",
+        status: "trial",
         plan: "free_ad_pass",
         daysRemaining: 1,
       };

@@ -16,13 +16,18 @@ export function getAdminApp(): App | null {
     return null;
   }
 
-  return initializeApp({
-    credential: cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
-  });
+  try {
+    return initializeApp({
+      credential: cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+    });
+  } catch (err: any) {
+    console.warn("[firebase-admin] Warning: could not initialize with service account cert:", err?.message);
+    return null;
+  }
 }
 
 adminApp = getAdminApp();

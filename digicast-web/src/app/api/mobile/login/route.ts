@@ -244,12 +244,16 @@ export async function POST(req: NextRequest) {
 
     const subscription = computeWorkspaceSubscription(finalWsData);
 
+    let activeSub = subscription;
     if (subscription.isExpired) {
-      return NextResponse.json({
-        error: "Your workspace trial or subscription has expired. Please renew your plan on the web dashboard to continue using the app.",
-        isExpired: true,
-        subscription,
-      }, { status: 403 });
+      // Allow free creators whose trial expired to log in under free ad-supported tier
+      activeSub = {
+        ...subscription,
+        isExpired: false,
+        status: "free_ad_tier",
+        plan: "free_ad_pass",
+        daysRemaining: 1,
+      };
     }
 
     // 5. Mint an ID token for the Android client.
@@ -312,7 +316,7 @@ export async function POST(req: NextRequest) {
         token: idToken,
         refreshToken: refreshToken || "",
         expiresIn: Number(refreshedAuthData.expiresIn) || 3600,
-        subscription,
+        subscription: activeSub,
       },
       message: "Signed in successfully"
     });

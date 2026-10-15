@@ -97,6 +97,7 @@ class AuthRepository @Inject constructor(
         private const val KEY_SUB_DAYS = "auth_sub_days"
         private const val KEY_SIGNED_OUT = "auth_signed_out_explicitly"
         private const val KEY_IS_DEMO = "auth_is_demo"
+        private const val KEY_ONE_DAY_PASS_EXPIRES_AT = "auth_one_day_pass_expires_at"
 
         // All API calls go to Vercel-hosted digicast-web backend
         const val BACKEND_URL = "https://digicast-web.vercel.app"
@@ -134,6 +135,49 @@ class AuthRepository @Inject constructor(
         restoreSession()
     }
 
+    // ─── 1-Day Pass Helpers ──────────────────────────────────────────────────
+
+    fun getOneDayPassRemainingMillis(): Long {
+        val expiresAt = prefs.getLong(KEY_ONE_DAY_PASS_EXPIRES_AT, 0L)
+        val now = System.currentTimeMillis()
+        return if (expiresAt > now) expiresAt - now else 0L
+    }
+
+    fun isOneDayPassActive(): Boolean = getOneDayPassRemainingMillis() > 0L
+
+    fun getOneDayPassRemainingHoursMinutes(): Pair<Long, Long> {
+        val rem = getOneDayPassRemainingMillis()
+        if (rem <= 0L) return Pair(0L, 0L)
+        val totalMins = rem / (1000 * 60)
+        val hours = totalMins / 60
+        val mins = totalMins % 60
+        return Pair(hours, mins)
+    }
+
+    fun activateOneDayPass(fromAd: Boolean = false): UserSession {
+        val expiresAt = System.currentTimeMillis() + 24 * 60 * 60 * 1000L
+        prefs.edit()
+            .putLong(KEY_ONE_DAY_PASS_EXPIRES_AT, expiresAt)
+            .putBoolean(KEY_SIGNED_OUT, false)
+            .putBoolean(KEY_IS_DEMO, true)
+            .apply()
+
+        val session = DEMO_SESSION.copy(
+            displayName = if (fromAd) "Creator (Ad Rewarded 24h)" else "Creator (1-Day Free Access)",
+            subscriptionStatus = "active",
+            plan = "1_day_pass",
+            daysRemaining = 1
+        )
+        _authState.value = AuthState.SignedIn(session)
+        scope.launch {
+            seedDemoDataIfEmpty()
+            if (fromAd) {
+                claimAdReward(session.uid)
+            }
+        }
+        return session
+    }
+
     // ─── Session restore on app launch ───────────────────────────────────────
 
     private fun restoreSession() {
@@ -142,6 +186,7 @@ class AuthRepository @Inject constructor(
         val uid = prefs.getString(KEY_UID, null)
         val email = prefs.getString(KEY_EMAIL, null)
         val token = prefs.getString(KEY_TOKEN, null)
+        val hasActivePass = isOneDayPassActive()
 
         when {
             // Previously signed in with a real account — restore and background-sync
@@ -162,9 +207,19 @@ class AuthRepository @Inject constructor(
                 _authState.value = AuthState.SignedIn(session)
                 scope.launch { syncWorkspaceData() }
             }
-            // Was in demo mode — restore demo without syncing cloud
-            !signedOut && isDemo -> {
-                _authState.value = AuthState.SignedIn(DEMO_SESSION)
+            // Was in demo mode or has active 1-day pass — restore without cloud error
+            !signedOut && (isDemo || hasActivePass) -> {
+                val session = if (hasActivePass) {
+                    DEMO_SESSION.copy(
+                        displayName = "Creator (1-Day Pass)",
+                        subscriptionStatus = "active",
+                        plan = "1_day_pass",
+                        daysRemaining = 1
+                    )
+                } else {
+                    DEMO_SESSION
+                }
+                _authState.value = AuthState.SignedIn(session)
                 scope.launch { seedDemoDataIfEmpty() }
             }
             // Signed out or first launch — show onboarding

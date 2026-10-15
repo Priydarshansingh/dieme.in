@@ -1,5 +1,6 @@
 package com.digicast.app.ui.screens.settings
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -55,9 +57,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.digicast.app.data.ads.AdMobManager
 import com.digicast.app.data.repository.AuthRepository
 import com.digicast.app.data.repository.MobileEditorInfo
 import com.digicast.app.data.repository.MobileWalletInfo
+import com.digicast.app.data.repository.UserSession
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastCardSurface
@@ -77,12 +81,18 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun WalletAndAdsCard(
-    uid: String,
+    session: UserSession,
     authRepository: AuthRepository,
     modifier: Modifier = Modifier
 ) {
+    val uid = session.uid
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // Users who subscribed already DO NOT see ads
+    val isPaidSubscriber = session.subscriptionStatus.equals("active", ignoreCase = true) &&
+            !session.plan.equals("free", ignoreCase = true) &&
+            !session.plan.equals("free_trial", ignoreCase = true)
 
     var walletInfo by remember { mutableStateOf<MobileWalletInfo?>(null) }
     var topEditors by remember { mutableStateOf<List<MobileEditorInfo>>(emptyList()) }
@@ -107,8 +117,26 @@ fun WalletAndAdsCard(
         }
     }
 
-    LaunchedEffect(uid) {
+    // Preload AdMob Rewarded Ad for free/free-trial creators
+    LaunchedEffect(uid, isPaidSubscriber) {
         refreshData()
+        if (!isPaidSubscriber) {
+            AdMobManager.loadRewardedAd(context)
+        }
+    }
+
+    fun handleClaimRewardSuccess() {
+        scope.launch {
+            val res = authRepository.claimAdReward(uid)
+            if (res.isSuccess) {
+                walletInfo = walletInfo?.copy(
+                    dCoinsBalance = (walletInfo?.dCoinsBalance ?: 120) + 10,
+                    hasActiveAdPass = true,
+                    adRemainingHours = 24.0
+                ) ?: MobileWalletInfo(130, 45, 58.0, true, 24.0)
+                Toast.makeText(context, "🎉 Ad reward claimed! +10 D-Coins added & 24h Pass activated!", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     Card(
@@ -233,90 +261,170 @@ fun WalletAndAdsCard(
 
             HorizontalDivider(color = DigicastBorder.copy(alpha = 0.5f))
 
-            // 24H Ad Pass Section
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(DigicastDeepNavy.copy(alpha = 0.7f))
-                    .border(1.dp, DigicastBorder, RoundedCornerShape(12.dp))
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            // ── AD SECTION: Only for Free & Free Trial Users. Subscribed Users NEVER see ads ──
+            if (isPaidSubscriber) {
+                // Subscribed users: Clean Pro Ad-Free Banner
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DigicastNavy)
+                        .border(1.dp, DigicastEmerald.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .padding(14.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(DigicastEmerald.copy(alpha = 0.2f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.WorkspacePremium,
+                                contentDescription = null,
+                                tint = DigicastEmerald,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "PRO AD-FREE ACTIVE",
+                                    color = DigicastWhite,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .background(DigicastEmerald.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = session.plan.uppercase(),
+                                        color = DigicastEmerald,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "Your subscription grants 100% ad-free unlimited access across the studio platform.",
+                                color = DigicastSlate,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            } else {
+                // Free & Free Trial users: Google AdMob Rewarded Ad Option
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DigicastDeepNavy.copy(alpha = 0.7f))
+                        .border(1.dp, DigicastBorder, RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Bolt,
+                                contentDescription = null,
+                                tint = if (walletInfo?.hasActiveAdPass == true) DigicastEmerald else DigicastLiveRed,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "24-Hour Stream Pass (AdMob)",
+                                color = DigicastWhite,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (walletInfo?.hasActiveAdPass == true) DigicastEmerald.copy(alpha = 0.2f) else DigicastSurfaceElevated,
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = if (walletInfo?.hasActiveAdPass == true) "PASS ACTIVE" else "NO ACTIVE PASS",
+                                color = if (walletInfo?.hasActiveAdPass == true) DigicastEmerald else DigicastSlate,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Free & trial users: Watch 1 video ad to unlock 24 hours of uninterrupted studio features and earn +10 D-Coins.",
+                        color = DigicastSlate,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+
+                    Button(
+                        onClick = {
+                            val activity = context as? Activity
+                            if (activity != null && AdMobManager.isAdAvailable()) {
+                                AdMobManager.showRewardedAd(
+                                    activity = activity,
+                                    onUserEarnedReward = {
+                                        handleClaimRewardSuccess()
+                                    },
+                                    onFallbackSimulationNeeded = {
+                                        adProgress = 0f
+                                        adSecondsLeft = 5
+                                        showAdDialog = true
+                                    }
+                                )
+                            } else {
+                                if (activity != null) {
+                                    AdMobManager.loadRewardedAd(activity)
+                                }
+                                adProgress = 0f
+                                adSecondsLeft = 5
+                                showAdDialog = true
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(38.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DigicastAccentBlue
+                        ),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Bolt,
+                            imageVector = Icons.Default.PlayArrow,
                             contentDescription = null,
-                            tint = if (walletInfo?.hasActiveAdPass == true) DigicastEmerald else DigicastLiveRed,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
+                            tint = DigicastWhite
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "24-Hour Stream Pass",
+                            text = "Watch Sponsored Ad (+10 D & 24h Pass)",
                             color = DigicastWhite,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                if (walletInfo?.hasActiveAdPass == true) DigicastEmerald.copy(alpha = 0.2f) else DigicastSurfaceElevated,
-                                RoundedCornerShape(6.dp)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = if (walletInfo?.hasActiveAdPass == true) "PASS ACTIVE" else "NO ACTIVE PASS",
-                            color = if (walletInfo?.hasActiveAdPass == true) DigicastEmerald else DigicastSlate,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Text(
-                    text = "Watch 1 sponsored video ad to unlock 24 hours of uninterrupted studio features and earn +10 D-Coins.",
-                    color = DigicastSlate,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp
-                )
-
-                Button(
-                    onClick = {
-                        adProgress = 0f
-                        adSecondsLeft = 5
-                        showAdDialog = true
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(38.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = DigicastAccentBlue
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = DigicastWhite
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Watch Sponsored Ad (+10 D & Pass)",
-                        color = DigicastWhite,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
 
@@ -421,7 +529,7 @@ fun WalletAndAdsCard(
         }
     }
 
-    // High-Value Sponsored Ad Simulation Dialog
+    // High-Value Sponsored Ad Simulation Dialog (Fallback while AdMob unit propagates)
     if (showAdDialog) {
         LaunchedEffect(showAdDialog) {
             val totalTicks = 50
@@ -432,15 +540,7 @@ fun WalletAndAdsCard(
             }
             // Ad completed
             isClaimingAd = true
-            val res = authRepository.claimAdReward(uid)
-            if (res.isSuccess) {
-                walletInfo = walletInfo?.copy(
-                    dCoinsBalance = (walletInfo?.dCoinsBalance ?: 120) + 10,
-                    hasActiveAdPass = true,
-                    adRemainingHours = 24.0
-                ) ?: MobileWalletInfo(130, 45, 58.0, true, 24.0)
-                Toast.makeText(context, "🎉 Ad complete! +10 D-Coins added & 24h Pass activated!", Toast.LENGTH_LONG).show()
-            }
+            handleClaimRewardSuccess()
             isClaimingAd = false
             showAdDialog = false
         }

@@ -38,16 +38,16 @@ export async function POST(req: NextRequest) {
       lastAdWatchedAt: now,
     });
 
-    // Credit 5 D Coins viewing reward to user wallet
+    // Credit 10 D Coins viewing reward to user wallet
     const ledgerResult = recordLedgerTransaction({
       uid,
       type: 'CREDIT',
       currency: 'D_COIN',
-      amount: 5,
+      amount: 10,
       source: 'AD_REWARD',
-      description: 'Reward bonus for watching 1 sponsored advertisement',
+      description: 'Reward bonus for watching 1 sponsored AdMob advertisement',
       referenceId: sessionId,
-      metadata: { sessionId, grantedHours: 24 },
+      metadata: { sessionId, grantedHours: 24, adUnitId: 'ca-app-pub-5470934256709090/8839247619' },
     });
 
     return NextResponse.json({

@@ -102,6 +102,7 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.datastore)
     implementation(libs.coil.compose)
+    implementation("com.google.android.gms:play-services-ads:23.4.0")
 }
 
 tasks.register("copyDebugApkToBuildOutput") {

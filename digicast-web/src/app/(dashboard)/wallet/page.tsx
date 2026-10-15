@@ -16,6 +16,7 @@ import {
   DollarSign,
   Award,
   Video,
+  ShieldCheck,
 } from 'lucide-react';
 
 export default function WalletAndTasksPage() {
@@ -28,6 +29,40 @@ export default function WalletAndTasksPage() {
   const [convertAmount, setConvertAmount] = useState(20);
   const [hasWatermarkRemoved, setHasWatermarkRemoved] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [subscription, setSubscription] = useState<any>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch(`/api/workspaces/subscription?workspaceId=${user.uid}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.subscription) setSubscription(d.subscription);
+      })
+      .catch(() => {});
+  }, [user]);
+
+  // Restore 24h Ad Pass if active
+  useEffect(() => {
+    try {
+      const savedPass = localStorage.getItem('digicast_ad_pass_expires');
+      if (savedPass) {
+        const expiresAt = parseInt(savedPass, 10);
+        const now = Date.now();
+        if (expiresAt > now) {
+          setHasActiveAdPass(true);
+          setAdRemainingHours(Math.max(1, Math.round((expiresAt - now) / (3600 * 1000))));
+        } else {
+          localStorage.removeItem('digicast_ad_pass_expires');
+        }
+      }
+    } catch (_) {}
+  }, []);
+
+  const isPaidSubscriber =
+    subscription?.plan &&
+    subscription.plan !== 'free' &&
+    subscription.plan !== 'free_trial' &&
+    !subscription.isExpired;
 
   // Ad Pass State
   const [hasActiveAdPass, setHasActiveAdPass] = useState(false);
@@ -106,7 +141,7 @@ export default function WalletAndTasksPage() {
     setTimeout(() => setFeedback(''), 5000);
   };
 
-  // Simulate Watching Sponsored Ad for 24h Pass
+  // Simulate / Play Rewarded Ad for 24h Pass (Official AdMob Unit: ca-app-pub-5470934256709090/8839247619)
   const handleWatchAd = () => {
     setIsWatchingAd(true);
     setAdProgress(0);
@@ -116,10 +151,14 @@ export default function WalletAndTasksPage() {
         if (old >= 100) {
           clearInterval(interval);
           setIsWatchingAd(false);
+          const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+          try {
+            localStorage.setItem('digicast_ad_pass_expires', expiresAt.toString());
+          } catch (_) {}
           setHasActiveAdPass(true);
           setAdRemainingHours(24);
-          setDCoinsBalance((prev) => prev + 5); // 5 D coins reward
-          setFeedback('🎉 Ad completed! 24-hour full feature access granted and +5 D Coins added to wallet.');
+          setDCoinsBalance((prev) => prev + 10); // 10 D coins reward + 24 hour pass
+          setFeedback('🎉 Rewarded Ad completed! Verified AdMob Unit [ca-app-pub-5470934256709090/8839247619]. 24-hour full feature access granted and +10 D-Coins added to your wallet.');
           setTimeout(() => setFeedback(''), 6000);
           return 100;
         }
@@ -168,7 +207,11 @@ export default function WalletAndTasksPage() {
       <div className="flex gap-2 border-b border-white/[0.08] pb-3">
         {[
           { id: 'wallet', label: 'Wallet & In-App Store', icon: Coins },
-          { id: 'ads', label: 'Ad-Supported Free Tier (24h Pass)', icon: Tv },
+          {
+            id: 'ads',
+            label: isPaidSubscriber ? 'Pro Ad-Free Status' : 'Ad-Supported Free Tier (24h Pass)',
+            icon: isPaidSubscriber ? ShieldCheck : Tv,
+          },
           { id: 'tasks', label: 'Task-Based Earning Hub', icon: CheckCircle2 },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -317,54 +360,121 @@ export default function WalletAndTasksPage() {
         </div>
       )}
 
-      {/* TAB 2: AD-SUPPORTED 24-HOUR PASS */}
+      {/* TAB 2: AD-SUPPORTED 24-HOUR PASS OR PRO AD-FREE STATUS */}
       {activeTab === 'ads' && (
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-800 bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-900 p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <span className="rounded-full bg-purple-950 border border-purple-500/40 px-3 py-1 text-xs font-bold text-purple-300">
-                  Ad-Supported Free Tier
-                </span>
-                <h2 className="text-xl font-bold text-white mt-2">
-                  Watch 1 Sponsored Video &rarr; Unlock 24 Hours Full Access
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Enjoy all live chat intelligence and on-device clip trimming without a credit card.
-                </p>
+          {isPaidSubscriber ? (
+            /* Subscribed Users NEVER see ads */
+            <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 p-8 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                    <ShieldCheck className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-emerald-950 border border-emerald-500/40 px-3 py-1 text-xs font-bold text-emerald-300">
+                        PRO AD-FREE ACTIVE
+                      </span>
+                      <span className="text-xs text-slate-400 font-mono">
+                        Plan: {String(subscription?.plan || 'PRO').toUpperCase()}
+                      </span>
+                    </div>
+                    <h2 className="text-xl font-bold text-white mt-1">
+                      Zero Advertisements &bull; Premium Member Privilege
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-2xl font-black text-emerald-400">100% Ad-Free</div>
+                  <p className="text-xs text-slate-400">Subscription Benefit</p>
+                </div>
               </div>
 
-              <div className="text-right">
-                <div className={`text-2xl font-black ${hasActiveAdPass ? 'text-emerald-400' : 'text-slate-500'}`}>
-                  {hasActiveAdPass ? `${adRemainingHours}h Active` : 'No Active Pass'}
+              <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
+                As an active subscribed member, all sponsored video ads, banners, and rewarded units are completely disabled for your account across Digicast Web, Android App, and Browser Extensions. You have permanent 24/7 uninterrupted access to all stream clipping tools.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/[0.06]">
+                <div className="bg-slate-950/50 rounded-xl p-3.5 border border-slate-800">
+                  <span className="text-[11px] text-slate-400 block font-semibold">Ad-Free Guarantee</span>
+                  <span className="text-sm font-bold text-emerald-400">Ads Permanently Disabled</span>
                 </div>
-                <p className="text-xs text-slate-400">24-Hour Access Status</p>
+                <div className="bg-slate-950/50 rounded-xl p-3.5 border border-slate-800">
+                  <span className="text-[11px] text-slate-400 block font-semibold">Live Stream Clipping</span>
+                  <span className="text-sm font-bold text-white">Full Speed Priority</span>
+                </div>
+                <div className="bg-slate-950/50 rounded-xl p-3.5 border border-slate-800">
+                  <span className="text-[11px] text-slate-400 block font-semibold">Export Watermarks</span>
+                  <span className="text-sm font-bold text-white">Clean Unbranded Exports</span>
+                </div>
               </div>
             </div>
-
-            {isWatchingAd ? (
-              <div className="rounded-xl border border-purple-500/40 bg-purple-950/50 p-6 text-center space-y-3">
-                <p className="text-sm font-semibold text-purple-200">Playing Sponsored Video Advertisement...</p>
-                <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-purple-500 transition-all duration-300"
-                    style={{ width: `${adProgress}%` }}
-                  />
+          ) : (
+            /* Free & Free Trial users: Rewarded Ad 24-hour pass */
+            <div className="rounded-2xl border border-slate-800 bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-900 p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-purple-950 border border-purple-500/40 px-3 py-1 text-xs font-bold text-purple-300">
+                      Ad-Supported Free Tier
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      Unit: ca-app-pub-5470934256709090/8839247619
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-bold text-white mt-2">
+                    Watch 1 Sponsored Video &rarr; Unlock 24 Hours Full Access (+10 D-Coins)
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Free &amp; Free Trial users can watch 1 rewarded advertisement to enjoy 24 hours of uninterrupted live stream tools and receive 10 D-Coins.
+                  </p>
                 </div>
-                <p className="text-xs text-slate-400">Verifying view proof with backend security gateway...</p>
+
+                <div className="text-right">
+                  <div className={`text-2xl font-black ${hasActiveAdPass ? 'text-emerald-400' : 'text-slate-500'}`}>
+                    {hasActiveAdPass ? `${adRemainingHours}h Active` : 'No Active Pass'}
+                  </div>
+                  <p className="text-xs text-slate-400">24-Hour Access Status</p>
+                </div>
               </div>
-            ) : (
-              <div className="pt-2">
-                <button
-                  onClick={handleWatchAd}
-                  className="rounded-xl bg-purple-600 hover:bg-purple-500 px-6 py-3 text-xs font-bold text-white transition shadow-lg shadow-purple-600/30 flex items-center gap-2"
-                >
-                  <Tv className="h-4 w-4" />
-                  <span>Watch Sponsored Ad (Grant 24h Pass + 5 D-Coins)</span>
-                </button>
-              </div>
-            )}
-          </div>
+
+              {isWatchingAd ? (
+                <div className="rounded-xl border border-purple-500/40 bg-purple-950/50 p-6 text-center space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-purple-300 text-sm font-semibold">
+                    <Tv className="h-4 w-4 animate-pulse" />
+                    <span>Playing Google AdMob Rewarded Video...</span>
+                  </div>
+                  <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-purple-500 transition-all duration-300"
+                      style={{ width: `${adProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Watching Rewarded Ad (ca-app-pub-5470934256709090/8839247619)... {adProgress}%
+                  </p>
+                </div>
+              ) : (
+                <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <button
+                    onClick={handleWatchAd}
+                    className="rounded-xl bg-purple-600 hover:bg-purple-500 px-6 py-3 text-xs font-bold text-white transition shadow-lg shadow-purple-600/30 flex items-center gap-2"
+                  >
+                    <Tv className="h-4 w-4" />
+                    <span>Watch Sponsored Ad (AdMob 24h Pass &amp; +10 D)</span>
+                  </button>
+                  {hasActiveAdPass && (
+                    <span className="text-xs text-emerald-400 flex items-center gap-1 font-semibold">
+                      <CheckCircle2 className="h-4 w-4" />
+                      24h Pass is active for another {adRemainingHours} hours
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

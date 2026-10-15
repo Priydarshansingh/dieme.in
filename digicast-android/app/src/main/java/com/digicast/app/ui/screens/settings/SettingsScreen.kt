@@ -283,7 +283,7 @@ fun SettingsScreen(
                     // 1b. Creator Wallet, 24H Ad Pass & Top Editors Showcase
                     item(key = "wallet_and_ads_card") {
                         WalletAndAdsCard(
-                            uid = session.uid,
+                            session = session,
                             authRepository = authRepository
                         )
                     }

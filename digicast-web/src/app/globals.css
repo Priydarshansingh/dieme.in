@@ -148,4 +148,21 @@ html {
   animation-play-state: paused;
 }
 
+@keyframes spin-3d {
+  0% { transform: rotateX(15deg) rotateY(0deg) rotateZ(0deg); }
+  50% { transform: rotateX(25deg) rotateY(180deg) rotateZ(10deg); }
+  100% { transform: rotateX(15deg) rotateY(360deg) rotateZ(0deg); }
+}
+
+@keyframes laser-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
 

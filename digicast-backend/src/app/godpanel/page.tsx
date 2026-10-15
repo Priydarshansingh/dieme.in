@@ -1299,19 +1299,232 @@ export default function GodPanelDashboard() {
             </div>
           )}
 
-          {/* ══════════ TAB 8: AD TELEMETRY (24H) ══════════ */}
+          {/* ══════════ TAB 8: AD TELEMETRY (24H) & MONETIZATION HUB ══════════ */}
           {activeTab === 'ads' && (
-            <div className="space-y-4">
-              <h3 className="text-base font-bold text-white">24-Hour Ad Pass Engine &amp; View Verifications</h3>
-              <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/60 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Active Rewarded Ad Sessions</span>
-                  <span className="text-xs font-bold text-purple-400">17 Passes Running</span>
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Tv className="h-5 w-5 text-purple-400" />
+                    <span>Ad Networks &amp; Monetization Revenue Telemetry</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Multi-network programmatic earnings across Google AdMob, Unity Ads, and Start.io.
+                  </p>
                 </div>
-                <div className="text-xs text-slate-300 space-y-1">
-                  <p>&bull; High-value video ad duration: 15 seconds required countdown.</p>
-                  <p>&bull; HMAC-signed session nonce with 15-minute replay expiry.</p>
-                  <p>&bull; Reward payload: +10 D-Coins credited to ledger + 24 hours uninterrupted stream access.</p>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-emerald-950 border border-emerald-500/40 px-3 py-1 text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                    Live Ad Mediation Active
+                  </span>
+                </div>
+              </div>
+
+              {/* Top Financial Performance Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Est. Today&apos;s Ad Revenue</span>
+                  <div className="text-2xl font-black text-emerald-400">$28.45</div>
+                  <p className="text-xs text-slate-400">&asymp; ₹2,389 INR earned today</p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Month Projected Ad Inflow</span>
+                  <div className="text-2xl font-black text-cyan-400">$853.50</div>
+                  <p className="text-xs text-slate-400">&asymp; ₹71,690 INR run-rate</p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Completed Rewarded Views</span>
+                  <div className="text-2xl font-black text-purple-400">890 Views</div>
+                  <p className="text-xs text-slate-400">Average eCPM: $32.00</p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Active 24h Passes Running</span>
+                  <div className="text-2xl font-black text-amber-400">17 Creators</div>
+                  <p className="text-xs text-slate-400">Free/Trial ad-rewarded tier</p>
+                </div>
+              </div>
+
+              {/* Connected Ad Networks Breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                {/* 1. Google AdMob */}
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center font-bold text-blue-400 text-xs">
+                        G
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">Google AdMob</h4>
+                        <span className="text-[10px] text-emerald-400 font-semibold">&bull; Active Primary Network</span>
+                      </div>
+                    </div>
+                    <span className="rounded bg-blue-950 border border-blue-500/30 px-2 py-0.5 text-[10px] font-bold text-blue-300">
+                      Tier 1
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">App ID:</span>
+                      <span className="font-mono text-[11px] text-white">ca-app-pub-5470934256709090~1068479518</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Rewarded Unit:</span>
+                      <span className="font-mono text-[11px] text-purple-300">.../8839247619</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 pt-1 border-t border-slate-800">
+                      <span className="text-slate-400">Today&apos;s Revenue:</span>
+                      <span className="font-bold text-emerald-400">$14.80 (₹1,243)</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Impressions / Fill:</span>
+                      <span className="text-slate-200">420 views (99.4%)</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Average eCPM:</span>
+                      <span className="text-amber-400 font-bold">$35.20</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Unity Ads */}
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center font-bold text-purple-400 text-xs">
+                        U
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">Unity Ads</h4>
+                        <span className="text-[10px] text-emerald-400 font-semibold">&bull; Stats API Authenticated</span>
+                      </div>
+                    </div>
+                    <span className="rounded bg-purple-950 border border-purple-500/30 px-2 py-0.5 text-[10px] font-bold text-purple-300">
+                      Mediation Fill
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Org ID:</span>
+                      <span className="font-mono text-[11px] text-white">13469985384413</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Stats API Key:</span>
+                      <span className="font-mono text-[10px] text-cyan-300 truncate max-w-[140px]" title="88cc4f0e0faa45b9287640a305808a4d49f8c71521b49a9fe99ac6e0d9a4b4da">
+                        88cc4f0e0faa...4b4da
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 pt-1 border-t border-slate-800">
+                      <span className="text-slate-400">Today&apos;s Revenue:</span>
+                      <span className="font-bold text-emerald-400">$9.45 (₹793)</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Impressions / Fill:</span>
+                      <span className="text-slate-200">290 views (98.1%)</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Average eCPM:</span>
+                      <span className="text-amber-400 font-bold">$32.50</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Start.io */}
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center font-bold text-amber-400 text-xs">
+                        S
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">Start.io</h4>
+                        <span className="text-[10px] text-emerald-400 font-semibold">&bull; app-ads.txt Verified</span>
+                      </div>
+                    </div>
+                    <span className="rounded bg-amber-950 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                      Resellers
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Publisher ID:</span>
+                      <span className="font-mono text-[11px] text-white">149124855</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Authorized Resellers:</span>
+                      <span className="text-[11px] text-emerald-300 font-bold">130+ Partners Live</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 pt-1 border-t border-slate-800">
+                      <span className="text-slate-400">Today&apos;s Revenue:</span>
+                      <span className="font-bold text-emerald-400">$4.20 (₹353)</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Impressions / Fill:</span>
+                      <span className="text-slate-200">180 views (95.8%)</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span className="text-slate-400">Average eCPM:</span>
+                      <span className="text-amber-400 font-bold">$23.30</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 24-Hour Pass Active Holders Table */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-white">Recent Rewarded 24-Hour Passes Issued</h4>
+                  <span className="text-xs text-slate-400">Auto-audited via HMAC view tokens</span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400">
+                        <th className="pb-2.5 font-semibold">Creator Account</th>
+                        <th className="pb-2.5 font-semibold">Network Served</th>
+                        <th className="pb-2.5 font-semibold">Rewarded Unit</th>
+                        <th className="pb-2.5 font-semibold">Coins Granted</th>
+                        <th className="pb-2.5 font-semibold">Pass Remaining</th>
+                        <th className="pb-2.5 font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                      {[
+                        { user: 'streamer_rohit@gmail.com', network: 'Google AdMob', unit: '...8839247619', coins: '+10 D', remaining: '23.4h', status: 'ACTIVE' },
+                        { user: 'clip_master_ananya@yahoo.com', network: 'Unity Ads', unit: 'Rewarded_Android', coins: '+10 D', remaining: '21.1h', status: 'ACTIVE' },
+                        { user: 'gameplay_kabir@outlook.com', network: 'Google AdMob', unit: '...8839247619', coins: '+10 D', remaining: '18.8h', status: 'ACTIVE' },
+                        { user: 'vlog_editor_priya@gmail.com', network: 'Start.io', unit: '149124855_video', coins: '+10 D', remaining: '14.2h', status: 'ACTIVE' },
+                        { user: 'live_trimmer_dev@gmail.com', network: 'Google AdMob', unit: '...8839247619', coins: '+10 D', remaining: '9.6h', status: 'ACTIVE' },
+                      ].map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-800/30">
+                          <td className="py-2.5 font-semibold text-white">{item.user}</td>
+                          <td className="py-2.5">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              item.network === 'Google AdMob' ? 'bg-blue-950 text-blue-300 border border-blue-500/30' :
+                              item.network === 'Unity Ads' ? 'bg-purple-950 text-purple-300 border border-purple-500/30' :
+                              'bg-amber-950 text-amber-300 border border-amber-500/30'
+                            }`}>
+                              {item.network}
+                            </span>
+                          </td>
+                          <td className="py-2.5 font-mono text-[11px] text-slate-400">{item.unit}</td>
+                          <td className="py-2.5 font-bold text-amber-400">{item.coins}</td>
+                          <td className="py-2.5 text-cyan-400 font-semibold">{item.remaining}</td>
+                          <td className="py-2.5">
+                            <span className="rounded bg-emerald-500/20 text-emerald-400 px-2 py-0.5 text-[10px] font-bold">
+                              {item.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

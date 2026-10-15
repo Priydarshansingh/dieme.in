@@ -1,7 +1,7 @@
 # Digicast Project State
 
 ## Active Milestone: Editors & Streamers Ecosystem, Decoupled Backend & Shifted God Panel
-- **Status:** In Progress (Phases 1 through 6 Complete & Verified)
+- **Status:** In Progress (Phases 1 through 7 Complete & Verified)
 - **Specification:** `.gsd/SPEC.md` (Status: FINALIZED)
 - **Roadmap:** `.gsd/ROADMAP.md`
 
@@ -43,11 +43,15 @@
 
 - [x] **Phase 6: Streamer AI Matchmaking Bot:**
   - Implemented `/api/matchmaking` with semantic keyword parsing for gaming montages, fast delivery (12h), and narrative IRL storytelling.
-  - Created `/matchmaker` page in `digicast-web` with interactive chatbot interface, quick preset prompts, and responsive match cards (98% match, rates, turnaround times, sample video previews).
-  - **Empirical Proof:** `node digicast-backend/scripts/test-phase6.js` passed 100% of gaming, turnaround speed, and storytelling matchmaking queries. Both Next.js builds succeeded with 0 errors.
+  - Created `/matchmaker` page in `digicast-web` with interactive chatbot interface, quick preset prompts, and responsive match cards.
+  - **Empirical Proof:** `node digicast-backend/scripts/test-phase6.js` passed 100%. Both Next.js builds succeeded with 0 errors.
+
+- [x] **Phase 7: Live Stream Assets Marketplace:**
+  - Implemented `/api/assets` and `/api/assets/download` in `digicast-backend` with entitlement verification across 4 categories: Facecam Overlays, Green Screen FX, Custom Video Frames, and Live Frame Photos.
+  - Created `/assets` page in `digicast-web` with visual gallery, preview modal, resolution tags, instant downloads, and OBS/Streamlabs integration guides.
+  - **Empirical Proof:** `node digicast-backend/scripts/test-phase7.js` passed 100% of all 4 categories, free/ad-pass/DP entitlement tests. Both Next.js builds succeeded with 0 errors.
 
 ## Next Up
-- [ ] **Phase 7: Live Stream Assets Marketplace:**
-  - Asset catalog API (`/api/assets`): Facecam overlays, green screens, custom video frames, live frame photos.
-  - Entitlement system: Free tier, Ad-unlocked, and DP-purchasable assets.
-  - Create `/assets` page in `digicast-web` with visual preview, animated overlays, and direct downloads.
+- [ ] **Phase 8: Mobile (Android) Sync & Multi-Client Verification:**
+  - Add backend API service integration in `digicast-android` for wallet balance, ad rewards, and editor discovery.
+  - Verify full Android Gradle build (`assembleDebug`) and end-to-end multi-module verification.

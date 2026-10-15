@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyGodSessionToken } from '@/lib/godpanelAuth';
 import { verifyAdminKey } from '@/lib/security';
-import { getAllPlatformUsers, updatePlatformUser, createPlatformUser } from '@/lib/userStore';
+import { getActualPlatformUsers, updatePlatformUser, createPlatformUser } from '@/lib/userStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'UNAUTHORIZED_GODPANEL' }, { status: 401 });
   }
 
-  const users = getAllPlatformUsers();
+  const users = await getActualPlatformUsers();
   return NextResponse.json({
     users,
     totalCount: users.length,

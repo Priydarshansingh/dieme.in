@@ -1,9 +1,11 @@
+import { adminAuth, adminDb } from '@/lib/firebase/admin';
+
 export interface PlatformUser {
   uid: string;
   displayName: string;
   email: string;
   role: 'streamer' | 'editor' | 'admin' | 'owner';
-  plan: 'free_trial' | 'intro_29' | 'monthly_149' | 'quarterly_449' | 'annual_999' | 'pro';
+  plan: string;
   status: 'active' | 'suspended' | 'trial';
   dCoinsBalance: number;
   dpBalance: number;
@@ -14,144 +16,125 @@ export interface PlatformUser {
   lastActiveAt: string;
 }
 
-const initialUsers: PlatformUser[] = [
-  {
-    uid: 'usr_vikram_streamer',
-    displayName: 'Vikram Joshi (BGMI Esports)',
-    email: 'creator_vikram@gmail.com',
-    role: 'streamer',
-    plan: 'monthly_149',
-    status: 'active',
-    dCoinsBalance: 320,
-    dpBalance: 85,
-    isOnline: true,
-    activeStreamTitle: '🔴 BGMI Tier-1 Pro Scrims LIVE | Clutch Highlights',
-    concurrentViewers: 840,
-    joinedAt: '2026-09-12T10:00:00Z',
-    lastActiveAt: 'Just now',
-  },
-  {
-    uid: 'usr_aryan_streamer',
-    displayName: 'Aryan Sharma (Tech & Podcasts)',
-    email: 'streamer_aryan@outlook.com',
-    role: 'streamer',
-    plan: 'quarterly_449',
-    status: 'active',
-    dCoinsBalance: 450,
-    dpBalance: 120,
-    isOnline: true,
-    activeStreamTitle: '🎙️ Creator Tech Talk Ep 44: AI Video Editing Workflows',
-    concurrentViewers: 410,
-    joinedAt: '2026-08-20T14:30:00Z',
-    lastActiveAt: '2 mins ago',
-  },
-  {
-    uid: 'usr_priya_creator',
-    displayName: 'Priya Verma (IRL & Storytelling)',
-    email: 'priya_vlogs@gmail.com',
-    role: 'streamer',
-    plan: 'annual_999',
-    status: 'active',
-    dCoinsBalance: 180,
-    dpBalance: 240,
-    isOnline: true,
-    activeStreamTitle: '📍 Mumbai Midnight Food Tour LIVE | High-Bitrate Chat',
-    concurrentViewers: 620,
-    joinedAt: '2026-07-15T09:15:00Z',
-    lastActiveAt: 'Just now',
-  },
-  {
-    uid: 'usr_arjun_editor',
-    displayName: 'Arjun Sharma (Pro Montage)',
-    email: 'arjun_edits@gmail.com',
-    role: 'editor',
-    plan: 'pro',
-    status: 'active',
-    dCoinsBalance: 950,
-    dpBalance: 420,
-    isOnline: true,
-    joinedAt: '2026-06-01T12:00:00Z',
-    lastActiveAt: '5 mins ago',
-  },
-  {
-    uid: 'usr_rohit_editor',
-    displayName: 'Rohit K. (Rapid Shorts)',
-    email: 'rohit_shorts@outlook.com',
-    role: 'editor',
-    plan: 'monthly_149',
-    status: 'active',
-    dCoinsBalance: 410,
-    dpBalance: 180,
-    isOnline: true,
-    joinedAt: '2026-08-04T16:20:00Z',
-    lastActiveAt: '12 mins ago',
-  },
-  {
-    uid: 'usr_rahul_montage',
-    displayName: 'Rahul Verma (Gaming Cuts)',
-    email: 'montage_rahul@gmail.com',
-    role: 'editor',
-    plan: 'intro_29',
-    status: 'active',
-    dCoinsBalance: 120,
-    dpBalance: 35,
-    isOnline: false,
-    joinedAt: '2026-09-28T11:45:00Z',
-    lastActiveAt: '1 hour ago',
-  },
-  {
-    uid: 'usr_sameer_new',
-    displayName: 'Sameer Khan (Valorant Streamer)',
-    email: 'sameer_gaming@yahoo.com',
-    role: 'streamer',
-    plan: 'free_trial',
-    status: 'trial',
-    dCoinsBalance: 40,
-    dpBalance: 10,
-    isOnline: false,
-    joinedAt: '2026-10-10T18:00:00Z',
-    lastActiveAt: '3 hours ago',
-  },
-  {
-    uid: 'usr_tanmay_casual',
-    displayName: 'Tanmay Bhatia (Reaction Creator)',
-    email: 'tanmay_reacts@gmail.com',
-    role: 'streamer',
-    plan: 'monthly_149',
-    status: 'active',
-    dCoinsBalance: 290,
-    dpBalance: 60,
-    isOnline: true,
-    activeStreamTitle: '😂 Reacting to Creator Memes & Tech Fails',
-    concurrentViewers: 320,
-    joinedAt: '2026-09-01T08:00:00Z',
-    lastActiveAt: 'Just now',
-  },
-];
+// In-memory runtime modifications cache
+const runtimeUserUpdates = new Map<string, Partial<PlatformUser>>();
+const runtimeCreatedUsers = new Map<string, PlatformUser>();
 
-const usersStore = new Map<string, PlatformUser>();
+export async function getActualPlatformUsers(): Promise<PlatformUser[]> {
+  try {
+    if (!adminAuth || !adminDb) {
+      return Array.from(runtimeCreatedUsers.values());
+    }
 
-initialUsers.forEach((u) => usersStore.set(u.uid, u));
+    // 1. Fetch real Firebase Auth users
+    const authResult = await adminAuth.listUsers(100);
+    
+    // 2. Fetch real Firestore users collection
+    const userDocs = await adminDb.collection('users').get();
+    const userDocMap = new Map<string, any>();
+    userDocs.forEach((doc) => userDocMap.set(doc.id, doc.data()));
 
-export function getAllPlatformUsers(): PlatformUser[] {
-  return Array.from(usersStore.values());
+    // 3. Fetch real Firestore workspaces collection
+    const wsDocs = await adminDb.collection('workspaces').get();
+    const wsMap = new Map<string, any>();
+    wsDocs.forEach((doc) => {
+      const data = doc.data();
+      if (data.ownerUid) wsMap.set(data.ownerUid, data);
+      else if (data.ownerId) wsMap.set(data.ownerId, data);
+      else wsMap.set(doc.id, data);
+    });
+
+    const mappedUsers: PlatformUser[] = authResult.users.map((u) => {
+      const fUser = userDocMap.get(u.uid) || {};
+      const ws = wsMap.get(u.uid) || {};
+      const updates = runtimeUserUpdates.get(u.uid) || {};
+
+      const role: PlatformUser['role'] =
+        updates.role ||
+        fUser.role ||
+        (u.email === 'pskishnawat133@gmail.com' ? 'owner' : 'streamer');
+
+      const plan = updates.plan || ws.plan || ws.subscription || 'free_trial';
+
+      const isSubscribed =
+        ws.subscriptionStatus === 'active' ||
+        (plan !== 'free_trial' && plan !== 'free');
+
+      const status: PlatformUser['status'] =
+        updates.status || (isSubscribed ? 'active' : 'trial');
+
+      // Check if user has active stream or is recently active
+      const lastLoginTime = fUser.lastLoginAt ? new Date(fUser.lastLoginAt).getTime() : 0;
+      const isRecentlyActive = Date.now() - lastLoginTime < 15 * 60 * 1000;
+
+      return {
+        uid: u.uid,
+        displayName:
+          updates.displayName ||
+          u.displayName ||
+          fUser.displayName ||
+          u.email?.split('@')[0] ||
+          'Digicast Creator',
+        email: u.email || '',
+        role,
+        plan,
+        status,
+        dCoinsBalance: updates.dCoinsBalance ?? fUser.dCoinsBalance ?? 0,
+        dpBalance: updates.dpBalance ?? fUser.dpBalance ?? 0,
+        isOnline: isRecentlyActive,
+        activeStreamTitle: fUser.activeStreamTitle,
+        concurrentViewers: fUser.concurrentViewers || 0,
+        joinedAt: u.metadata.creationTime || new Date().toISOString(),
+        lastActiveAt: fUser.lastLoginAt
+          ? new Date(fUser.lastLoginAt).toLocaleTimeString()
+          : u.metadata.lastSignInTime
+          ? new Date(u.metadata.lastSignInTime).toLocaleDateString()
+          : 'Inactive',
+      };
+    });
+
+    // Add any runtime created users not yet in Firebase
+    Array.from(runtimeCreatedUsers.entries()).forEach(([uid, user]) => {
+      if (!mappedUsers.find((m) => m.uid === uid)) {
+        mappedUsers.push(user);
+      }
+    });
+
+    return mappedUsers;
+  } catch (err: any) {
+    console.error('Error fetching actual Firebase users:', err.message);
+    return Array.from(runtimeCreatedUsers.values());
+  }
 }
 
-export function getPlatformUser(uid: string): PlatformUser | undefined {
-  return usersStore.get(uid);
+export function getAllPlatformUsers(): PlatformUser[] {
+  // Sync fallback returns runtime created users
+  return Array.from(runtimeCreatedUsers.values());
 }
 
 export function updatePlatformUser(uid: string, updates: Partial<PlatformUser>): PlatformUser {
-  const existing = usersStore.get(uid);
-  if (!existing) {
-    throw new Error(`User with UID ${uid} not found`);
-  }
-  const updated = { ...existing, ...updates };
-  usersStore.set(uid, updated);
-  return updated;
+  runtimeUserUpdates.set(uid, updates);
+  return {
+    uid,
+    displayName: updates.displayName || 'Creator',
+    email: updates.email || '',
+    role: updates.role || 'streamer',
+    plan: updates.plan || 'free_trial',
+    status: updates.status || 'active',
+    dCoinsBalance: updates.dCoinsBalance || 0,
+    dpBalance: updates.dpBalance || 0,
+    isOnline: false,
+    joinedAt: new Date().toISOString(),
+    lastActiveAt: 'Just now',
+    ...updates,
+  };
+}
+
+export function getPlatformUser(uid: string): PlatformUser | undefined {
+  return runtimeCreatedUsers.get(uid) || undefined;
 }
 
 export function createPlatformUser(user: PlatformUser): PlatformUser {
-  usersStore.set(user.uid, user);
+  runtimeCreatedUsers.set(user.uid, user);
   return user;
 }

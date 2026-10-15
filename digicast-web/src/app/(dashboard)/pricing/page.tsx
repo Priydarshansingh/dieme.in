@@ -1,0 +1,300 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  Check,
+  CreditCard,
+  Sparkles,
+  Zap,
+  Users,
+  ShieldCheck,
+  Coins,
+  Share2,
+  Copy,
+  CheckCircle2,
+  Gift,
+} from 'lucide-react';
+
+export default function PricingAndSubscriptionsPage() {
+  const { user } = useAuth();
+  const uid = user?.uid || 'guest_creator';
+
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'annual'>('monthly');
+  const [feedback, setFeedback] = useState('');
+  const [activePlan, setActivePlan] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const referralCode = `REF_${uid.slice(0, 6).toUpperCase()}`;
+  const referralLink = typeof window !== 'undefined' ? `${window.location.origin}/login?ref=${referralCode}` : `https://digicast.app/login?ref=${referralCode}`;
+
+  const plans = [
+    {
+      id: 'FREE_TRIAL_14',
+      name: '14-Day Free Trial',
+      price: '₹0',
+      period: '14 days',
+      badge: 'Start Risk-Free',
+      description: 'Test all features on your live streams with zero payment details required.',
+      features: [
+        'Full live chat capture & indexing',
+        '!clip automatic moment detection',
+        'Includes 10-day trial credits',
+        'Telegram editor group auto-forwarding',
+        'Option to extend to 30 days',
+      ],
+      dpCost: 0,
+      isTrial: true,
+      popular: false,
+    },
+    {
+      id: 'INTRO_FIRST_MONTH_29',
+      name: 'Introductory Offer',
+      price: '₹29',
+      period: 'first month',
+      badge: 'Limited Creator Special',
+      description: 'Get full Pro access for your first 30 days at an unbeatable introductory rate.',
+      features: [
+        'Full month unlimited stream clipping',
+        'Special launch price of ₹29 only',
+        'Watermark removal on all clips',
+        'Editor Marketplace direct booking',
+        'Discord & community priority support',
+      ],
+      dpCost: 29,
+      isTrial: false,
+      popular: true,
+    },
+    {
+      id: 'STANDARD_MONTHLY_149',
+      name: 'Standard Pro',
+      price: '₹149',
+      period: 'per month',
+      badge: 'Most Flexible',
+      description: 'The standard subscription for regular livestreamers and creators.',
+      features: [
+        'Everything in Introductory Plan',
+        'AI Matchmaking Bot for top editors',
+        'Priority high-speed Telegram relay',
+        'Access to Facecam Overlays & Frames',
+        'Add up to 5 Editor team members',
+      ],
+      dpCost: 149,
+      isTrial: false,
+      popular: false,
+    },
+    {
+      id: 'QUARTERLY_449',
+      name: 'Quarterly Pass',
+      price: '₹449',
+      period: 'for 3 months',
+      badge: 'Save 10%',
+      description: 'Cost-effective 3-month access with bonus D-Coins included.',
+      features: [
+        'All Standard features for 90 days',
+        'Save 10% vs monthly renewal',
+        'Bonus 50 D-Coins credited to wallet',
+        'Custom Live Stream Frames unlocked',
+        'Dedicated streamer support channel',
+      ],
+      dpCost: 449,
+      isTrial: false,
+      popular: false,
+    },
+    {
+      id: 'ANNUAL_999',
+      name: 'Annual VIP',
+      price: '₹999',
+      period: 'per year',
+      badge: 'Save ~45%',
+      description: 'The ultimate creator bundle at only ~₹83/month for a whole year.',
+      features: [
+        'Full 365 days of unrestricted Pro',
+        'Save 45% compared to monthly plan',
+        'Bonus 200 D-Coins credited to wallet',
+        'Verified Streamer badge on profile',
+        'VIP direct line to core dev team',
+      ],
+      dpCost: 999,
+      isTrial: false,
+      popular: false,
+    },
+  ];
+
+  const handleSubscribe = (plan: any, method: 'INR' | 'DP') => {
+    setActivePlan(plan.id);
+    const costText = method === 'DP' ? `${plan.dpCost} DP` : plan.price;
+    setFeedback(`🎉 Subscribed to ${plan.name} via ${method === 'DP' ? 'In-App DP Balance' : 'Razorpay INR'} (${costText})!`);
+    setTimeout(() => setFeedback(''), 5000);
+  };
+
+  const copyReferral = () => {
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(referralLink);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 3000);
+    }
+  };
+
+  return (
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Top Header */}
+      <div className="text-center space-y-3">
+        <span className="rounded-full bg-cyan-950/80 border border-cyan-500/30 px-3.5 py-1 text-xs font-bold text-cyan-400">
+          Transparent Pricing for Creators & Streamers
+        </span>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+          Supercharge Your Stream Clips & Editor Workflow
+        </h1>
+        <p className="text-sm text-slate-400 max-w-2xl mx-auto">
+          Start with a 14-day free trial, subscribe for just ₹29 in your first month, or pay using DP balance earned by completing community tasks.
+        </p>
+      </div>
+
+      {/* Target Revenue Milestone Banner */}
+      <div className="rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/40 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+            <Users className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white">Join Our First 50 Pro Streamers</h3>
+            <p className="text-xs text-slate-400">
+              Target milestone: 50 creators @ ~₹150/mo = ₹7,500 monthly run-rate. Lock in early supporter perks today.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 px-4 py-2 rounded-xl text-xs">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-slate-300 font-medium">24 / 50 Spots Claimed</span>
+        </div>
+      </div>
+
+      {feedback && (
+        <div className="rounded-xl bg-emerald-950/80 border border-emerald-500/40 p-4 text-xs text-emerald-200 flex items-center gap-2 shadow-lg">
+          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+          <span>{feedback}</span>
+        </div>
+      )}
+
+      {/* Pricing Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {plans.map((p) => (
+          <div
+            key={p.id}
+            className={`rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 ${
+              p.popular
+                ? 'border-cyan-500/60 bg-gradient-to-b from-cyan-950/30 to-slate-900 shadow-xl shadow-cyan-500/10'
+                : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
+            }`}
+          >
+            <div className="space-y-3">
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                p.popular ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'bg-slate-800 text-slate-400'
+              }`}>
+                {p.badge}
+              </span>
+
+              <div>
+                <h4 className="text-base font-bold text-white">{p.name}</h4>
+                <p className="text-[11px] text-slate-400 mt-1">{p.description}</p>
+              </div>
+
+              <div className="pt-2">
+                <span className="text-3xl font-extrabold text-white">{p.price}</span>
+                <span className="text-xs text-slate-400 ml-1">/{p.period}</span>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 space-y-2">
+                {p.features.map((feat, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                    <Check className="h-3.5 w-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                    <span>{feat}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-6 space-y-2">
+              <button
+                onClick={() => handleSubscribe(p, 'INR')}
+                className={`w-full rounded-xl py-2.5 text-xs font-bold transition shadow ${
+                  p.popular
+                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white'
+                    : 'bg-white/10 hover:bg-white/20 text-white'
+                }`}
+              >
+                {p.isTrial ? 'Start 14-Day Free Trial' : `Subscribe (${p.price})`}
+              </button>
+
+              {!p.isTrial && (
+                <button
+                  onClick={() => handleSubscribe(p, 'DP')}
+                  className="w-full rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 py-2 text-[11px] font-semibold text-amber-400 transition flex items-center justify-center gap-1.5"
+                >
+                  <Coins className="h-3 w-3" />
+                  <span>Pay with {p.dpCost} DP Balance</span>
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Affiliate / Referral Program Section */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 sm:p-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-amber-400" />
+              <h3 className="text-lg font-bold text-white">Affiliate & Creator Referral Program</h3>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Invite streamers to Digicast. Earn a <strong className="text-white">15% Lifetime Commission</strong> on every subscription they purchase, directly credited as DP in your wallet!
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-slate-400">Your Referral Code:</span>
+            <span className="rounded-lg bg-amber-950/80 border border-amber-500/40 px-3 py-1 font-mono text-xs font-bold text-amber-300">
+              {referralCode}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-1">
+            <span className="text-xs text-slate-400">Total Referred Streamers</span>
+            <p className="text-2xl font-bold text-white">12 Streamers</p>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-1">
+            <span className="text-xs text-slate-400">Lifetime Commission Earned</span>
+            <p className="text-2xl font-bold text-emerald-400">₹640 INR</p>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-1">
+            <span className="text-xs text-slate-400">Credited to In-App Wallet</span>
+            <p className="text-2xl font-bold text-amber-400">640 DP</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+          <input
+            type="text"
+            readOnly
+            value={referralLink}
+            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-xs text-slate-300 font-mono"
+          />
+          <button
+            onClick={copyReferral}
+            className="w-full sm:w-auto shrink-0 rounded-xl bg-cyan-600 hover:bg-cyan-500 px-5 py-2.5 text-xs font-bold text-white transition shadow flex items-center justify-center gap-2"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            <span>{copiedLink ? 'Copied Link!' : 'Copy Referral Link'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

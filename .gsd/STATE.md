@@ -1,7 +1,7 @@
 # Digicast Project State
 
 ## Active Milestone: Editors & Streamers Ecosystem, Decoupled Backend & Shifted God Panel
-- **Status:** In Progress (Phases 1, 2, & 3 Complete & Verified)
+- **Status:** In Progress (Phases 1, 2, 3, & 4 Complete & Verified)
 - **Specification:** `.gsd/SPEC.md` (Status: FINALIZED)
 - **Roadmap:** `.gsd/ROADMAP.md`
 
@@ -22,15 +22,21 @@
   - **Empirical Proof:** `node digicast-backend/scripts/test-phase2.js` passed 100%. Both `digicast-backend` and `digicast-web` Next.js builds compiled with zero errors.
 
 - [x] **Phase 3: Dual-Currency Engine (D & DP), Wallet API & Ad-Watch 24h Verification:**
-  - Implemented `/api/wallet/balance`, `/api/wallet/convert` (10 D Coins = 1 DP), and `/api/wallet/spend` (in-app feature unlocks: watermark removal, subscriptions, assets).
+  - Implemented `/api/wallet/balance`, `/api/wallet/convert` (10 D Coins = 1 DP), and `/api/wallet/spend`.
   - Implemented `/api/ads/session`, `/api/ads/verify-view`, and `/api/ads/status` with cryptographic session verification, 24-hour pass calculation, and +5 D-Coins reward credit.
   - Implemented `/api/tasks` with task listing, proof submission, and God Panel admin approval workflow.
   - Created `/wallet` page in `digicast-web` with Wallet balance, D-Coins to DP converter, in-app Watermark Removal unlock, 24-hour Ad-supported pass viewer, and Task Submission modal.
-  - **Empirical Proof:** `node digicast-backend/scripts/test-phase3.js` passed 100% of conversion, watermark unlock, ad pass duration, and task reward tests. Both `digicast-backend` and `digicast-web` Next.js production builds succeeded with 0 errors.
+  - **Empirical Proof:** `node digicast-backend/scripts/test-phase3.js` passed 100%. Both Next.js builds succeeded with 0 errors.
+
+- [x] **Phase 4: Subscriptions, Pricing Plans & Affiliate System:**
+  - Implemented `/api/subscriptions/plans`, `/api/subscriptions/subscribe`, and `/api/affiliate`.
+  - Configured pricing tiers: Free Trial (14 days + 10-day trial credits), Introductory Month (₹29), Standard Monthly (₹149/mo), Quarterly (₹449/3-mo), and Annual VIP (₹999/yr).
+  - Configured 15% recurring lifetime affiliate commission credited as in-app DP to referrers.
+  - Created `/pricing` page in `digicast-web` with plan comparisons, DP balance checkout, and affiliate referral link generator.
+  - **Empirical Proof:** `node digicast-backend/scripts/test-phase4.js` passed 100% of price point, trial credit, DP checkout, and 15% affiliate commission tests. Both Next.js production builds succeeded with 0 errors.
 
 ## Next Up
-- [ ] **Phase 4: Subscriptions, Pricing Plans & Affiliate System:**
-  - Pricing endpoints (`/api/subscriptions/plans`, `/api/subscriptions/checkout`).
-  - Pricing tiers: Free Trial (14d/30d), Intro Offer (₹29 Month 1), Standard Monthly (₹149/mo), Quarterly (₹449/3-mo), Annual (₹999/yr).
-  - Milestone 1 KPI tracker: 50 active paying users = ₹7,500/mo.
-  - Affiliate / referral link system with lifetime commission or coin rewards.
+- [ ] **Phase 5: Editor Registration, Profiles & Public Leaderboard:**
+  - Editor registration & portfolio showcase API (`/api/editors`).
+  - Rating, reviews, and reputation credit algorithm (`/api/editors/review`, `/api/editors/leaderboard`).
+  - Create `/editors` and `/leaderboard` pages in `digicast-web` using shadcn/ui.

@@ -46,7 +46,206 @@ interface LandingPageClientProps {
   faqs?: FaqItem[];
 }
 
-// ── Ultra-Smooth Scroll-Reveal Component with Native IntersectionObserver ────
+// ── 1. Shooting Stars / Meteor Shower Canvas (Video 00:46 - 00:48) ───────────
+function ShootingStars() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = canvas.parentElement?.offsetWidth || window.innerWidth);
+    let height = (canvas.height = canvas.parentElement?.offsetHeight || 600);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = canvas.parentElement?.offsetWidth || window.innerWidth;
+      height = canvas.height = canvas.parentElement?.offsetHeight || 600;
+    };
+    window.addEventListener('resize', handleResize);
+
+    interface Star {
+      x: number;
+      y: number;
+      length: number;
+      speed: number;
+      opacity: number;
+      size: number;
+    }
+
+    const stars: Star[] = [];
+    const maxStars = 7;
+
+    const createStar = (): Star => ({
+      x: Math.random() * width + 200,
+      y: Math.random() * (height * 0.4),
+      length: Math.random() * 90 + 50,
+      speed: Math.random() * 5 + 4,
+      opacity: Math.random() * 0.7 + 0.3,
+      size: Math.random() * 1.5 + 1,
+    });
+
+    for (let i = 0; i < maxStars; i++) {
+      stars.push(createStar());
+    }
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      for (let i = 0; i < stars.length; i++) {
+        const star = stars[i];
+        star.x -= star.speed;
+        star.y += star.speed * 0.65;
+
+        // Gradient shooting comet tail
+        const grad = ctx.createLinearGradient(
+          star.x,
+          star.y,
+          star.x + star.length,
+          star.y - star.length * 0.65
+        );
+        grad.addColorStop(0, `rgba(255, 255, 255, ${star.opacity})`);
+        grad.addColorStop(0.25, `rgba(34, 211, 238, ${star.opacity * 0.8})`);
+        grad.addColorStop(0.7, `rgba(16, 185, 129, ${star.opacity * 0.4})`);
+        grad.addColorStop(1, 'transparent');
+
+        ctx.beginPath();
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = star.size;
+        ctx.moveTo(star.x, star.y);
+        ctx.lineTo(star.x + star.length, star.y - star.length * 0.65);
+        ctx.stroke();
+
+        // Star glowing head
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size * 1.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Respawn if off-screen
+        if (star.x < -150 || star.y > height + 100) {
+          stars[i] = createStar();
+          stars[i].x = Math.random() * width + 250;
+          stars[i].y = Math.random() * (height * 0.35);
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-10 w-full h-full" />;
+}
+
+// ── 2. Laser Crosshair Tracking Grid (Video 00:06 - 00:09) ───────────────────
+function LaserCrosshairGrid({ children }: { children: React.ReactNode }) {
+  const [pos, setPos] = useState({ x: -200, y: -200, active: false });
+
+  return (
+    <div
+      onMouseMove={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setPos({ x: e.clientX - rect.left, y: e.clientY - rect.top, active: true });
+      }}
+      onMouseLeave={() => setPos((p) => ({ ...p, active: false }))}
+      className="relative"
+    >
+      {/* Horizontal and vertical laser crosshair lines tracking the cursor */}
+      {pos.active && (
+        <>
+          <div
+            className="pointer-events-none absolute left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent z-20 shadow-[0_0_8px_#10B981] transition-transform duration-75 ease-out"
+            style={{ transform: `translateY(${pos.y}px)` }}
+          />
+          <div
+            className="pointer-events-none absolute top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-cyan-400/50 to-transparent z-20 shadow-[0_0_8px_#22D3EE] transition-transform duration-75 ease-out"
+            style={{ transform: `translateX(${pos.x}px)` }}
+          />
+        </>
+      )}
+      {children}
+    </div>
+  );
+}
+
+// ── 3. True 3D Wireframe Rotating Cube (Video 00:11 - 00:14) ─────────────────
+function WireframeCube3D() {
+  return (
+    <div className="w-56 h-56 flex items-center justify-center [perspective:1000px] select-none">
+      <div className="relative w-28 h-28 [transform-style:preserve-3d] animate-[spin-3d_20s_linear_infinite] hover:scale-110 transition-transform cursor-pointer">
+        {/* Front face */}
+        <div className="absolute inset-0 border border-emerald-400/60 bg-emerald-500/10 [transform:translateZ(56px)] backdrop-blur-[1px] flex items-center justify-center">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981]" />
+        </div>
+        {/* Back face */}
+        <div className="absolute inset-0 border border-cyan-400/50 bg-cyan-500/10 [transform:rotateY(180deg)_translateZ(56px)] flex items-center justify-center">
+          <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#22D3EE]" />
+        </div>
+        {/* Right face */}
+        <div className="absolute inset-0 border border-emerald-400/40 bg-emerald-500/10 [transform:rotateY(90deg)_translateZ(56px)] flex items-center justify-center">
+          <div className="w-2 h-2 rounded-full bg-teal-300 shadow-[0_0_8px_#2DD4BF]" />
+        </div>
+        {/* Left face */}
+        <div className="absolute inset-0 border border-cyan-400/40 bg-cyan-500/10 [transform:rotateY(-90deg)_translateZ(56px)] flex items-center justify-center">
+          <div className="w-2 h-2 rounded-full bg-cyan-300 shadow-[0_0_8px_#67E8F9]" />
+        </div>
+        {/* Top face */}
+        <div className="absolute inset-0 border border-teal-400/50 bg-teal-500/10 [transform:rotateX(90deg)_translateZ(56px)] flex items-center justify-center">
+          <div className="w-2 h-2 rounded-full bg-emerald-300" />
+        </div>
+        {/* Bottom face */}
+        <div className="absolute inset-0 border border-emerald-400/40 bg-emerald-500/10 [transform:rotateX(-90deg)_translateZ(56px)] flex items-center justify-center">
+          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+        </div>
+
+        {/* Center Live Core Glow */}
+        <div className="absolute inset-4 rounded-xl border border-dashed border-emerald-400/50 animate-ping" />
+        <div className="absolute inset-6 rounded-lg bg-gradient-to-br from-emerald-400/40 to-cyan-400/40 blur-sm flex items-center justify-center">
+          <Radio className="h-6 w-6 text-white animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 4. 3D Floating Chromatic Glass Discs (Video 01:33 - 01:38) ───────────────
+function ChromaticGlassDiscs() {
+  return (
+    <div className="relative w-full h-44 sm:h-56 max-w-2xl mx-auto -mb-14 pointer-events-none overflow-visible flex items-center justify-center select-none">
+      {[
+        { size: 'w-32 h-32 sm:w-44 sm:h-44', rotate: '-rotate-24', x: '-translate-x-40', delay: '0s', grad: 'from-emerald-400/30 via-teal-300/10 to-transparent' },
+        { size: 'w-36 h-36 sm:w-48 sm:h-48', rotate: '-rotate-12', x: '-translate-x-20', delay: '1s', grad: 'from-cyan-400/35 via-emerald-300/10 to-transparent' },
+        { size: 'w-40 h-40 sm:w-56 sm:h-56', rotate: 'rotate-0', x: 'translate-x-0', delay: '2s', grad: 'from-teal-300/40 via-cyan-400/15 to-transparent' },
+        { size: 'w-36 h-36 sm:w-48 sm:h-48', rotate: 'rotate-12', x: 'translate-x-20', delay: '1.5s', grad: 'from-emerald-400/35 via-teal-400/10 to-transparent' },
+        { size: 'w-32 h-32 sm:w-44 sm:h-44', rotate: 'rotate-24', x: 'translate-x-40', delay: '0.5s', grad: 'from-cyan-400/30 via-emerald-300/10 to-transparent' },
+      ].map((disc, idx) => (
+        <div
+          key={idx}
+          className={`absolute rounded-full border border-white/30 backdrop-blur-md bg-gradient-to-tr ${disc.grad} ${disc.size} ${disc.rotate} ${disc.x} animate-float-slow`}
+          style={{
+            animationDelay: disc.delay,
+            boxShadow: 'inset 0 1px 3px rgba(255,255,255,0.4), 0 16px 48px rgba(0,0,0,0.6)',
+          }}
+        >
+          {/* Rainbow caustic refraction rim */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-400/20 via-transparent to-cyan-400/20 opacity-70" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── 5. Ultra-Smooth Scroll-Reveal Component ──────────────────────────────────
 function ScrollReveal({
   children,
   className = '',
@@ -120,7 +319,7 @@ function ScrollReveal({
   );
 }
 
-// ── Interactive Bento Card with Dynamic Mouse Spotlight ──────────────────────
+// ── 6. Bento Card with Mouse Spotlight & Running Laser Border ────────────────
 function SpotlightCard({
   children,
   className = '',
@@ -150,6 +349,8 @@ function SpotlightCard({
             : undefined,
         }}
       />
+      {/* Subtle Laser Rim Highlight on Hover */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <div className="relative z-10">{children}</div>
     </div>
   );
@@ -159,6 +360,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [activeStep, setActiveStep] = useState<number>(1);
+  const [selectedProgram, setSelectedProgram] = useState<number>(4);
   const [showPricingDetails, setShowPricingDetails] = useState(false);
   const [cookieConsent, setCookieConsent] = useState(true);
 
@@ -225,7 +427,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         style={{ width: `${scrollProgress}%` }}
       />
 
-      {/* ── Background Subtle Volumetric Aurora Beam (Digicast Emerald & Cyan) ── */}
+      {/* ── Background Volumetric Aurora Beam (Digicast Emerald & Cyan) ──────── */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div
           className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[550px] bg-gradient-to-b from-emerald-500/10 via-cyan-500/5 to-transparent rounded-full blur-[140px] opacity-70 transition-transform duration-700 ease-out"
@@ -241,10 +443,10 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         />
       </div>
 
-      {/* ── 1. NAVBAR (STICKY BLUR HEADER WITH SUBTLE GLOW) ──────────────────── */}
+      {/* ── 1. NAVBAR (STICKY BLUR HEADER WITH LIVE INDICATOR) ───────────────── */}
       <header className="fixed top-0 inset-x-0 z-50 bg-[#06080D]/85 backdrop-blur-xl border-b border-white/5 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          {/* Logo with Live Badge */}
+          {/* Official Digicast Brand Logo */}
           <Link href="/" className="flex items-center gap-3 group">
             <DigicastBrandLogo size="md" />
             <div className="flex flex-col">
@@ -261,7 +463,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             </span>
           </Link>
 
-          {/* Center Navigation Links */}
+          {/* Center Links */}
           <nav className="hidden lg:flex items-center gap-8 text-xs font-semibold tracking-wide text-slate-300">
             <a href="#hero" className="hover:text-emerald-400 transition-colors">
               Home
@@ -277,6 +479,9 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             </a>
             <a href="#why-digicast" className="hover:text-emerald-400 transition-colors">
               Why Digicast
+            </a>
+            <a href="#about-us" className="hover:text-emerald-400 transition-colors">
+              About Us
             </a>
             <a href="#faq" className="hover:text-emerald-400 transition-colors">
               FAQ
@@ -323,6 +528,9 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300">
               Pricing Passes
             </a>
+            <a href="#why-digicast" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300">
+              Why Digicast
+            </a>
             <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300">
               Support &amp; FAQ
             </a>
@@ -333,9 +541,9 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         )}
       </header>
 
-      {/* ── 2. HERO SECTION WITH PARALLAX TELEMETRY BADGES ───────────────────── */}
+      {/* ── 2. HERO SECTION WITH 3D TELEMETRY & AMBIENT AURA ─────────────────── */}
       <section id="hero" className="relative min-h-[92vh] pt-36 pb-20 flex flex-col items-center justify-center text-center overflow-hidden">
-        {/* Floating Ambient Numbers / Telemetry Badges with Kinetic Scroll Parallax */}
+        {/* Floating Telemetry Badges with Kinetic Scroll Parallax */}
         <div className="absolute inset-0 pointer-events-none z-0">
           <div
             className="absolute top-[28%] left-[12%] text-xs font-mono font-bold text-emerald-400/40 animate-pulse transition-transform duration-300 ease-out"
@@ -372,7 +580,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         <div className="relative z-10 max-w-4xl mx-auto px-6 space-y-6">
           {/* Top Tagline Pill */}
           <ScrollReveal direction="down" delay={100}>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono font-bold text-slate-300 uppercase tracking-widest shadow-inner">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono font-bold text-slate-300 uppercase tracking-widest shadow-inner">
               <span>Our Platform</span>
               <span className="text-emerald-400">&bull;</span>
               <span className="text-emerald-400">Your Success</span>
@@ -424,7 +632,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
       </section>
 
-      {/* ── 3. METRIC CARDS GRID WITH CURSOR GLOW ────────────────────────────── */}
+      {/* ── 3. METRIC CARDS GRID WITH LASER CROSSHAIR TRACKING (VIDEO 00:06-00:09) ─ */}
       <section className="py-24 border-t border-white/5 bg-[#080B12] relative z-10">
         <div className="max-w-6xl mx-auto px-6">
           <ScrollReveal direction="up" delay={100}>
@@ -438,54 +646,45 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             </div>
           </ScrollReveal>
 
-          {/* 4 Bento Stat Cards with Smooth Staggered Reveals & Cursor Spotlight */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { num: '₹4.2 Cr+', label: 'Payout to Digicast Creators & Editors' },
-              { num: '15,000+', label: 'No. of Digicast Creators' },
-              { num: '150+', label: 'No. of countries with broadcasters' },
-              { num: '< 400ms', label: 'Average clip marker processing time' },
-            ].map((stat, idx) => (
-              <ScrollReveal key={idx} direction="up" delay={idx * 120}>
-                <SpotlightCard className="rounded-3xl bg-[#0C101A] border border-white/5 p-8 space-y-2 hover:border-emerald-500/40 hover:-translate-y-1.5 transition-all duration-300">
-                  {/* Subtle emerald laser line on hover */}
-                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="text-3xl sm:text-4xl font-black text-white font-mono group-hover:text-emerald-400 transition-colors">
-                    {stat.num}
-                  </div>
-                  <p className="text-xs text-slate-400 leading-snug">{stat.label}</p>
-                </SpotlightCard>
-              </ScrollReveal>
-            ))}
-          </div>
+          {/* Laser Crosshair Tracked Bento Cards */}
+          <LaserCrosshairGrid>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { num: '₹4.2 Cr+', label: 'Payout to Digicast Creators & Editors' },
+                { num: '15,000+', label: 'No. of Digicast Creators' },
+                { num: '150+', label: 'No. of countries with broadcasters' },
+                { num: '< 400ms', label: 'Average clip marker processing time' },
+              ].map((stat, idx) => (
+                <ScrollReveal key={idx} direction="up" delay={idx * 120}>
+                  <SpotlightCard className="rounded-3xl bg-[#0C101A] border border-white/5 p-8 space-y-2 hover:border-emerald-500/40 hover:-translate-y-1.5 transition-all duration-300">
+                    <div className="text-3xl sm:text-4xl font-black text-white font-mono group-hover:text-emerald-400 transition-colors">
+                      {stat.num}
+                    </div>
+                    <p className="text-xs text-slate-400 leading-snug">{stat.label}</p>
+                  </SpotlightCard>
+                </ScrollReveal>
+              ))}
+            </div>
+          </LaserCrosshairGrid>
         </div>
       </section>
 
-      {/* ── 4. KINETIC TICKER & MASSIVE MARQUEE ──────────────────────────────── */}
+      {/* ── 4. KINETIC TICKER & 3D WIREFRAME ROTATING CUBE (VIDEO 00:10-00:14) ─── */}
       <section className="py-20 border-t border-white/5 bg-[#06080D] overflow-hidden">
-        {/* Massive Marquee Line with Infinite Smooth Loop */}
+        {/* Massive Marquee Line */}
         <div className="whitespace-nowrap overflow-hidden select-none py-4">
           <div className="animate-marquee-infinite text-4xl sm:text-7xl font-black text-emerald-400/90 tracking-tight">
-            <span>Zero-Delay Sync for 28 Platforms and all formats &bull; 4K 60FPS RTMP Relays &bull; Zero-Delay Sync for 28 Platforms &bull;&nbsp;</span>
-            <span>Zero-Delay Sync for 28 Platforms and all formats &bull; 4K 60FPS RTMP Relays &bull; Zero-Delay Sync for 28 Platforms &bull;&nbsp;</span>
+            <span>Zero-Delay Sync for 28 Platforms and all formats &bull; 4K 60FPS RTMP Relays &bull; Instant Telegram Marker Dispatch &bull;&nbsp;</span>
+            <span>Zero-Delay Sync for 28 Platforms and all formats &bull; 4K 60FPS RTMP Relays &bull; Instant Telegram Marker Dispatch &bull;&nbsp;</span>
           </div>
         </div>
 
-        {/* 2-Column Showcase (Technology + 3D Wireframe Cube) */}
+        {/* 2-Column Showcase (Wireframe Cube + Copy) */}
         <div className="max-w-6xl mx-auto px-6 mt-16 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-          {/* Left: 3D Holographic Cube Frame with Continuous Rotation and Scroll Parallax */}
+          {/* Left: True 3D CSS Wireframe Spinning Cube */}
           <ScrollReveal direction="left" delay={150}>
             <div className="flex flex-col items-center justify-center text-center space-y-4">
-              <div
-                className="w-48 h-48 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-transparent to-cyan-500/10 border border-emerald-500/30 flex items-center justify-center relative shadow-2xl shadow-emerald-500/10 group transition-transform duration-500 hover:scale-105"
-                style={{
-                  transform: `rotate(${scrollY * 0.04}deg)`,
-                }}
-              >
-                <div className="w-32 h-32 rounded-2xl border border-dashed border-emerald-400/50 flex items-center justify-center animate-[spin_18s_linear_infinite]">
-                  <Radio className="h-12 w-12 text-emerald-400 group-hover:scale-110 transition-transform" />
-                </div>
-              </div>
+              <WireframeCube3D />
               <div>
                 <h3 className="text-2xl font-black text-white">Our Technology</h3>
                 <p className="text-2xl font-black text-emerald-400">Your Broadcast</p>
@@ -509,7 +708,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           </ScrollReveal>
         </div>
 
-        {/* Live Stream Currency Ticker */}
+        {/* Live Stream Ticker */}
         <div className="mt-16 border-y border-white/5 bg-[#080B12] py-3.5 overflow-x-auto">
           <div className="flex items-center gap-8 px-6 min-w-max">
             {tickers.map((t, idx) => (
@@ -525,9 +724,16 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
       </section>
 
-      {/* ── 5. START STREAMING / START EARNING KINETIC STACK ─────────────────── */}
+      {/* ── 5. START STREAMING / START EARNING KINETIC STACK (VIDEO 00:15-00:17) ── */}
       <section className="py-24 border-t border-white/5 bg-[#07090E] relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+        {/* Glowing 3D Orbital Rings Behind Kinetic Text */}
+        <div className="absolute right-12 top-1/2 -translate-y-1/2 w-96 h-96 pointer-events-none opacity-40 blur-[1px]">
+          <div className="w-full h-full rounded-full border border-emerald-400/40 animate-[spin_24s_linear_infinite] flex items-center justify-center">
+            <div className="w-72 h-72 rounded-full border border-dashed border-cyan-400/30 animate-[spin_16s_linear_infinite_reverse]" />
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center relative z-10">
           {/* Left CTA */}
           <ScrollReveal direction="left" delay={100}>
             <div className="space-y-6">
@@ -551,7 +757,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             </div>
           </ScrollReveal>
 
-          {/* Right: Repeating Kinetic Typography Stack with Staggered Cascading Reveals */}
+          {/* Right: Repeating Kinetic Typography Stack */}
           <div className="flex flex-col space-y-1 select-none font-black text-4xl sm:text-6xl uppercase tracking-tighter">
             {[
               { text: 'Start streaming', opacity: 'text-emerald-400', delay: 100 },
@@ -584,7 +790,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             </div>
           </ScrollReveal>
 
-          {/* Stepped Tab Selector (Step 1, Step 2, Step 3) */}
+          {/* Stepped Tab Selector */}
           <ScrollReveal direction="up" delay={200}>
             <div className="grid grid-cols-3 gap-4 border-b border-white/10 pb-4 mb-10 text-xs font-bold font-mono">
               {[
@@ -612,7 +818,6 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           {/* Dynamic Step Showcase Container with Ambient Aurora Background */}
           <ScrollReveal direction="zoom" delay={300}>
             <div className="rounded-3xl bg-[#0D121D] border border-white/10 p-8 min-h-[360px] flex items-center justify-center relative overflow-hidden shadow-2xl">
-              {/* Background glowing green curve */}
               <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-transparent to-cyan-500/10 pointer-events-none" />
 
               {activeStep === 1 && (
@@ -671,7 +876,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
       </section>
 
-      {/* ── 7. PAYOUTS CERTIFICATES WITH WATERMARK HORIZONTAL SCROLL PARALLAX ──── */}
+      {/* ── 7. PAYOUTS CERTIFICATES WITH ROTATING RADAR VERIFICATION RING (00:26-00:29) ── */}
       <section className="py-24 border-t border-white/5 bg-[#06080D] relative overflow-hidden">
         {/* Massive Background Watermark that moves horizontally with scroll */}
         <div
@@ -693,10 +898,19 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                 </span>
               </div>
 
-              <div className="py-4 space-y-1">
+              {/* Rotating Circular Radar Verification Seal */}
+              <div className="relative w-24 h-24 mx-auto my-2 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border border-emerald-500/30 animate-[spin_6s_linear_infinite] [background:conic-gradient(from_0deg,transparent_60%,rgba(16,185,129,0.35)_100%)]" />
+                <div className="absolute inset-2 rounded-full border border-dashed border-emerald-400/50 animate-[spin_12s_linear_infinite_reverse]" />
+                <div className="absolute inset-4 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex flex-col items-center justify-center text-center">
+                  <CheckCircle className="h-6 w-6 text-emerald-400 animate-pulse" />
+                </div>
+              </div>
+
+              <div className="py-2 space-y-1">
                 <p className="text-xs text-slate-400 uppercase font-mono">Certified Broadcaster</p>
                 <h3 className="text-2xl font-black text-white">VIKRAMADITYA SINGH</h3>
-                <p className="text-3xl font-black text-emerald-400 font-mono mt-2">₹4,45,000</p>
+                <p className="text-3xl font-black text-emerald-400 font-mono mt-1">₹4,45,000</p>
                 <p className="text-[11px] text-slate-500 font-mono">($5,400.00 USD Payout Processed)</p>
               </div>
 
@@ -708,7 +922,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
       </section>
 
-      {/* ── 8. PRICING PASSES COMPARISON MATRIX ───────────────────────────────── */}
+      {/* ── 8. PRICING PASSES COMPARISON MATRIX (VIDEO 00:30-00:35) ──────────── */}
       <section id="pricing" className="py-28 border-t border-white/5 bg-[#080B12] relative z-10">
         <div className="max-w-6xl mx-auto px-6">
           <ScrollReveal direction="up" delay={100}>
@@ -719,18 +933,6 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
               <p className="text-xs sm:text-sm text-slate-400">
                 Choose your creator pass and broadcast duration.
               </p>
-
-              {/* Plan Category Pills */}
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
-                {['14-Day Free', 'VIP 29', 'Starter 149', 'Quarterly 449', 'Annual 999'].map((t) => (
-                  <button
-                    key={t}
-                    className="px-3.5 py-1 rounded-full text-xs font-semibold bg-white/5 border border-white/10 hover:border-emerald-500/50 text-slate-300 hover:text-white hover:scale-105 transition"
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
             </div>
           </ScrollReveal>
 
@@ -824,17 +1026,103 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
       </section>
 
-      {/* ── 9. GLOBAL COUNTDOWN HORIZON WITH CURVED PLANET PARALLAX ───────────── */}
-      <section className="py-28 border-t border-white/5 bg-[#06080D] relative overflow-hidden text-center">
+      {/* ── 9. "CHOOSE ONE OF OUR PROGRAMS" CARDS (VIDEO 00:36 - 00:43) ──────── */}
+      <section id="programs" className="py-24 border-t border-white/5 bg-[#07090E] relative overflow-hidden">
+        <div className="max-w-6xl mx-auto px-6">
+          <ScrollReveal direction="up" delay={100}>
+            <div className="text-center max-w-xl mx-auto mb-16 space-y-2">
+              <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+                Choose one of our programs
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400">
+                What is your experience and what do you prefer?
+              </p>
+            </div>
+          </ScrollReveal>
+
+          {/* Program Card Tabs (Copper 4, Bronze 3, Silver 2, Gold 1, Diamond) */}
+          <div className="max-w-2xl mx-auto">
+            <div className="grid grid-cols-5 gap-2 mb-6">
+              {[
+                { id: 4, name: 'Copper 4', tag: 'Beginner' },
+                { id: 3, name: 'Bronze 3', tag: 'VIP Pass' },
+                { id: 2, name: 'Silver 2', tag: 'Pro Stream' },
+                { id: 1, name: 'Gold 1', tag: 'Studio Pass' },
+                { id: 0, name: 'Diamond', tag: 'Enterprise' },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedProgram(p.id)}
+                  className={`p-3 rounded-2xl border text-center transition-all ${
+                    selectedProgram === p.id
+                      ? 'bg-emerald-500/10 border-emerald-400 text-white shadow-lg shadow-emerald-500/10 scale-105'
+                      : 'bg-white/5 border-white/10 text-slate-400 hover:border-white/20'
+                  }`}
+                >
+                  <div className="text-lg font-black font-mono">{p.id === 0 ? '💎' : p.id}</div>
+                  <div className="text-[10px] font-bold truncate">{p.name}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Active Program Card with Glowing Circuit Trace Lines */}
+            <ScrollReveal direction="zoom" delay={150}>
+              <div className="rounded-3xl bg-[#0D121D] border border-emerald-500/40 p-8 shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-8 text-8xl font-black text-white/5 font-mono select-none pointer-events-none">
+                  {selectedProgram === 0 ? 'D' : selectedProgram}
+                </div>
+
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300">
+                    {selectedProgram === 4 && '14-Day Free Evaluation'}
+                    {selectedProgram === 3 && 'VIP Pass (₹29) 1 Month'}
+                    {selectedProgram === 2 && 'Pro Monthly (₹149)'}
+                    {selectedProgram === 1 && 'Quarterly Broadcast (₹449)'}
+                    {selectedProgram === 0 && 'Annual Studio Pass (₹999)'}
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">★★★★★ Verified Program</span>
+                </div>
+
+                <h3 className="text-2xl font-black text-white">
+                  {selectedProgram === 4 && 'Free Evaluation Program'}
+                  {selectedProgram === 3 && 'VIP Starter Program'}
+                  {selectedProgram === 2 && 'Streamer Relay Program'}
+                  {selectedProgram === 1 && 'Studio Creator Program'}
+                  {selectedProgram === 0 && 'Diamond Enterprise Program'}
+                </h3>
+
+                <p className="text-xs text-slate-400 mt-2 leading-relaxed max-w-lg">
+                  Designed for YouTube streamers and editor teams seeking instant highlight capture, zero streaming limits, and automated Telegram bot dispatch.
+                </p>
+
+                <div className="mt-6 flex items-center gap-4">
+                  <Link
+                    href="/login"
+                    className="px-6 py-2.5 rounded-full text-xs font-bold text-black bg-emerald-400 hover:bg-emerald-300 hover:scale-105 transition shadow-lg shadow-emerald-400/20"
+                  >
+                    LEARN MORE &rarr;
+                  </Link>
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 10. GLOBAL COUNTDOWN HORIZON WITH SHOOTING STARS (VIDEO 00:44-00:48) ─ */}
+      <section className="py-28 border-t border-white/5 bg-[#06080D] relative overflow-hidden text-center min-h-[500px]">
+        {/* Shooting Stars Canvas Shower */}
+        <ShootingStars />
+
         {/* Curved Planet Horizon that expands and rises as you scroll past */}
         <div
-          className="absolute -bottom-96 left-1/2 w-[1200px] h-[550px] rounded-[100%] bg-gradient-to-t from-emerald-500/20 to-transparent border-t border-emerald-400/40 pointer-events-none transition-transform duration-500 ease-out"
+          className="absolute -bottom-96 left-1/2 w-[1200px] h-[550px] rounded-[100%] bg-gradient-to-t from-emerald-500/25 to-transparent border-t border-emerald-400/50 pointer-events-none transition-transform duration-500 ease-out z-0"
           style={{
             transform: `translateX(-50%) translateY(${(scrollY - 3000) * -0.06}px)`,
           }}
         />
 
-        <div className="max-w-4xl mx-auto px-6 relative z-10 space-y-6">
+        <div className="max-w-4xl mx-auto px-6 relative z-20 space-y-6">
           <ScrollReveal direction="down" delay={100}>
             <div className="inline-block px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-slate-300">
               Next Creator Tournament &bull; Season 2
@@ -853,7 +1141,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             </p>
           </ScrollReveal>
 
-          {/* Countdown Clock Display with Staggered Entrance */}
+          {/* Countdown Clock Display */}
           <div className="flex items-center justify-center gap-4 text-center font-mono">
             {[
               { val: String(timeLeft.days).padStart(2, '0'), label: 'DAYS' },
@@ -862,7 +1150,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
               { val: String(timeLeft.seconds).padStart(2, '0'), label: 'SECONDS' },
             ].map((unit, idx) => (
               <ScrollReveal key={idx} direction="up" delay={idx * 80 + 300}>
-                <div className="rounded-2xl bg-[#0D121D] border border-white/10 p-4 min-w-[72px] hover:border-emerald-400/50 hover:scale-105 transition-all">
+                <div className="rounded-2xl bg-[#0D121D]/90 backdrop-blur-md border border-white/10 p-4 min-w-[72px] hover:border-emerald-400/50 hover:scale-105 transition-all shadow-xl">
                   <div className="text-3xl sm:text-4xl font-black text-white font-mono">{unit.val}</div>
                   <div className="text-[9px] text-slate-500 font-bold uppercase mt-1">{unit.label}</div>
                 </div>
@@ -889,7 +1177,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
       </section>
 
-      {/* ── 10. "WHY CHOOSE DIGICAST?" 4 BENTO CARDS ──────────────────────────── */}
+      {/* ── 11. "WHY CHOOSE DIGICAST?" 4 BENTO CARDS (VIDEO 00:49-00:56) ─────── */}
       <section id="why-digicast" className="py-24 border-t border-white/5 bg-[#080B12] relative z-10">
         <div className="max-w-6xl mx-auto px-6">
           <ScrollReveal direction="up" delay={100}>
@@ -940,9 +1228,98 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
       </section>
 
-      {/* ── 11. "ALL IN ONE PLACE" DASHBOARD CONSOLE ──────────────────────────── */}
-      <section className="py-28 border-t border-white/5 bg-[#06080D] relative z-10 text-center">
-        <div className="max-w-6xl mx-auto px-6 space-y-8">
+      {/* ── 12. "WHO WE ARE & HOW IT ALL STARTED" (VIDEO 00:58 - 01:11) ──────── */}
+      <section id="about-us" className="py-28 border-t border-white/5 bg-[#06080D] relative overflow-hidden">
+        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Left Narrative */}
+          <ScrollReveal direction="left" delay={100}>
+            <div className="space-y-6">
+              <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest">
+                [ Who We Are ]
+              </span>
+              <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+                Our clients have the potential to produce viral shorts in a relatively short time.
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                We started developing live streaming capture tools after seeing hundreds of top streamers lose their best highlight moments without automated editor relay. Today, Digicast powers multi-channel broadcasting teams across 150+ countries.
+              </p>
+              <div className="flex items-center gap-4 pt-2">
+                <Link
+                  href="/login"
+                  className="px-6 py-2.5 rounded-full text-xs font-bold text-black bg-emerald-400 hover:bg-emerald-300 transition shadow-lg shadow-emerald-400/20"
+                >
+                  More about us
+                </Link>
+              </div>
+            </div>
+          </ScrollReveal>
+
+          {/* Right: Interactive Neon Stepping Grid Graph (From Video 01:03 - 01:11) */}
+          <ScrollReveal direction="right" delay={250}>
+            <div className="rounded-3xl bg-[#0B0F19] border border-white/10 p-8 shadow-2xl relative">
+              <div className="h-48 border-b border-l border-white/10 relative flex items-end">
+                {/* Neon Stepping Line */}
+                <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
+                  <path
+                    d="M 10 170 L 120 170 L 120 120 L 240 120 L 240 60 L 360 60 L 360 10 L 440 10"
+                    fill="none"
+                    stroke="#10B981"
+                    strokeWidth="3"
+                    className="drop-shadow-[0_0_8px_#10B981]"
+                  />
+                </svg>
+
+                {/* Milestone Pulsing Nodes */}
+                <div className="absolute left-[10px] bottom-0 -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+                  <div className="w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] animate-pulse" />
+                  <span className="text-[10px] font-mono text-slate-400 mt-2">2021</span>
+                </div>
+                <div className="absolute left-[120px] bottom-[50px] -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+                  <div className="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#22D3EE] animate-pulse" />
+                  <span className="text-[10px] font-mono text-slate-400 mt-2">2023</span>
+                </div>
+                <div className="absolute left-[240px] bottom-[110px] -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+                  <div className="w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] animate-pulse" />
+                  <span className="text-[10px] font-mono text-slate-400 mt-2">2025</span>
+                </div>
+                <div className="absolute left-[360px] bottom-[160px] -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+                  <div className="w-4 h-4 rounded-full bg-teal-300 shadow-[0_0_12px_#2DD4BF] animate-ping" />
+                  <span className="text-[10px] font-mono text-emerald-300 font-bold mt-2">Present</span>
+                </div>
+              </div>
+
+              {/* Stats telemetry chips */}
+              <div className="grid grid-cols-3 gap-3 mt-8 pt-4 border-t border-white/5 font-mono text-center">
+                <div>
+                  <div className="text-[10px] text-slate-500">EXPERIENCE</div>
+                  <div className="text-lg font-black text-white">5+ Years</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500">COMMUNITY</div>
+                  <div className="text-lg font-black text-emerald-400">15,000+</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500">PAYOUT POOL</div>
+                  <div className="text-lg font-black text-cyan-400">₹4.2 Cr</div>
+                </div>
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* ── 13. "ALL IN ONE PLACE" DASHBOARD WITH VOLUMETRIC SPOTLIGHT CONE (01:21-01:24) ── */}
+      <section className="py-28 border-t border-white/5 bg-[#06080D] relative z-10 text-center overflow-hidden">
+        {/* Overhead Volumetric Spotlight Beam projecting down onto the console */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] pointer-events-none opacity-30"
+          style={{
+            background: 'conic-gradient(from 180deg at 50% 0%, rgba(16,185,129,0.3) 0deg, transparent 60deg, transparent 300deg, rgba(34,211,238,0.3) 360deg)',
+            filter: 'blur(30px)',
+          }}
+        />
+
+        <div className="max-w-6xl mx-auto px-6 space-y-8 relative z-10">
           <ScrollReveal direction="up" delay={100}>
             <div>
               <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest">
@@ -1001,7 +1378,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
       </section>
 
-      {/* ── 12. TRUSTPILOT REVIEWS ───────────────────────────────────────────── */}
+      {/* ── 14. TRUSTPILOT REVIEWS (VIDEO 01:25 - 01:28) ─────────────────────── */}
       <section id="reviews" className="py-24 border-t border-white/5 bg-[#080B12]">
         <div className="max-w-6xl mx-auto px-6">
           <ScrollReveal direction="up" delay={100}>
@@ -1039,7 +1416,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
       </section>
 
-      {/* ── 13. FAQ ACCORDION ────────────────────────────────────────────────── */}
+      {/* ── 15. FAQ ACCORDION (VIDEO 01:15 - 01:20) ─────────────────────────── */}
       <section id="faq" className="py-24 border-t border-white/5 bg-[#06080D]">
         <div className="max-w-4xl mx-auto px-6 space-y-8">
           <ScrollReveal direction="up" delay={100}>
@@ -1074,12 +1451,15 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
       </section>
 
-      {/* ── 14. KINETIC "LET'S TALK" FOOTER WITH PARALLAX ────────────────────── */}
+      {/* ── 16. KINETIC "LET'S TALK" WITH CHROMATIC GLASS DISCS (VIDEO 01:33-01:38) ── */}
       <section className="py-28 border-t border-white/5 bg-[#05070B] relative overflow-hidden text-center">
+        {/* Floating Chromatic Glass Prism Discs Arc (From Video 01:33 - 01:36) */}
+        <ChromaticGlassDiscs />
+
         {/* Giant Watermark Typography "Let's Talk" with horizontal scroll parallax */}
         <div
           className="select-none font-black text-6xl sm:text-9xl text-white/5 tracking-tighter uppercase mb-8 whitespace-nowrap transition-transform duration-300 ease-out"
-          style={{ transform: `translateX(${-(scrollY - 3800) * 0.08}px)` }}
+          style={{ transform: `translateX(${-(scrollY - 4400) * 0.08}px)` }}
         >
           Let's Talk
         </div>

@@ -10,15 +10,27 @@ import {
   Scissors,
   Users,
   Settings,
+  Coins,
+  Video,
+  Trophy,
+  Sparkles,
+  Palette,
+  CreditCard,
   LogOut,
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/streams',   label: 'Streams',   icon: Radio },
-  { href: '/clips',     label: 'Clips',     icon: Scissors },
-  { href: '/team',      label: 'Team',      icon: Users },
-  { href: '/settings',  label: 'Settings',  icon: Settings },
+  { href: '/dashboard',   label: 'Dashboard',        icon: LayoutDashboard },
+  { href: '/streams',     label: 'Streams',          icon: Radio },
+  { href: '/clips',       label: 'Clips',            icon: Scissors },
+  { href: '/wallet',      label: 'Coins & Tasks',    icon: Coins },
+  { href: '/editors',     label: 'Editors Showcase', icon: Video },
+  { href: '/leaderboard', label: 'Leaderboard',      icon: Trophy },
+  { href: '/matchmaker',  label: 'AI Matchmaker',    icon: Sparkles },
+  { href: '/assets',      label: 'Stream Assets',    icon: Palette },
+  { href: '/pricing',     label: 'Subscriptions',    icon: CreditCard },
+  { href: '/team',        label: 'Team',             icon: Users },
+  { href: '/settings',    label: 'Settings',         icon: Settings },
 ];
 
 export default function Sidebar() {

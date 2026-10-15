@@ -1,7 +1,7 @@
 # Digicast Project State
 
 ## Active Milestone: Editors & Streamers Ecosystem, Decoupled Backend & Shifted God Panel
-- **Status:** In Progress (Phases 1, 2, 3, & 4 Complete & Verified)
+- **Status:** In Progress (Phases 1, 2, 3, 4, & 5 Complete & Verified)
 - **Specification:** `.gsd/SPEC.md` (Status: FINALIZED)
 - **Roadmap:** `.gsd/ROADMAP.md`
 
@@ -33,10 +33,15 @@
   - Configured pricing tiers: Free Trial (14 days + 10-day trial credits), Introductory Month (₹29), Standard Monthly (₹149/mo), Quarterly (₹449/3-mo), and Annual VIP (₹999/yr).
   - Configured 15% recurring lifetime affiliate commission credited as in-app DP to referrers.
   - Created `/pricing` page in `digicast-web` with plan comparisons, DP balance checkout, and affiliate referral link generator.
-  - **Empirical Proof:** `node digicast-backend/scripts/test-phase4.js` passed 100% of price point, trial credit, DP checkout, and 15% affiliate commission tests. Both Next.js production builds succeeded with 0 errors.
+  - **Empirical Proof:** `node digicast-backend/scripts/test-phase4.js` passed 100%. Both Next.js production builds succeeded with 0 errors.
+
+- [x] **Phase 5: Editor Registration, Profiles & Public Leaderboard:**
+  - Implemented `/api/editors` and `/api/editors/leaderboard` in `digicast-backend`.
+  - Created `/editors` page with search, specialty filtering, rate cards, and interactive modal to preview portfolio reels or register new editor profiles.
+  - Created `/leaderboard` page with #1 Gold, #2 Silver, and #3 Bronze podium cards, star ratings, and composite ranking score formula: `(Rating * 20) + (Reviews * 2) + Credits`.
+  - **Empirical Proof:** `node digicast-backend/scripts/test-phase5.js` passed 100% of scoring, specialty filter, and registration tests. Both Next.js builds succeeded with 0 errors.
 
 ## Next Up
-- [ ] **Phase 5: Editor Registration, Profiles & Public Leaderboard:**
-  - Editor registration & portfolio showcase API (`/api/editors`).
-  - Rating, reviews, and reputation credit algorithm (`/api/editors/review`, `/api/editors/leaderboard`).
-  - Create `/editors` and `/leaderboard` pages in `digicast-web` using shadcn/ui.
+- [ ] **Phase 6: Streamer AI Matchmaking Bot:**
+  - Implement `/api/matchmaking` in `digicast-backend` using semantic matching to return top 4-5 relevant editors.
+  - Create `/matchmaker` page in `digicast-web` with interactive AI chat bot for streamers.

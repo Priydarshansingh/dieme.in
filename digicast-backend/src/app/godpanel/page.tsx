@@ -26,8 +26,8 @@ export default function GodPanelDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'ledger' | 'tasks' | 'ads' | 'subscriptions' | 'security'>('overview');
 
   // Login form state
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('DigicastGod2026!#');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [adminUser, setAdminUser] = useState<any>(null);

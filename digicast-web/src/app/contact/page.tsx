@@ -8,60 +8,39 @@ import {
 } from 'lucide-react';
 
 import { DigicastBrandLogo } from '@/components/brand/DigicastLogo';
+import { SiteHeader } from '@/components/common/SiteHeader';
+import { SiteFooter } from '@/components/common/SiteFooter';
 
 export const metadata: Metadata = {
   title: 'Contact Support & Helpdesk — Digicast',
   description:
-    'Need help with your workspace, livestream sync, or subscription pass? Contact our official Telegram support bot @digicast_bot for instant resolution.',
+    'Need help with your workspace, livestream sync, or subscription pass? Contact our official Telegram support bot @YT_digicast for instant resolution.',
 };
 
 const supportFaqs = [
   {
     q: 'How do I reach the official Digicast Support team?',
-    a: 'All official creator support, account lookups, payment verifications, and technical inquiries are handled directly via our verified Telegram Bot @digicast_bot. You can start a private chat at https://t.me/digicast_bot.'
+    a: 'All official creator support, account lookups, payment verifications, and technical inquiries are handled directly via our verified Telegram Bot @YT_digicast. You can start a private chat at https://t.me/YT_digicast?start=help.'
   },
   {
     q: 'How do I look up my active subscription or workspace validity?',
-    a: 'Simply send your registered Gmail address or Workspace ID directly to @digicast_bot in a private message. The bot will automatically verify your Firestore record and display your active plan, expiration date, and connected YouTube channel.'
+    a: 'Simply send your registered Gmail address or Workspace ID directly to @YT_digicast in a private message. The bot will automatically verify your Firestore record and display your active plan, expiration date, and connected YouTube channel.'
   },
   {
     q: 'How do I submit payment proof or UTR numbers?',
-    a: 'You can submit your screenshot and 12-digit UPI UTR directly via the Web Dashboard payment modal, or send the screenshot directly in a private DM to @digicast_bot. You receive instant 24-hour grace access immediately upon submission.'
+    a: 'You can submit your screenshot and 12-digit UPI UTR directly via the Web Dashboard payment modal, or send the screenshot directly in a private DM to @YT_digicast. You receive instant 24-hour grace access immediately upon submission.'
   },
   {
     q: 'How do I report a bug or suggest a feature?',
-    a: 'Send "/support <your message>" to @digicast_bot. Our engineering team logs every concern into our active monitoring queue and provides prompt updates.'
+    a: 'Send "/support <your message>" to @YT_digicast. Our engineering team logs every concern into our active monitoring queue and provides prompt updates.'
   }
 ];
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-[#07080C] text-[#F8FAFC] selection:bg-cyan-500/20 selection:text-cyan-300">
-      {/* ── Top Navigation Bar ───────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 backdrop-blur-2xl bg-[#07080C]/80 border-b border-white/[0.08]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <DigicastBrandLogo size="md" />
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-7 text-xs font-mono uppercase tracking-wider text-slate-400">
-            <Link href="/#console" className="hover:text-white transition">Live HUD</Link>
-            <Link href="/#community-pipeline" className="hover:text-white transition">Pipeline</Link>
-            <Link href="/#passes" className="hover:text-white transition">Passes</Link>
-            <Link href="/#faq" className="hover:text-white transition">FAQ</Link>
-            <Link href="/contact" className="text-cyan-400 font-bold">Support</Link>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="px-4.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/10 transition"
-            >
-              Sign In
-            </Link>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#06080D] text-[#F8FAFC] selection:bg-emerald-500/20 selection:text-emerald-300 flex flex-col justify-between">
+      {/* Universal Site Header */}
+      <SiteHeader />
 
       {/* ── Hero / Contact Header ────────────────────────────────────────── */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
@@ -72,9 +51,9 @@ export default function ContactPage() {
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-tight mb-6">
-            Instant Support & Ticket Routing via{' '}
+            Instant Support &amp; Ticket Routing via{' '}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400">
-              @digicast_bot
+              @YT_digicast
             </span>
           </h1>
 
@@ -94,7 +73,7 @@ export default function ContactPage() {
               </div>
 
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">
-                Open Chat with @digicast_bot
+                Open Chat with @YT_digicast
               </h2>
               <p className="text-slate-400 text-sm max-w-lg mx-auto mb-8 leading-relaxed">
                 Connect with our automated bot in Telegram to check account validity, report an issue, or verify payment proof.
@@ -102,13 +81,13 @@ export default function ContactPage() {
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <a
-                  href="https://t.me/digicast_bot"
+                  href="https://t.me/YT_digicast?start=help"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl font-mono font-bold text-sm bg-gradient-to-r from-cyan-400 to-blue-500 text-[#07080C] shadow-2xl shadow-cyan-500/40 hover:shadow-cyan-500/60 hover:scale-[1.02] active:scale-[0.98] transition"
                 >
                   <Send className="w-4 h-4" />
-                  <span>LAUNCH TELEGRAM BOT (@digicast_bot)</span>
+                  <span>LAUNCH TELEGRAM BOT (@YT_digicast)</span>
                   <ExternalLink className="w-3.5 h-3.5 opacity-80" />
                 </a>
               </div>
@@ -162,31 +141,8 @@ export default function ContactPage() {
         </section>
       </main>
 
-      {/* ── Public Footer ────────────────────────────────────────────────── */}
-      <footer className="py-12 border-t border-white/[0.08] bg-[#07080C] text-xs text-slate-500 font-mono">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <DigicastBrandLogo size="sm" />
-            <span className="text-slate-700">|</span>
-            <span className="text-slate-500 font-sans">© 2026 Digicast Technologies. All rights reserved.</span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-6 text-slate-400 font-sans">
-            <Link href="/terms" className="hover:text-white transition">Terms of Service</Link>
-            <Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link>
-            <Link href="/refund" className="hover:text-white transition">Refund Policy</Link>
-            <a
-              href="https://t.me/digicast_bot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-cyan-400 transition flex items-center gap-1 font-mono text-xs"
-            >
-              Telegram: @digicast_bot
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        </div>
-      </footer>
+      {/* Universal Site Footer */}
+      <SiteFooter />
     </div>
   );
 }

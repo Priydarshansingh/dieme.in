@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   ChevronDown,
+  ChevronRight,
   ArrowRight,
   ShieldCheck,
   Check,
@@ -36,6 +37,8 @@ import {
 } from 'lucide-react';
 import { DigicastBrandLogo } from '@/components/brand/DigicastLogo';
 import { PRICING_PLANS } from '@/lib/pricingPlans';
+import { SiteHeader } from '@/components/common/SiteHeader';
+import { SiteFooter } from '@/components/common/SiteFooter';
 
 interface FaqItem {
   q: string;
@@ -356,13 +359,98 @@ function SpotlightCard({
   );
 }
 
+// ── 7. Dynamic Typewriter Text Component ─────────────────────────────────────
+const DEFAULT_HERO_WORDS = [
+  '1-Tap Live Clips',
+  'Instant Telegram Sync',
+  'Viral YouTube Shorts',
+  'Zero Latency Relays',
+];
+
+function TypewriterText({ words = DEFAULT_HERO_WORDS }: { words?: string[] }) {
+  const [index, setIndex] = useState(0);
+  const [subIndex, setSubIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [blink, setBlink] = useState(true);
+
+  // Blinking cursor
+  useEffect(() => {
+    const blinkInterval = setInterval(() => {
+      setBlink((prev) => !prev);
+    }, 500);
+    return () => clearInterval(blinkInterval);
+  }, []);
+
+  const wordsRef = useRef(words);
+  useEffect(() => {
+    wordsRef.current = words;
+  }, [words]);
+
+  // Typing & deleting loop
+  useEffect(() => {
+    const list = wordsRef.current;
+    if (!list || list.length === 0) return;
+    const currentWord = list[index % list.length];
+
+    // Finished typing current word -> hold for 2s before deleting
+    if (!isDeleting && subIndex === currentWord.length) {
+      const pauseTimer = setTimeout(() => {
+        setIsDeleting(true);
+      }, 2000);
+      return () => clearTimeout(pauseTimer);
+    }
+
+    // Finished deleting current word -> switch to next word
+    if (isDeleting && subIndex === 0) {
+      setIsDeleting(false);
+      setIndex((prev) => (prev + 1) % list.length);
+      return;
+    }
+
+    // Typing: 70ms, Deleting: 35ms
+    const charSpeed = isDeleting ? 35 : 70;
+    const typeTimer = setTimeout(() => {
+      setSubIndex((prev) => prev + (isDeleting ? -1 : 1));
+    }, charSpeed);
+
+    return () => clearTimeout(typeTimer);
+  }, [subIndex, index, isDeleting]);
+
+  const list = wordsRef.current || words;
+  const currentWord = list[index % list.length] || '';
+  const displayedText = currentWord.substring(0, subIndex);
+
+  return (
+    <span className="inline-flex items-center">
+      <span>{displayedText}</span>
+      <span
+        className={`inline-block w-[3px] sm:w-[4px] h-[0.85em] ml-1.5 sm:ml-2 bg-emerald-400 rounded-full align-middle transition-opacity duration-150 ${
+          blink ? 'opacity-100 shadow-[0_0_8px_#10B981]' : 'opacity-20'
+        }`}
+      />
+    </span>
+  );
+}
+
 export default function LandingPageClient({ faqs = [] }: LandingPageClientProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [activeStep, setActiveStep] = useState<number>(1);
-  const [selectedProgram, setSelectedProgram] = useState<number>(4);
   const [showPricingDetails, setShowPricingDetails] = useState(false);
   const [cookieConsent, setCookieConsent] = useState(true);
+
+  // Smoothly scroll to #pricing section if someone arrives with deep link or hash
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('program') !== null || window.location.hash === '#programs') {
+        const el = document.getElementById('pricing');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
+  }, []);
 
   // Dynamic Scroll Progress & Parallax Tracking
   const [scrollY, setScrollY] = useState(0);
@@ -395,14 +483,20 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
     seconds: 42,
   });
 
-  // Ticker items
+  // Live Broadcast & Stream Telemetry Ticker Items (Realistic metrics)
   const tickers = [
-    { pair: 'YOUTUBE LIVE', val: '4K 60FPS', change: '+99.9%', up: true },
+    { pair: 'YOUTUBE LIVE', val: '4K 60FPS', change: 'HDR READY', up: true },
     { pair: 'MARKER RELAY', val: '240 ms', change: '-45ms', up: true },
-    { pair: 'TELEGRAM BOT', val: 'ACTIVE', change: 'v2.4', up: true },
-    { pair: 'DIGICAST DP', val: '₹1.00 INR', change: 'PARITY', up: true },
-    { pair: 'CREATOR POOL', val: '₹4.2 Cr', change: '+18.4%', up: true },
-    { pair: 'ACTIVE STREAMS', val: '1,420+', change: '+12%', up: true },
+    { pair: 'TELEGRAM BOT', val: '@digicast_bot', change: 'ONLINE', up: true },
+    { pair: 'SMART LOOKBACK', val: '45 SECONDS', change: 'BUFFER 100%', up: true },
+    { pair: 'ACTIVE STREAMS', val: '48 LIVE', change: 'MONITORED', up: true },
+    { pair: 'QUOTA CONSUMPTION', val: '0 UNITS', change: 'ZERO BURN', up: true },
+    { pair: 'CLIPS SYNCED TODAY', val: '1,284', change: '+14%', up: true },
+    { pair: 'LOCAL ENCRYPTION', val: '256-BIT', change: 'ON-DEVICE', up: true },
+    { pair: 'AUDIO BUFFER', val: '48 kHz', change: 'PCM STEREO', up: true },
+    { pair: 'EDITOR HANDOFF', val: '1-CLICK', change: 'INSTANT LINK', up: true },
+    { pair: 'SYSTEM UPTIME', val: '99.98%', change: 'OPERATIONAL', up: true },
+    { pair: 'FRAME DROP RATE', val: '0.00%', change: 'ZERO LOSS', up: true },
   ];
 
   // Countdown clock tick
@@ -443,95 +537,8 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         />
       </div>
 
-      {/* ── 1. NAVBAR (STICKY BLUR HEADER WITH LIVE INDICATOR) ───────────────── */}
-      <header className="fixed top-0 inset-x-0 z-50 bg-[#06080D]/85 backdrop-blur-xl border-b border-white/5 transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          {/* Official Digicast Brand Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <DigicastBrandLogo size="md" />
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono font-bold text-emerald-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-              LIVE
-            </span>
-          </Link>
-
-          {/* Center Links */}
-          <nav className="hidden lg:flex items-center gap-8 text-xs font-semibold tracking-wide text-slate-300">
-            <a href="#hero" className="hover:text-emerald-400 transition-colors">
-              Home
-            </a>
-            <a href="#how-it-works" className="hover:text-emerald-400 transition-colors">
-              How It Works
-            </a>
-            <a href="#programs" className="hover:text-emerald-400 transition-colors">
-              Programs
-            </a>
-            <a href="#pricing" className="hover:text-emerald-400 transition-colors">
-              Pricing Passes
-            </a>
-            <a href="#why-digicast" className="hover:text-emerald-400 transition-colors">
-              Why Digicast
-            </a>
-            <a href="#about-us" className="hover:text-emerald-400 transition-colors">
-              About Us
-            </a>
-            <a href="#faq" className="hover:text-emerald-400 transition-colors">
-              FAQ
-            </a>
-          </nav>
-
-          {/* Right Action Buttons */}
-          <div className="hidden sm:flex items-center gap-3">
-            <Link
-              href="/login"
-              className="px-5 py-2 rounded-full text-xs font-bold text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all hover:border-emerald-500/30"
-            >
-              Login
-            </Link>
-            <Link
-              href="/login"
-              className="px-5 py-2 rounded-full text-xs font-bold text-black bg-white hover:bg-emerald-400 hover:text-black transition-all shadow-lg shadow-white/5 hover:shadow-emerald-500/20"
-            >
-              Start Free Pass
-            </Link>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 text-slate-400 hover:text-white"
-          >
-            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
-        </div>
-
-        {/* Mobile Dropdown */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden bg-[#0A0D15] border-b border-white/10 px-6 py-6 space-y-4 text-sm font-medium animate-in slide-in-from-top-4 duration-300">
-            <a href="#hero" onClick={() => setMobileMenuOpen(false)} className="block text-white">
-              Home
-            </a>
-            <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300">
-              How It Works
-            </a>
-            <a href="#programs" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300">
-              Programs
-            </a>
-            <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300">
-              Pricing Passes
-            </a>
-            <a href="#why-digicast" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300">
-              Why Digicast
-            </a>
-            <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300">
-              Support &amp; FAQ
-            </a>
-            <Link href="/login" className="block text-emerald-400 font-bold pt-2">
-              Login / Register &rarr;
-            </Link>
-          </div>
-        )}
-      </header>
+      {/* ── 1. NAVBAR (UNIVERSAL SITE HEADER) ───────────────────────────────── */}
+      <SiteHeader />
 
       {/* ── 2. HERO SECTION WITH 3D TELEMETRY & AMBIENT AURA ─────────────────── */}
       <section id="hero" className="relative min-h-[92vh] pt-36 pb-20 flex flex-col items-center justify-center text-center overflow-hidden">
@@ -569,49 +576,50 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           </div>
         </div>
 
-        <div className="relative z-10 max-w-4xl mx-auto px-6 space-y-6">
+        <div className="relative z-10 max-w-5xl mx-auto px-6 space-y-6">
           {/* Top Tagline Pill */}
           <ScrollReveal direction="down" delay={100}>
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono font-bold text-slate-300 uppercase tracking-widest shadow-inner">
-              <span>Our Platform</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>Live Companion for YouTube Creators</span>
               <span className="text-emerald-400">&bull;</span>
-              <span className="text-emerald-400">Your Success</span>
+              <span className="text-emerald-400">Zero Latency Relay</span>
             </div>
           </ScrollReveal>
 
-          {/* Hero Main Headline */}
+          {/* Hero Main Headline with Typewriter Animation */}
           <ScrollReveal direction="up" delay={200} duration={850}>
-            <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-white tracking-tight leading-[1.05]">
-              No Time Limit Creator Studio <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
-                Conquer the Broadcast
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.1] sm:leading-[1.15]">
+              <span className="block">Never Lose a Stream Highlight.</span>
+              <span className="block mt-2 sm:mt-3 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 min-h-[1.25em]">
+                <TypewriterText
+                  words={[
+                    '1-Tap Live Clips',
+                    'Instant Telegram Sync',
+                    'Viral YouTube Shorts',
+                    'Zero Latency Relays',
+                  ]}
+                />
               </span>
             </h1>
           </ScrollReveal>
 
           {/* Hero Subheadline */}
           <ScrollReveal direction="up" delay={300}>
-            <p className="text-sm sm:text-base text-slate-400 max-w-xl mx-auto leading-relaxed">
-              Real-time live companion and clip highlight capture suite built for YouTube broadcasters, gaming streamers, and video editing teams.
+            <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
+              Drop instant timestamp markers while gaming or podcasting on YouTube. Your video editing team receives immediate Telegram alerts with 1-click replay links to cut viral Shorts.
             </p>
           </ScrollReveal>
 
-          {/* Dual Action Buttons Group */}
+          {/* Single Action Button (Free 24h Pass Removed) */}
           <ScrollReveal direction="up" delay={400}>
-            <div className="pt-4 flex flex-wrap items-center justify-center gap-3">
+            <div className="pt-4 flex items-center justify-center">
               <Link
                 href="/login"
-                className="px-8 py-3.5 rounded-full text-xs font-bold text-black bg-white hover:bg-slate-200 hover:scale-105 shadow-xl shadow-white/10 transition-all duration-200 flex items-center gap-2 group"
+                className="px-9 py-4 rounded-full text-xs font-bold text-black bg-white hover:bg-slate-200 hover:scale-105 shadow-xl shadow-white/10 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span>Start Studio Pass</span>
                 <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
-              </Link>
-
-              <Link
-                href="/login"
-                className="px-6 py-3.5 rounded-full text-xs font-bold text-white bg-white/5 hover:bg-white/10 border border-white/15 backdrop-blur-xl hover:border-emerald-500/40 hover:scale-105 transition-all duration-200"
-              >
-                Free 24h Pass
               </Link>
             </div>
           </ScrollReveal>
@@ -629,11 +637,15 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         <div className="max-w-6xl mx-auto px-6">
           <ScrollReveal direction="up" delay={100}>
             <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono font-bold text-emerald-400 mb-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                VERIFIED BROADCAST TELEMETRY
+              </div>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                Creators from more than 150 countries around the world have registered!
+                Built for Live Creators Who Move Fast.
               </h2>
               <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                We provide unique livestream tools for YouTube creators, allowing seamless collaboration with video editors without losing key stream highlight moments.
+                From marathon gaming streams to live podcast broadcasts, Digicast delivers zero-delay clip markers directly to your editors&apos; Telegram with zero quota burn.
               </p>
             </div>
           </ScrollReveal>
@@ -642,17 +654,34 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           <LaserCrosshairGrid>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { num: '₹4.2 Cr+', label: 'Payout to Digicast Creators & Editors' },
-                { num: '15,000+', label: 'No. of Digicast Creators' },
-                { num: '150+', label: 'No. of countries with broadcasters' },
-                { num: '< 400ms', label: 'Average clip marker processing time' },
+                {
+                  num: '500+',
+                  label: 'Active YouTube Streamers',
+                  sub: 'Gaming & Podcast Creators',
+                },
+                {
+                  num: '15,000+',
+                  label: 'Live Moments Clipped',
+                  sub: 'Synced directly to video editors',
+                },
+                {
+                  num: '< 350ms',
+                  label: 'Telegram Bot Dispatch',
+                  sub: 'Real-time lookback delivery',
+                },
+                {
+                  num: '99.9%',
+                  label: 'Marker Capture Reliability',
+                  sub: 'Zero YouTube quota burn',
+                },
               ].map((stat, idx) => (
                 <ScrollReveal key={idx} direction="up" delay={idx * 120}>
-                  <SpotlightCard className="rounded-3xl bg-[#0C101A] border border-white/5 p-8 space-y-2 hover:border-emerald-500/40 hover:-translate-y-1.5 transition-all duration-300">
+                  <SpotlightCard className="rounded-3xl bg-[#0C101A] border border-white/5 p-7 sm:p-8 space-y-2 hover:border-emerald-500/40 hover:-translate-y-1.5 transition-all duration-300">
                     <div className="text-3xl sm:text-4xl font-black text-white font-mono group-hover:text-emerald-400 transition-colors">
                       {stat.num}
                     </div>
-                    <p className="text-xs text-slate-400 leading-snug">{stat.label}</p>
+                    <p className="text-sm font-semibold text-slate-200 leading-snug">{stat.label}</p>
+                    <p className="text-xs text-slate-500 font-mono">{stat.sub}</p>
                   </SpotlightCard>
                 </ScrollReveal>
               ))}
@@ -700,16 +729,35 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           </ScrollReveal>
         </div>
 
-        {/* Live Stream Ticker */}
-        <div className="mt-16 border-y border-white/5 bg-[#080B12] py-3.5 overflow-x-auto">
-          <div className="flex items-center gap-8 px-6 min-w-max">
+        {/* Live Stream Ticker (Continuous Left-Scrolling Infinite Marquee) */}
+        <div className="mt-16 border-y border-white/5 bg-[#080B12] py-3.5 overflow-hidden select-none">
+          <div className="animate-marquee-infinite flex items-center gap-8">
+            {/* First sequence */}
             {tickers.map((t, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-xs font-mono hover:scale-105 transition-transform cursor-pointer">
-                <span className="text-slate-400 font-bold">{t.pair}</span>
+              <div
+                key={`a-${idx}`}
+                className="flex items-center gap-2.5 text-xs font-mono hover:scale-105 transition-transform shrink-0"
+              >
+                <span className="text-slate-400 font-bold tracking-wider">{t.pair}</span>
                 <span className="text-white font-bold">{t.val}</span>
-                <span className="text-emerald-400 text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded font-bold">
+                <span className="text-emerald-400 text-[10px] bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
                   {t.change}
                 </span>
+                <span className="text-slate-700 ml-4">•</span>
+              </div>
+            ))}
+            {/* Seamless duplicate sequence for continuous infinite loop */}
+            {tickers.map((t, idx) => (
+              <div
+                key={`b-${idx}`}
+                className="flex items-center gap-2.5 text-xs font-mono hover:scale-105 transition-transform shrink-0"
+              >
+                <span className="text-slate-400 font-bold tracking-wider">{t.pair}</span>
+                <span className="text-white font-bold">{t.val}</span>
+                <span className="text-emerald-400 text-[10px] bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">
+                  {t.change}
+                </span>
+                <span className="text-slate-700 ml-4">•</span>
               </div>
             ))}
           </div>
@@ -732,18 +780,13 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
               <h2 className="text-3xl sm:text-5xl font-black text-white leading-tight">
                 Stop losing your own highlight moments, join us and start clipping!
               </h2>
-              <div className="flex items-center gap-3">
+              <div className="pt-2">
                 <Link
                   href="/login"
-                  className="px-6 py-3 rounded-full text-xs font-bold text-black bg-white hover:bg-slate-200 hover:scale-105 transition shadow-lg"
+                  className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full text-xs sm:text-sm font-bold text-slate-950 bg-white hover:bg-slate-100 hover:scale-105 active:scale-[0.98] transition-all duration-200 shadow-[0_4px_24px_rgba(255,255,255,0.12)] hover:shadow-[0_0_30px_rgba(16,185,129,0.35)] group"
                 >
-                  Join Us
-                </Link>
-                <Link
-                  href="/login"
-                  className="px-6 py-3 rounded-full text-xs font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 hover:scale-105 transition"
-                >
-                  Free Trial
+                  <span>Start Studio Pass</span>
+                  <ArrowRight className="h-4 w-4 text-emerald-600 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </div>
             </div>
@@ -769,98 +812,423 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
       </section>
 
       {/* ── 6. "HOW DOES IT WORK?" 3-STEP INTERACTIVE PREVIEW ────────────────── */}
-      <section id="how-it-works" className="py-28 border-t border-white/5 bg-[#080B12] relative z-10">
+      <section id="how-it-works" className="py-28 border-t border-white/5 bg-[#080B12] relative z-10 overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-gradient-to-r from-emerald-500/10 via-cyan-500/5 to-transparent blur-3xl pointer-events-none -z-10" />
+
         <div className="max-w-6xl mx-auto px-6">
           <ScrollReveal direction="up" delay={100}>
-            <div className="text-center max-w-xl mx-auto mb-16 space-y-2">
+            <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono font-bold text-emerald-400">
+                <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                <span>HOW DIGICAST WORKS // 3-STAGE PIPELINE</span>
+              </div>
               <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
                 How does it work?
               </h2>
-              <p className="text-xs sm:text-sm text-slate-400">
-                Your pathway to professional live broadcasting and viral highlight shorts.
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                From live broadcast marker capture to instant Telegram editor dispatch &mdash; here is how top creators publish viral shorts without stream lag.
               </p>
             </div>
           </ScrollReveal>
 
-          {/* Stepped Tab Selector */}
+          {/* Stepped Tab Selector with Active Glow & Indicators */}
           <ScrollReveal direction="up" delay={200}>
-            <div className="grid grid-cols-3 gap-4 border-b border-white/10 pb-4 mb-10 text-xs font-bold font-mono">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
               {[
-                { id: 1, title: 'Step 1: Choose A Pass', desc: 'Select a program that suits your studio.' },
-                { id: 2, title: 'Step 2: Live Stream Relay', desc: 'Drop instant highlight markers while streaming.' },
-                { id: 3, title: 'Step 3: Editor Co-operation', desc: 'Editors receive Telegram alerts & produce shorts.' },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setActiveStep(s.id)}
-                  className={`text-left pb-2 transition duration-200 ${
-                    activeStep === s.id
-                      ? 'text-emerald-400 border-b-2 border-emerald-400'
-                      : 'text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  <div className="text-[10px] text-slate-500 uppercase">{`[ STEP 0${s.id} ]`}</div>
-                  <div className="font-bold text-white text-sm">{s.title}</div>
-                  <div className="hidden sm:block text-[11px] text-slate-400 font-sans mt-0.5">{s.desc}</div>
-                </button>
-              ))}
+                {
+                  id: 1,
+                  step: '01',
+                  title: 'Choose A Pass',
+                  subtitle: 'Select tier & activate workspace',
+                  icon: Layers,
+                  tag: 'Zero Setup Delay',
+                  accent: 'emerald',
+                },
+                {
+                  id: 2,
+                  step: '02',
+                  title: 'Stream & Mark Plays',
+                  subtitle: '45s lookback buffer & chat triggers',
+                  icon: Radio,
+                  tag: 'Zero Stream Lag',
+                  accent: 'cyan',
+                },
+                {
+                  id: 3,
+                  step: '03',
+                  title: 'Instant Editor Dispatch',
+                  subtitle: 'Telegram alerts & 1-tap jump links',
+                  icon: Send,
+                  tag: '< 280ms Relay',
+                  accent: 'teal',
+                },
+              ].map((s) => {
+                const Icon = s.icon;
+                const isActive = activeStep === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setActiveStep(s.id)}
+                    className={`p-4 rounded-2xl border text-left transition-all duration-300 relative overflow-hidden group cursor-pointer ${
+                      isActive
+                        ? 'bg-[#0E1524] border-emerald-400/80 shadow-xl shadow-emerald-500/15 scale-[1.02] z-10'
+                        : 'bg-white/[0.03] border-white/10 hover:border-white/20 hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    {/* Top indicator line */}
+                    {isActive && (
+                      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 shadow-[0_0_8px_#10B981]" />
+                    )}
+
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                            isActive
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                              : 'bg-white/5 text-slate-400 group-hover:text-white'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
+                            STAGE {s.step}
+                          </div>
+                          <div className="font-bold text-white text-sm tracking-tight">{s.title}</div>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded ${
+                          isActive
+                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-white/5 text-slate-500'
+                        }`}
+                      >
+                        {s.tag}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 mt-2 font-sans truncate">{s.subtitle}</p>
+                  </button>
+                );
+              })}
             </div>
           </ScrollReveal>
 
-          {/* Dynamic Step Showcase Container with Ambient Aurora Background */}
+          {/* Dynamic Step Showcase Container */}
           <ScrollReveal direction="zoom" delay={300}>
-            <div className="rounded-3xl bg-[#0D121D] border border-white/10 p-8 min-h-[360px] flex items-center justify-center relative overflow-hidden shadow-2xl">
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-transparent to-cyan-500/10 pointer-events-none" />
+            <div className="rounded-3xl bg-[#0B0F19]/95 border border-white/10 p-6 sm:p-10 shadow-2xl relative overflow-hidden group min-h-[440px] flex items-center">
+              {/* Subtle accent glow */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#10B981]" />
 
+              {/* Watermark Step Number */}
+              <div className="absolute bottom-2 right-4 text-9xl font-black text-white/[0.03] font-mono select-none pointer-events-none">
+                0{activeStep}
+              </div>
+
+              {/* STEP 1: CHOOSE A PASS */}
               {activeStep === 1 && (
-                <div className="space-y-4 text-center max-w-md relative z-10 transition-all duration-500 ease-out">
-                  <div className="h-16 w-16 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shadow-lg shadow-emerald-500/10">
-                    <Layers className="h-8 w-8 text-emerald-400" />
+                <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10 transition-all duration-500">
+                  <div className="lg:col-span-6 space-y-5 text-left">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono font-bold">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>STAGE 01 &bull; ONBOARDING &amp; ACTIVATION</span>
+                    </div>
+
+                    <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                      Choose Your Pass &amp; Activate Your Studio
+                    </h3>
+
+                    <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                      Select between our 14-Day Free Evaluation, introductory ₹29 VIP Creator Pass, or high-capacity Studio passes. Connect your YouTube channel in seconds with zero quota burn.
+                    </p>
+
+                    <div className="space-y-2.5 pt-1">
+                      {[
+                        'Instant workspace activation with zero setup delays',
+                        'Zero-quota Nightbot & StreamElements webhook triggers',
+                        'Dedicated Telegram companion bot pairing (@digicast_bot)',
+                        'Up to 5 team editor logins with role-based permissions',
+                      ].map((item, iIdx) => (
+                        <div key={iIdx} className="flex items-start gap-2.5 text-xs text-slate-300">
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-3 flex flex-wrap items-center gap-3">
+                      <Link
+                        href="/login"
+                        className="px-6 py-3 rounded-full text-xs font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-300 hover:brightness-110 transition shadow-lg shadow-emerald-400/20 flex items-center gap-2"
+                      >
+                        <span>Activate VIP Pass (₹29)</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                      <button
+                        onClick={() => setActiveStep(2)}
+                        className="px-5 py-3 rounded-full text-xs font-bold font-mono text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span>Next: Live Stream Relay</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <h4 className="text-xl font-bold text-white">Choose Your Creator Pass</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Start with the 1st Month VIP Pass (₹29) or 14-Day Free Trial. Instant workspace activation with zero setup delays.
-                  </p>
-                  <Link
-                    href="/login"
-                    className="inline-block px-6 py-2.5 rounded-full text-xs font-bold text-black bg-emerald-400 hover:bg-emerald-300 hover:scale-105 transition shadow-lg"
-                  >
-                    Start Program
-                  </Link>
+
+                  {/* Right Side: Pass Card Hologram Mockup */}
+                  <div className="lg:col-span-6">
+                    <div className="p-6 rounded-3xl bg-[#06080D] border border-emerald-500/40 shadow-2xl relative space-y-4">
+                      <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10B981]" />
+                          <span className="text-xs font-mono font-bold text-white uppercase">WORKSPACE READY</span>
+                        </div>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+                          VIP CREATOR PASS
+                        </span>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                        <p className="text-[10px] text-slate-500 font-mono uppercase">Connected Broadcast Channel</p>
+                        <p className="text-sm font-bold text-white flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-red-500" />
+                          <span>YouTube Studio &bull; Broadcaster Console</span>
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-center font-mono">
+                        <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5">
+                          <p className="text-[9px] text-slate-500 uppercase">Buffer</p>
+                          <p className="text-xs font-bold text-white">45s Smart</p>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5">
+                          <p className="text-[9px] text-slate-500 uppercase">Relay</p>
+                          <p className="text-xs font-bold text-emerald-400">&lt; 280ms</p>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5">
+                          <p className="text-[9px] text-slate-500 uppercase">Quota</p>
+                          <p className="text-xs font-bold text-cyan-300">0 API Burn</p>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center justify-between font-mono">
+                        <span>Status: 100% Armed &amp; Ready</span>
+                        <span>Stage 1 Complete</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
+              {/* STEP 2: LIVE STREAM RELAY & LOOKBACK MARKERS */}
               {activeStep === 2 && (
-                <div className="w-full max-w-xl space-y-4 relative z-10 transition-all duration-500 ease-out">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
-                      <span className="text-xs font-bold text-white">LIVE YouTube Broadcast Stream</span>
+                <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10 transition-all duration-500">
+                  <div className="lg:col-span-6 space-y-5 text-left">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-mono font-bold">
+                      <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                      <span>STAGE 02 &bull; REAL-TIME BROADCAST ENGINE</span>
                     </div>
-                    <span className="text-xs font-mono text-emerald-400 font-bold">1,235 Viewers</span>
+
+                    <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                      Broadcast Live &amp; Mark Plays with Zero Lag
+                    </h3>
+
+                    <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                      While you stream, Digicast maintains a continuous 45s to 90s hardware lookback buffer. When an epic moment occurs, you or your viewers drop a marker using Nightbot chat triggers or hotkeys.
+                    </p>
+
+                    <div className="space-y-2.5 pt-1">
+                      {[
+                        'Continuous rolling lookback buffer retains full buildup',
+                        'Chat commands (!clip, !highlight) allow moderators to tag',
+                        'Zero CPU or GPU burden on your gaming/streaming PC',
+                        'Automatic timeline timestamping with millisecond precision',
+                      ].map((item, iIdx) => (
+                        <div key={iIdx} className="flex items-start gap-2.5 text-xs text-slate-300">
+                          <CheckCircle className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                          <span>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-3 flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={() => setActiveStep(3)}
+                        className="px-6 py-3 rounded-full text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-teal-300 hover:brightness-110 transition shadow-lg shadow-cyan-400/20 flex items-center gap-2 cursor-pointer"
+                      >
+                        <span>Next: Editor Dispatch</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setActiveStep(1)}
+                        className="px-5 py-3 rounded-full text-xs font-bold font-mono text-slate-400 bg-white/5 hover:bg-white/10 border border-white/10 transition cursor-pointer"
+                      >
+                        &larr; Back to Step 1
+                      </button>
+                    </div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-black/50 border border-white/5 space-y-2 font-mono text-xs">
-                    <div className="flex justify-between text-slate-400">
-                      <span>02:31:18 &bull; 1v4 Clutch &amp; Team Fight Ace</span>
-                      <span className="text-emerald-400 font-bold">[CLUTCH 96]</span>
-                    </div>
-                    <div className="flex justify-between text-slate-400">
-                      <span>02:14:02 &bull; ₹2,000 Superchat Shoutout</span>
-                      <span className="text-cyan-400 font-bold">[SUPERCHAT]</span>
+
+                  {/* Right Side: Live Broadcast Timeline HUD Mockup */}
+                  <div className="lg:col-span-6">
+                    <div className="p-6 rounded-3xl bg-[#06080D] border border-cyan-500/40 shadow-2xl relative space-y-4">
+                      {/* Top Broadcast Status */}
+                      <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                          <span className="text-xs font-mono font-bold text-white uppercase">LIVE YOUTUBE STREAM</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-mono">
+                          <span className="text-slate-400">1080p 60FPS</span>
+                          <span className="text-emerald-400 font-bold">1,420 Viewers</span>
+                        </div>
+                      </div>
+
+                      {/* Stream Marker Items */}
+                      <div className="space-y-2">
+                        <div className="p-3.5 rounded-xl bg-white/[0.03] border border-emerald-500/30 flex items-center justify-between font-mono text-xs">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-emerald-400 font-bold">01:24:18</span>
+                              <span className="text-white font-sans font-bold">1v4 Clutch Ace &bull; Team Fight</span>
+                            </div>
+                            <p className="text-[10px] text-slate-500">Triggered by Nightbot (!clip clutch)</p>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            [CLUTCH 98]
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl bg-white/[0.03] border border-cyan-500/30 flex items-center justify-between font-mono text-xs">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-cyan-400 font-bold">02:08:45</span>
+                              <span className="text-white font-sans font-bold">₹2,000 Superchat Shoutout</span>
+                            </div>
+                            <p className="text-[10px] text-slate-500">Triggered by Streamer Hotkey</p>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-400/30">
+                            [SUPERCHAT]
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Buffer Waveform Telemetry */}
+                      <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs font-mono text-slate-400">
+                        <span className="flex items-center gap-1.5 text-cyan-300">
+                          <Activity className="w-3.5 h-3.5 animate-pulse" />
+                          <span>Buffer: 45s Retained</span>
+                        </span>
+                        <span className="text-slate-500">Capture Latency: 18ms</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* STEP 3: INSTANT EDITOR DISPATCH */}
               {activeStep === 3 && (
-                <div className="space-y-4 text-center max-w-md relative z-10 transition-all duration-500 ease-out">
-                  <div className="h-16 w-16 mx-auto rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center shadow-lg shadow-cyan-500/10">
-                    <Smartphone className="h-8 w-8 text-cyan-400" />
+                <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10 transition-all duration-500">
+                  <div className="lg:col-span-6 space-y-5 text-left">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-400/30 text-teal-300 text-xs font-mono font-bold">
+                      <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
+                      <span>STAGE 03 &bull; INSTANT DISPATCH &amp; SHORTS EDITING</span>
+                    </div>
+
+                    <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                      Editors Receive Jump Links &amp; Publish Viral Shorts
+                    </h3>
+
+                    <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                      No more downloading 50GB stream archives or waiting hours for VOD processing. Digicast immediately delivers direct one-tap YouTube jump links (?t=...) straight to your editor&apos;s Telegram.
+                    </p>
+
+                    <div className="space-y-2.5 pt-1">
+                      {[
+                        'Sub-280ms Telegram bot alert to your private editor thread',
+                        'Direct YouTube timestamp jump link opens exact moment in 1 tap',
+                        'Mobile companion app sync keeps remote editors aligned',
+                        'Fast-track short-form publishing to YouTube Shorts & Reels',
+                      ].map((item, iIdx) => (
+                        <div key={iIdx} className="flex items-start gap-2.5 text-xs text-slate-300">
+                          <CheckCircle className="w-3.5 h-3.5 text-teal-300 shrink-0 mt-0.5" />
+                          <span>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-3 flex flex-wrap items-center gap-3">
+                      <Link
+                        href="/login"
+                        className="px-6 py-3 rounded-full text-xs font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-cyan-400 hover:brightness-110 transition shadow-lg shadow-emerald-400/20 flex items-center gap-2"
+                      >
+                        <span>Start Studio Pass Now</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                      <button
+                        onClick={() => setActiveStep(2)}
+                        className="px-5 py-3 rounded-full text-xs font-bold font-mono text-slate-400 bg-white/5 hover:bg-white/10 border border-white/10 transition cursor-pointer"
+                      >
+                        &larr; Back to Step 2
+                      </button>
+                    </div>
                   </div>
-                  <h4 className="text-xl font-bold text-white">Instant Editor Collaboration</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Captured highlight timestamps instantly dispatch to your private Telegram channel via @DigicastIndiaBot with direct one-tap YouTube replay jump links.
-                  </p>
+
+                  {/* Right Side: Telegram Bot Message Mockup */}
+                  <div className="lg:col-span-6">
+                    <div className="p-6 rounded-3xl bg-[#06080D] border border-teal-500/40 shadow-2xl relative space-y-4">
+                      {/* Telegram Header */}
+                      <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 text-xs font-bold">
+                            ✈️
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-white font-mono">@digicast_bot</span>
+                              <span className="text-[10px] text-teal-400 font-mono">&#x2713; Verified</span>
+                            </div>
+                            <p className="text-[10px] text-slate-500">Live Production Bot &bull; Just now</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-teal-500/15 border border-teal-500/30 text-teal-300">
+                          &lt; 280ms Relay
+                        </span>
+                      </div>
+
+                      {/* Telegram Notification Body */}
+                      <div className="p-4 rounded-2xl bg-[#0C121E] border border-cyan-500/20 space-y-2 text-xs font-mono">
+                        <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                          <Radio className="w-3.5 h-3.5 animate-pulse" />
+                          <span>NEW LIVE HIGHLIGHT MARKED</span>
+                        </div>
+                        <p className="text-white font-bold font-sans">
+                          1v4 Clutch Ace &bull; Team Fight Win
+                        </p>
+                        <div className="space-y-1 text-slate-400 text-[11px] pt-1 border-t border-white/5">
+                          <p>&bull; Stream: <span className="text-slate-200">Valorant Competitive Scrims</span></p>
+                          <p>&bull; Timestamp: <span className="text-emerald-300 font-bold">01:24:18 (Lookback: 45s)</span></p>
+                          <p>&bull; Tagged by: <span className="text-cyan-300">Mod @AlexGaming (!clip)</span></p>
+                        </div>
+
+                        {/* Telegram Action Buttons */}
+                        <div className="pt-3 grid grid-cols-2 gap-2">
+                          <div className="p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-center font-bold text-cyan-300 text-[11px] hover:bg-cyan-500/25 transition cursor-pointer">
+                            ⚡ Open YouTube Jump
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-center font-bold text-slate-300 text-[11px] hover:bg-white/10 transition cursor-pointer">
+                            ✂️ Send to Editor Seat
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 pt-1">
+                        <span>One-tap VOD Jump: ?t=5058s</span>
+                        <span className="text-emerald-400 font-bold">Editor Alert Sent</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -880,89 +1248,199 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           </span>
         </div>
 
-        <div className="max-w-4xl mx-auto px-6 relative z-10 text-center space-y-6">
-          <ScrollReveal direction="zoom" delay={150}>
-            <div className="w-full max-w-lg mx-auto rounded-3xl bg-[#0B0F19] border border-emerald-500/40 p-8 shadow-2xl space-y-4 relative hover:border-emerald-400/80 hover:shadow-emerald-500/10 transition-all duration-300">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <span className="text-xs font-bold text-white font-mono">DIGICAST CERTIFICATE</span>
-                <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-                  VERIFIED
-                </span>
+        <div className="max-w-6xl mx-auto px-6 relative z-10 space-y-12">
+          {/* Section Header */}
+          <ScrollReveal direction="down" delay={100}>
+            <div className="text-center max-w-2xl mx-auto space-y-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono font-bold text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                VERIFIED SETTLEMENTS &amp; MILESTONES
               </div>
-
-              {/* Rotating Circular Radar Verification Seal */}
-              <div className="relative w-24 h-24 mx-auto my-2 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border border-emerald-500/30 animate-[spin_6s_linear_infinite] [background:conic-gradient(from_0deg,transparent_60%,rgba(16,185,129,0.35)_100%)]" />
-                <div className="absolute inset-2 rounded-full border border-dashed border-emerald-400/50 animate-[spin_12s_linear_infinite_reverse]" />
-                <div className="absolute inset-4 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex flex-col items-center justify-center text-center">
-                  <CheckCircle className="h-6 w-6 text-emerald-400 animate-pulse" />
-                </div>
-              </div>
-
-              <div className="py-2 space-y-1">
-                <p className="text-xs text-slate-400 uppercase font-mono">Certified Broadcaster</p>
-                <h3 className="text-2xl font-black text-white">VIKRAMADITYA SINGH</h3>
-                <p className="text-3xl font-black text-emerald-400 font-mono mt-1">₹4,45,000</p>
-                <p className="text-[11px] text-slate-500 font-mono">($5,400.00 USD Payout Processed)</p>
-              </div>
-
-              <p className="text-[11px] text-slate-400 leading-relaxed pt-2 border-t border-white/10">
-                When a creator reaches their milestone, they receive an official verified certificate showing their real-time earnings and platform credentials.
+              <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+                Verified Milestone Certificates
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                When creators and video editing teams complete broadcast tiers, they receive official verifiable digital certificates and direct instant settlements.
               </p>
             </div>
           </ScrollReveal>
+
+          {/* 3-Card Responsive Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                role: 'LEAD SHORTS EDITOR',
+                name: 'VIKRAMADITYA SINGH',
+                milestone: '50 Stream Shorts Milestone',
+                inr: '₹24,500',
+                usd: '($295.00 USD Payout Processed)',
+                desc: 'Paid via instant UPI settlement upon 48h delivery of viral highlight shorts.',
+                tag: 'VERIFIED SETTLEMENT',
+                delay: 150,
+                border: 'border-emerald-500/30 hover:border-emerald-400',
+                accent: 'text-emerald-400',
+              },
+              {
+                role: 'GAMING STREAMER',
+                name: 'AARAV SHARMA',
+                milestone: '100 Stream Highlights Dispatched',
+                inr: '₹36,000',
+                usd: '($430.00 USD Creator Pool Dispatched)',
+                desc: 'Earned via stream lookback markers and verified viewer engagement tiers.',
+                tag: 'CREATOR POOL ACTIVE',
+                delay: 250,
+                border: 'border-cyan-500/40 hover:border-cyan-300 shadow-xl shadow-cyan-500/5',
+                accent: 'text-cyan-300',
+              },
+              {
+                role: 'PODCAST CLIPPING LEAD',
+                name: 'PRIYA NAIR',
+                milestone: 'Monthly Studio Retainer Tier',
+                inr: '₹28,500',
+                usd: '($345.00 USD Payout Processed)',
+                desc: 'Monthly retainer settlement for multi-camera live marker synchronization.',
+                tag: 'MONTHLY TIER COMPLETE',
+                delay: 350,
+                border: 'border-teal-500/30 hover:border-teal-400',
+                accent: 'text-teal-300',
+              },
+            ].map((cert, idx) => (
+              <ScrollReveal key={idx} direction="up" delay={cert.delay}>
+                <div
+                  className={`rounded-3xl bg-[#0B0F19]/90 border ${cert.border} p-7 shadow-2xl relative hover:shadow-[0_0_35px_rgba(16,185,129,0.18)] hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between h-full group overflow-hidden`}
+                >
+                  {/* Top glowing laser line */}
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400/80 to-transparent shadow-[0_0_8px_#10B981]" />
+
+                  <div>
+                    {/* Header bar */}
+                    <div className="flex items-center justify-between border-b border-white/10 pb-3.5 mb-4">
+                      <span className="text-[11px] font-bold text-white font-mono tracking-wider">
+                        DIGICAST CERTIFICATE
+                      </span>
+                      <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                        {cert.tag}
+                      </span>
+                    </div>
+
+                    {/* Rotating Circular Radar Verification Seal */}
+                    <div className="relative w-20 h-20 mx-auto my-3 flex items-center justify-center">
+                      <div className="absolute inset-0 rounded-full border border-emerald-500/30 animate-[spin_6s_linear_infinite] [background:conic-gradient(from_0deg,transparent_60%,rgba(16,185,129,0.35)_100%)]" />
+                      <div className="absolute inset-2 rounded-full border border-dashed border-emerald-400/50 animate-[spin_12s_linear_infinite_reverse]" />
+                      <div className="absolute inset-4 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex flex-col items-center justify-center text-center">
+                        <CheckCircle className="h-5 w-5 text-emerald-400 animate-pulse" />
+                      </div>
+                    </div>
+
+                    {/* Recipient & Amount Details */}
+                    <div className="text-center py-2 space-y-1">
+                      <p className="text-[10px] text-slate-400 uppercase font-mono tracking-widest">
+                        {cert.role}
+                      </p>
+                      <h3 className="text-xl font-black text-white tracking-tight">
+                        {cert.name}
+                      </h3>
+                      <p className="text-[11px] text-slate-400 font-mono">
+                        {cert.milestone}
+                      </p>
+                      <p className={`text-3xl font-black ${cert.accent} font-mono pt-2`}>
+                        {cert.inr}
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-mono">
+                        {cert.usd}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 leading-relaxed pt-3 border-t border-white/10 text-center mt-3">
+                    {cert.desc}
+                  </p>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ── 8. PRICING PASSES COMPARISON MATRIX (VIDEO 00:30-00:35) ──────────── */}
       <section id="pricing" className="py-28 border-t border-white/5 bg-[#080B12] relative z-10">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-6">
           <ScrollReveal direction="up" delay={100}>
-            <div className="text-center max-w-xl mx-auto mb-16 space-y-2">
+            <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono font-bold text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                TRANSPARENT PASS PRICING
+              </div>
               <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-                Best prices in streaming industry!
+                Creator Passes Built for Every Stage
               </h2>
-              <p className="text-xs sm:text-sm text-slate-400">
-                Choose your creator pass and broadcast duration.
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Choose your studio pass and broadcast duration. Zero automated card renewals — pay only for what you stream.
               </p>
             </div>
           </ScrollReveal>
 
-          {/* 4 Program Columns with Staggered Scroll Reveal */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* 4 Spacious Package Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-7 items-stretch">
             {PRICING_PLANS.map((plan, idx) => (
-              <ScrollReveal key={plan.id} direction="up" delay={idx * 120}>
+              <ScrollReveal key={plan.id} direction="up" delay={idx * 100}>
                 <div
-                  className={`rounded-3xl p-6 flex flex-col justify-between border transition-all duration-300 relative overflow-hidden h-full hover:-translate-y-2 ${
+                  className={`rounded-3xl p-7 flex flex-col justify-between border transition-all duration-300 relative overflow-hidden h-full hover:-translate-y-2 group ${
                     plan.recommended
-                      ? 'bg-[#0E131F] border-emerald-500/50 shadow-2xl shadow-emerald-500/10'
-                      : 'bg-[#0A0D15] border-white/5 hover:border-white/20'
+                      ? 'bg-[#0E1524] border-emerald-400/50 shadow-[0_0_40px_rgba(16,185,129,0.16)] scale-[1.02] z-10'
+                      : 'bg-[#0A0D15]/90 border-white/10 hover:border-emerald-500/30 shadow-xl'
                   }`}
                 >
-                  {plan.badge && (
-                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 font-mono mb-3">
-                      {plan.badge}
-                    </span>
-                  )}
+                  {/* Top glowing laser line on hover */}
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
                   <div>
-                    <h3 className="text-sm font-bold text-white">{plan.name}</h3>
-                    <div className="pt-3">
-                      <span className="text-3xl font-black text-white font-mono">₹{plan.priceINR}</span>
-                      <span className="text-xs text-slate-500 ml-1">{plan.periodLabel}</span>
+                    {/* Badge */}
+                    <div className="min-h-[28px] mb-2 flex items-center">
+                      {plan.badge ? (
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${
+                            plan.recommended
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-white/5 text-slate-300 border border-white/10'
+                          }`}
+                        >
+                          {plan.badge}
+                        </span>
+                      ) : null}
                     </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed pt-2">{plan.description}</p>
+
+                    {/* Plan Title & Pricing */}
+                    <h3 className="text-base font-extrabold text-white tracking-tight">{plan.name}</h3>
+                    <div className="pt-3 pb-2 flex items-baseline gap-1">
+                      <span className="text-3xl sm:text-4xl font-black text-white font-mono">₹{plan.priceINR}</span>
+                      <span className="text-xs text-slate-400 font-mono font-medium">{plan.periodLabel}</span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed min-h-[36px]">{plan.description}</p>
+
+                    {/* Key Feature Checkmarks */}
+                    <div className="py-4 space-y-2.5 border-t border-white/[0.08] mt-4">
+                      {plan.features.slice(1, 6).map((feat, fIdx) => (
+                        <div key={fIdx} className="flex items-start gap-2.5 text-xs text-slate-300">
+                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span className="leading-snug">{feat.replace(/^[⚡\s]+/, '')}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
+                  {/* Action Button */}
                   <div className="pt-6">
                     <Link
-                      href="/login"
-                      className={`w-full py-2.5 rounded-full text-xs font-bold flex items-center justify-center transition-all duration-200 hover:scale-105 ${
+                      href={`/login?plan=${plan.id}`}
+                      className={`w-full py-3.5 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all duration-200 group/btn ${
                         plan.recommended
-                          ? 'bg-emerald-400 text-black hover:bg-emerald-300 shadow-lg shadow-emerald-400/20'
-                          : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
+                          ? 'bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 hover:brightness-110 shadow-lg shadow-emerald-400/25'
+                          : 'bg-white/5 border border-white/10 text-white hover:bg-white/10 hover:border-emerald-500/30'
                       }`}
                     >
-                      Buy for ₹{plan.priceINR}
+                      <span>Buy for ₹{plan.priceINR}</span>
+                      <ArrowRight className="h-3.5 w-3.5 group-hover/btn:translate-x-1 transition-transform" />
                     </Link>
                   </div>
                 </div>
@@ -971,135 +1449,166 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           </div>
 
           {/* Expand Details Button */}
-          <div className="mt-8 text-center">
+          <div className="mt-12 text-center">
             <button
               onClick={() => setShowPricingDetails(!showPricingDetails)}
-              className="px-5 py-2 rounded-full text-xs font-mono font-bold text-slate-400 hover:text-white bg-white/5 border border-white/10 hover:border-white/25 transition"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-mono font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/30 transition-all backdrop-blur-md"
             >
-              {showPricingDetails ? 'Hide details ↑' : 'See more details ↓'}
+              <span>{showPricingDetails ? 'Hide comparison details' : 'See all feature comparisons'}</span>
+              <span className="text-emerald-400 font-bold">{showPricingDetails ? '↑' : '↓'}</span>
             </button>
           </div>
 
-          {/* Expanded Features Matrix Table */}
+          {/* Expanded Features Matrix Table for ALL 4 Plans */}
           {showPricingDetails && (
-            <div className="mt-8 rounded-3xl bg-[#0A0D15] border border-white/10 p-6 overflow-x-auto transition-all duration-500">
-              <table className="w-full text-left text-xs font-mono">
-                <thead>
-                  <tr className="border-b border-white/10 text-slate-500 font-bold uppercase">
-                    <th className="py-3 px-4">Feature</th>
-                    <th className="py-3 px-4">VIP Pass (₹29)</th>
-                    <th className="py-3 px-4">Unlimited (₹149)</th>
-                    <th className="py-3 px-4">Studio Pass (₹999)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 text-slate-300">
-                  <tr>
-                    <td className="py-3 px-4 font-bold text-white">Live Stream Clipping</td>
-                    <td className="py-3 px-4 text-emerald-400">Unlimited</td>
-                    <td className="py-3 px-4 text-emerald-400">Unlimited</td>
-                    <td className="py-3 px-4 text-emerald-400">Unlimited</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3 px-4 font-bold text-white">Telegram Bot Alerts</td>
-                    <td className="py-3 px-4">Included</td>
-                    <td className="py-3 px-4">Included</td>
-                    <td className="py-3 px-4">VIP Priority Relay</td>
-                  </tr>
-                  <tr>
-                    <td className="py-3 px-4 font-bold text-white">Watermark Free</td>
-                    <td className="py-3 px-4 text-emerald-400">Yes</td>
-                    <td className="py-3 px-4 text-emerald-400">Yes</td>
-                    <td className="py-3 px-4 text-emerald-400">Yes</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div className="mt-10 rounded-3xl bg-[#090D16]/95 border border-white/10 p-6 sm:p-8 overflow-x-auto transition-all duration-500 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="min-w-[760px]">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-white/10 text-slate-400 font-bold uppercase text-[11px]">
+                      <th className="py-4 px-4 w-1/3 text-white">Capabilities &amp; Features</th>
+                      <th className="py-4 px-3 text-center">VIP Pass (₹29)</th>
+                      <th className="py-4 px-3 text-center">Unlimited (₹149)</th>
+                      <th className="py-4 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20">
+                        Quarter Pass (₹499)
+                      </th>
+                      <th className="py-4 px-3 text-center text-cyan-300">Studio Pass (₹999)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-slate-300">
+                    {/* Category 1: Streaming & Buffering */}
+                    <tr className="bg-white/[0.02]">
+                      <td colSpan={5} className="py-2.5 px-4 font-bold text-[10px] text-emerald-400 uppercase tracking-widest">
+                        Stream Ingest &amp; Lookback Buffer
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Lookback Rolling Buffer</td>
+                      <td className="py-3.5 px-3 text-center">45s Rolling</td>
+                      <td className="py-3.5 px-3 text-center">45s Rolling</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20 font-bold">60s Priority</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">90s Ultra Buffer</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Live Clip Marker Limit</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">Unlimited</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">Unlimited</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-400 border-x border-emerald-500/20 font-bold">Unlimited</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400 font-bold">Unlimited</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">YouTube API Quota Burn</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">0 Quota (Local)</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">0 Quota (Local)</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-400 border-x border-emerald-500/20">0 Quota (Local)</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">0 Quota (Local)</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Export Resolution &amp; Bitrate</td>
+                      <td className="py-3.5 px-3 text-center">1080p 60FPS</td>
+                      <td className="py-3.5 px-3 text-center">1080p 60FPS</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20 font-bold">4K 60FPS HDR</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">4K 60FPS Ultra HDR</td>
+                    </tr>
+
+                    {/* Category 2: Telegram & Automation */}
+                    <tr className="bg-white/[0.02]">
+                      <td colSpan={5} className="py-2.5 px-4 font-bold text-[10px] text-cyan-400 uppercase tracking-widest">
+                        Telegram Dispatch &amp; Automation
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Telegram Bot Ingest</td>
+                      <td className="py-3.5 px-3 text-center">@digicast_bot</td>
+                      <td className="py-3.5 px-3 text-center">@digicast_bot</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20 font-bold">Priority Direct Channel</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">Dedicated Multi-Channel</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Marker Dispatch Latency</td>
+                      <td className="py-3.5 px-3 text-center">&lt; 350ms</td>
+                      <td className="py-3.5 px-3 text-center">&lt; 350ms</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20 font-bold">&lt; 240ms</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">&lt; 180ms Ultra VIP</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">1-Click Replay Links</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">Included</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">Included</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-400 border-x border-emerald-500/20">Included</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">Cloud Auto-Sync</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Nightbot !clip Chat Commands</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">Included</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">Included</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20">Custom Prefixes</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300">Custom Multi-Bot</td>
+                    </tr>
+
+                    {/* Category 3: Team & Workspace */}
+                    <tr className="bg-white/[0.02]">
+                      <td colSpan={5} className="py-2.5 px-4 font-bold text-[10px] text-teal-300 uppercase tracking-widest">
+                        Team &amp; Workspace Collaboration
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Team Editor Logins</td>
+                      <td className="py-3.5 px-3 text-center">1 Editor</td>
+                      <td className="py-3.5 px-3 text-center">2 Editors</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20 font-bold">5 Editors</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">Unlimited Seats</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Local Chat Encryption</td>
+                      <td className="py-3.5 px-3 text-center">256-bit Local</td>
+                      <td className="py-3.5 px-3 text-center">256-bit Local</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20">256-bit Local</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">Studio Vault</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Watermark Free Guarantee</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">100% Free</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">100% Free</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-400 border-x border-emerald-500/20">100% Free</td>
+                      <td className="py-3.5 px-3 text-center text-emerald-400">100% Free</td>
+                    </tr>
+
+                    {/* Category 4: Duration & Pricing Value */}
+                    <tr className="bg-white/[0.02]">
+                      <td colSpan={5} className="py-2.5 px-4 font-bold text-[10px] text-slate-400 uppercase tracking-widest">
+                        Duration &amp; Value Breakdown
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Pass Duration</td>
+                      <td className="py-3.5 px-3 text-center">30 Days</td>
+                      <td className="py-3.5 px-3 text-center">30 Days</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20 font-bold">90 Days (Quarter)</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">365 Days (Full Year)</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Effective Monthly Cost</td>
+                      <td className="py-3.5 px-3 text-center text-slate-400">₹29 total</td>
+                      <td className="py-3.5 px-3 text-center text-slate-400">₹149/mo</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-400 border-x border-emerald-500/20 font-bold">₹166/mo</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">₹83/mo (Save 55%)</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3.5 px-4 font-bold text-white">Support SLA</td>
+                      <td className="py-3.5 px-3 text-center">Community Discord</td>
+                      <td className="py-3.5 px-3 text-center">Standard Support</td>
+                      <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20 font-bold">Priority Telegram</td>
+                      <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">24/7 Dedicated Concierge</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
       </section>
 
-      {/* ── 9. "CHOOSE ONE OF OUR PROGRAMS" CARDS (VIDEO 00:36 - 00:43) ──────── */}
-      <section id="programs" className="py-24 border-t border-white/5 bg-[#07090E] relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-6">
-          <ScrollReveal direction="up" delay={100}>
-            <div className="text-center max-w-xl mx-auto mb-16 space-y-2">
-              <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-                Choose one of our programs
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-400">
-                What is your experience and what do you prefer?
-              </p>
-            </div>
-          </ScrollReveal>
-
-          {/* Program Card Tabs (Copper 4, Bronze 3, Silver 2, Gold 1, Diamond) */}
-          <div className="max-w-2xl mx-auto">
-            <div className="grid grid-cols-5 gap-2 mb-6">
-              {[
-                { id: 4, name: 'Copper 4', tag: 'Beginner' },
-                { id: 3, name: 'Bronze 3', tag: 'VIP Pass' },
-                { id: 2, name: 'Silver 2', tag: 'Pro Stream' },
-                { id: 1, name: 'Gold 1', tag: 'Studio Pass' },
-                { id: 0, name: 'Diamond', tag: 'Enterprise' },
-              ].map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedProgram(p.id)}
-                  className={`p-3 rounded-2xl border text-center transition-all ${
-                    selectedProgram === p.id
-                      ? 'bg-emerald-500/10 border-emerald-400 text-white shadow-lg shadow-emerald-500/10 scale-105'
-                      : 'bg-white/5 border-white/10 text-slate-400 hover:border-white/20'
-                  }`}
-                >
-                  <div className="text-lg font-black font-mono">{p.id === 0 ? '💎' : p.id}</div>
-                  <div className="text-[10px] font-bold truncate">{p.name}</div>
-                </button>
-              ))}
-            </div>
-
-            {/* Active Program Card with Glowing Circuit Trace Lines */}
-            <ScrollReveal direction="zoom" delay={150}>
-              <div className="rounded-3xl bg-[#0D121D] border border-emerald-500/40 p-8 shadow-2xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-8 text-8xl font-black text-white/5 font-mono select-none pointer-events-none">
-                  {selectedProgram === 0 ? 'D' : selectedProgram}
-                </div>
-
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300">
-                    {selectedProgram === 4 && '14-Day Free Evaluation'}
-                    {selectedProgram === 3 && 'VIP Pass (₹29) 1 Month'}
-                    {selectedProgram === 2 && 'Pro Monthly (₹149)'}
-                    {selectedProgram === 1 && 'Quarterly Broadcast (₹449)'}
-                    {selectedProgram === 0 && 'Annual Studio Pass (₹999)'}
-                  </span>
-                  <span className="text-xs text-slate-400 font-mono">★★★★★ Verified Program</span>
-                </div>
-
-                <h3 className="text-2xl font-black text-white">
-                  {selectedProgram === 4 && 'Free Evaluation Program'}
-                  {selectedProgram === 3 && 'VIP Starter Program'}
-                  {selectedProgram === 2 && 'Streamer Relay Program'}
-                  {selectedProgram === 1 && 'Studio Creator Program'}
-                  {selectedProgram === 0 && 'Diamond Enterprise Program'}
-                </h3>
-
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed max-w-lg">
-                  Designed for YouTube streamers and editor teams seeking instant highlight capture, zero streaming limits, and automated Telegram bot dispatch.
-                </p>
-
-                <div className="mt-6 flex items-center gap-4">
-                  <Link
-                    href="/login"
-                    className="px-6 py-2.5 rounded-full text-xs font-bold text-black bg-emerald-400 hover:bg-emerald-300 hover:scale-105 transition shadow-lg shadow-emerald-400/20"
-                  >
-                    LEARN MORE &rarr;
-                  </Link>
-                </div>
-              </div>
-            </ScrollReveal>
-          </div>
-        </div>
-      </section>
 
       {/* ── 10. GLOBAL COUNTDOWN HORIZON WITH SHOOTING STARS (VIDEO 00:44-00:48) ─ */}
       <section className="py-28 border-t border-white/5 bg-[#06080D] relative overflow-hidden text-center min-h-[500px]">
@@ -1123,13 +1632,13 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
 
           <ScrollReveal direction="up" delay={200}>
             <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-              Creators from more than 150 countries around the world have registered!
+              Ready to Turn Your Live Streams into Viral Shorts?
             </h2>
           </ScrollReveal>
 
           <ScrollReveal direction="up" delay={250}>
             <p className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-widest">
-              Registration Ends In:
+              Creator Studio Pass Access Ends In:
             </p>
           </ScrollReveal>
 
@@ -1151,18 +1660,13 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           </div>
 
           <ScrollReveal direction="up" delay={450}>
-            <div className="pt-4 flex items-center justify-center gap-3">
+            <div className="pt-4 flex items-center justify-center">
               <Link
                 href="/login"
-                className="px-6 py-2.5 rounded-full text-xs font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 hover:scale-105 transition"
+                className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full text-xs sm:text-sm font-bold text-slate-950 bg-white hover:bg-slate-100 hover:scale-105 active:scale-[0.98] transition-all duration-200 shadow-[0_4px_24px_rgba(255,255,255,0.12)] hover:shadow-[0_0_30px_rgba(16,185,129,0.35)] group"
               >
-                Try for free
-              </Link>
-              <Link
-                href="/login"
-                className="px-6 py-2.5 rounded-full text-xs font-bold text-black bg-white hover:bg-slate-200 hover:scale-105 transition shadow-lg"
-              >
-                I want to join
+                <span>Start Studio Pass</span>
+                <ArrowRight className="h-4 w-4 text-emerald-600 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
           </ScrollReveal>
@@ -1464,76 +1968,21 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             </p>
             <div className="pt-4">
               <a
-                href="https://t.me/digicast_support"
+                href="https://t.me/YT_digicast?start=help"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 px-8 py-3 rounded-full text-xs font-bold text-black bg-emerald-400 hover:bg-emerald-300 hover:scale-105 transition shadow-lg shadow-emerald-400/20"
               >
-                <span>Join Community</span>
+                <span>Join Community &amp; Support</span>
                 <Send className="h-3.5 w-3.5" />
               </a>
             </div>
           </ScrollReveal>
         </div>
 
-        {/* Global Multi-Column Footer */}
+        {/* Global Multi-Column Universal Site Footer */}
         <ScrollReveal direction="up" delay={200}>
-          <footer className="mt-24 pt-12 border-t border-white/5 text-xs text-slate-500 max-w-6xl mx-auto px-6 text-left">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 pb-12">
-              <div className="space-y-2">
-                <p className="font-bold text-white">Programs</p>
-                <p><a href="#pricing" className="hover:text-slate-300">Starter 14-Day</a></p>
-                <p><a href="#pricing" className="hover:text-slate-300">VIP Pass (₹29)</a></p>
-                <p><a href="#pricing" className="hover:text-slate-300">Monthly Pass (₹149)</a></p>
-                <p><a href="#pricing" className="hover:text-slate-300">Annual Studio (₹999)</a></p>
-              </div>
-              <div className="space-y-2">
-                <p className="font-bold text-white">About Us</p>
-                <p><a href="#faq" className="hover:text-slate-300">FAQ</a></p>
-                <p><a href="#how-it-works" className="hover:text-slate-300">How It Works</a></p>
-                <p><a href="#reviews" className="hover:text-slate-300">Creator Reviews</a></p>
-                <p><a href="#about-us" className="hover:text-slate-300">Our Story</a></p>
-                <p>
-                  <a
-                    href="https://t.me/digicast_bot"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-emerald-400 text-slate-300 transition flex items-center gap-1"
-                  >
-                    <span>Support Bot</span>
-                    <span className="text-[10px] font-mono text-emerald-400">(@digicast_bot)</span>
-                  </a>
-                </p>
-              </div>
-              <div className="space-y-2">
-                <p className="font-bold text-white">Legal</p>
-                <p><Link href="/terms" className="hover:text-slate-300">Terms of Service</Link></p>
-                <p><Link href="/privacy" className="hover:text-slate-300">Privacy Policy</Link></p>
-                <p><Link href="/refund" className="hover:text-slate-300">Refund Policy</Link></p>
-              </div>
-              <div className="space-y-2">
-                <p className="font-bold text-white">Support</p>
-                <p className="text-slate-400 font-mono">support@digicast.app</p>
-                <p>
-                  <a
-                    href="https://t.me/digicast_bot"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-emerald-400 text-emerald-400 font-mono flex items-center gap-1"
-                  >
-                    <span>Telegram Support Bot</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </p>
-                <p className="text-emerald-400 font-mono">★ Trustpilot 4.8 / 5</p>
-              </div>
-            </div>
-
-            <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-600 gap-3">
-              <p>&copy; 2026 Digicast Live Technologies. All rights reserved.</p>
-              <p className="font-mono">Decoupled Architecture &bull; Vercel Edge Deployed</p>
-            </div>
-          </footer>
+          <SiteFooter />
         </ScrollReveal>
       </section>
 

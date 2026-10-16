@@ -1501,6 +1501,17 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                 <p><a href="#how-it-works" className="hover:text-slate-300">How It Works</a></p>
                 <p><a href="#reviews" className="hover:text-slate-300">Creator Reviews</a></p>
                 <p><a href="#about-us" className="hover:text-slate-300">Our Story</a></p>
+                <p>
+                  <a
+                    href="https://t.me/digicast_bot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-emerald-400 text-slate-300 transition flex items-center gap-1"
+                  >
+                    <span>Support Bot</span>
+                    <span className="text-[10px] font-mono text-emerald-400">(@digicast_bot)</span>
+                  </a>
+                </p>
               </div>
               <div className="space-y-2">
                 <p className="font-bold text-white">Legal</p>
@@ -1511,6 +1522,17 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
               <div className="space-y-2">
                 <p className="font-bold text-white">Support</p>
                 <p className="text-slate-400 font-mono">support@digicast.app</p>
+                <p>
+                  <a
+                    href="https://t.me/digicast_bot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-emerald-400 text-emerald-400 font-mono flex items-center gap-1"
+                  >
+                    <span>Telegram Support Bot</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </p>
                 <p className="text-emerald-400 font-mono">★ Trustpilot 4.8 / 5</p>
               </div>
             </div>

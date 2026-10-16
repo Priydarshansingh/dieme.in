@@ -449,15 +449,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           {/* Official Digicast Brand Logo */}
           <Link href="/" className="flex items-center gap-3 group">
             <DigicastBrandLogo size="md" />
-            <div className="flex flex-col">
-              <span className="text-lg font-black tracking-tight text-white group-hover:text-emerald-400 transition">
-                DIGICAST
-              </span>
-              <span className="text-[9px] font-mono font-bold tracking-widest text-emerald-400 uppercase">
-                STUDIO RELAY
-              </span>
-            </div>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-400 ml-2">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono font-bold text-emerald-400">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
               LIVE
             </span>

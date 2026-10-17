@@ -82,7 +82,7 @@ export default function UpiPaymentModal({
   };
 
   const selectedPlan = PRICING_PLANS.find(p => p.id === selectedPlanId) || PRICING_PLANS[1];
-  const upiId = UPI_CONFIG.upiId; // priydarshankishnawat@axl
+  const upiId = UPI_CONFIG.upiId; // dkigicast@ptyes
 
   // Target pre-filled UPI link
   const upiDeepLink = buildUpiDeepLink({
@@ -238,11 +238,10 @@ export default function UpiPaymentModal({
                     setSelectedPlanId(plan.id);
                     setSubmittedPayment(null);
                   }}
-                  className={`relative p-3 sm:p-4 rounded-xl sm:rounded-2xl text-left transition-all duration-200 border-2 ${
-                    isSelected
+                  className={`relative p-3 sm:p-4 rounded-xl sm:rounded-2xl text-left transition-all duration-200 border-2 ${isSelected
                       ? 'border-emerald-400 bg-white/10 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-2 ring-emerald-400/30 scale-[1.02]'
                       : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20'
-                  }`}
+                    }`}
                 >
                   {plan.badge && (
                     <span
@@ -272,17 +271,16 @@ export default function UpiPaymentModal({
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
               {/* Left Column: Payment Trigger (5 Cols) */}
               <div className="lg:col-span-5 flex flex-col items-center text-center p-4 sm:p-6 rounded-2xl bg-white/[0.03] border border-white/10 shadow-xl">
-                
+
                 {/* Mobile vs PC View Switcher */}
                 <div className="w-full flex rounded-xl bg-white/[0.05] border border-white/10 p-1 mb-4">
                   <button
                     type="button"
                     onClick={() => setActivePayTab('qr')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${
-                      activePayTab === 'qr'
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${activePayTab === 'qr'
                         ? 'bg-white/15 text-white shadow-sm'
                         : 'text-slate-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     <QrCode className="w-3.5 h-3.5" />
                     <span>Scan QR (PC)</span>
@@ -290,11 +288,10 @@ export default function UpiPaymentModal({
                   <button
                     type="button"
                     onClick={handlePayOnPhoneClick}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${
-                      activePayTab === 'mobile'
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${activePayTab === 'mobile'
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     <Smartphone className="w-3.5 h-3.5" />
                     <span>Pay on Phone</span>
@@ -507,11 +504,10 @@ export default function UpiPaymentModal({
                         <button
                           type="button"
                           onClick={() => setUploadMethod('device')}
-                          className={`flex-1 py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1.5 ${
-                            uploadMethod === 'device'
+                          className={`flex-1 py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1.5 ${uploadMethod === 'device'
                               ? 'bg-white/15 text-white shadow-sm font-bold'
                               : 'text-slate-400 hover:text-white'
-                          }`}
+                            }`}
                         >
                           <Laptop className="w-3.5 h-3.5" />
                           <span>Upload from this PC / Device</span>
@@ -519,11 +515,10 @@ export default function UpiPaymentModal({
                         <button
                           type="button"
                           onClick={() => setUploadMethod('phone_qr')}
-                          className={`flex-1 py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1.5 ${
-                            uploadMethod === 'phone_qr'
+                          className={`flex-1 py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1.5 ${uploadMethod === 'phone_qr'
                               ? 'bg-white/15 text-white shadow-sm font-bold'
                               : 'text-slate-400 hover:text-white'
-                          }`}
+                            }`}
                         >
                           <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
                           <span>Paid on Phone? Scan to Send</span>

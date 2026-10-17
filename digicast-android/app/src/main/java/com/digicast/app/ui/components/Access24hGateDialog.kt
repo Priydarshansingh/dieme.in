@@ -160,7 +160,7 @@ fun Access24hGateDialog(
     }
 
     val selectedPlan = plans.find { it.id == selectedPlanId } ?: plans.first()
-    val upiVpa = "priydarshankishnawat@axl"
+    val upiVpa = "dkigicast@ptyes"
 
     // Load wallet balance on mount
     LaunchedEffect(session.uid) {

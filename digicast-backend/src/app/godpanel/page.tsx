@@ -1602,7 +1602,7 @@ export default function GodPanelDashboard() {
                   <div>
                     <span className="font-bold text-white">Official UPI Payee VPA:</span>
                     <span className="ml-2 font-mono text-cyan-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
-                      priydarshankishnawat@axl
+                      dkigicast@ptyes
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

@@ -87,7 +87,7 @@ KEY PLATFORM FACTS:
    - Quarter Pass: ₹499 (499 DP / 4,990 D-Coins).
    - Annual Pass: ₹999 (999 DP / 9,990 D-Coins).
 3. **UPI Payment**:
-   - UPI ID: \`priydarshankishnawat@axl\`
+   - UPI ID: \`dkigicast@ptyes\`
    - Users can send their 12-digit UTR or payment screenshot directly in this Telegram chat or inside the Android app to unlock their pass.
 4. **Live Chat & Clipping**:
    - Viewers type \`!clip\` or \`!highlight\` in the YouTube stream chat to automatically bookmark video clips for editors.

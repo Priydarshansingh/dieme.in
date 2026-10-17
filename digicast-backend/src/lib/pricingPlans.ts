@@ -27,7 +27,7 @@ export interface PricingPlan {
 }
 
 export const UPI_CONFIG = {
-  upiId: 'priydarshankishnawat@axl',
+  upiId: 'dkigicast@ptyes',
   payeeName: 'Digicast',
   telegramSupportUrl: 'https://t.me/YT_digicast?start=help',
   telegramBotUsername: 'YT_digicast',

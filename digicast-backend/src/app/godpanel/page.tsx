@@ -56,7 +56,9 @@ import {
   CreditCard as CardIcon,
   Play,
   Share2,
+  MessageSquare,
 } from 'lucide-react';
+import TelegramSupportCenter from '@/components/godpanel/TelegramSupportCenter';
 
 interface PlatformUser {
   uid: string;
@@ -108,7 +110,7 @@ export default function GodPanelDashboard() {
 
   // Active navigation tab
   const [activeTab, setActiveTab] = useState<
-    'telemetry' | 'users' | 'mint' | 'ledger' | 'subscriptions' | 'editors' | 'assets' | 'ads' | 'tasks' | 'security'
+    'telemetry' | 'users' | 'mint' | 'ledger' | 'subscriptions' | 'telegram' | 'editors' | 'assets' | 'ads' | 'tasks' | 'security'
   >('telemetry');
 
   // Timeframe selector (like "This Month" in the Admin video)
@@ -701,6 +703,7 @@ export default function GodPanelDashboard() {
               { id: 'mint', label: 'Create / Mint Money', icon: PlusCircle, count: '+MINT' },
               { id: 'ledger', label: 'Come & Go History', icon: Coins, count: ledgerEntries.length },
               { id: 'subscriptions', label: 'UPI Approvals & Plans', icon: CardIcon, count: pendingPaymentsCount > 0 ? `${pendingPaymentsCount} PENDING` : null },
+              { id: 'telegram', label: 'Telegram AI & Support', icon: MessageSquare, count: 'AI LIVE' },
               { id: 'editors', label: 'Editors Directory', icon: Video, count: metrics.totalEditors },
               { id: 'assets', label: 'Stream Assets Hub', icon: Palette, count: '4 CATS' },
               { id: 'ads', label: '24h Ad Telemetry', icon: Tv, count: metrics.active24hAdPasses },
@@ -1610,6 +1613,11 @@ export default function GodPanelDashboard() {
               </div>
             </div>
           )}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              TELEGRAM LIVE SUPPORT & AI BOT TRAINING CENTER
+          ════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'telegram' && <TelegramSupportCenter />}
 
           {/* ════════════════════════════════════════════════════════════════════
               OTHER TABS (EDITORS, ASSETS, ADS, TASKS, SECURITY)

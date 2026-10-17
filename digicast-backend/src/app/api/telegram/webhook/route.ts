@@ -27,6 +27,69 @@ async function sendTelegramMessage(chatId: string | number, text: string, replyT
   }
 }
 
+// Persist chat message for GodPanel live monitor
+async function logChatMessage(adminDb: any, chatId: string | number, messageId: number | string, text: string, senderName: string, username: string, isCommand: boolean, chatTitle: string, chatType: string) {
+  try {
+    const now = new Date().toISOString();
+    await adminDb
+      .collection('telegram_chats')
+      .doc(String(chatId))
+      .collection('messages')
+      .doc(String(messageId))
+      .set({
+        id: String(messageId),
+        chatId: String(chatId),
+        text,
+        sender: 'user',
+        senderName,
+        username,
+        timestamp: now,
+        isCommand,
+      }, { merge: true });
+
+    const chatDoc = await adminDb.collection('telegram_chats').doc(String(chatId)).get();
+    const curUnread = chatDoc.exists ? (chatDoc.data()?.unreadCount || 0) : 0;
+    const isAiEnabled = chatDoc.exists ? (chatDoc.data()?.isAiEnabled ?? true) : true;
+
+    await adminDb.collection('telegram_chats').doc(String(chatId)).set({
+      chatId: String(chatId),
+      chatTitle: chatType === 'private' ? `${senderName}${username ? ` (@${username})` : ''}` : chatTitle,
+      chatType,
+      username,
+      lastMessage: text.slice(0, 150),
+      lastMessageAt: now,
+      unreadCount: curUnread + 1,
+      isAiEnabled,
+      updatedAt: now,
+    }, { merge: true });
+  } catch (e) {
+    console.error('[telegram/webhook] logChatMessage error:', e);
+  }
+}
+
+// Persist bot responses for GodPanel live monitor
+async function logBotResponse(adminDb: any, chatId: string | number, text: string) {
+  try {
+    const now = new Date().toISOString();
+    const docRef = adminDb.collection('telegram_chats').doc(String(chatId)).collection('messages').doc();
+    await docRef.set({
+      id: docRef.id,
+      chatId: String(chatId),
+      text,
+      sender: 'bot',
+      senderName: 'Digicast AI Assistant',
+      timestamp: now,
+    });
+    await adminDb.collection('telegram_chats').doc(String(chatId)).set({
+      lastMessage: `Bot: ${text.replace(/<[^>]*>?/gm, '').slice(0, 100)}`,
+      lastMessageAt: now,
+      updatedAt: now,
+    }, { merge: true });
+  } catch (e) {
+    console.error('[telegram/webhook] logBotResponse error:', e);
+  }
+}
+
 export async function POST(req: NextRequest) {
   // 1. Validate secret token header if configured
   const secretHeader = req.headers.get('X-Telegram-Bot-Api-Secret-Token');
@@ -61,6 +124,24 @@ export async function POST(req: NextRequest) {
 
     const { adminDb, adminAuth } = await import('@/lib/firebase/admin');
     const { PRICING_PLANS } = await import('@/lib/pricingPlans');
+
+    const senderName = message.from?.first_name || 'Creator';
+    const username = message.from?.username || '';
+
+    // Record incoming message for GodPanel live monitor
+    if (chatId) {
+      await logChatMessage(
+        adminDb,
+        chatId,
+        messageId,
+        rawText || (message.photo ? '[Payment Screenshot / Photo]' : '[Media Attachment]'),
+        senderName,
+        username,
+        Boolean(command),
+        chatTitle,
+        chatType
+      );
+    }
 
     // ─── 1. Handling Payment Screenshot Photo (Private DM) ────────────────────
     if (message.photo && Array.isArray(message.photo) && message.photo.length > 0) {
@@ -498,6 +579,15 @@ Thank you <b>${senderName}</b>! Your concern has been recorded and dispatched to
               }
             } catch {}
 
+            // Link user document in Firestore
+            if (userDoc) {
+              await adminDb.collection('users').doc(userDoc.id).set({
+                telegramChatId: String(chatId),
+                telegramUsername: username || '',
+                telegramLinkedAt: new Date().toISOString(),
+              }, { merge: true });
+            }
+
             // Save session so user can upload payment directly
             await adminDb.doc(`telegram_sessions/${chatId}`).set({
               chatId: String(chatId),
@@ -510,8 +600,18 @@ Thank you <b>${senderName}</b>! Your concern has been recorded and dispatched to
               updatedAt: new Date().toISOString(),
             }, { merge: true });
 
+            // Sync with GodPanel chat thread
+            await adminDb.collection('telegram_chats').doc(String(chatId)).set({
+              userEmail: finalEmail,
+              userId: finalUid,
+              workspaceId: finalWsId,
+              workspaceName: wsName,
+              planName,
+              updatedAt: new Date().toISOString(),
+            }, { merge: true });
+
             const infoCard = `
-👤 <b>Digicast Account Details Found</b>
+👤 <b>Digicast Account Connected & Verified</b>
 
 📧 <b>Gmail / Email:</b> <code>${finalEmail}</code>
 🆔 <b>Account ID:</b> <code>${finalUid}</code>
@@ -522,17 +622,16 @@ Thank you <b>${senderName}</b>! Your concern has been recorded and dispatched to
 📺 <b>Connected YouTube:</b> <b>${channelTitle}</b>
 💳 <b>Recent Payment:</b> ${latestPaymentStr}
 
-💬 <i>You can now send your payment screenshot or UTR number directly in this chat to activate or renew!</i>
+💬 <i>Your account is now linked! You can ask any question, or send your payment screenshot / UTR to activate or renew anytime!</i>
             `.trim();
 
             await sendTelegramMessage(chatId, infoCard, messageId);
+            await logBotResponse(adminDb, chatId, infoCard);
             return NextResponse.json({ ok: true });
           } else {
-            await sendTelegramMessage(
-              chatId,
-              `🔍 Could not find an active Digicast account for <code>${targetEmail || targetWsId}</code>.\n\nPlease double check the email address or sign in at https://digicast-web.vercel.app`,
-              messageId
-            );
+            const notFoundMsg = `🔍 Could not find an active Digicast account for <code>${targetEmail || targetWsId}</code>.\n\nPlease double check the email address or sign in at https://digicast-web.vercel.app`;
+            await sendTelegramMessage(chatId, notFoundMsg, messageId);
+            await logBotResponse(adminDb, chatId, notFoundMsg);
             return NextResponse.json({ ok: true });
           }
         } catch (queryErr) {
@@ -540,15 +639,95 @@ Thank you <b>${senderName}</b>! Your concern has been recorded and dispatched to
         }
       }
 
-      // Default helper reply for other private chat text
-      const defaultReply = `
-👋 <b>How can I help you?</b>
+      // ─── Intelligent Groq AI Fallback with Dynamic Knowledge Base ─────────
+      try {
+        // Check if AI is enabled for this chat (admin can pause for manual takeover)
+        const chatDoc = await adminDb.collection('telegram_chats').doc(String(chatId)).get();
+        const isAiEnabled = chatDoc.exists ? (chatDoc.data()?.isAiEnabled ?? true) : true;
 
-• <b>Look Up Your Account:</b> Reply with your <b>Gmail address</b> (e.g. <code>creator@gmail.com</code>) or <b>Workspace ID</b> to see your active plan and details.
-• <b>Activate Subscription:</b> Send your UPI payment screenshot directly in this chat with the 12-digit UTR.
-• <b>Help Menu:</b> Type <code>/help</code> for all commands and guides.
-      `.trim();
-      await sendTelegramMessage(chatId, defaultReply, messageId);
+        if (!isAiEnabled) {
+          console.info(`[telegram/webhook] AI disabled for chatId=${chatId}, waiting for admin reply`);
+          return NextResponse.json({ ok: true });
+        }
+
+        // Fetch user session context if linked
+        const sessionDoc = await adminDb.doc(`telegram_sessions/${chatId}`).get();
+        const sessionData = sessionDoc.exists ? sessionDoc.data() : null;
+
+        let userContext: any = null;
+        if (sessionData?.userEmail || sessionData?.userId) {
+          let dCoins = 0;
+          let dp = 0;
+          try {
+            const wDoc = await adminDb.doc(`wallets/${sessionData.userId || sessionData.workspaceId}`).get();
+            if (wDoc.exists) {
+              dCoins = wDoc.data()?.dCoinsBalance || 0;
+              dp = wDoc.data()?.dpBalance || 0;
+            }
+          } catch {}
+
+          userContext = {
+            email: sessionData.userEmail,
+            userId: sessionData.userId,
+            workspaceName: sessionData.workspaceName,
+            planName: sessionData.planName,
+            isTrialActive: sessionData.planId === 'free_trial' || sessionData.planId === 'free',
+            dCoinsBalance: dCoins,
+            dpBalance: dp,
+          };
+        }
+
+        // Fetch trained Q&A knowledge base rules from Firestore
+        let knowledgeBase: any[] = [];
+        try {
+          const kbSnap = await adminDb
+            .collection('telegram_training_kb')
+            .where('active', '==', true)
+            .limit(30)
+            .get();
+          knowledgeBase = kbSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (kbErr) {
+          console.warn('[telegram/webhook] Failed to load KB:', kbErr);
+        }
+
+        // Fetch last 6 conversation messages for memory
+        let history: any[] = [];
+        try {
+          const historySnap = await adminDb
+            .collection('telegram_chats')
+            .doc(String(chatId))
+            .collection('messages')
+            .orderBy('timestamp', 'desc')
+            .limit(6)
+            .get();
+          history = historySnap.docs.reverse().map(d => ({
+            sender: d.data().sender,
+            text: d.data().text,
+          }));
+        } catch {}
+
+        // Call Groq AI Assistant
+        const { askGroqAI } = await import('@/lib/groqClient');
+        let aiReply = await askGroqAI({
+          userPrompt: rawText,
+          conversationHistory: history,
+          userContext,
+          knowledgeBase,
+        });
+
+        // If user is unlinked, append helpful email linking hint
+        if (!sessionData?.userEmail) {
+          aiReply += `\n\n💡 <i><b>Account Link:</b> Reply with your registered Digicast email address anytime to check your active plan and D-Coins!</i>`;
+        }
+
+        await sendTelegramMessage(chatId, aiReply, messageId);
+        await logBotResponse(adminDb, chatId, aiReply);
+      } catch (aiErr: any) {
+        console.error('[telegram/webhook] Groq AI fallback error:', aiErr);
+        const fallbackMsg = `👋 <b>How can I help you?</b>\n\n• <b>Look Up Account:</b> Reply with your <b>Gmail address</b>.\n• <b>Activate Pass:</b> Send your UPI payment screenshot with 12-digit UTR.\n• <b>Commands:</b> Type <code>/help</code> for all features.`;
+        await sendTelegramMessage(chatId, fallbackMsg, messageId);
+        await logBotResponse(adminDb, chatId, fallbackMsg);
+      }
     }
 
     // ─── 7. When Bot is added to a new group ────────────────────────────────

@@ -489,6 +489,7 @@ fun OnboardingScreen(
             // High-Value Sponsored Ad Simulation Dialog (Fallback while AdMob unit propagates)
             if (showAdDialog) {
                 LaunchedEffect(showAdDialog) {
+                    AdMobManager.setFallbackProvider("SPONSORED_PARTNER")
                     val totalTicks = 50
                     for (i in 1..totalTicks) {
                         delay(100)

@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Lock } from 'lucide-react';
+import { Lock, Shield, CheckCircle, ExternalLink, Globe } from 'lucide-react';
 import { SiteHeader } from '@/components/common/SiteHeader';
 import { SiteFooter } from '@/components/common/SiteFooter';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Digicast',
-  description: 'Privacy Policy detailing data collection, local processing guarantees, and user rights for Digicast Creator Studio.',
+  title: 'Privacy Policy — Digicast (Kiziee Media)',
+  description: 'Privacy Policy and Google API Services User Data Policy disclosures for Digicast by Kiziee Media.',
 };
 
 export default function PrivacyPage() {
@@ -20,64 +20,143 @@ export default function PrivacyPage() {
         <div className="mb-12 border-b border-white/[0.08] pb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono text-emerald-400 mb-4">
             <Lock className="w-3.5 h-3.5" />
-            DATA PROTECTION &amp; PRIVACY
+            OFFICIAL PRIVACY POLICY &bull; KIZIEE MEDIA
           </div>
           <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-3">
             Privacy Policy
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm font-mono">
-            Last Updated: October 2026 &bull; Version 2.4
+            Operating Entity: Kiziee Media (&quot;Digicast&quot;) &bull; Last Updated: October 2026 &bull; Version 3.0
           </p>
         </div>
 
         <div className="space-y-10 text-slate-300 text-sm leading-relaxed">
+          {/* Section 1 */}
           <section className="space-y-3">
-            <h2 className="text-lg font-bold text-white">1. Information We Collect</h2>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Shield className="w-4 h-4 text-emerald-400" />
+              1. Overview &amp; Introduction
+            </h2>
             <p>
-              When you create an account or sign in to Digicast, we collect:
-            </p>
-            <ul className="list-disc list-inside space-y-1.5 text-slate-400 pl-2">
-              <li><b>Account Information:</b> Name, Gmail address, profile display name, and workspace identifier.</li>
-              <li><b>Workspace Data:</b> Stream marker timestamps, clip labels, and invited editor credentials.</li>
-              <li><b>Payment Records:</b> Transaction reference numbers (UTR), submitted receipts, and duration pass tiers for billing verification.</li>
-            </ul>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-bold text-white">2. Local-First Processing Guarantee</h2>
-            <p>
-              Digicast is built with a local-first privacy architecture. Stream markers and chat messages processed during live broadcasts are parsed in-memory and cached in local encrypted databases on your client device.
-            </p>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-bold text-white">3. How We Use Your Data</h2>
-            <p>
-              We use the collected information strictly to:
-            </p>
-            <ul className="list-disc list-inside space-y-1.5 text-slate-400 pl-2">
-              <li>Provide real-time broadcast synchronization between your workspace and mobile companion apps.</li>
-              <li>Verify duration pass subscriptions and process grace period activations.</li>
-              <li>Authenticate team editor roles and secure workspace data against cross-account leakage.</li>
-              <li>Provide automated customer support and ticket routing via our official Telegram bot.</li>
-            </ul>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-bold text-white">4. Zero Data Selling &amp; Third-Party Sharing</h2>
-            <p>
-              We never sell, rent, or trade your personal data, stream markers, or team credentials to advertisers or third-party brokers. Data is stored securely in Google Cloud infrastructure with strict role-based access control.
-            </p>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-lg font-bold text-white">5. Your Data Rights &amp; Deletion Requests</h2>
-            <p>
-              You have the right to request a complete copy of your workspace data or ask for total account deletion at any time. Simply message our official support bot at{' '}
-              <a href="https://t.me/YT_digicast?start=help" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline font-mono">
-                @YT_digicast
+              This Privacy Policy explains how <b>Kiziee Media</b> (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses, and safeguards information through our streaming companion application <b>Digicast</b> (accessible at{' '}
+              <a href="https://kizieemedia.com" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
+                https://kizieemedia.com
               </a>{' '}
-              or email our compliance desk.
+              and{' '}
+              <a href="https://digicast-web.vercel.app" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
+                https://digicast-web.vercel.app
+              </a>).
+            </p>
+            <p>
+              We are committed to full transparency and protecting creator privacy, adhering strictly to the Google API Services User Data Policy and applicable data protection regulations.
+            </p>
+          </section>
+
+          {/* Section 2: YouTube API Services & Google User Data */}
+          <section className="space-y-4 p-5 rounded-2xl bg-white/[0.02] border border-white/10">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Globe className="w-4 h-4 text-cyan-400" />
+              2. YouTube API Services &amp; Google User Data Disclosures
+            </h2>
+            <p>
+              Digicast uses <b>YouTube API Services</b> (YouTube Data API v3) to enable live stream detection, real-time broadcast marker tagging, and creator workspace synchronization.
+            </p>
+            <div className="space-y-2 text-xs bg-white/[0.03] p-4 rounded-xl border border-white/10 font-mono text-slate-300">
+              <p className="font-bold text-white">By using Digicast, you explicitly acknowledge and agree that:</p>
+              <ul className="list-disc list-inside space-y-1.5 pl-2 text-slate-300">
+                <li>
+                  Our application accesses YouTube API Services. You are agreeing to be bound by the{' '}
+                  <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline font-bold inline-flex items-center gap-0.5">
+                    YouTube Terms of Service <ExternalLink className="w-3 h-3 inline" />
+                  </a>.
+                </li>
+                <li>
+                  Your data is collected and processed in accordance with the{' '}
+                  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline font-bold inline-flex items-center gap-0.5">
+                    Google Privacy Policy <ExternalLink className="w-3 h-3 inline" />
+                  </a>.
+                </li>
+                <li>
+                  <b>Revocation of Access:</b> You can revoke Digicast&apos;s access to your Google/YouTube account data at any time via the official Google Security Settings at{' '}
+                  <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline font-bold inline-flex items-center gap-0.5">
+                    https://myaccount.google.com/permissions <ExternalLink className="w-3 h-3 inline" />
+                  </a>.
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          {/* Section 3: Google API Limited Use Requirements */}
+          <section className="space-y-3">
+            <h2 className="text-lg font-bold text-white">3. Google API Services Limited Use Policy Compliance</h2>
+            <p>
+              Digicast&apos;s use and transfer to any other app of information received from Google APIs will strictly adhere to the{' '}
+              <a
+                href="https://developers.google.com/terms/api-services-user-data-policy#additional_requirements_for_specific_api_scopes"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-400 underline"
+              >
+                Google API Services User Data Policy
+              </a>
+              , including the <b>Limited Use</b> requirements:
+            </p>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-400 pl-2">
+              <li>We only request scopes necessary to provide stream synchronization and marker tagging features.</li>
+              <li>We <b>never sell</b> Google user data or YouTube data to data brokers, advertising platforms, or third parties.</li>
+              <li>We do not use Google user data for serving personalized advertising or building user advertising profiles.</li>
+              <li>Humans will not read your Google account data unless you explicitly give prior affirmative consent for troubleshooting or security reviews.</li>
+            </ul>
+          </section>
+
+          {/* Section 4: Data Collected */}
+          <section className="space-y-3">
+            <h2 className="text-lg font-bold text-white">4. Information We Collect</h2>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-400 pl-2">
+              <li><b>Profile Data:</b> Your name, Google email address, and profile photo provided via Google Sign-In.</li>
+              <li><b>YouTube Metadata:</b> Channel title, active live stream status, broadcast titles, and video IDs required for marker synchronization.</li>
+              <li><b>Workspace Data:</b> Creator clip timestamps, labels, and authorized editor team logins.</li>
+              <li><b>Payment Records:</b> UPI transaction reference numbers (UTR) and pass durations for subscription ledger verification.</li>
+            </ul>
+          </section>
+
+          {/* Section 5: Local-First Privacy Architecture */}
+          <section className="space-y-3">
+            <h2 className="text-lg font-bold text-white">5. Local-First Processing Architecture</h2>
+            <p>
+              Digicast processes stream clip markers and audio/video trims locally on your device via hardware acceleration. Raw video streams are never stored on our central servers, guaranteeing creator data ownership and zero cross-account data leakage.
+            </p>
+          </section>
+
+          {/* Section 6: Data Retention & Deletion */}
+          <section className="space-y-3 p-5 rounded-2xl bg-white/[0.02] border border-white/10">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-400" />
+              6. Data Retention, User Rights &amp; Deletion Requests
+            </h2>
+            <p>
+              You maintain total ownership of your data. You may request immediate deletion of your entire workspace and cached YouTube tokens at any time.
+            </p>
+            <p>
+              To request complete deletion of your account and all associated data, submit a request to our compliance desk:
+            </p>
+            <div className="bg-black/40 p-3.5 rounded-xl border border-white/10 font-mono text-xs space-y-1">
+              <p><b className="text-slate-400">Email:</b> <a href="mailto:support@kizieemedia.com" className="text-emerald-400 hover:underline">support@kizieemedia.com</a> / <a href="mailto:support@digicast.in" className="text-emerald-400 hover:underline">support@digicast.in</a></p>
+              <p><b className="text-slate-400">Website:</b> <a href="https://kizieemedia.com/contact" className="text-cyan-400 hover:underline">https://kizieemedia.com/contact</a></p>
+              <p><b className="text-slate-400">Response SLA:</b> Account deletion requests are processed within 24–48 hours.</p>
+            </div>
+          </section>
+
+          {/* Section 7: Contact */}
+          <section className="space-y-3">
+            <h2 className="text-lg font-bold text-white">7. Contact Information</h2>
+            <p>
+              For legal, privacy, or compliance inquiries, contact:
+            </p>
+            <p className="text-slate-400 font-mono text-xs">
+              <b>Kiziee Media</b> &bull; Digicast Creator Studio<br />
+              Authorized Domains: kizieemedia.com &bull; digicast-web.vercel.app<br />
+              Support: support@kizieemedia.com
             </p>
           </section>
         </div>

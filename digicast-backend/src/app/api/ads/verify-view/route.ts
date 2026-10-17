@@ -2,12 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySignedAdSession } from '@/lib/security';
 import { recordLedgerTransaction } from '@/lib/ledger';
 import { userAdPassStore } from '@/lib/adStore';
+import { adminDb } from '@/lib/firebase/admin';
+import { recordAdImpression } from '@/lib/adTracking';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, uid, nonce, expiresAt, signature } = await req.json();
+    const {
+      sessionId,
+      uid,
+      nonce,
+      expiresAt,
+      signature,
+      provider = 'ADMOB',
+      adUnitId,
+      platform = 'ANDROID',
+      format = 'REWARDED_VIDEO',
+      userEmail,
+    } = await req.json();
 
     if (!sessionId || !uid || !nonce || !expiresAt || !signature) {
       return NextResponse.json({ error: 'MISSING_VERIFICATION_PARAMS' }, { status: 400 });
@@ -38,6 +51,23 @@ export async function POST(req: NextRequest) {
       lastAdWatchedAt: now,
     });
 
+    // Record impression and daily aggregate earnings in Firestore
+    let impressionResult: any = null;
+    try {
+      impressionResult = await recordAdImpression(adminDb, {
+        uid,
+        userEmail,
+        provider,
+        adUnitId,
+        platform,
+        format,
+      });
+    } catch (dbErr) {
+      console.warn('[ads/verify-view] Warning: Failed to record ad impression in Firestore:', dbErr);
+    }
+
+    const earnedINR = impressionResult?.impression?.earnedINR || 1.25;
+
     // Credit 10 D Coins viewing reward to user wallet
     const ledgerResult = recordLedgerTransaction({
       uid,
@@ -45,14 +75,22 @@ export async function POST(req: NextRequest) {
       currency: 'D_COIN',
       amount: 10,
       source: 'AD_REWARD',
-      description: 'Reward bonus for watching 1 sponsored AdMob advertisement',
+      description: `Reward bonus for watching 1 sponsored ${provider} advertisement`,
       referenceId: sessionId,
-      metadata: { sessionId, grantedHours: 24, adUnitId: 'ca-app-pub-5470934256709090/8839247619' },
+      metadata: {
+        sessionId,
+        grantedHours: 24,
+        adUnitId: adUnitId || 'ca-app-pub-5470934256709090/8839247619',
+        provider,
+        earnedINR,
+      },
     });
 
     return NextResponse.json({
       success: true,
       message: 'Ad view verified! 24-hour uninterrupted stream intelligence access pass granted.',
+      provider,
+      earnedINR,
       adPass: {
         uid,
         hasActivePass: true,
@@ -61,7 +99,7 @@ export async function POST(req: NextRequest) {
         totalAdsWatched: totalWatched,
       },
       bonusReward: {
-        dCoinsAwarded: 5,
+        dCoinsAwarded: 10,
         newDCoinsBalance: ledgerResult.balance.dCoinsBalance,
       },
     });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import {
   PRICING_PLANS,
@@ -9,12 +9,11 @@ import {
   UPI_CONFIG,
   buildUpiDeepLink,
   buildMobileAppUpiLinks,
-  buildVerificationTelegramUrl,
 } from '@/lib/pricingPlans';
 import {
   X, Check, Copy, ExternalLink, QrCode, Smartphone,
-  Send, ShieldCheck, Sparkles, AlertCircle, Loader2, ArrowRight, Upload,
-  Image as ImageIcon, Trash2, Clock, Laptop, HelpCircle,
+  ShieldCheck, Sparkles, AlertCircle, Loader2, Upload,
+  Image as ImageIcon, Trash2, Clock, RefreshCw, Zap
 } from 'lucide-react';
 import { auth } from '@/lib/firebase/client';
 
@@ -49,12 +48,15 @@ export default function UpiPaymentModal({
   const [screenshotFile, setScreenshotFile] = useState<string | null>(null);
   const [screenshotName, setScreenshotName] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingGateway, setIsCheckingGateway] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submittedPayment, setSubmittedPayment] = useState<any | null>(null);
-  const [telegramUrl, setTelegramUrl] = useState<string | null>(null);
 
-  const [uploadMethod, setUploadMethod] = useState<'device' | 'phone_qr'>('device');
-  const [phoneUploadQr, setPhoneUploadQr] = useState<string>('');
+  // Active Session Tracking
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [gatewayStatus, setGatewayStatus] = useState<string>('listening');
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-detect mobile device on mount to optimize tab
   useEffect(() => {
@@ -65,6 +67,131 @@ export default function UpiPaymentModal({
       }
     }
   }, [isOpen]);
+
+  const selectedPlan = PRICING_PLANS.find(p => p.id === selectedPlanId) || PRICING_PLANS[1];
+  const upiId = UPI_CONFIG.upiId; // dkigicast@ptyes
+
+  // Pre-filled UPI links
+  const upiDeepLink = buildUpiDeepLink({
+    amount: selectedPlan.priceINR,
+    planName: selectedPlan.name,
+    workspaceId,
+    email: userEmail,
+  });
+
+  const appLinks = buildMobileAppUpiLinks(selectedPlan.priceINR, selectedPlan.name);
+
+  // 1. Initialize or Refresh Payment Session
+  useEffect(() => {
+    if (!isOpen) {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      return;
+    }
+
+    let isMounted = true;
+
+    async function initSession() {
+      try {
+        const token = (await auth.currentUser?.getIdToken()) || '';
+        const res = await fetch('/api/payments/session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            workspaceId,
+            planId: selectedPlanId,
+            clientEmail: userEmail || auth.currentUser?.email || '',
+          }),
+        });
+
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          setActiveSessionId(data.paymentId);
+          setActiveOrderId(data.orderId);
+        }
+      } catch (err) {
+        console.warn('Session init error:', err);
+      }
+    }
+
+    initSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, selectedPlanId, workspaceId, userEmail]);
+
+  // 2. Continuous Background Bank Observer Check
+  useEffect(() => {
+    if (!isOpen || submittedPayment?.status === 'approved') {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      return;
+    }
+
+    const checkBankCredit = async () => {
+      try {
+        const queryParams = new URLSearchParams({
+          ...(activeSessionId ? { paymentId: activeSessionId } : {}),
+          ...(activeOrderId ? { orderId: activeOrderId } : {}),
+          workspaceId,
+        });
+
+        const res = await fetch(`/api/payments/check?${queryParams.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.isPaid || data.status === 'approved') {
+            setGatewayStatus('confirmed');
+            setSubmittedPayment({
+              ...data,
+              utrNumber: data.utrNumber || utrNumber || 'BANK_OBSERVER_VERIFIED',
+              amount: data.amountReceived || selectedPlan.priceINR,
+            });
+            if (onPaymentSubmitted) onPaymentSubmitted();
+            if (pollingRef.current) clearInterval(pollingRef.current);
+          }
+        }
+      } catch {}
+    };
+
+    // Poll every 3 seconds while user is looking at QR or paying
+    pollingRef.current = setInterval(checkBankCredit, 3000);
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [isOpen, activeSessionId, activeOrderId, workspaceId, submittedPayment, onPaymentSubmitted, utrNumber, selectedPlan.priceINR]);
+
+  // 3. Generate QR Code dynamically when selected plan changes
+  useEffect(() => {
+    if (!isOpen) return;
+    QRCode.toDataURL(upiDeepLink, {
+      width: 320,
+      margin: 2,
+      color: {
+        dark: '#0F172A',
+        light: '#FFFFFF',
+      },
+      errorCorrectionLevel: 'M',
+    })
+      .then(url => setQrDataUrl(url))
+      .catch(err => console.error('QR generation error:', err));
+  }, [selectedPlanId, upiDeepLink, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleCopyUpi = () => {
+    navigator.clipboard.writeText(upiId);
+    setCopiedUpi(true);
+    setTimeout(() => setCopiedUpi(false), 2500);
+  };
+
+  const handleCopyAmount = () => {
+    navigator.clipboard.writeText(String(selectedPlan.priceINR));
+    setCopiedAmount(true);
+    setTimeout(() => setCopiedAmount(false), 2500);
+  };
 
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,74 +208,41 @@ export default function UpiPaymentModal({
     reader.readAsDataURL(file);
   };
 
-  const selectedPlan = PRICING_PLANS.find(p => p.id === selectedPlanId) || PRICING_PLANS[1];
-  const upiId = UPI_CONFIG.upiId; // dkigicast@ptyes
+  // Immediate manual check trigger
+  const handleManualCheck = async () => {
+    setIsCheckingGateway(true);
+    setSubmitError(null);
+    try {
+      const queryParams = new URLSearchParams({
+        ...(activeSessionId ? { paymentId: activeSessionId } : {}),
+        ...(activeOrderId ? { orderId: activeOrderId } : {}),
+        workspaceId,
+        ...(utrNumber.trim() ? { utrNumber: utrNumber.trim() } : {}),
+      });
 
-  // Target pre-filled UPI link
-  const upiDeepLink = buildUpiDeepLink({
-    amount: selectedPlan.priceINR,
-    planName: selectedPlan.name,
-    workspaceId,
-    email: userEmail,
-  });
+      const res = await fetch(`/api/payments/check?${queryParams.toString()}`);
+      const data = await res.json();
 
-  const appLinks = buildMobileAppUpiLinks(selectedPlan.priceINR, selectedPlan.name);
-  const tgDeepLink = `https://t.me/${UPI_CONFIG.telegramBotUsername || 'YT_digicast'}?start=pay_${workspaceId}_${selectedPlan.id}`;
-
-  // Handler for the "Pay on Phone" button (redirects on mobile)
-  const handlePayOnPhoneClick = () => {
-    setActivePayTab('mobile');
-    if (typeof window !== 'undefined') {
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
-      if (isMobile) {
-        window.location.href = upiDeepLink;
+      if (data.isPaid || data.status === 'approved') {
+        setSubmittedPayment({
+          ...data,
+          utrNumber: data.utrNumber || utrNumber || 'BANK_VERIFIED',
+          amount: data.amountReceived || selectedPlan.priceINR,
+        });
+        if (onPaymentSubmitted) onPaymentSubmitted();
+      } else {
+        setSubmitError(
+          data.message || 'Payment is still being processed by your bank. If already paid, submit your UTR below for immediate activation.'
+        );
       }
+    } catch (err: any) {
+      setSubmitError(err.message || 'Error checking payment status');
+    } finally {
+      setIsCheckingGateway(false);
     }
   };
 
-  // Generate QR Code dynamically when selected plan changes
-  useEffect(() => {
-    if (!isOpen) return;
-    QRCode.toDataURL(upiDeepLink, {
-      width: 320,
-      margin: 2,
-      color: {
-        dark: '#0F172A',
-        light: '#FFFFFF',
-      },
-      errorCorrectionLevel: 'M',
-    })
-      .then(url => setQrDataUrl(url))
-      .catch(err => console.error('QR generation error:', err));
-
-    // Generate phone quick-upload QR code
-    QRCode.toDataURL(tgDeepLink, {
-      width: 220,
-      margin: 1,
-      color: {
-        dark: '#0F172A',
-        light: '#FFFFFF',
-      },
-      errorCorrectionLevel: 'M',
-    })
-      .then(url => setPhoneUploadQr(url))
-      .catch(err => console.error('Phone upload QR error:', err));
-  }, [selectedPlanId, upiDeepLink, tgDeepLink, isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleCopyUpi = () => {
-    navigator.clipboard.writeText(upiId);
-    setCopiedUpi(true);
-    setTimeout(() => setCopiedUpi(false), 2500);
-  };
-
-  const handleCopyAmount = () => {
-    navigator.clipboard.writeText(String(selectedPlan.priceINR));
-    setCopiedAmount(true);
-    setTimeout(() => setCopiedAmount(false), 2500);
-  };
-
+  // Submit UTR proof
   const handleSubmitProof = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUtr = utrNumber.trim();
@@ -170,7 +264,7 @@ export default function UpiPaymentModal({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           workspaceId,
@@ -179,6 +273,8 @@ export default function UpiPaymentModal({
           note: userNote.trim(),
           screenshotUrl: screenshotFile || null,
           userEmail: userEmail || auth.currentUser?.email || '',
+          paymentId: activeSessionId,
+          orderId: activeOrderId,
         }),
       });
 
@@ -188,7 +284,6 @@ export default function UpiPaymentModal({
       }
 
       setSubmittedPayment(data.payment);
-      setTelegramUrl(data.telegramUrl);
       if (onPaymentSubmitted) onPaymentSubmitted();
     } catch (err: any) {
       setSubmitError(err.message || 'Error submitting payment verification');
@@ -198,7 +293,7 @@ export default function UpiPaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
       <div
         className="bg-[#0B0F19]/95 backdrop-blur-2xl rounded-t-3xl sm:rounded-3xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl border border-white/10 relative text-white"
       >
@@ -215,14 +310,15 @@ export default function UpiPaymentModal({
         <div className="p-5 sm:p-7 md:p-8 border-b border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-white rounded-t-3xl">
           <div className="pr-8">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                INSTANT UPI ACTIVATION
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <Zap className="w-3 h-3 text-emerald-400" />
+                INSTANT UPI ACTIVATION • 0% FEE
               </span>
               <span className="text-xs text-slate-300 font-mono">Workspace: {workspaceName}</span>
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white">Choose Your Digicast Plan</h2>
             <p className="text-slate-300 text-xs sm:text-sm mt-1">
-              Exact amount is pre-filled. Scan QR code or tap to pay directly on your phone.
+              Direct-to-bank instant settlement. Scan QR code or tap to pay directly with any UPI app.
             </p>
           </div>
 
@@ -269,9 +365,8 @@ export default function UpiPaymentModal({
         <div className="p-4 sm:p-6 md:p-8">
           {!submittedPayment ? (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-              {/* Left Column: Payment Trigger (5 Cols) */}
+              {/* Left Column: QR Code & Pay on Phone (5 Cols) */}
               <div className="lg:col-span-5 flex flex-col items-center text-center p-4 sm:p-6 rounded-2xl bg-white/[0.03] border border-white/10 shadow-xl">
-
                 {/* Mobile vs PC View Switcher */}
                 <div className="w-full flex rounded-xl bg-white/[0.05] border border-white/10 p-1 mb-4">
                   <button
@@ -287,10 +382,15 @@ export default function UpiPaymentModal({
                   </button>
                   <button
                     type="button"
-                    onClick={handlePayOnPhoneClick}
+                    onClick={() => {
+                      setActivePayTab('mobile');
+                      if (typeof window !== 'undefined' && (/Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth < 768)) {
+                        window.location.href = upiDeepLink;
+                      }
+                    }}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition ${activePayTab === 'mobile'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-emerald-500 text-slate-950 shadow-sm font-extrabold'
+                        : 'text-slate-400 hover:text-white'
                       }`}
                   >
                     <Smartphone className="w-3.5 h-3.5" />
@@ -299,100 +399,92 @@ export default function UpiPaymentModal({
                 </div>
 
                 {activePayTab === 'qr' ? (
-                  /* ─── SCAN QR CODE VIEW (Clean Pre-filled Amount QR) ─── */
-                  <div className="w-full flex flex-col items-center">
-                    <div className="relative p-3 bg-white rounded-2xl shadow-md border-2 border-slate-200">
+                  <div className="flex flex-col items-center">
+                    <div className="p-3 bg-white rounded-2xl shadow-xl relative group">
                       {qrDataUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={qrDataUrl}
-                          alt="UPI Payment QR Code"
-                          className="w-56 h-56 sm:w-60 sm:h-60 rounded-xl object-contain mx-auto"
+                          alt="Digicast UPI Payment QR Code"
+                          className="w-56 h-56 sm:w-64 sm:h-64 rounded-xl"
                         />
                       ) : (
-                        <div className="w-56 h-56 sm:w-60 sm:h-60 flex items-center justify-center text-slate-400">
-                          <Loader2 className="w-8 h-8 animate-spin" />
+                        <div className="w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center bg-slate-100 rounded-xl text-slate-500 text-xs">
+                          <Loader2 className="w-6 h-6 animate-spin text-slate-700" />
                         </div>
                       )}
-
-                      {/* Payee name & amount indicator */}
-                      <div className="absolute inset-x-0 bottom-4 flex justify-center pointer-events-none">
-                        <span className="px-3.5 py-1 rounded-full text-xs font-black bg-slate-900 text-white shadow-lg border border-slate-700">
-                          Pre-filled: ₹{selectedPlan.priceINR}
+                      <div className="absolute inset-x-0 -bottom-2 flex justify-center">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-950 text-emerald-400 border border-emerald-500/30 shadow-md">
+                          ₹{selectedPlan.priceINR}.00 EXACT
                         </span>
                       </div>
                     </div>
-
-                    <p className="text-xs text-slate-500 mt-3 font-medium">
-                      Scan with PhonePe, Google Pay, Paytm, or BHIM. Amount ₹{selectedPlan.priceINR} is pre-filled.
+                    <p className="text-xs text-slate-300 font-medium mt-4">
+                      Scan with Google Pay, PhonePe, Paytm or any UPI App
                     </p>
                   </div>
                 ) : (
-                  /* ─── PAY ON PHONE VIEW (1-Tap Direct UPI Apps) ─── */
-                  <div className="w-full space-y-3">
-                    {/* Primary Direct Pay Button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (typeof window !== 'undefined') {
-                          window.location.href = upiDeepLink;
-                        }
-                      }}
-                      className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-xl text-sm font-black text-white shadow-md transition hover:opacity-95 active:scale-98"
-                      style={{ backgroundColor: selectedPlan.color }}
-                    >
-                      <Smartphone className="w-5 h-5" />
-                      <span>Open UPI App (Pay ₹{selectedPlan.priceINR})</span>
-                    </button>
-
-                    <p className="text-[11px] text-slate-500 text-left">
-                      Tap above or choose an installed app below to open directly with ₹{selectedPlan.priceINR} pre-filled:
+                  <div className="w-full space-y-3 py-2">
+                    <p className="text-xs text-slate-300">
+                      Tap your preferred UPI app to open and pay instantly:
                     </p>
-
-                    {/* Specific App Launch Buttons */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                      <a
-                        href={appLinks.phonepe}
-                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#5f259f] hover:bg-[#4d1d82] transition shadow-sm"
-                      >
-                        <span>⚡ PhonePe</span>
-                      </a>
-                      <a
-                        href={appLinks.gpay}
-                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#1a73e8] hover:bg-[#1557b0] transition shadow-sm"
-                      >
-                        <span>⚡ Google Pay</span>
-                      </a>
-                      <a
-                        href={appLinks.paytm}
-                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#002e6e] hover:bg-[#002252] transition shadow-sm"
-                      >
-                        <span>⚡ Paytm</span>
-                      </a>
-                      <a
-                        href={appLinks.standard}
-                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition shadow-sm"
-                      >
-                        <Smartphone className="w-3.5 h-3.5" />
-                        <span>Any UPI App</span>
-                      </a>
-                    </div>
+                    <a
+                      href={appLinks.phonepe}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 transition text-sm font-bold text-white"
+                    >
+                      <span>Pay with PhonePe</span>
+                      <ExternalLink className="w-4 h-4 text-purple-400" />
+                    </a>
+                    <a
+                      href={appLinks.gpay}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 transition text-sm font-bold text-white"
+                    >
+                      <span>Pay with Google Pay</span>
+                      <ExternalLink className="w-4 h-4 text-blue-400" />
+                    </a>
+                    <a
+                      href={appLinks.paytm}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/30 transition text-sm font-bold text-white"
+                    >
+                      <span>Pay with Paytm</span>
+                      <ExternalLink className="w-4 h-4 text-cyan-400" />
+                    </a>
+                    <a
+                      href={upiDeepLink}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 transition text-sm font-bold text-white"
+                    >
+                      <span>Other UPI Apps (BHIM / Cred)</span>
+                      <ExternalLink className="w-4 h-4 text-emerald-400" />
+                    </a>
                   </div>
                 )}
 
-                {/* 1-Tap Copy UPI Details (Single clean VPA) */}
-                <div className="w-full mt-4 pt-4 border-t border-white/10 text-left space-y-2">
+                {/* Live Observer Telemetry Pulse */}
+                <div className="w-full mt-4 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-[11px] text-emerald-400">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span className="font-medium">Live Bank Observer Active</span>
+                  </div>
+                  <button
+                    onClick={handleManualCheck}
+                    disabled={isCheckingGateway}
+                    className="flex items-center gap-1 font-bold text-white hover:text-emerald-300 transition"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isCheckingGateway ? 'animate-spin' : ''}`} />
+                    <span>Check Now</span>
+                  </button>
+                </div>
+
+                {/* Copy VPA & Amount */}
+                <div className="w-full mt-3 space-y-2 text-left">
                   <div className="flex items-center justify-between text-xs bg-white/[0.04] p-2.5 rounded-xl border border-white/10 shadow-sm">
                     <div>
-                      <p className="text-[10px] uppercase font-bold text-slate-400">Verified UPI ID</p>
-                      <p className="font-mono font-bold text-white text-[11px] sm:text-xs">
-                        {upiId}
-                      </p>
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Receiving Bank UPI ID</p>
+                      <p className="font-mono font-bold text-white">{upiId}</p>
                     </div>
                     <button
                       onClick={handleCopyUpi}
                       className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300 transition flex items-center gap-1 shrink-0"
-                      title="Copy UPI ID"
                     >
                       {copiedUpi ? (
                         <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
@@ -414,7 +506,6 @@ export default function UpiPaymentModal({
                     <button
                       onClick={handleCopyAmount}
                       className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300 transition flex items-center gap-1 shrink-0"
-                      title="Copy Amount"
                     >
                       {copiedAmount ? (
                         <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
@@ -430,9 +521,9 @@ export default function UpiPaymentModal({
                 </div>
               </div>
 
-              {/* Right Column: Plan Perks & UTR Confirmation Form (7 Cols) */}
+              {/* Right Column: Perks & Direct Verification Form (7 Cols) */}
               <div className="lg:col-span-7 space-y-5">
-                {/* Plan Highlights Box */}
+                {/* Plan Highlights */}
                 <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
@@ -453,190 +544,84 @@ export default function UpiPaymentModal({
                   </div>
                 </div>
 
-                {/* Step 2: Submit UTR Reference Form */}
+                {/* Instant Verification Form */}
                 <div className="p-5 sm:p-6 rounded-2xl bg-white/[0.03] border border-white/10 shadow-sm">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="w-5 h-5 rounded-full bg-cyan-500 text-black flex items-center justify-center text-xs font-bold">2</span>
-                    <h4 className="text-sm font-bold text-white">Enter Payment UTR / Reference ID</h4>
+                    <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-xs font-black">2</span>
+                    <h4 className="text-sm font-bold text-white">Enter Payment UTR / Ref ID (Instant Verification)</h4>
                   </div>
                   <p className="text-xs text-slate-400 mb-3">
-                    After completing payment of ₹{selectedPlan.priceINR}, enter the 12-digit UPI UTR number from your payment receipt to activate.
+                    Once paid, enter the 12-digit UTR from your bank/UPI receipt. Our automated backend instantly matches it with bank credit.
                   </p>
 
                   {submitError && (
-                    <div className="p-3 text-xs rounded-xl bg-red-500/10 text-red-300 border border-red-500/20 mb-3 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                    <div className="p-3 text-xs rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/20 mb-3 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
                       <span>{submitError}</span>
                     </div>
                   )}
 
                   <form onSubmit={handleSubmitProof} className="space-y-3">
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs font-bold text-slate-300">
-                          12-Digit UPI Transaction ID / UTR Number
-                        </label>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          Optional if Receipt Attached
-                        </span>
-                      </div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">
+                        12-Digit UPI Transaction ID / UTR Number
+                      </label>
                       <input
                         type="text"
-                        placeholder="e.g. 428190382910 (or leave empty if on receipt)"
+                        placeholder="e.g. 428190382910"
                         value={utrNumber}
                         onChange={(e) => setUtrNumber(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-sm font-mono bg-white/[0.04] border border-white/10 text-white placeholder-slate-500 rounded-xl outline-none focus:border-cyan-400 transition"
+                        className="w-full px-3.5 py-2.5 text-sm font-mono bg-white/[0.04] border border-white/10 text-white placeholder-slate-500 rounded-xl outline-none focus:border-emerald-400 transition"
                       />
                     </div>
 
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-xs font-bold text-slate-300">
-                          Attach Payment Screenshot (Optional)
+                      <label className="block text-xs font-bold text-slate-300 mb-1">
+                        Attach Receipt Screenshot (Optional)
+                      </label>
+                      {!screenshotFile ? (
+                        <label className="cursor-pointer border-2 border-dashed border-white/15 hover:border-emerald-400/50 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-white/[0.02] hover:bg-white/[0.05] transition group">
+                          <div className="w-7 h-7 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-1 group-hover:scale-105 transition">
+                            <Upload className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="text-xs font-bold text-white">
+                            Upload Payment Screenshot (PNG, JPG)
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleScreenshotChange}
+                            className="hidden"
+                          />
                         </label>
-                        <span className="text-[10px] text-emerald-300 font-semibold bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                          UTR is 100% Sufficient
-                        </span>
-                      </div>
-
-                      {/* Method Switcher: Upload on PC vs Send via Phone QR */}
-                      <div className="flex rounded-xl bg-white/[0.05] p-1 mb-2.5 text-[11px] font-semibold border border-white/10">
-                        <button
-                          type="button"
-                          onClick={() => setUploadMethod('device')}
-                          className={`flex-1 py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1.5 ${uploadMethod === 'device'
-                              ? 'bg-white/15 text-white shadow-sm font-bold'
-                              : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                          <Laptop className="w-3.5 h-3.5" />
-                          <span>Upload from this PC / Device</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setUploadMethod('phone_qr')}
-                          className={`flex-1 py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1.5 ${uploadMethod === 'phone_qr'
-                              ? 'bg-white/15 text-white shadow-sm font-bold'
-                              : 'text-slate-400 hover:text-white'
-                            }`}
-                        >
-                          <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>Paid on Phone? Scan to Send</span>
-                        </button>
-                      </div>
-
-                      {uploadMethod === 'device' ? (
-                        !screenshotFile ? (
-                          <label className="cursor-pointer border-2 border-dashed border-white/15 hover:border-cyan-400/50 rounded-xl p-3.5 flex flex-col items-center justify-center text-center bg-white/[0.02] hover:bg-white/[0.05] transition group">
-                            <div className="w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-1 group-hover:scale-105 transition">
-                              <Upload className="w-4 h-4" />
-                            </div>
-                            <span className="text-xs font-bold text-white">
-                              Click or Drag to Upload Payment Screenshot
-                            </span>
-                            <span className="text-[10px] text-slate-400 mt-0.5">
-                              PNG, JPG or JPEG up to 5MB (Optional)
-                            </span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleScreenshotChange}
-                              className="hidden"
-                            />
-                          </label>
-                        ) : (
-                          <div className="p-3 bg-white/[0.04] border border-white/10 rounded-xl flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={screenshotFile}
-                                alt="Receipt thumbnail"
-                                className="w-12 h-12 rounded-lg object-cover border border-white/10 shrink-0"
-                              />
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-white truncate">
-                                  {screenshotName || 'receipt_screenshot.jpg'}
-                                </p>
-                                <p className="text-[10px] text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
-                                  <Check className="w-3 h-3 text-emerald-400" />
-                                  Attached for Admin Verification
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <label className="cursor-pointer text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded hover:bg-white/10 transition">
-                                Change
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleScreenshotChange}
-                                  className="hidden"
-                                />
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setScreenshotFile(null);
-                                  setScreenshotName(null);
-                                }}
-                                className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-white/10 transition"
-                                title="Remove receipt"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )
                       ) : (
-                        <div className="p-3 bg-white/[0.03] border border-white/10 rounded-xl flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left">
-                          {phoneUploadQr ? (
-                            // eslint-disable-next-line @next/next/no-img-element
+                        <div className="p-3 bg-white/[0.04] border border-white/10 rounded-xl flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={phoneUploadQr}
-                              alt="Scan to upload from phone"
-                              className="w-24 h-24 rounded-lg border border-white/20 shrink-0 bg-white p-1"
+                              src={screenshotFile}
+                              alt="Receipt thumbnail"
+                              className="w-10 h-10 rounded-lg object-cover border border-white/10 shrink-0"
                             />
-                          ) : (
-                            <div className="w-24 h-24 flex items-center justify-center bg-white/5 rounded-lg">
-                              <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-white truncate">
+                                {screenshotName || 'receipt_screenshot.jpg'}
+                              </p>
+                              <p className="text-[10px] text-emerald-400 font-medium">Attached for verification</p>
                             </div>
-                          )}
-                          <div className="space-y-1">
-                            <p className="text-xs font-bold text-white flex items-center justify-center sm:justify-start gap-1">
-                              <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-                              <span>Scan with Phone Camera</span>
-                            </p>
-                            <p className="text-[11px] text-slate-400 leading-snug">
-                              Opens Telegram (@{UPI_CONFIG.telegramBotUsername || 'YT_digicast'}) on your phone to drop the screenshot directly — zero file transfer needed!
-                            </p>
-                            <a
-                              href={tgDeepLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-cyan-400 hover:underline pt-0.5"
-                            >
-                              <Send className="w-3 h-3" /> Or click to open Telegram Web
-                            </a>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setScreenshotFile(null);
+                              setScreenshotName(null);
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-red-400 transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       )}
-
-                      {/* Telegram Bot Direct Upload & Help Link */}
-                      <div className="mt-2 p-2 rounded-xl bg-white/[0.02] border border-white/10 flex items-center justify-between gap-2 text-xs">
-                        <span className="text-[11px] text-slate-400">
-                          Having questions or prefer Telegram?
-                        </span>
-                        <a
-                          href={tgDeepLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 font-bold text-cyan-400 hover:text-cyan-300 shrink-0 text-[11px] hover:underline"
-                        >
-                          <Send className="w-3 h-3 text-cyan-400" />
-                          <span>Chat with Bot</span>
-                          <ExternalLink className="w-2.5 h-2.5 opacity-70" />
-                        </a>
-                      </div>
                     </div>
 
                     <div>
@@ -648,33 +633,45 @@ export default function UpiPaymentModal({
                         placeholder="e.g. Paid via PhonePe / GPay"
                         value={userNote}
                         onChange={(e) => setUserNote(e.target.value)}
-                        className="w-full px-3.5 py-2 text-xs bg-white/[0.04] border border-white/10 text-white placeholder-slate-500 rounded-xl outline-none focus:border-cyan-400 transition"
+                        className="w-full px-3.5 py-2 text-xs bg-white/[0.04] border border-white/10 text-white placeholder-slate-500 rounded-xl outline-none focus:border-emerald-400 transition"
                       />
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={isSubmitting || (!utrNumber.trim() && !screenshotFile && !userNote.trim())}
-                      className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-bold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50 bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Submitting Proof...
-                        </>
-                      ) : (
-                        <>
-                          <ShieldCheck className="w-4 h-4 text-emerald-950" />
-                          Submit Proof &amp; Verify Plan
-                        </>
-                      )}
-                    </button>
+                    <div className="pt-1 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleManualCheck}
+                        disabled={isCheckingGateway}
+                        className="flex-1 py-3 px-3 rounded-xl text-xs font-bold text-slate-200 bg-white/10 hover:bg-white/15 transition flex items-center justify-center gap-1.5"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isCheckingGateway ? 'animate-spin' : ''}`} />
+                        <span>Check Bank Receipt</span>
+                      </button>
+
+                      <button
+                        type="submit"
+                        disabled={isSubmitting || (!utrNumber.trim() && !screenshotFile && !userNote.trim())}
+                        className="flex-[2] flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-bold text-slate-950 shadow-lg transition hover:opacity-90 disabled:opacity-50 bg-emerald-400 hover:bg-emerald-300 shadow-emerald-500/20"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                            Verifying...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-4 h-4 text-slate-950" />
+                            Submit &amp; Activate Plan
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </form>
                 </div>
               </div>
             </div>
           ) : (
-            /* Step 3: Success Screen with Thank You, Instant Access & Support */
+            /* Step 3: Success Screen with Immediate Confirmation */
             <div className="max-w-xl mx-auto text-center py-6 space-y-5 animate-fade-in text-white">
               <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(16,185,129,0.2)]">
                 <Check className="w-8 h-8 stroke-[3]" />
@@ -682,13 +679,13 @@ export default function UpiPaymentModal({
 
               <div>
                 <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 tracking-wide uppercase">
-                  ✓ Proof Received
+                  {submittedPayment.status === 'approved' ? '✓ Payment Verified & Approved' : '✓ Proof Received'}
                 </span>
                 <h3 className="text-xl sm:text-2xl font-black text-white mt-2">
                   Thank You for Subscribing to Digicast!
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 mt-1">
-                  We received your UTR: <code className="bg-white/10 text-cyan-300 font-mono font-bold px-2 py-0.5 rounded border border-white/10">{submittedPayment.utrNumber}</code> for the <span className="font-bold text-white">{selectedPlan.name} (₹{selectedPlan.priceINR})</span>.
+                  Payment for the <span className="font-bold text-white">{selectedPlan.name} (₹{selectedPlan.priceINR})</span> is confirmed.
                 </p>
               </div>
 
@@ -700,15 +697,15 @@ export default function UpiPaymentModal({
                   </div>
                   <div>
                     <h4 className="text-xs sm:text-sm font-bold text-white">
-                      Instant Access Activated
+                      Full Access Activated
                     </h4>
                     <p className="text-[11px] text-slate-400">
-                      Enjoy uninterrupted streaming while our team finalizes your verification.
+                      Your workspace is immediately unlocked with all plan features.
                     </p>
                   </div>
                 </div>
                 <p className="text-xs text-slate-200 leading-relaxed font-medium bg-white/[0.04] p-3 rounded-xl border border-white/10">
-                  🎉 You have <b className="text-white">immediate full access</b> to all platform features, YouTube live stream auto-sync, and on-device trimming!
+                  🎉 You have <b className="text-white">full access</b> to live YouTube stream auto-sync, high-speed on-device hardware trimming, and multi-stream detection!
                 </p>
               </div>
 
@@ -728,47 +725,19 @@ export default function UpiPaymentModal({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Status:</span>
-                  <span className="font-bold text-emerald-400 uppercase">🟢 Active (Verification in Progress)</span>
+                  <span className="font-bold text-emerald-400 uppercase">
+                    🟢 {submittedPayment.status === 'approved' ? 'Verified & Active' : 'Active (Verification Confirmed)'}
+                  </span>
                 </div>
               </div>
 
-              {/* Queries & Support on Both Telegram and Discord */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-slate-300">
-                  <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Have any questions or queries? Message us anytime:</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <a
-                    href={`https://t.me/${UPI_CONFIG.telegramBotUsername || 'YT_digicast'}?start=query_${workspaceId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#229ED9] hover:bg-[#1E88C7] transition shadow-lg shadow-[#229ED9]/20"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Message on Telegram</span>
-                  </a>
-
-                  <a
-                    href={UPI_CONFIG.discordSupportUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#5865F2] hover:bg-[#4752C4] transition shadow-lg shadow-[#5865F2]/20"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>Message on Discord</span>
-                  </a>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-full mt-2 py-3 px-5 text-sm font-bold text-white rounded-xl shadow-lg transition hover:opacity-95 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 shadow-cyan-500/20"
-                >
-                  Done • Return to Workspace &amp; Enjoy Platform
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full mt-2 py-3 px-5 text-sm font-bold text-slate-950 rounded-xl shadow-lg transition hover:opacity-95 bg-gradient-to-r from-emerald-400 to-cyan-400 shadow-emerald-500/20"
+              >
+                Done • Return to Workspace &amp; Enjoy Platform
+              </button>
             </div>
           )}
         </div>

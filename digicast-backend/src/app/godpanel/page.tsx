@@ -59,6 +59,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import TelegramSupportCenter from '@/components/godpanel/TelegramSupportCenter';
+import AdMonetizationDashboard from '@/components/godpanel/AdMonetizationDashboard';
 
 interface PlatformUser {
   uid: string;
@@ -91,14 +92,21 @@ interface LedgerEntry {
 interface PaymentRecord {
   id?: string;
   paymentId?: string;
+  orderId?: string;
   workspaceId: string;
+  workspaceName?: string;
   userEmail?: string;
   planId?: string;
-  amountINR: number;
+  planName?: string;
+  amount?: number;
+  amountINR?: number;
   utrNumber?: string;
   proofUrl?: string;
   screenshotUrl?: string;
-  status: 'pending_verification' | 'approved' | 'rejected';
+  status: 'pending_verification' | 'approved' | 'rejected' | string;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  gatewayPaymentId?: string;
   createdAt: string;
   submittedAt?: string;
 }
@@ -415,8 +423,8 @@ export default function GodPanelDashboard() {
     }
   };
 
-  // Approve / Reject UPI Payment Proof
-  const handleVerifyPayment = async (paymentId: string, action: 'approve' | 'reject') => {
+  // Approve / Reject / Check Gateway for UPI Payment Proof
+  const handleVerifyPayment = async (paymentId: string, action: 'approve' | 'reject' | 'check_gateway') => {
     setVerifyingPaymentId(paymentId);
     try {
       const res = await fetch('/api/godpanel/payments', {
@@ -430,7 +438,11 @@ export default function GodPanelDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(action === 'approve' ? 'Payment approved & subscription activated!' : 'Payment rejected', 'success');
+        if (action === 'check_gateway') {
+          showToast(data.message || (data.isPaid ? 'Payment verified by bank observer!' : 'Gateway checked'), data.isPaid ? 'success' : 'info');
+        } else {
+          showToast(action === 'approve' ? 'Payment approved & subscription activated!' : 'Payment rejected', 'success');
+        }
         fetchInitialData();
       } else {
         showToast(data.error || 'Failed to process payment verification', 'error');
@@ -1528,29 +1540,78 @@ export default function GodPanelDashboard() {
                     {paymentsList.map((p, idx) => {
                       const pId = p.paymentId || p.id || `pay_${idx}`;
                       const slipUrl = p.proofUrl || p.screenshotUrl;
+                      const isAutoApproved = p.status === 'approved' && (p.verifiedBy?.includes('GATEWAY') || p.verifiedBy?.includes('OBSERVER'));
+                      const isManualApproved = p.status === 'approved' && !isAutoApproved;
+
                       return (
-                        <div key={pId} className="py-3.5 flex items-center justify-between">
+                        <div key={pId} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div>
-                            <p className="text-xs font-bold text-white">{p.workspaceId}</p>
-                            <p className="text-[11px] text-slate-500 font-mono">UTR: {p.utrNumber || 'N/A'}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-white">{p.workspaceName || p.workspaceId}</p>
+                              {p.planId && (
+                                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-white/10 text-cyan-300 font-bold">
+                                  {p.planName || p.planId}
+                                </span>
+                              )}
+                              {isAutoApproved && (
+                                <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                  ⚡ AUTO-VERIFIED (GATEWAY)
+                                </span>
+                              )}
+                              {isManualApproved && (
+                                <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                                  ✓ APPROVED ({p.verifiedBy})
+                                </span>
+                              )}
+                              {p.status === 'rejected' && (
+                                <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-red-500/15 text-red-400 border border-red-500/30">
+                                  REJECTED
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-1">
+                              <span>UTR: <span className="text-white font-bold">{p.utrNumber || 'N/A'}</span></span>
+                              <span>&bull;</span>
+                              <span>Email: {p.userEmail || 'N/A'}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="font-mono text-xs font-bold text-white">₹{p.amountINR || 149}</span>
+                          <div className="flex items-center gap-2 self-end sm:self-center">
+                            <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
+                              ₹{p.amount || p.amountINR || 149}
+                            </span>
                             {slipUrl && (
                               <button
                                 onClick={() => setSelectedPaymentScreenshot(slipUrl)}
-                                className="px-2.5 py-1 rounded-xl bg-[#07080B] border border-white/5 text-xs text-blue-400"
+                                className="px-2.5 py-1 rounded-xl bg-[#07080B] border border-white/5 text-xs text-blue-400 hover:text-blue-300"
                               >
-                                View Slip
+                                Slip
                               </button>
                             )}
                             {p.status === 'pending_verification' && (
-                              <button
-                                onClick={() => handleVerifyPayment(pId, 'approve')}
-                                className="px-3 py-1 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white"
-                              >
-                                Approve
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleVerifyPayment(pId, 'check_gateway')}
+                                  disabled={verifyingPaymentId === pId}
+                                  className="px-2.5 py-1 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-xs font-bold text-purple-300 transition"
+                                  title="Query UPI Gateway Live Bank Observer"
+                                >
+                                  {verifyingPaymentId === pId ? 'Checking...' : '⚡ Check Gateway'}
+                                </button>
+                                <button
+                                  onClick={() => handleVerifyPayment(pId, 'approve')}
+                                  disabled={verifyingPaymentId === pId}
+                                  className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleVerifyPayment(pId, 'reject')}
+                                  disabled={verifyingPaymentId === pId}
+                                  className="px-2 py-1 rounded-xl bg-red-600/20 hover:bg-red-600/40 border border-red-500/30 text-xs text-red-400 transition"
+                                >
+                                  Reject
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -1620,9 +1681,14 @@ export default function GodPanelDashboard() {
           {activeTab === 'telegram' && <TelegramSupportCenter />}
 
           {/* ════════════════════════════════════════════════════════════════════
-              OTHER TABS (EDITORS, ASSETS, ADS, TASKS, SECURITY)
+              ADS PROVIDERS DAILY MONETIZATION & EARNINGS DASHBOARD
           ════════════════════════════════════════════════════════════════════ */}
-          {['editors', 'assets', 'ads', 'tasks', 'security'].includes(activeTab) && (
+          {activeTab === 'ads' && <AdMonetizationDashboard />}
+
+          {/* ════════════════════════════════════════════════════════════════════
+              OTHER TABS (EDITORS, ASSETS, TASKS, SECURITY)
+          ════════════════════════════════════════════════════════════════════ */}
+          {['editors', 'assets', 'tasks', 'security'].includes(activeTab) && (
             <div className="rounded-3xl border border-white/5 bg-[#0E1118] p-6 space-y-4 max-w-[1400px] mx-auto">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 capitalize">
                 {activeTab} Management

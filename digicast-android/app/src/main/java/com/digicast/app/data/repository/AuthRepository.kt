@@ -21,6 +21,7 @@ import org.json.JSONObject
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.digicast.app.data.ads.AdMobManager
 
 data class UserSession(
     val uid: String,
@@ -263,13 +264,45 @@ class AuthRepository @Inject constructor(
 
             val response = okHttpClient.newCall(request).execute()
             if (response.isSuccessful) {
-                // Instantly grant 24h grace access while admin verifies
+                // Instantly grant grace access while backend / gateway verifies
                 activateOneDayPass(fromAd = false)
                 Result.success(true)
             } else {
                 val errBody = response.body?.string() ?: ""
                 Result.failure(Exception("Submission response: ${response.code} $errBody"))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Instantly checks whether amount was received by the UPI Gateway
+     */
+    suspend fun checkUpiPaymentStatus(
+        workspaceId: String,
+        utrNumber: String? = null
+    ): Result<JSONObject> = withContext(Dispatchers.IO) {
+        try {
+            val urlBuilder = StringBuilder("$BACKEND_URL/api/payments/check?workspaceId=$workspaceId")
+            if (!utrNumber.isNullOrBlank()) {
+                urlBuilder.append("&utrNumber=$utrNumber")
+            }
+
+            val request = Request.Builder()
+                .url(urlBuilder.toString())
+                .get()
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            val raw = response.body?.string() ?: "{}"
+            val json = JSONObject(raw)
+
+            if (json.optBoolean("isPaid", false) || json.optString("status") == "approved") {
+                activateOneDayPass(fromAd = false)
+            }
+
+            Result.success(json)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -784,7 +817,11 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun claimAdReward(uid: String): Result<Boolean> = withContext(Dispatchers.IO) {
+    suspend fun claimAdReward(
+        uid: String,
+        provider: String = AdMobManager.getLastServedProvider(),
+        adUnitId: String = AdMobManager.getLastServedUnitId()
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val sessionUrl = "$BACKEND_URL/api/ads/session"
             val bodyObj = JSONObject().apply { put("uid", uid) }
@@ -795,6 +832,11 @@ class AuthRepository @Inject constructor(
 
             val sessionJson = JSONObject(sessionResp.body?.string() ?: "{}")
             val adSession = sessionJson.optJSONObject("adSession") ?: return@withContext Result.success(true)
+
+            // Attach active provider and adUnitId so backend dashboard tracks daily earnings
+            adSession.put("provider", provider)
+            adSession.put("adUnitId", adUnitId)
+            adSession.put("platform", "ANDROID")
 
             // Verify view
             val verifyUrl = "$BACKEND_URL/api/ads/verify-view"

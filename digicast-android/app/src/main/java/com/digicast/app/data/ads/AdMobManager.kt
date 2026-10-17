@@ -20,6 +20,18 @@ object AdMobManager {
     private var rewardedAd: RewardedAd? = null
     private var isLoading = false
 
+    // Track active provider & unit for daily analytics reporting
+    private var lastServedProvider: String = "ADMOB"
+    private var lastServedUnitId: String = REWARDED_AD_UNIT_ID
+
+    fun getLastServedProvider(): String = lastServedProvider
+    fun getLastServedUnitId(): String = lastServedUnitId
+
+    fun setFallbackProvider(provider: String = "SPONSORED_PARTNER") {
+        lastServedProvider = provider
+        lastServedUnitId = "Direct_Partner_Video"
+    }
+
     fun loadRewardedAd(context: Context, onLoaded: (() -> Unit)? = null) {
         if (rewardedAd != null || isLoading) {
             if (rewardedAd != null) onLoaded?.invoke()
@@ -38,6 +50,8 @@ object AdMobManager {
                 override fun onAdLoaded(ad: RewardedAd) {
                     Log.d(TAG, "AdMob Rewarded ad loaded successfully (production unit)")
                     rewardedAd = ad
+                    lastServedProvider = "ADMOB"
+                    lastServedUnitId = REWARDED_AD_UNIT_ID
                     isLoading = false
                     onLoaded?.invoke()
                 }
@@ -53,6 +67,8 @@ object AdMobManager {
                             override fun onAdLoaded(testAd: RewardedAd) {
                                 Log.d(TAG, "AdMob sample test rewarded ad loaded")
                                 rewardedAd = testAd
+                                lastServedProvider = "ADMOB"
+                                lastServedUnitId = SAMPLE_TEST_AD_UNIT_ID
                                 isLoading = false
                                 onLoaded?.invoke()
                             }
@@ -60,6 +76,8 @@ object AdMobManager {
                             override fun onAdFailedToLoad(testError: LoadAdError) {
                                 Log.e(TAG, "Both AdMob units failed: ${testError.message}")
                                 rewardedAd = null
+                                lastServedProvider = "SPONSORED_PARTNER"
+                                lastServedUnitId = "Direct_Partner_Video"
                                 isLoading = false
                             }
                         }
@@ -76,6 +94,7 @@ object AdMobManager {
     ) {
         val ad = rewardedAd
         if (ad != null) {
+            lastServedProvider = "ADMOB"
             ad.show(activity) { rewardItem ->
                 Log.d(TAG, "User completed watching AdMob ad: ${rewardItem.amount} ${rewardItem.type}")
                 onUserEarnedReward()
@@ -85,6 +104,8 @@ object AdMobManager {
             loadRewardedAd(activity)
         } else {
             // If network ad has not finished loading or is unavailable, use interactive simulated ad player
+            lastServedProvider = "SPONSORED_PARTNER"
+            lastServedUnitId = "Direct_Partner_Video"
             onFallbackSimulationNeeded()
         }
     }

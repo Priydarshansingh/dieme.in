@@ -2,11 +2,19 @@
 
 export type PlanId = 'intro_29' | 'starter' | 'pro' | 'studio';
 
+// Core conversion rates and costs
+export const D_COINS_PER_DP = 10;
+export const INR_PER_DP = 1;
+export const UNLOCK_24H_DCOINS_COST = 50; // 50 D-Coins = ₹5 INR for 24-hour pass
+export const AD_REWARD_DCOINS = 50;        // Rewarded ad watch gives 50 D-Coins or 24h pass
+
 export interface PricingPlan {
   id: PlanId;
   name: string;
   badge?: string;
   priceINR: number;
+  dpCost: number;
+  dCoinsCost: number;
   period: 'month';
   periodLabel: string;
   durationDays: number;
@@ -32,6 +40,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: '1st Month VIP Pass',
     badge: 'EXCLUSIVE INTRO OFFER',
     priceINR: 29,
+    dpCost: 29,
+    dCoinsCost: 290,
     period: 'month',
     periodLabel: '/ 30 days',
     durationDays: 30,
@@ -54,6 +64,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: '1 Month Unlimited Pass',
     badge: 'STANDARD PACK',
     priceINR: 149,
+    dpCost: 149,
+    dCoinsCost: 1490,
     period: 'month',
     periodLabel: '/ 1 month',
     durationDays: 30,
@@ -77,6 +89,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     badge: 'MOST POPULAR',
     recommended: true,
     priceINR: 499,
+    dpCost: 499,
+    dCoinsCost: 4990,
     period: 'month',
     periodLabel: '/ 3 months',
     durationDays: 90,
@@ -100,6 +114,8 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: '1 Year Annual Pass',
     badge: 'BEST VALUE • SAVE BIG',
     priceINR: 999,
+    dpCost: 999,
+    dCoinsCost: 9990,
     period: 'month',
     periodLabel: '/ 1 year',
     durationDays: 365,
@@ -168,7 +184,7 @@ export function buildVerificationTelegramUrl(params: {
     `• *UTR / Ref ID:* \`${params.utrNumber}\`\n` +
     `• *User Email:* ${params.userEmail}\n` +
     `• *Workspace:* ${params.workspaceName} (\`${params.workspaceId}\`)\n\n` +
-    `Please verify and activate my subscription!`;
+    `Please approve my access pass. Thank you!`;
 
-  return `https://t.me/share/url?url=${encodeURIComponent('https://digicast-web.vercel.app')}&text=${encodeURIComponent(message)}`;
+  return `https://t.me/${UPI_CONFIG.telegramBotUsername}?start=verify_${params.workspaceId}&text=${encodeURIComponent(message)}`;
 }

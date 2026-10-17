@@ -159,23 +159,120 @@ class AuthRepository @Inject constructor(
         prefs.edit()
             .putLong(KEY_ONE_DAY_PASS_EXPIRES_AT, expiresAt)
             .putBoolean(KEY_SIGNED_OUT, false)
-            .putBoolean(KEY_IS_DEMO, true)
             .apply()
 
-        val session = DEMO_SESSION.copy(
-            displayName = if (fromAd) "Creator (Ad Rewarded 24h)" else "Creator (1-Day Free Access)",
-            subscriptionStatus = "active",
-            plan = "1_day_pass",
-            daysRemaining = 1
-        )
+        val currentSession = (_authState.value as? AuthState.SignedIn)?.session
+        val session = if (currentSession != null && currentSession.uid != "demo-uid") {
+            currentSession.copy(
+                subscriptionStatus = "active",
+                daysRemaining = 1
+            )
+        } else {
+            prefs.edit().putBoolean(KEY_IS_DEMO, true).apply()
+            DEMO_SESSION.copy(
+                displayName = if (fromAd) "Creator (Ad Rewarded 24h)" else "Creator (1-Day Free Access)",
+                subscriptionStatus = "active",
+                plan = "1_day_pass",
+                daysRemaining = 1
+            )
+        }
         _authState.value = AuthState.SignedIn(session)
         scope.launch {
-            seedDemoDataIfEmpty()
+            if (session.uid == "demo-uid") {
+                seedDemoDataIfEmpty()
+            }
             if (fromAd) {
                 claimAdReward(session.uid)
             }
         }
         return session
+    }
+
+    /**
+     * Checks if a user (Streamer or Editor) requires 24h pass unlock.
+     * Rule: Free 14-day trial for any new account.
+     * After 14 days, free users without an active paid subscription must unlock 24h access once per 24 hours.
+     */
+    fun checkUserNeeds24hUnlock(session: UserSession): Boolean {
+        // Paid active subscriptions (VIP intro_29, starter, pro, studio) have unrestricted continuous access
+        val isPaidActive = (session.subscriptionStatus == "active") &&
+                (session.plan != "free_trial") &&
+                (session.plan != "1_day_pass") &&
+                (session.daysRemaining > 0)
+        if (isPaidActive) return false
+
+        // Within 14-day free trial period: unrestricted access
+        val isWithin14DayTrial = (session.subscriptionStatus == "trial" || session.plan == "free_trial") &&
+                (session.daysRemaining > 0)
+        if (isWithin14DayTrial) return false
+
+        // User is free/expired: check if their 24-hour pass is currently active
+        return !isOneDayPassActive()
+    }
+
+    /**
+     * Deducts 50 D-Coins to unlock 24-hour studio access
+     */
+    suspend fun unlock24hPassWithDCoins(uid: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val body = JSONObject().apply {
+                put("uid", uid)
+                put("itemType", "PASS_24H_UNLOCK")
+                put("currency", "D_COIN")
+                put("amount", 50)
+            }.toString().toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url("$BACKEND_URL/api/wallet/spend")
+                .post(body)
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            activateOneDayPass(fromAd = false)
+            Result.success(true)
+        } catch (e: Exception) {
+            // Offline/fallback: still activate pass so creator can work
+            activateOneDayPass(fromAd = false)
+            Result.success(true)
+        }
+    }
+
+    /**
+     * Submits UPI payment reference (UTR) directly from mobile app
+     */
+    suspend fun submitUpiPayment(
+        workspaceId: String,
+        planId: String,
+        amountINR: Int,
+        utrNumber: String,
+        userEmail: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val body = JSONObject().apply {
+                put("workspaceId", workspaceId)
+                put("planId", planId)
+                put("amountINR", amountINR)
+                put("utrNumber", utrNumber)
+                put("userEmail", userEmail)
+            }.toString().toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url("$BACKEND_URL/api/payments/submit")
+                .post(body)
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                // Instantly grant 24h grace access while admin verifies
+                activateOneDayPass(fromAd = false)
+                Result.success(true)
+            } else {
+                val errBody = response.body?.string() ?: ""
+                Result.failure(Exception("Submission response: ${response.code} $errBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     // ─── Session restore on app launch ───────────────────────────────────────

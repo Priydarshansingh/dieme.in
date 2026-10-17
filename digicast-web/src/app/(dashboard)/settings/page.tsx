@@ -470,13 +470,13 @@ function SettingsContent() {
             </label>
             <input
               type="text"
-              placeholder="e.g. -100123456789 (Use /chatid with @digicast_bot)"
+              placeholder="e.g. -100123456789 (Use /chatid with @YT_digicast)"
               value={telegramChatId}
               onChange={(e) => setTelegramChatId(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none bg-white/[0.04] border border-white/10 text-white placeholder-slate-500 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20 transition"
             />
             <p className="text-[11px] text-slate-400 mt-1.5">
-              Add <b className="text-white">@digicast_bot</b> to your group and type <code className="bg-white/10 px-1.5 py-0.5 rounded text-cyan-300 font-mono border border-white/10">/chatid</code> to get this ID.
+              Add <b className="text-white">@YT_digicast</b> to your group and type <code className="bg-white/10 px-1.5 py-0.5 rounded text-cyan-300 font-mono border border-white/10">/chatid</code> to get this ID.
             </p>
           </div>
           <button
@@ -653,11 +653,35 @@ function SettingsContent() {
 
           {/* 4-Combo Pricing Plans Grid */}
           <div className="pt-2">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
-                <h3 className="text-base font-bold text-white">Available Subscription Plans</h3>
+                <h3 className="text-base font-bold text-white">Available Subscription Passes &amp; Currency Breakdown</h3>
                 <p className="text-xs text-slate-400">Zero limits — unlimited live clips, fast on-device trimming, full YouTube &amp; Telegram sync.</p>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-xl bg-amber-400/10 border border-amber-400/20 text-[11px] font-mono font-bold text-amber-300">
+                  1 DP = ₹1 INR
+                </span>
+                <span className="px-2.5 py-1 rounded-xl bg-cyan-400/10 border border-cyan-400/20 text-[11px] font-mono font-bold text-cyan-300">
+                  10 D-Coins = 1 DP
+                </span>
+              </div>
+            </div>
+
+            {/* 24-Hour Access Policy Notice */}
+            <div className="mb-5 p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="space-y-0.5">
+                <p className="font-bold text-white flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>14-Day Free Evaluation &bull; 24-Hour Access Rule</span>
+                </p>
+                <p className="text-slate-400 text-[11px]">
+                  All creators receive 14 days of free evaluation. After 14 days, free users without an active subscription pass can unlock 24-hour access by watching 1 partner video or paying 50 D-Coins.
+                </p>
+              </div>
+              <span className="px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono font-bold text-[10px] shrink-0">
+                24H PASS = 50 D-COINS
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
@@ -685,6 +709,18 @@ function SettingsContent() {
                       <span className="text-3xl font-black text-white">₹{plan.priceINR}</span>
                       <span className="text-xs text-slate-400 font-medium">{plan.periodLabel}</span>
                     </div>
+
+                    {/* Currency Calculation */}
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <span className="px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/20 text-[10px] font-mono font-bold text-amber-300">
+                        {plan.dpCost} DP
+                      </span>
+                      <span className="text-slate-500 text-[10px]">&bull;</span>
+                      <span className="px-2 py-0.5 rounded-md bg-cyan-400/10 border border-cyan-400/20 text-[10px] font-mono font-bold text-cyan-300">
+                        {plan.dCoinsCost} D-Coins
+                      </span>
+                    </div>
+
                     <p className="text-xs text-slate-400 mb-4 leading-relaxed min-h-[34px]">{plan.description}</p>
 
                     <div className="space-y-2.5 border-t border-white/[0.08] pt-3">

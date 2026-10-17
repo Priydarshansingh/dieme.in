@@ -93,7 +93,7 @@ export default function UpiPaymentModal({
   });
 
   const appLinks = buildMobileAppUpiLinks(selectedPlan.priceINR, selectedPlan.name);
-  const tgDeepLink = `https://t.me/${UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'}?start=pay_${workspaceId}_${selectedPlan.id}`;
+  const tgDeepLink = `https://t.me/${UPI_CONFIG.telegramBotUsername || 'YT_digicast'}?start=pay_${workspaceId}_${selectedPlan.id}`;
 
   // Handler for the "Pay on Phone" button (redirects on mobile)
   const handlePayOnPhoneClick = () => {
@@ -612,7 +612,7 @@ export default function UpiPaymentModal({
                               <span>Scan with Phone Camera</span>
                             </p>
                             <p className="text-[11px] text-slate-400 leading-snug">
-                              Opens Telegram (@{UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'}) on your phone to drop the screenshot directly — zero file transfer needed!
+                              Opens Telegram (@{UPI_CONFIG.telegramBotUsername || 'YT_digicast'}) on your phone to drop the screenshot directly — zero file transfer needed!
                             </p>
                             <a
                               href={tgDeepLink}
@@ -746,7 +746,7 @@ export default function UpiPaymentModal({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <a
-                    href={`https://t.me/${UPI_CONFIG.telegramBotUsername || 'DIGICAST_BOT'}?start=query_${workspaceId}`}
+                    href={`https://t.me/${UPI_CONFIG.telegramBotUsername || 'YT_digicast'}?start=query_${workspaceId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-[#229ED9] hover:bg-[#1E88C7] transition shadow-lg shadow-[#229ED9]/20"

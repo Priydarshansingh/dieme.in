@@ -487,7 +487,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
   const tickers = [
     { pair: 'YOUTUBE LIVE', val: '4K 60FPS', change: 'HDR READY', up: true },
     { pair: 'MARKER RELAY', val: '240 ms', change: '-45ms', up: true },
-    { pair: 'TELEGRAM BOT', val: '@digicast_bot', change: 'ONLINE', up: true },
+    { pair: 'TELEGRAM BOT', val: '@YT_digicast', change: 'ONLINE', up: true },
     { pair: 'SMART LOOKBACK', val: '45 SECONDS', change: 'BUFFER 100%', up: true },
     { pair: 'ACTIVE STREAMS', val: '48 LIVE', change: 'MONITORED', up: true },
     { pair: 'QUOTA CONSUMPTION', val: '0 UNITS', change: 'ZERO BURN', up: true },
@@ -949,7 +949,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                       {[
                         'Instant workspace activation with zero setup delays',
                         'Zero-quota Nightbot & StreamElements webhook triggers',
-                        'Dedicated Telegram companion bot pairing (@digicast_bot)',
+                        'Dedicated Telegram companion bot pairing (@YT_digicast)',
                         'Up to 5 team editor logins with role-based permissions',
                       ].map((item, iIdx) => (
                         <div key={iIdx} className="flex items-start gap-2.5 text-xs text-slate-300">
@@ -1186,7 +1186,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-white font-mono">@digicast_bot</span>
+                              <span className="text-xs font-bold text-white font-mono">@YT_digicast</span>
                               <span className="text-[10px] text-teal-400 font-mono">&#x2713; Verified</span>
                             </div>
                             <p className="text-[10px] text-slate-500">Live Production Bot &bull; Just now</p>
@@ -1519,8 +1519,8 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                     </tr>
                     <tr>
                       <td className="py-3.5 px-4 font-bold text-white">Telegram Bot Ingest</td>
-                      <td className="py-3.5 px-3 text-center">@digicast_bot</td>
-                      <td className="py-3.5 px-3 text-center">@digicast_bot</td>
+                      <td className="py-3.5 px-3 text-center">@YT_digicast</td>
+                      <td className="py-3.5 px-3 text-center">@YT_digicast</td>
                       <td className="py-3.5 px-3 text-center bg-emerald-500/5 text-emerald-300 border-x border-emerald-500/20 font-bold">Priority Direct Channel</td>
                       <td className="py-3.5 px-3 text-center text-cyan-300 font-bold">Dedicated Multi-Channel</td>
                     </tr>

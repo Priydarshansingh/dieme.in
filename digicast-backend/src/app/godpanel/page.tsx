@@ -1556,6 +1556,58 @@ export default function GodPanelDashboard() {
                   </div>
                 )}
               </div>
+
+              {/* Dynamic Pricing & Currency Management */}
+              <div className="rounded-3xl border border-white/5 bg-[#0E1118] p-6 space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Dynamic Pricing &amp; Currency Engine
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      1 DP = ₹1 INR &bull; 10 D-Coins = 1 DP &bull; 24h Unlock Fee = 50 D-Coins
+                    </p>
+                  </div>
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full font-mono bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
+                    REALTIME ENGINE
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { id: 'intro_29', name: '1st Month VIP', price: 29, dp: 29, dCoins: 290, days: 30, color: '#EC4899' },
+                    { id: 'starter', name: '1 Month Standard', price: 149, dp: 149, dCoins: 1490, days: 30, color: '#0284C7' },
+                    { id: 'pro', name: '3 Month Quarter', price: 499, dp: 499, dCoins: 4990, days: 90, color: '#10B981' },
+                    { id: 'studio', name: '1 Year Annual', price: 999, dp: 999, dCoins: 9990, days: 365, color: '#7C3AED' },
+                  ].map((p) => (
+                    <div key={p.id} className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">{p.name}</span>
+                        <span className="text-[10px] font-mono text-slate-400">{p.days}d</span>
+                      </div>
+                      <div className="text-xl font-extrabold text-white">₹{p.price}</div>
+                      <div className="flex items-center gap-1.5 pt-1 border-t border-white/5 text-[10px] font-mono">
+                        <span className="text-amber-400">{p.dp} DP</span>
+                        <span className="text-slate-600">&bull;</span>
+                        <span className="text-cyan-400">{p.dCoins} D-Coins</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+                  <div>
+                    <span className="font-bold text-white">Official UPI Payee VPA:</span>
+                    <span className="ml-2 font-mono text-cyan-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
+                      priydarshankishnawat@axl
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400">Telegram Verification:</span>
+                    <span className="font-mono text-emerald-400">@YT_digicast</span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

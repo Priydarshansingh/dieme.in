@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       if (chatType !== 'private') {
         await sendTelegramMessage(
           chatId,
-          `⚠️ <b>Privacy Warning:</b> Please send payment receipts directly in private DM to @${process.env.TELEGRAM_BOT_USERNAME || 'DIGICAST_BOT'} so other group members cannot see your transaction!`,
+          `⚠️ <b>Privacy Warning:</b> Please send payment receipts directly in private DM to @${process.env.TELEGRAM_BOT_USERNAME || 'YT_digicast'} so other group members cannot see your transaction!`,
           messageId
         );
         return NextResponse.json({ ok: true });
@@ -318,7 +318,12 @@ Digicast is the real-time Live Intelligence & Instant Clip Delivery Platform for
 • <code>/status</code> — Check server connection & clip delivery health.
 • <code>/help</code> — Show this help menu.
 
-👨‍💻 <b>Official Telegram Bot:</b> @${process.env.TELEGRAM_BOT_USERNAME || 'digicast_bot'}
+🌐 <b>Official Links & Support:</b>
+• Support & Community: https://digicast-web.vercel.app/contact
+• Pricing Passes: https://digicast-web.vercel.app/pricing
+• Terms & Privacy: https://digicast-web.vercel.app/terms
+
+👨‍💻 <b>Official Telegram Bot:</b> @${process.env.TELEGRAM_BOT_USERNAME || 'YT_digicast'}
       `.trim();
       await sendTelegramMessage(chatId, helpMessage, messageId);
     }
@@ -548,7 +553,11 @@ Thank you <b>${senderName}</b>! Your concern has been recorded and dispatched to
 
     // ─── 7. When Bot is added to a new group ────────────────────────────────
     if (message.new_chat_members && Array.isArray(message.new_chat_members)) {
-      const isBotAdded = message.new_chat_members.some((m: any) => m.is_bot && m.username?.toLowerCase() === 'digicast_bot');
+      const isBotAdded = message.new_chat_members.some((m: any) => m.is_bot && (
+        m.username?.toLowerCase() === 'yt_digicast' ||
+        m.username?.toLowerCase() === 'digicast_bot' ||
+        m.username?.toLowerCase() === (process.env.TELEGRAM_BOT_USERNAME || '').toLowerCase()
+      ));
       if (isBotAdded) {
         const groupGreeting = `
 👋 <b>Hello ${chatTitle}!</b>

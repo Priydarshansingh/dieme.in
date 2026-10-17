@@ -81,7 +81,7 @@ export const CREATOR_KEYWORD_CATEGORIES: KeywordCategory[] = [
       'Nightbot !clip Webhook Integration',
       'StreamElements Chat Clip Command',
       'Telegram Bot Stream Highlight Alerts',
-      'Official @digicast_bot Companion',
+      'Official @YT_digicast Companion',
       'Discord Stream Highlights Webhook',
       'Streamer and Video Editor Live Sync',
       'Collaborative Cloud Editor Workspace',

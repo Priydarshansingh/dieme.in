@@ -3,6 +3,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  PRICING_PLANS,
+  PricingPlan,
+  PlanId,
+} from '@/lib/pricingPlans';
+import UpiPaymentModal from '@/components/subscription/UpiPaymentModal';
+import {
   Check,
   CreditCard,
   Sparkles,
@@ -14,118 +20,70 @@ import {
   Copy,
   CheckCircle2,
   Gift,
+  QrCode,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function PricingAndSubscriptionsPage() {
   const { user } = useAuth();
   const uid = user?.uid || 'guest_creator';
 
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'annual'>('monthly');
   const [feedback, setFeedback] = useState('');
-  const [activePlan, setActivePlan] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<PlanId>('pro');
 
   const referralCode = `REF_${uid.slice(0, 6).toUpperCase()}`;
-  const referralLink = typeof window !== 'undefined' ? `${window.location.origin}/login?ref=${referralCode}` : `https://digicast.app/login?ref=${referralCode}`;
+  const referralLink = typeof window !== 'undefined' ? `${window.location.origin}/login?ref=${referralCode}` : `https://digicast-web.vercel.app/login?ref=${referralCode}`;
 
-  const plans = [
+  const allCards = [
     {
-      id: 'FREE_TRIAL_14',
-      name: '14-Day Free Trial',
+      id: 'free_trial' as const,
+      isTrial: true,
+      name: '14-Day Free Evaluation',
+      badge: 'RISK-FREE TRIAL',
       price: '₹0',
       period: '14 days',
-      badge: 'Start Risk-Free',
       description: 'Test all features on your live streams with zero payment details required.',
       features: [
         'Full live chat capture & indexing',
         '!clip automatic moment detection',
-        'Includes 10-day trial credits',
+        'Includes 14-day evaluation credits',
         'Telegram editor group auto-forwarding',
-        'Option to extend to 30 days',
+        'Direct YouTube replay jump links (?t=...)',
       ],
       dpCost: 0,
-      isTrial: true,
       popular: false,
+      color: '#06B6D4',
     },
-    {
-      id: 'INTRO_FIRST_MONTH_29',
-      name: 'Introductory Offer',
-      price: '₹29',
-      period: 'first month',
-      badge: 'Limited Creator Special',
-      description: 'Get full Pro access for your first 30 days at an unbeatable introductory rate.',
-      features: [
-        'Full month unlimited stream clipping',
-        'Special launch price of ₹29 only',
-        'Watermark removal on all clips',
-        'Editor Marketplace direct booking',
-        'Discord & community priority support',
-      ],
-      dpCost: 29,
+    ...PRICING_PLANS.map((p) => ({
+      id: p.id,
       isTrial: false,
-      popular: true,
-    },
-    {
-      id: 'STANDARD_MONTHLY_149',
-      name: 'Standard Pro',
-      price: '₹149',
-      period: 'per month',
-      badge: 'Most Flexible',
-      description: 'The standard subscription for regular livestreamers and creators.',
-      features: [
-        'Everything in Introductory Plan',
-        'AI Matchmaking Bot for top editors',
-        'Priority high-speed Telegram relay',
-        'Access to Facecam Overlays & Frames',
-        'Add up to 5 Editor team members',
-      ],
-      dpCost: 149,
-      isTrial: false,
-      popular: false,
-    },
-    {
-      id: 'QUARTERLY_449',
-      name: 'Quarterly Pass',
-      price: '₹449',
-      period: 'for 3 months',
-      badge: 'Save 10%',
-      description: 'Cost-effective 3-month access with bonus D-Coins included.',
-      features: [
-        'All Standard features for 90 days',
-        'Save 10% vs monthly renewal',
-        'Bonus 50 D-Coins credited to wallet',
-        'Custom Live Stream Frames unlocked',
-        'Dedicated streamer support channel',
-      ],
-      dpCost: 449,
-      isTrial: false,
-      popular: false,
-    },
-    {
-      id: 'ANNUAL_999',
-      name: 'Annual VIP',
-      price: '₹999',
-      period: 'per year',
-      badge: 'Save ~45%',
-      description: 'The ultimate creator bundle at only ~₹83/month for a whole year.',
-      features: [
-        'Full 365 days of unrestricted Pro',
-        'Save 45% compared to monthly plan',
-        'Bonus 200 D-Coins credited to wallet',
-        'Verified Streamer badge on profile',
-        'VIP direct line to core dev team',
-      ],
-      dpCost: 999,
-      isTrial: false,
-      popular: false,
-    },
+      name: p.name,
+      badge: p.badge || 'PRO PACK',
+      price: `₹${p.priceINR}`,
+      period: p.periodLabel.replace('/ ', ''),
+      description: p.description,
+      features: p.features,
+      dpCost: p.priceINR,
+      popular: !!p.recommended,
+      color: p.color,
+    })),
   ];
 
-  const handleSubscribe = (plan: any, method: 'INR' | 'DP') => {
-    setActivePlan(plan.id);
-    const costText = method === 'DP' ? `${plan.dpCost} DP` : plan.price;
-    setFeedback(`🎉 Subscribed to ${plan.name} via ${method === 'DP' ? 'In-App DP Balance' : 'Razorpay INR'} (${costText})!`);
-    setTimeout(() => setFeedback(''), 5000);
+  const handleOpenPayment = (planId: PlanId) => {
+    setSelectedPlanId(planId);
+    setPaymentModalOpen(true);
+  };
+
+  const handleStartTrial = () => {
+    setFeedback('🎉 14-Day Evaluation Active! All stream markers and on-device trimming are unlocked.');
+    setTimeout(() => setFeedback(''), 6000);
+  };
+
+  const handleDpPayment = (planName: string, dpCost: number) => {
+    setFeedback(`💡 To pay ${dpCost} DP for ${planName}, check your balance in the Wallet tab or watch rewarded ads to earn DP!`);
+    setTimeout(() => setFeedback(''), 6000);
   };
 
   const copyReferral = () => {
@@ -179,7 +137,7 @@ export default function PricingAndSubscriptionsPage() {
 
       {/* Pricing Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {plans.map((p) => (
+        {allCards.map((p) => (
           <div
             key={p.id}
             className={`rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 ${
@@ -197,7 +155,7 @@ export default function PricingAndSubscriptionsPage() {
 
               <div>
                 <h4 className="text-base font-bold text-white">{p.name}</h4>
-                <p className="text-[11px] text-slate-400 mt-1">{p.description}</p>
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{p.description}</p>
               </div>
 
               <div className="pt-2">
@@ -216,20 +174,30 @@ export default function PricingAndSubscriptionsPage() {
             </div>
 
             <div className="pt-6 space-y-2">
-              <button
-                onClick={() => handleSubscribe(p, 'INR')}
-                className={`w-full rounded-xl py-2.5 text-xs font-bold transition shadow ${
-                  p.popular
-                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white'
-                    : 'bg-white/10 hover:bg-white/20 text-white'
-                }`}
-              >
-                {p.isTrial ? 'Start 14-Day Free Trial' : `Subscribe (${p.price})`}
-              </button>
+              {p.isTrial ? (
+                <button
+                  onClick={handleStartTrial}
+                  className="w-full rounded-xl py-2.5 text-xs font-bold transition shadow bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40"
+                >
+                  Start 14-Day Free Evaluation
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleOpenPayment(p.id as PlanId)}
+                  className={`w-full rounded-xl py-2.5 text-xs font-bold transition shadow flex items-center justify-center gap-1.5 ${
+                    p.popular
+                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white'
+                      : 'bg-white/10 hover:bg-white/20 text-white'
+                  }`}
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Subscribe ({p.price})</span>
+                </button>
+              )}
 
               {!p.isTrial && (
                 <button
-                  onClick={() => handleSubscribe(p, 'DP')}
+                  onClick={() => handleDpPayment(p.name, p.dpCost)}
                   className="w-full rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 py-2 text-[11px] font-semibold text-amber-400 transition flex items-center justify-center gap-1.5"
                 >
                   <Coins className="h-3 w-3" />
@@ -295,6 +263,21 @@ export default function PricingAndSubscriptionsPage() {
           </button>
         </div>
       </div>
+
+      {/* Production UPI Payment Modal */}
+      <UpiPaymentModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        workspaceId={user?.uid || 'guest_creator'}
+        workspaceName={user?.displayName || 'Creator Studio'}
+        userEmail={user?.email || ''}
+        initialPlanId={selectedPlanId}
+        onPaymentSubmitted={() => {
+          setPaymentModalOpen(false);
+          setFeedback('⚡ Payment submitted for verification! 24-hour instant access has been provisioned.');
+          setTimeout(() => setFeedback(''), 8000);
+        }}
+      />
     </div>
   );
 }

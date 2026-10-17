@@ -38,6 +38,7 @@ export type LedgerSource =
   | 'SUBSCRIPTION_PURCHASE' // Buying plan with DP
   | 'WATERMARK_REMOVAL'     // Unlocking feature with DP
   | 'ASSET_PURCHASE'        // Buying stream asset with DP
+  | 'PASS_24H_UNLOCK'       // Unlocking 24-hour pass with 50 D-Coins
   | 'ADMIN_ADJUSTMENT'      // God panel adjustment
   | 'TRIAL_BONUS';          // Welcome bonus credits
 

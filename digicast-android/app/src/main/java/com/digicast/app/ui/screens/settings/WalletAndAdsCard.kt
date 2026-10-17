@@ -130,11 +130,11 @@ fun WalletAndAdsCard(
             val res = authRepository.claimAdReward(uid)
             if (res.isSuccess) {
                 walletInfo = walletInfo?.copy(
-                    dCoinsBalance = (walletInfo?.dCoinsBalance ?: 120) + 10,
+                    dCoinsBalance = (walletInfo?.dCoinsBalance ?: 120) + 50,
                     hasActiveAdPass = true,
                     adRemainingHours = 24.0
-                ) ?: MobileWalletInfo(130, 45, 58.0, true, 24.0)
-                Toast.makeText(context, "🎉 Ad reward claimed! +10 D-Coins added & 24h Pass activated!", Toast.LENGTH_LONG).show()
+                ) ?: MobileWalletInfo(170, 45, 58.0, true, 24.0)
+                Toast.makeText(context, "🎉 Ad reward claimed! +50 D-Coins added & 24h Pass activated!", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -373,7 +373,7 @@ fun WalletAndAdsCard(
                     }
 
                     Text(
-                        text = "Free & trial users: Watch 1 video ad to unlock 24 hours of uninterrupted studio features and earn +10 D-Coins.",
+                        text = "Free & trial users: Watch 1 video ad to unlock 24 hours of uninterrupted studio features and earn +50 D-Coins.",
                         color = DigicastSlate,
                         fontSize = 11.sp,
                         lineHeight = 15.sp

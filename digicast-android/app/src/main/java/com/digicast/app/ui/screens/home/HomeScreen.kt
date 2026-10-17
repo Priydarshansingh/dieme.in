@@ -68,6 +68,7 @@ import com.digicast.app.data.repository.AuthState
 import com.digicast.app.data.repository.ChatRepository
 import com.digicast.app.data.repository.StreamRepository
 import com.digicast.app.service.LiveChatCaptureService
+import com.digicast.app.ui.components.Access24hGateDialog
 import com.digicast.app.ui.components.FolderTabCard
 import com.digicast.app.ui.components.ProfileAvatarButton
 import com.digicast.app.ui.components.SparklineWaveCard
@@ -161,6 +162,18 @@ fun HomeScreen(
     val live = activeStreams.firstOrNull() ?: allStreams.firstOrNull()
     val capturing = LiveChatCaptureService.isServiceRunning
     var selectedCategory by remember { mutableStateOf("All Streams") }
+
+    val signedInSession = (authState as? AuthState.SignedIn)?.session
+    var show24hGate by remember { mutableStateOf(false) }
+
+    LaunchedEffect(signedInSession) {
+        if (signedInSession != null) {
+            val needsUnlock = viewModel.authRepository.checkUserNeeds24hUnlock(signedInSession)
+            show24hGate = needsUnlock
+        } else {
+            show24hGate = false
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.syncData()
@@ -670,6 +683,17 @@ fun HomeScreen(
                 ChatRow(msg)
             }
         }
+    }
+
+    if (show24hGate && signedInSession != null) {
+        Access24hGateDialog(
+            session = signedInSession,
+            authRepository = viewModel.authRepository,
+            onUnlocked = {
+                show24hGate = false
+                viewModel.syncData()
+            }
+        )
     }
 }
 

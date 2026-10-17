@@ -228,7 +228,7 @@ export default function LoginPage() {
                     </p>
                     <p className="text-[10px] text-slate-400 font-mono truncate flex items-center gap-1">
                       <Send className="w-2.5 h-2.5 text-cyan-400" />
-                      Dispatched to @digicast_bot
+                      Dispatched to @YT_digicast
                     </p>
                   </div>
                 </div>
@@ -361,7 +361,7 @@ export default function LoginPage() {
                   </Link>
                   <span>•</span>
                   <a
-                    href="https://t.me/digicast_bot"
+                    href="https://t.me/YT_digicast?start=help"
                     target="_blank"
                     rel="noreferrer"
                     className="hover:text-cyan-300 transition-colors flex items-center gap-1"

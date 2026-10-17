@@ -15,14 +15,47 @@ import {
   Menu,
   X,
   Sparkles,
+  Wallet,
+  ShoppingBag,
+  Bot,
+  Trophy,
+  CreditCard,
 } from 'lucide-react';
 
-const navItems = [
+const navSections = [
+  {
+    title: 'STUDIO',
+    items: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/streams',   label: 'Streams',   icon: Radio },
+      { href: '/clips',     label: 'Clips',     icon: Scissors },
+      { href: '/team',      label: 'Team',      icon: Users },
+    ],
+  },
+  {
+    title: 'MARKET & REWARDS',
+    items: [
+      { href: '/wallet',      label: 'Wallet & Rewards', icon: Wallet },
+      { href: '/assets',      label: 'Marketplace',      icon: ShoppingBag },
+      { href: '/matchmaker',  label: 'AI Matchmaker',    icon: Bot },
+      { href: '/leaderboard', label: 'Leaderboard',      icon: Trophy },
+    ],
+  },
+  {
+    title: 'ACCOUNT',
+    items: [
+      { href: '/pricing',  label: 'Upgrade Passes', icon: CreditCard },
+      { href: '/settings', label: 'Settings',       icon: Settings },
+    ],
+  },
+];
+
+const mobileBottomNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/streams',   label: 'Streams',   icon: Radio },
   { href: '/clips',     label: 'Clips',     icon: Scissors },
-  { href: '/team',      label: 'Team',      icon: Users },
-  { href: '/settings',  label: 'Settings',  icon: Settings },
+  { href: '/wallet',    label: 'Wallet',    icon: Wallet },
+  { href: '/pricing',   label: 'Passes',    icon: CreditCard },
 ];
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -76,32 +109,39 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       </header>
 
       {/* ── DESKTOP SIDEBAR (hidden on mobile, lg:flex) ───────────────── */}
-      <aside className="hidden lg:flex w-60 shrink-0 flex-col h-full bg-[#090C13]/90 backdrop-blur-2xl border-r border-white/[0.08] relative z-20">
+      <aside className="hidden lg:flex w-64 shrink-0 flex-col h-full bg-[#090C13]/90 backdrop-blur-2xl border-r border-white/[0.08] relative z-20">
         {/* Brand */}
         <div className="px-5 py-5 border-b border-white/[0.08]">
           <DigicastBrandLogo size="md" />
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-5 space-y-1">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + '/');
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={[
-                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
-                  active
-                    ? 'bg-white/10 text-white shadow-[0_0_20px_rgba(255,255,255,0.06)] border border-white/15'
-                    : 'text-slate-400 hover:bg-white/[0.05] hover:text-white border border-transparent',
-                ].join(' ')}
-              >
-                <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? 'text-cyan-400' : 'text-slate-400 group-hover:text-white'}`} />
-                <span>{label}</span>
-              </Link>
-            );
-          })}
+        {/* Categorized Desktop Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+          {navSections.map((section) => (
+            <div key={section.title} className="space-y-1">
+              <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                {section.title}
+              </p>
+              {section.items.map(({ href, label, icon: Icon }) => {
+                const active = pathname === href || pathname.startsWith(href + '/');
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={[
+                      'flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150',
+                      active
+                        ? 'bg-cyan-500/10 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.1)] border border-cyan-500/25'
+                        : 'text-slate-400 hover:bg-white/[0.04] hover:text-white border border-transparent',
+                    ].join(' ')}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? 'text-cyan-400' : 'text-slate-400'}`} />
+                    <span className="truncate">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* User footer */}
@@ -162,30 +202,37 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 </button>
               </div>
 
-              {/* Navigation Items */}
-              <nav className="space-y-1.5">
-                {navItems.map(({ href, label, icon: Icon }) => {
-                  const active = pathname === href || pathname.startsWith(href + '/');
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      onClick={() => setDrawerOpen(false)}
-                      className={[
-                        'flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all',
-                        active
-                          ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]'
-                          : 'text-slate-300 hover:bg-white/[0.05] hover:text-white border border-transparent',
-                      ].join(' ')}
-                    >
-                      <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-cyan-400' : 'text-slate-400'}`} />
-                      <span>{label}</span>
-                    </Link>
-                  );
-                })}
+              {/* Categorized Drawer Navigation */}
+              <nav className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                {navSections.map((section) => (
+                  <div key={section.title} className="space-y-1">
+                    <p className="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      {section.title}
+                    </p>
+                    {section.items.map(({ href, label, icon: Icon }) => {
+                      const active = pathname === href || pathname.startsWith(href + '/');
+                      return (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => setDrawerOpen(false)}
+                          className={[
+                            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all',
+                            active
+                              ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]'
+                              : 'text-slate-300 hover:bg-white/[0.05] hover:text-white border border-transparent',
+                          ].join(' ')}
+                        >
+                          <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-cyan-400' : 'text-slate-400'}`} />
+                          <span>{label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ))}
               </nav>
 
-              <div className="mt-8 p-3.5 rounded-xl bg-white/[0.03] border border-white/10">
+              <div className="mt-6 p-3.5 rounded-xl bg-white/[0.03] border border-white/10">
                 <p className="text-[11px] font-bold text-white flex items-center gap-1.5 mb-1">
                   <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
                   <span>Creator Mobile Mode</span>
@@ -239,7 +286,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
       {/* ── MOBILE BOTTOM NAVIGATION BAR (lg:hidden) ─────────────────── */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[#090C13]/95 backdrop-blur-2xl border-t border-white/10 px-1 py-1.5 flex items-center justify-around shadow-2xl">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {mobileBottomNavItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link

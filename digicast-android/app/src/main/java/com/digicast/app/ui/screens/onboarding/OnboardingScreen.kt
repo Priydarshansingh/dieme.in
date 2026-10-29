@@ -1,6 +1,8 @@
 package com.digicast.app.ui.screens.onboarding
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,7 +30,6 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalAutofill
-import androidx.compose.ui.platform.LocalAutofillTree
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Visibility
@@ -70,6 +72,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -116,7 +119,19 @@ fun OnboardingScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Ad playback state for fallback partner video
+    // Check device verification state
+    val hasRegisteredAccount = savedEmail.isNotBlank()
+    var hasWatchedAd by remember { mutableStateOf(authRepository.hasWatchedAdToUnlock()) }
+    val hasActivePass = authRepository.isOneDayPassActive()
+    val (passHours, passMins) = authRepository.getOneDayPassRemainingHoursMinutes()
+
+    // Sign in is enabled if:
+    // 1. User has watched an ad, OR
+    // 2. User has an active 24h pass, OR
+    // 3. User already has a registered account on this device
+    val isSignInUnlocked = hasWatchedAd || hasActivePass || hasRegisteredAccount
+
+    // Ad playback state
     var showAdDialog by remember { mutableStateOf(false) }
     var adProgress by remember { mutableFloatStateOf(0f) }
     var adSecondsLeft by remember { mutableIntStateOf(5) }
@@ -183,8 +198,12 @@ fun OnboardingScreen(
                         fontSize = 16.sp
                     )
                     Text(
-                        text = "Use the App Login created by your workspace owner on digicast-web.",
-                        color = DigicastSlate,
+                        text = if (hasRegisteredAccount) {
+                            "Verified Device Account: $savedEmail"
+                        } else {
+                            "Register on digicast-web first or watch an ad below to unlock access."
+                        },
+                        color = if (hasRegisteredAccount) DigicastEmerald else DigicastSlate,
                         fontSize = 12.sp,
                         lineHeight = 17.sp
                     )
@@ -284,7 +303,7 @@ fun OnboardingScreen(
                         )
                     }
 
-                    // 1. Primary Sign-In Button
+                    // 1. Primary Sign-In Button (Grayed out for brand new free users until they watch ad)
                     Button(
                         onClick = {
                             focusManager.clearFocus()
@@ -309,8 +328,12 @@ fun OnboardingScreen(
                                 }
                             }
                         },
-                        enabled = !isLoading,
-                        colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
+                        enabled = !isLoading && isSignInUnlocked,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isSignInUnlocked) DigicastAccentBlue else DigicastNavy,
+                            disabledContainerColor = DigicastNavy.copy(alpha = 0.5f),
+                            disabledContentColor = DigicastSlate.copy(alpha = 0.5f)
+                        ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -325,79 +348,116 @@ fun OnboardingScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Text("Connecting...", color = DigicastWhite, fontWeight = FontWeight.Bold)
                         } else {
-                            Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(
+                                imageVector = if (isSignInUnlocked) Icons.Default.Lock else Icons.Default.Lock,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Sign In", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = if (isSignInUnlocked) "Sign In" else "Sign In (Watch Ad to Unlock)",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSignInUnlocked) DigicastWhite else DigicastSlate
+                            )
                         }
                     }
 
-                    // 2. Free Pass Access Button — directly underneath Sign In with identical blue styling
-                    val hasActivePass = authRepository.isOneDayPassActive()
-                    val (passHours, passMins) = authRepository.getOneDayPassRemainingHoursMinutes()
-
-                    Button(
-                        onClick = {
-                            focusManager.clearFocus()
-                            if (hasActivePass) {
-                                authRepository.enterDemoMode()
-                                onComplete()
-                                return@Button
-                            }
-
-                            val activity = context as? Activity
-                            if (activity != null && AdMobManager.isAdAvailable()) {
-                                AdMobManager.showRewardedAd(
-                                    activity = activity,
-                                    onUserEarnedReward = {
-                                        authRepository.activateOneDayPass(fromAd = true)
-                                        onComplete()
-                                    },
-                                    onFallbackSimulationNeeded = {
-                                        adProgress = 0f
-                                        adSecondsLeft = 5
-                                        showAdDialog = true
-                                    }
-                                )
-                            } else {
-                                if (activity != null) {
-                                    AdMobManager.loadRewardedAd(activity)
-                                }
-                                adProgress = 0f
-                                adSecondsLeft = 5
-                                showAdDialog = true
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = DigicastAccentBlue.copy(alpha = 0.22f)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, DigicastAccentBlue),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (hasActivePass) Icons.Default.Bolt else Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = DigicastAccentBlue
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (hasActivePass) {
-                                "Active 1-Day Pass (${passHours}h ${passMins}m) — Enter Studio"
-                            } else {
-                                "Watch Ad to Unlock Free Pass Access"
+                    // 2. Ad / Sign Up Button:
+                    // If user has not watched ad -> "Watch Ad to Unlock Access (+24h Pass)"
+                    // If user watched ad but has no account -> "Sign Up on Web (Unlocked)"
+                    // If user has active pass -> "1-Day Pass Active (Xh Ym) — Enter Studio"
+                    if (!hasRegisteredAccount && hasWatchedAd) {
+                        // Unlocked: Direct to website signup
+                        OutlinedButton(
+                            onClick = {
+                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://digicast-web.vercel.app"))
+                                context.startActivity(browserIntent)
                             },
-                            color = DigicastWhite,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastAccentBlue),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                        ) {
+                            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastAccentBlue)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Create Account on Digicast Web", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                focusManager.clearFocus()
+                                if (hasActivePass && hasRegisteredAccount) {
+                                    authRepository.activateOneDayPass(fromAd = false)
+                                    onComplete()
+                                    return@Button
+                                }
+
+                                val activity = context as? Activity
+                                if (activity != null && AdMobManager.isAdAvailable()) {
+                                    AdMobManager.showRewardedAd(
+                                        activity = activity,
+                                        onUserEarnedReward = {
+                                            authRepository.markAdWatchedUnlocked()
+                                            hasWatchedAd = true
+                                            if (hasRegisteredAccount) {
+                                                authRepository.activateOneDayPass(fromAd = true)
+                                                onComplete()
+                                            }
+                                        },
+                                        onFallbackSimulationNeeded = {
+                                            adProgress = 0f
+                                            adSecondsLeft = 5
+                                            showAdDialog = true
+                                        }
+                                    )
+                                } else {
+                                    if (activity != null) {
+                                        AdMobManager.loadRewardedAd(activity)
+                                    }
+                                    adProgress = 0f
+                                    adSecondsLeft = 5
+                                    showAdDialog = true
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = DigicastAccentBlue.copy(alpha = 0.22f)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastAccentBlue),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (hasActivePass) Icons.Default.Bolt else Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = DigicastAccentBlue
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = when {
+                                    hasActivePass && hasRegisteredAccount -> "Active 1-Day Pass (${passHours}h ${passMins}m) — Enter Studio"
+                                    hasActivePass -> "Active 1-Day Pass — Enter Studio"
+                                    else -> "Watch Ad to Unlock Access (+24h Pass)"
+                                },
+                                color = DigicastWhite,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
 
-                    // Subtitle explaining no password needed
+                    // Subtitle explaining verification rule
                     Text(
-                        text = "No login? Watch a short partner ad to get instant 24h studio access & +10 D-Coins.",
+                        text = if (!isSignInUnlocked) {
+                            "🔒 Free devices: Tap \"Watch Ad to Unlock Access\" to activate the Sign-In button and your 24h pass."
+                        } else {
+                            "Device verified. 24h pass applies directly to your registered studio account."
+                        },
                         color = DigicastSlate,
                         fontSize = 11.sp,
                         lineHeight = 15.sp,
@@ -406,7 +466,7 @@ fun OnboardingScreen(
                 }
             }
 
-            // High-Value Sponsored Ad Simulation Dialog (Fallback while AdMob unit propagates)
+            // High-Value Sponsored Ad Simulation Dialog (Plays smoothly if AdMob network unit is buffering)
             if (showAdDialog) {
                 LaunchedEffect(showAdDialog) {
                     AdMobManager.setFallbackProvider("SPONSORED_PARTNER")
@@ -416,9 +476,13 @@ fun OnboardingScreen(
                         adProgress = i / totalTicks.toFloat()
                         adSecondsLeft = 5 - (i / 10)
                     }
-                    authRepository.activateOneDayPass(fromAd = true)
+                    authRepository.markAdWatchedUnlocked()
+                    hasWatchedAd = true
+                    if (hasRegisteredAccount) {
+                        authRepository.activateOneDayPass(fromAd = true)
+                        onComplete()
+                    }
                     showAdDialog = false
-                    onComplete()
                 }
 
                 AlertDialog(

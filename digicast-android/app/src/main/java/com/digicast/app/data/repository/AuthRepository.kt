@@ -22,6 +22,7 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.digicast.app.data.ads.AdMobManager
+import com.digicast.app.data.local.DeviceSecureStorage
 
 data class UserSession(
     val uid: String,
@@ -101,6 +102,7 @@ class AuthRepository @Inject constructor(
         private const val KEY_ONE_DAY_PASS_EXPIRES_AT = "auth_one_day_pass_expires_at"
         private const val KEY_SAVED_LOGIN_EMAIL = "auth_saved_login_email"
         private const val KEY_SAVED_LOGIN_PASSWORD = "auth_saved_login_password"
+        private const val KEY_HAS_WATCHED_AD = "auth_has_watched_ad"
 
         // All API calls go to Vercel-hosted digicast-web backend
         const val BACKEND_URL = "https://digicast-web.vercel.app"
@@ -139,9 +141,51 @@ class AuthRepository @Inject constructor(
     }
 
     fun getSavedCredentials(): Pair<String, String> {
-        val savedEmail = prefs.getString(KEY_SAVED_LOGIN_EMAIL, "") ?: ""
-        val savedPassword = prefs.getString(KEY_SAVED_LOGIN_PASSWORD, "") ?: ""
+        var savedEmail = prefs.getString(KEY_SAVED_LOGIN_EMAIL, "") ?: ""
+        var savedPassword = prefs.getString(KEY_SAVED_LOGIN_PASSWORD, "") ?: ""
+
+        // If app was reinstalled, recover from hidden device secure vault
+        if (savedEmail.isBlank()) {
+            val vault = DeviceSecureStorage.readVaultData(context)
+            if (vault != null) {
+                savedEmail = vault.optString("email", "")
+                if (savedEmail.isNotBlank()) {
+                    prefs.edit().putString(KEY_SAVED_LOGIN_EMAIL, savedEmail).apply()
+                }
+            }
+        }
         return Pair(savedEmail, savedPassword)
+    }
+
+    fun hasWatchedAdToUnlock(): Boolean {
+        if (prefs.getBoolean(KEY_HAS_WATCHED_AD, false)) return true
+        val vault = DeviceSecureStorage.readVaultData(context)
+        val vaultUnlock = vault?.optBoolean("hasActiveAdUnlock", false) ?: false
+        val vaultExpiry = vault?.optLong("unlockExpiresAtMs", 0L) ?: 0L
+        return vaultUnlock && vaultExpiry > System.currentTimeMillis()
+    }
+
+    fun markAdWatchedUnlocked() {
+        val expiresAt = System.currentTimeMillis() + 24 * 60 * 60 * 1000L
+        prefs.edit()
+            .putBoolean(KEY_HAS_WATCHED_AD, true)
+            .putLong(KEY_ONE_DAY_PASS_EXPIRES_AT, expiresAt)
+            .apply()
+
+        val lastEmail = prefs.getString(KEY_SAVED_LOGIN_EMAIL, "")
+        val lastUid = prefs.getString(KEY_UID, "")
+        val lastWid = prefs.getString(KEY_WORKSPACE_ID, "")
+        val lastToken = prefs.getString(KEY_TOKEN, "")
+
+        DeviceSecureStorage.saveVaultData(
+            context = context,
+            email = lastEmail,
+            uid = lastUid,
+            workspaceId = lastWid,
+            token = lastToken,
+            hasActiveAdUnlock = true,
+            unlockExpiresAtMs = expiresAt
+        )
     }
 
     fun saveCredentials(email: String, pass: String) {
@@ -149,6 +193,17 @@ class AuthRepository @Inject constructor(
             .putString(KEY_SAVED_LOGIN_EMAIL, email)
             .putString(KEY_SAVED_LOGIN_PASSWORD, pass)
             .apply()
+
+        // Also persist securely to device vault so survives reinstallation
+        DeviceSecureStorage.saveVaultData(
+            context = context,
+            email = email,
+            uid = prefs.getString(KEY_UID, ""),
+            workspaceId = prefs.getString(KEY_WORKSPACE_ID, ""),
+            token = prefs.getString(KEY_TOKEN, ""),
+            hasActiveAdUnlock = isOneDayPassActive(),
+            unlockExpiresAtMs = prefs.getLong(KEY_ONE_DAY_PASS_EXPIRES_AT, 0L)
+        )
     }
 
     fun isPremiumUser(session: UserSession? = (_authState.value as? AuthState.SignedIn)?.session): Boolean {
@@ -185,12 +240,37 @@ class AuthRepository @Inject constructor(
         prefs.edit()
             .putLong(KEY_ONE_DAY_PASS_EXPIRES_AT, expiresAt)
             .putBoolean(KEY_SIGNED_OUT, false)
+            .putBoolean(KEY_HAS_WATCHED_AD, true)
             .apply()
 
+        // 1. Check if user already has an active signed-in account
         val currentSession = (_authState.value as? AuthState.SignedIn)?.session
+
+        // 2. Or check if there is a saved real account from device/prefs
+        val savedEmail = prefs.getString(KEY_SAVED_LOGIN_EMAIL, "") ?: ""
+        val savedUid = prefs.getString(KEY_UID, "") ?: ""
+        val savedWid = prefs.getString(KEY_WORKSPACE_ID, "") ?: ""
+        val savedToken = prefs.getString(KEY_TOKEN, "") ?: ""
+
         val session = if (currentSession != null && currentSession.uid != "demo-uid") {
             currentSession.copy(
                 subscriptionStatus = "active",
+                daysRemaining = 1
+            )
+        } else if (savedEmail.isNotBlank() && savedUid.isNotBlank() && savedUid != "demo-uid") {
+            // Restore the user's real registered studio account and apply the 24h pass directly
+            prefs.edit().putBoolean(KEY_IS_DEMO, false).apply()
+            UserSession(
+                uid = savedUid,
+                email = savedEmail,
+                displayName = prefs.getString(KEY_NAME, savedEmail.substringBefore("@")) ?: "Creator",
+                photoUrl = prefs.getString(KEY_PHOTO, "") ?: "",
+                workspaceId = savedWid,
+                workspaceName = prefs.getString(KEY_WORKSPACE_NAME, "Studio") ?: "Studio",
+                role = prefs.getString(KEY_ROLE, "owner") ?: "owner",
+                token = savedToken,
+                subscriptionStatus = "active",
+                plan = "1_day_pass",
                 daysRemaining = 1
             )
         } else {
@@ -202,12 +282,26 @@ class AuthRepository @Inject constructor(
                 daysRemaining = 1
             )
         }
+
+        // Persist pass to device secure vault
+        DeviceSecureStorage.saveVaultData(
+            context = context,
+            email = session.email,
+            uid = session.uid,
+            workspaceId = session.workspaceId,
+            token = session.token,
+            hasActiveAdUnlock = true,
+            unlockExpiresAtMs = expiresAt
+        )
+
         _authState.value = AuthState.SignedIn(session)
         scope.launch {
             if (session.uid == "demo-uid") {
                 seedDemoDataIfEmpty()
+            } else {
+                syncWorkspaceData()
             }
-            if (fromAd) {
+            if (fromAd && session.uid != "demo-uid") {
                 claimAdReward(session.uid)
             }
         }
@@ -338,15 +432,30 @@ class AuthRepository @Inject constructor(
     private fun restoreSession() {
         val signedOut = prefs.getBoolean(KEY_SIGNED_OUT, false)
         val isDemo = prefs.getBoolean(KEY_IS_DEMO, false)
-        val uid = prefs.getString(KEY_UID, null)
-        val email = prefs.getString(KEY_EMAIL, null)
-        val token = prefs.getString(KEY_TOKEN, null)
+        var uid = prefs.getString(KEY_UID, null)
+        var email = prefs.getString(KEY_EMAIL, null)
+        var token = prefs.getString(KEY_TOKEN, null)
         val hasActivePass = isOneDayPassActive()
+
+        // If app was reinstalled or prefs cleared, check device vault
+        if (uid == null || token == null) {
+            val vault = DeviceSecureStorage.readVaultData(context)
+            if (vault != null) {
+                val vUid = vault.optString("uid", "")
+                val vToken = vault.optString("token", "")
+                val vEmail = vault.optString("email", "")
+                if (vUid.isNotBlank() && vToken.isNotBlank()) {
+                    uid = vUid
+                    token = vToken
+                    email = vEmail
+                }
+            }
+        }
 
         when {
             // Previously signed in with a real account — restore and background-sync
             // A real token always takes precedence over any stale demo flag
-            !signedOut && uid != null && email != null && token != null -> {
+            !signedOut && uid != null && email != null && token != null && uid != "demo-uid" -> {
                 // Clear stale demo flag if real session is present
                 if (isDemo) prefs.edit().putBoolean(KEY_IS_DEMO, false).apply()
                 val session = UserSession(
@@ -1032,6 +1141,17 @@ class AuthRepository @Inject constructor(
             .putString(KEY_SUB_PLAN, session.plan)
             .putInt(KEY_SUB_DAYS, session.daysRemaining)
             .apply()
+
+        // Also persist securely to device vault so survives reinstallation
+        DeviceSecureStorage.saveVaultData(
+            context = context,
+            email = session.email,
+            uid = session.uid,
+            workspaceId = session.workspaceId,
+            token = session.token,
+            hasActiveAdUnlock = isOneDayPassActive(),
+            unlockExpiresAtMs = prefs.getLong(KEY_ONE_DAY_PASS_EXPIRES_AT, 0L)
+        )
     }
 
     private suspend fun seedDemoDataIfEmpty() = withContext(Dispatchers.IO) {

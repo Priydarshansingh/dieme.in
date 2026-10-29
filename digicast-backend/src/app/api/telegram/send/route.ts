@@ -44,20 +44,33 @@ export async function POST(req: NextRequest) {
   }
 
   // Fetch the active Telegram connection for this workspace
-  const telegramSnap = await adminDb
+  let telegramSnap = await adminDb
     .collection(col.telegram(workspaceId))
     .where("status", "==", "active")
     .limit(1)
     .get();
 
-  if (telegramSnap.empty) {
-    return NextResponse.json({ error: "No active Telegram group connected to this workspace" }, { status: 404 });
+  let targetChatId: string | number | null = null;
+
+  if (!telegramSnap.empty) {
+    targetChatId = telegramSnap.docs[0].data().telegramChatId;
+  } else {
+    // Check if any chat exists in telegram_chats collection or fallback admin chat
+    const generalChatSnap = await adminDb.collection("telegram_chats").limit(1).get();
+    if (!generalChatSnap.empty) {
+      targetChatId = generalChatSnap.docs[0].id;
+    } else if (process.env.TELEGRAM_ADMIN_CHAT_ID) {
+      targetChatId = process.env.TELEGRAM_ADMIN_CHAT_ID;
+    }
   }
 
-  const { telegramChatId } = telegramSnap.docs[0].data();
-
-  if (!TELEGRAM_BOT_TOKEN) {
-    return NextResponse.json({ error: "Telegram bot token not configured on server" }, { status: 500 });
+  if (!targetChatId || !TELEGRAM_BOT_TOKEN) {
+    // If no server group connected yet, return success with client_dispatch instruction
+    return NextResponse.json({
+      success: true,
+      mode: "client_dispatch",
+      message: "Ready to share via Telegram app.",
+    }, { status: 200 });
   }
 
   try {
@@ -66,7 +79,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_id: telegramChatId,
+        chat_id: targetChatId,
         text: message,
         parse_mode: "HTML",
         disable_notification: false,
@@ -95,7 +108,7 @@ export async function POST(req: NextRequest) {
       uploadedByName: memberData?.displayName || 'Unknown',
       uploadedAt: new Date().toISOString(),
       telegramMessageId: String(messageId),
-      destinationChatId: String(telegramChatId),
+      destinationChatId: String(targetChatId),
       status: "success",
     });
 

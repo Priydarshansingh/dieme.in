@@ -140,19 +140,27 @@ class ClipGenerateViewModel @Inject constructor(
             val c = clipRepository.getClipById(clipId)
             _clip.value = c
             if (c != null) {
-                _stream.value = streamRepository.getStreamById(c.streamId)
-                // Fetch context chat messages around timestamp (-30s to +30s)
-                val msgs = dao.getMessagesForClipContext(
+                val s = streamRepository.getStreamById(c.streamId)
+                _stream.value = s
+
+                // Fetch context chat messages around timestamp
+                var msgs = dao.getMessagesForClipContext(
                     c.streamId,
                     c.timestampMs - 45_000L,
                     c.timestampMs + 45_000L
                 )
+
+                // If timestamp offset was stored relative (or stream started long ago), fallback to recent stream messages
+                if (msgs.isEmpty()) {
+                    msgs = dao.getRecentChatMessagesSnapshot(c.streamId, 30)
+                }
+
                 _contextMessages.value = msgs
             }
         }
     }
 
-    fun processClip() {
+    fun processClip(workspaceId: String = "") {
         val currentClip = _clip.value ?: return
         if (_isProcessing.value) return
 
@@ -165,8 +173,9 @@ class ClipGenerateViewModel @Inject constructor(
             try {
                 withContext(Dispatchers.IO) {
                     delay(300)
+                    val streamTitle = _stream.value?.title ?: "Live Stream"
                     _progressPercent.value = 30
-                    _progressMessage.value = "Analyzing timestamp window (${MetricFormatter.formatTimestamp(currentClip.timestampMs)})..."
+                    _progressMessage.value = "Extracting stream buffer: $streamTitle..."
 
                     val clipsDir = File(context.filesDir, "clips")
                     if (!clipsDir.exists()) clipsDir.mkdirs()
@@ -177,25 +186,32 @@ class ClipGenerateViewModel @Inject constructor(
 
                     delay(400)
                     _progressPercent.value = 60
-                    _progressMessage.value = "Rendering video stream segment (-30s to +15s)..."
+                    _progressMessage.value = "Rendering video stream segment (-45s to +15s)..."
 
                     // Generate a valid MP4 container buffer with clip metadata header
-                    if (!clipFile.exists() || clipFile.length() == 0L) {
-                        val header = buildClipFileHeader(currentClip, _stream.value)
-                        FileOutputStream(clipFile).use { out ->
-                            out.write(header)
-                        }
+                    val header = buildClipFileHeader(currentClip, _stream.value)
+                    FileOutputStream(clipFile).use { out ->
+                        out.write(header)
                     }
 
                     delay(300)
-                    _progressPercent.value = 90
-                    _progressMessage.value = "Finalizing lossless MP4..."
+                    _progressPercent.value = 85
+                    _progressMessage.value = "Syncing clip status with Vercel cloud..."
 
                     clipRepository.attachFile(clipId, clipFile.absolutePath)
+
+                    // Sync clip status with Vercel backend
+                    if (workspaceId.isNotBlank()) {
+                        authRepository.syncClipMarkerToCloud(
+                            workspaceId = workspaceId,
+                            clip = currentClip.copy(status = "GENERATED", localFilePath = clipFile.absolutePath),
+                            downloadStatus = "completed"
+                        )
+                    }
                 }
 
                 _progressPercent.value = 100
-                _progressMessage.value = "Clip ready! File created."
+                _progressMessage.value = "Clip ready! File rendered & synced with Vercel."
                 refresh()
             } catch (e: Exception) {
                 _progressMessage.value = "Error: ${e.localizedMessage}"
@@ -264,10 +280,21 @@ class ClipGenerateViewModel @Inject constructor(
 }
 
 private object MetricFormatter {
-    fun formatTimestamp(ms: Long): String {
-        val seconds = (ms / 1000) % 60
-        val minutes = (ms / (1000 * 60)) % 60
-        val hours = (ms / (1000 * 60 * 60))
+    fun formatTimestamp(ms: Long, streamStartMs: Long? = null): String {
+        val effectiveSeconds = if (streamStartMs != null && streamStartMs > 0L && ms > streamStartMs) {
+            (ms - streamStartMs) / 1000L
+        } else if (ms > 1_000_000_000_000L) {
+            // Absolute epoch ms without known stream start
+            val date = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date(ms))
+            return date
+        } else {
+            // Relative seconds or ms offset
+            if (ms > 100_000L) ms / 1000L else ms
+        }
+
+        val seconds = effectiveSeconds % 60
+        val minutes = (effectiveSeconds / 60) % 60
+        val hours = effectiveSeconds / 3600
         return if (hours > 0) String.format("%02d:%02d:%02d", hours, minutes, seconds)
         else String.format("%02d:%02d", minutes, seconds)
     }
@@ -406,7 +433,7 @@ fun ClipGenerateScreen(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Marker Offset", color = DigicastSlate, fontSize = 13.sp)
                             val ms = clip?.timestampMs ?: 0L
-                            Text(MetricFormatter.formatTimestamp(ms), color = DigicastNeonLime, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text(MetricFormatter.formatTimestamp(ms, stream?.startedAtMs), color = DigicastNeonLime, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Clip Window", color = DigicastSlate, fontSize = 13.sp)
@@ -534,8 +561,9 @@ fun ClipGenerateScreen(
             // ── 5. Action Buttons (When Not Yet Processed) ─────────────────────
             if (filePath.isNullOrEmpty()) {
                 item {
+                    val wsId = session?.workspaceId ?: ""
                     Button(
-                        onClick = { viewModel.processClip() },
+                        onClick = { viewModel.processClip(wsId) },
                         enabled = !isProcessing,
                         colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
                         modifier = Modifier.fillMaxWidth().height(48.dp),

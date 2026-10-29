@@ -49,9 +49,60 @@ export async function GET(req: NextRequest) {
     const snap = await query.get();
     const clips = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-    return NextResponse.json({ clips });
+export async function POST(req: NextRequest) {
+  const uid = await getUidFromRequest(req);
+  if (!uid) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const {
+      workspaceId,
+      clipId,
+      streamId,
+      youtubeVideoId,
+      markerTimestamp,
+      markerTimestampDisplay,
+      authorName,
+      title,
+      downloadStatus,
+      status
+    } = body;
+
+    if (!workspaceId || !clipId) {
+      return NextResponse.json({ error: 'workspaceId and clipId are required' }, { status: 400 });
+    }
+
+    const memberDoc = await adminDb.doc(col.member(workspaceId, uid)).get();
+    const isOwner = (await adminDb.doc(col.workspace(workspaceId)).get()).data()?.ownerUid === uid;
+    if (!memberDoc.exists && !isOwner) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const clipRef = adminDb.doc(col.clip(workspaceId, clipId));
+    const finalDownloadStatus = downloadStatus || (status === 'GENERATED' ? 'completed' : 'not_started');
+
+    const clipData = {
+      id: clipId,
+      workspaceId,
+      streamId: streamId || '',
+      youtubeVideoId: youtubeVideoId || streamId || '',
+      markerTimestamp: typeof markerTimestamp === 'number' ? markerTimestamp : 0,
+      markerTimestampDisplay: markerTimestampDisplay || '00:00',
+      authorName: authorName || 'Viewer',
+      title: title || 'Clip Marker',
+      note: title || 'Clip Marker',
+      downloadStatus: finalDownloadStatus,
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    await clipRef.set(clipData, { merge: true });
+
+    return NextResponse.json({ ok: true, clip: clipData });
   } catch (err) {
-    console.error('[clips] Error:', err instanceof Error ? err.message : 'unknown');
+    console.error('[clips POST] Error:', err instanceof Error ? err.message : 'unknown');
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }

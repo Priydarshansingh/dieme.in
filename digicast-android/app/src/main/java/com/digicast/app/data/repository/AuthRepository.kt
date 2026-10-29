@@ -655,6 +655,21 @@ class AuthRepository @Inject constructor(
                         )
                     }
                     val rawStatus = c.optString("downloadStatus", "PENDING").uppercase()
+
+                    // Parse real offset or timestamp from Vercel sync
+                    val markerSec = c.optLong("markerTimestamp", -1L)
+                    val resolvedTimestampMs = if (markerSec > 0L) {
+                        markerSec * 1000L
+                    } else {
+                        val parsedTime = c.optLong("timestampMs", -1L)
+                        if (parsedTime > 0L) parsedTime else 0L
+                    }
+
+                    // Preserve local file path if clip was already downloaded on device
+                    val existingClip = dao.getClipMarkerById(c.optString("id"))
+                    val existingFile = existingClip?.localFilePath
+                    val existingStatus = if (!existingFile.isNullOrEmpty() || rawStatus.contains("COMPLET") || rawStatus == "GENERATED") "GENERATED" else "PENDING"
+
                     dao.insertClipMarker(
                         ClipMarkerEntity(
                             id = c.optString("id", UUID.randomUUID().toString()),
@@ -662,11 +677,11 @@ class AuthRepository @Inject constructor(
                             authorName = c.optString("authorName", "Viewer"),
                             authorId = c.optString("authorId", "user"),
                             triggerMessageId = c.optString("chatMessageId", "msg-${UUID.randomUUID()}"),
-                            timestampMs = System.currentTimeMillis(),
+                            timestampMs = resolvedTimestampMs,
                             label = c.optString("title", c.optString("note", "Clip Marker")),
-                            status = if (rawStatus.contains("COMPLET")) "GENERATED" else "PENDING",
-                            localFilePath = null,
-                            telegramMessageUrl = null
+                            status = existingStatus,
+                            localFilePath = existingFile,
+                            telegramMessageUrl = c.optString("telegramMessageUrl").takeIf { it.isNotEmpty() } ?: existingClip?.telegramMessageUrl
                         )
                     )
                 }
@@ -923,6 +938,46 @@ class AuthRepository @Inject constructor(
                     MobileEditorInfo("edt_2", "Rohit K. (Rapid Shorts)", 4.7, 200, 12, true)
                 )
             )
+        }
+    }
+
+    suspend fun syncClipMarkerToCloud(
+        workspaceId: String,
+        clip: ClipMarkerEntity,
+        downloadStatus: String = "completed"
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val session = (_authState.value as? AuthState.SignedIn)?.session
+            ?: return@withContext Result.failure(Exception("Not signed in"))
+
+        try {
+            val body = JSONObject().apply {
+                put("workspaceId", workspaceId)
+                put("clipId", clip.id)
+                put("streamId", clip.streamId)
+                put("youtubeVideoId", clip.streamId)
+                put("markerTimestamp", clip.timestampMs / 1000L)
+                put("markerTimestampDisplay", String.format("%02d:%02d", (clip.timestampMs / 60000L), (clip.timestampMs / 1000L) % 60))
+                put("authorName", clip.authorName)
+                put("title", clip.label)
+                put("downloadStatus", downloadStatus)
+                put("status", clip.status)
+            }.toString().toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url("$BACKEND_URL/api/clips")
+                .addHeader("Authorization", "Bearer ${session.token}")
+                .post(body)
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                Result.success(true)
+            } else {
+                val errBody = response.body?.string() ?: ""
+                Result.failure(Exception("Cloud sync error: ${response.code} $errBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

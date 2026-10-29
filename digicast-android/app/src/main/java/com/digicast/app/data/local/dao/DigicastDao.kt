@@ -37,6 +37,9 @@ interface DigicastDao {
     @Query("SELECT * FROM chat_messages WHERE streamId = :streamId ORDER BY publishedAtMs DESC LIMIT :limit")
     fun getRecentChatMessages(streamId: String, limit: Int = 50): Flow<List<ChatMessageEntity>>
 
+    @Query("SELECT * FROM chat_messages WHERE streamId = :streamId ORDER BY publishedAtMs DESC LIMIT :limit")
+    suspend fun getRecentChatMessagesSnapshot(streamId: String, limit: Int = 50): List<ChatMessageEntity>
+
     // For local context around a clip
     @Query("SELECT * FROM chat_messages WHERE streamId = :streamId AND publishedAtMs >= :startTimeMs AND publishedAtMs <= :endTimeMs ORDER BY publishedAtMs ASC")
     suspend fun getMessagesForClipContext(streamId: String, startTimeMs: Long, endTimeMs: Long): List<ChatMessageEntity>

@@ -110,7 +110,6 @@ fun OnboardingScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val autofill = LocalAutofill.current
 
     val (savedEmail, savedPassword) = remember { authRepository.getSavedCredentials() }
     var email by remember { mutableStateOf(savedEmail) }
@@ -234,18 +233,7 @@ fun OnboardingScreen(
                             unfocusedContainerColor = DigicastNavy
                         ),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    autofill?.requestAutofillForNode(
-                                        androidx.compose.ui.autofill.AutofillNode(
-                                            autofillTypes = listOf(AutofillType.EmailAddress, AutofillType.Username),
-                                            onFill = { email = it }
-                                        )
-                                    )
-                                }
-                            }
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     OutlinedTextField(
@@ -283,18 +271,7 @@ fun OnboardingScreen(
                             unfocusedContainerColor = DigicastNavy
                         ),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    autofill?.requestAutofillForNode(
-                                        androidx.compose.ui.autofill.AutofillNode(
-                                            autofillTypes = listOf(AutofillType.Password),
-                                            onFill = { password = it }
-                                        )
-                                    )
-                                }
-                            }
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     if (errorMessage != null) {
@@ -365,10 +342,9 @@ fun OnboardingScreen(
                         }
                     }
 
-                    // 2. Ad / Sign Up Button:
+                    // 2. Action Button:
                     // If locked -> "Watch Ad to Unlock Access (+24h Pass)"
-                    // If unlocked & no account -> "Create Account on Digicast Web"
-                    // If unlocked & has registered account -> "Enter Studio with 24h Pass"
+                    // If unlocked -> "Create Account on Digicast Web" (so anyone without an account can register on web)
                     if (!isSignInUnlocked) {
                         Button(
                             onClick = {
@@ -418,8 +394,8 @@ fun OnboardingScreen(
                                 fontSize = 14.sp
                             )
                         }
-                    } else if (!hasRegisteredAccount) {
-                        // Unlocked but no registered account yet: direct to web signup
+                    } else {
+                        // Unlocked: Direct to website signup for anyone who doesn't have an account yet
                         OutlinedButton(
                             onClick = {
                                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://digicast-web.vercel.app/signup"))
@@ -436,37 +412,6 @@ fun OnboardingScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Create Account on Digicast Web", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
-                    } else {
-                        // Unlocked and has registered account: quick enter studio
-                        OutlinedButton(
-                            onClick = {
-                                focusManager.clearFocus()
-                                if (password.isNotBlank()) {
-                                    isLoading = true
-                                    errorMessage = null
-                                    scope.launch {
-                                        val result = authRepository.signInWithEmail(email.trim(), password)
-                                        isLoading = false
-                                        result.onSuccess { onComplete() }
-                                        result.onFailure { err ->
-                                            errorMessage = err.message ?: "Sign-in failed. Please re-enter your password."
-                                        }
-                                    }
-                                } else {
-                                    errorMessage = "Please enter your password above to sign in."
-                                }
-                            },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastEmerald),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastEmerald),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp)
-                        ) {
-                            Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastEmerald)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Enter Studio with 24h Pass", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
                     }
 
                     // Subtitle explaining verification rule
@@ -474,7 +419,7 @@ fun OnboardingScreen(
                         text = if (!isSignInUnlocked) {
                             "🔒 Free devices: Tap \"Watch Ad to Unlock Access\" to activate the Sign-In button and your 24h pass."
                         } else {
-                            "Device verified. 24h pass applies directly to your registered studio account."
+                            "Have an account? Sign in above. New user? Tap \"Create Account on Digicast Web\" below."
                         },
                         color = DigicastSlate,
                         fontSize = 11.sp,

@@ -48,6 +48,12 @@ export async function GET(req: NextRequest) {
 
     const snap = await query.get();
     const clips = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return NextResponse.json({ clips });
+  } catch (err) {
+    console.error('[clips GET] Error:', err instanceof Error ? err.message : 'unknown');
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   const uid = await getUidFromRequest(req);

@@ -138,6 +138,27 @@ class AuthRepository @Inject constructor(
 
     init {
         restoreSession()
+        scope.launch {
+            try {
+                val cloudVault = DeviceSecureStorage.fetchVaultFromCloud(context)
+                if (cloudVault != null) {
+                    val cloudEmail = cloudVault.optString("email", "")
+                    if (cloudEmail.isNotBlank() && prefs.getString(KEY_SAVED_LOGIN_EMAIL, "").isNullOrBlank()) {
+                        prefs.edit().putString(KEY_SAVED_LOGIN_EMAIL, cloudEmail).apply()
+                    }
+                    val isUnlocked = cloudVault.optBoolean("hasActiveAdUnlock", false)
+                    val unlockExpiresAtMs = cloudVault.optLong("unlockExpiresAtMs", 0L)
+                    if (isUnlocked && unlockExpiresAtMs > System.currentTimeMillis()) {
+                        prefs.edit()
+                            .putBoolean(KEY_HAS_WATCHED_AD, true)
+                            .putLong(KEY_ONE_DAY_PASS_EXPIRES_AT, unlockExpiresAtMs)
+                            .apply()
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore background sync error
+            }
+        }
     }
 
     fun getSavedCredentials(): Pair<String, String> {
@@ -158,7 +179,7 @@ class AuthRepository @Inject constructor(
     }
 
     fun hasWatchedAdToUnlock(): Boolean {
-        if (prefs.getBoolean(KEY_HAS_WATCHED_AD, false)) return true
+        if (prefs.getBoolean(KEY_HAS_WATCHED_AD, false) && isOneDayPassActive()) return true
         val vault = DeviceSecureStorage.readVaultData(context)
         val vaultUnlock = vault?.optBoolean("hasActiveAdUnlock", false) ?: false
         val vaultExpiry = vault?.optLong("unlockExpiresAtMs", 0L) ?: 0L
@@ -186,6 +207,17 @@ class AuthRepository @Inject constructor(
             hasActiveAdUnlock = true,
             unlockExpiresAtMs = expiresAt
         )
+
+        scope.launch {
+            DeviceSecureStorage.syncVaultToCloud(
+                context = context,
+                email = lastEmail,
+                uid = lastUid,
+                workspaceId = lastWid,
+                hasActiveAdUnlock = true,
+                unlockExpiresAtMs = expiresAt
+            )
+        }
     }
 
     fun saveCredentials(email: String, pass: String) {
@@ -194,16 +226,33 @@ class AuthRepository @Inject constructor(
             .putString(KEY_SAVED_LOGIN_PASSWORD, pass)
             .apply()
 
+        val uid = prefs.getString(KEY_UID, "")
+        val wid = prefs.getString(KEY_WORKSPACE_ID, "")
+        val token = prefs.getString(KEY_TOKEN, "")
+        val isPassActive = isOneDayPassActive()
+        val expiresAt = prefs.getLong(KEY_ONE_DAY_PASS_EXPIRES_AT, 0L)
+
         // Also persist securely to device vault so survives reinstallation
         DeviceSecureStorage.saveVaultData(
             context = context,
             email = email,
-            uid = prefs.getString(KEY_UID, ""),
-            workspaceId = prefs.getString(KEY_WORKSPACE_ID, ""),
-            token = prefs.getString(KEY_TOKEN, ""),
-            hasActiveAdUnlock = isOneDayPassActive(),
-            unlockExpiresAtMs = prefs.getLong(KEY_ONE_DAY_PASS_EXPIRES_AT, 0L)
+            uid = uid,
+            workspaceId = wid,
+            token = token,
+            hasActiveAdUnlock = isPassActive,
+            unlockExpiresAtMs = expiresAt
         )
+
+        scope.launch {
+            DeviceSecureStorage.syncVaultToCloud(
+                context = context,
+                email = email,
+                uid = uid,
+                workspaceId = wid,
+                hasActiveAdUnlock = isPassActive,
+                unlockExpiresAtMs = expiresAt
+            )
+        }
     }
 
     fun isPremiumUser(session: UserSession? = (_authState.value as? AuthState.SignedIn)?.session): Boolean {
@@ -235,11 +284,10 @@ class AuthRepository @Inject constructor(
         return Pair(hours, mins)
     }
 
-    fun activateOneDayPass(fromAd: Boolean = false): UserSession {
+    fun activateOneDayPass(fromAd: Boolean = false): UserSession? {
         val expiresAt = System.currentTimeMillis() + 24 * 60 * 60 * 1000L
         prefs.edit()
             .putLong(KEY_ONE_DAY_PASS_EXPIRES_AT, expiresAt)
-            .putBoolean(KEY_SIGNED_OUT, false)
             .putBoolean(KEY_HAS_WATCHED_AD, true)
             .apply()
 
@@ -252,9 +300,10 @@ class AuthRepository @Inject constructor(
         val savedWid = prefs.getString(KEY_WORKSPACE_ID, "") ?: ""
         val savedToken = prefs.getString(KEY_TOKEN, "") ?: ""
 
-        val session = if (currentSession != null && currentSession.uid != "demo-uid") {
+        val session: UserSession? = if (currentSession != null && currentSession.uid != "demo-uid") {
             currentSession.copy(
                 subscriptionStatus = "active",
+                plan = "1_day_pass",
                 daysRemaining = 1
             )
         } else if (savedEmail.isNotBlank() && savedUid.isNotBlank() && savedUid != "demo-uid") {
@@ -274,35 +323,45 @@ class AuthRepository @Inject constructor(
                 daysRemaining = 1
             )
         } else {
-            prefs.edit().putBoolean(KEY_IS_DEMO, true).apply()
-            DEMO_SESSION.copy(
-                displayName = if (fromAd) "Creator (Ad Rewarded 24h)" else "Creator (1-Day Free Access)",
-                subscriptionStatus = "active",
-                plan = "1_day_pass",
-                daysRemaining = 1
-            )
+            // User does not have a registered account yet.
+            // Do NOT sign into demo account! Persist unlock state on device and cloud vault.
+            null
         }
 
-        // Persist pass to device secure vault
+        val targetEmail = session?.email ?: savedEmail
+        val targetUid = session?.uid ?: savedUid
+        val targetWid = session?.workspaceId ?: savedWid
+
+        // Persist pass to device secure vault and sync to cloud
         DeviceSecureStorage.saveVaultData(
             context = context,
-            email = session.email,
-            uid = session.uid,
-            workspaceId = session.workspaceId,
-            token = session.token,
+            email = targetEmail,
+            uid = targetUid,
+            workspaceId = targetWid,
+            token = session?.token ?: savedToken,
             hasActiveAdUnlock = true,
             unlockExpiresAtMs = expiresAt
         )
 
-        _authState.value = AuthState.SignedIn(session)
         scope.launch {
-            if (session.uid == "demo-uid") {
-                seedDemoDataIfEmpty()
-            } else {
+            DeviceSecureStorage.syncVaultToCloud(
+                context = context,
+                email = targetEmail,
+                uid = targetUid,
+                workspaceId = targetWid,
+                hasActiveAdUnlock = true,
+                unlockExpiresAtMs = expiresAt
+            )
+        }
+
+        if (session != null) {
+            prefs.edit().putBoolean(KEY_SIGNED_OUT, false).apply()
+            _authState.value = AuthState.SignedIn(session)
+            scope.launch {
                 syncWorkspaceData()
-            }
-            if (fromAd && session.uid != "demo-uid") {
-                claimAdReward(session.uid)
+                if (fromAd) {
+                    claimAdReward(session.uid)
+                }
             }
         }
         return session
@@ -539,6 +598,15 @@ class AuthRepository @Inject constructor(
             val s = json.getJSONObject("session")
             val subObj = s.optJSONObject("subscription")
 
+            val hasActiveAdPass = hasWatchedAdToUnlock() || isOneDayPassActive()
+            val rawStatus = subObj?.optString("status", "trial") ?: "trial"
+            val rawPlan = subObj?.optString("plan", "free_trial") ?: "free_trial"
+            val rawDays = subObj?.optInt("daysRemaining", 14) ?: 14
+
+            val finalSubStatus = if (hasActiveAdPass && rawStatus != "active") "active" else rawStatus
+            val finalPlan = if (hasActiveAdPass && rawPlan != "pro" && rawPlan != "studio") "1_day_pass" else rawPlan
+            val finalDays = if (hasActiveAdPass && rawDays <= 0) 1 else rawDays
+
             val session = UserSession(
                 uid = s.getString("uid"),
                 email = s.getString("email"),
@@ -548,9 +616,9 @@ class AuthRepository @Inject constructor(
                 workspaceName = s.optString("workspaceName", "Studio"),
                 role = s.optString("role", "owner"),
                 token = s.getString("token"),
-                subscriptionStatus = subObj?.optString("status", "trial") ?: "trial",
-                plan = subObj?.optString("plan", "free_trial") ?: "free_trial",
-                daysRemaining = subObj?.optInt("daysRemaining", 14) ?: 14
+                subscriptionStatus = finalSubStatus,
+                plan = finalPlan,
+                daysRemaining = finalDays
             )
 
             saveRealSession(session)
@@ -1142,6 +1210,9 @@ class AuthRepository @Inject constructor(
             .putInt(KEY_SUB_DAYS, session.daysRemaining)
             .apply()
 
+        val isPassActive = isOneDayPassActive()
+        val expiresAt = prefs.getLong(KEY_ONE_DAY_PASS_EXPIRES_AT, 0L)
+
         // Also persist securely to device vault so survives reinstallation
         DeviceSecureStorage.saveVaultData(
             context = context,
@@ -1149,9 +1220,20 @@ class AuthRepository @Inject constructor(
             uid = session.uid,
             workspaceId = session.workspaceId,
             token = session.token,
-            hasActiveAdUnlock = isOneDayPassActive(),
-            unlockExpiresAtMs = prefs.getLong(KEY_ONE_DAY_PASS_EXPIRES_AT, 0L)
+            hasActiveAdUnlock = isPassActive,
+            unlockExpiresAtMs = expiresAt
         )
+
+        scope.launch {
+            DeviceSecureStorage.syncVaultToCloud(
+                context = context,
+                email = session.email,
+                uid = session.uid,
+                workspaceId = session.workspaceId,
+                hasActiveAdUnlock = isPassActive,
+                unlockExpiresAtMs = expiresAt
+            )
+        }
     }
 
     private suspend fun seedDemoDataIfEmpty() = withContext(Dispatchers.IO) {

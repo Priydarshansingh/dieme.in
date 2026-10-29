@@ -125,26 +125,26 @@ fun OnboardingScreen(
     val hasActivePass = authRepository.isOneDayPassActive()
     val (passHours, passMins) = authRepository.getOneDayPassRemainingHoursMinutes()
 
-    // Sign in is enabled if:
-    // 1. User has watched an ad, OR
-    // 2. User has an active 24h pass, OR
-    // 3. User already has a registered account on this device
-    val isSignInUnlocked = hasWatchedAd || hasActivePass || hasRegisteredAccount
+    // Sign in is strictly enabled ONLY if user has an active 24h pass or watched an ad
+    val isSignInUnlocked = hasWatchedAd || hasActivePass
 
     // Ad playback state
     var showAdDialog by remember { mutableStateOf(false) }
     var adProgress by remember { mutableFloatStateOf(0f) }
     var adSecondsLeft by remember { mutableIntStateOf(5) }
 
-    // Preload AdMob Rewarded Ad when Onboarding loads
+    // Preload AdMob Rewarded Ad when Onboarding loads (never auto-show, only prefetch)
     LaunchedEffect(Unit) {
         AdMobManager.loadRewardedAd(context)
     }
 
-    // Already signed in from a previous session — go directly to dashboard
+    // Already signed in from a previous session — verify active pass/premium before navigating
     LaunchedEffect(authState) {
         if (authState is AuthState.SignedIn) {
-            onComplete()
+            val session = (authState as AuthState.SignedIn).session
+            if (authRepository.isPremiumUser(session) || authRepository.isOneDayPassActive()) {
+                onComplete()
+            }
         }
     }
 
@@ -198,13 +198,15 @@ fun OnboardingScreen(
                         fontSize = 16.sp
                     )
                     Text(
-                        text = if (hasRegisteredAccount) {
-                            "Verified Device Account: $savedEmail"
-                        } else {
-                            "Register on digicast-web first or watch an ad below to unlock access."
+                        text = when {
+                            isSignInUnlocked && hasRegisteredAccount -> "⭐ 1-Day Trial Active for $savedEmail"
+                            isSignInUnlocked && !hasRegisteredAccount -> "🎉 Access Unlocked! Create your account or sign in below."
+                            !isSignInUnlocked && hasRegisteredAccount -> "⏳ 24-Hour Pass Expired for $savedEmail — Watch Ad to Renew"
+                            else -> "🔒 Sign-In Locked: Tap \"Watch Ad to Unlock Access\" below to activate."
                         },
-                        color = if (hasRegisteredAccount) DigicastEmerald else DigicastSlate,
+                        color = if (isSignInUnlocked) DigicastEmerald else if (hasRegisteredAccount) DigicastSlate else DigicastSlate.copy(alpha = 0.8f),
                         fontSize = 12.sp,
+                        fontWeight = if (isSignInUnlocked) FontWeight.SemiBold else FontWeight.Normal,
                         lineHeight = 17.sp
                     )
 
@@ -364,37 +366,13 @@ fun OnboardingScreen(
                     }
 
                     // 2. Ad / Sign Up Button:
-                    // If user has not watched ad -> "Watch Ad to Unlock Access (+24h Pass)"
-                    // If user watched ad but has no account -> "Sign Up on Web (Unlocked)"
-                    // If user has active pass -> "1-Day Pass Active (Xh Ym) — Enter Studio"
-                    if (!hasRegisteredAccount && hasWatchedAd) {
-                        // Unlocked: Direct to website signup
-                        OutlinedButton(
-                            onClick = {
-                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://digicast-web.vercel.app"))
-                                context.startActivity(browserIntent)
-                            },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastAccentBlue),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp)
-                        ) {
-                            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastAccentBlue)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Create Account on Digicast Web", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-                    } else {
+                    // If locked -> "Watch Ad to Unlock Access (+24h Pass)"
+                    // If unlocked & no account -> "Create Account on Digicast Web"
+                    // If unlocked & has registered account -> "Enter Studio with 24h Pass"
+                    if (!isSignInUnlocked) {
                         Button(
                             onClick = {
                                 focusManager.clearFocus()
-                                if (hasActivePass && hasRegisteredAccount) {
-                                    authRepository.activateOneDayPass(fromAd = false)
-                                    onComplete()
-                                    return@Button
-                                }
-
                                 val activity = context as? Activity
                                 if (activity != null && AdMobManager.isAdAvailable()) {
                                     AdMobManager.showRewardedAd(
@@ -402,10 +380,6 @@ fun OnboardingScreen(
                                         onUserEarnedReward = {
                                             authRepository.markAdWatchedUnlocked()
                                             hasWatchedAd = true
-                                            if (hasRegisteredAccount) {
-                                                authRepository.activateOneDayPass(fromAd = true)
-                                                onComplete()
-                                            }
                                         },
                                         onFallbackSimulationNeeded = {
                                             adProgress = 0f
@@ -423,31 +397,75 @@ fun OnboardingScreen(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = DigicastAccentBlue.copy(alpha = 0.22f)
+                                containerColor = DigicastAccentBlue
                             ),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastAccentBlue),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
                         ) {
                             Icon(
-                                imageVector = if (hasActivePass) Icons.Default.Bolt else Icons.Default.PlayArrow,
+                                imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
-                                tint = DigicastAccentBlue
+                                tint = DigicastWhite
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = when {
-                                    hasActivePass && hasRegisteredAccount -> "Active 1-Day Pass (${passHours}h ${passMins}m) — Enter Studio"
-                                    hasActivePass -> "Active 1-Day Pass — Enter Studio"
-                                    else -> "Watch Ad to Unlock Access (+24h Pass)"
-                                },
+                                text = if (hasRegisteredAccount) "Watch Ad to Renew 24h Pass" else "Watch Ad to Unlock Access (+24h Pass)",
                                 color = DigicastWhite,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
+                        }
+                    } else if (!hasRegisteredAccount) {
+                        // Unlocked but no registered account yet: direct to web signup
+                        OutlinedButton(
+                            onClick = {
+                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://digicast-web.vercel.app/signup"))
+                                context.startActivity(browserIntent)
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastAccentBlue),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                        ) {
+                            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastAccentBlue)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Create Account on Digicast Web", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    } else {
+                        // Unlocked and has registered account: quick enter studio
+                        OutlinedButton(
+                            onClick = {
+                                focusManager.clearFocus()
+                                if (password.isNotBlank()) {
+                                    isLoading = true
+                                    errorMessage = null
+                                    scope.launch {
+                                        val result = authRepository.signInWithEmail(email.trim(), password)
+                                        isLoading = false
+                                        result.onSuccess { onComplete() }
+                                        result.onFailure { err ->
+                                            errorMessage = err.message ?: "Sign-in failed. Please re-enter your password."
+                                        }
+                                    }
+                                } else {
+                                    errorMessage = "Please enter your password above to sign in."
+                                }
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastEmerald),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastEmerald),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                        ) {
+                            Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastEmerald)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Enter Studio with 24h Pass", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
 
@@ -478,10 +496,6 @@ fun OnboardingScreen(
                     }
                     authRepository.markAdWatchedUnlocked()
                     hasWatchedAd = true
-                    if (hasRegisteredAccount) {
-                        authRepository.activateOneDayPass(fromAd = true)
-                        onComplete()
-                    }
                     showAdDialog = false
                 }
 

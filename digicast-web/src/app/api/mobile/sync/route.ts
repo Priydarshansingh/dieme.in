@@ -214,12 +214,31 @@ export async function GET(req: NextRequest) {
       }, { status: 403 });
     }
 
+    // Resolve Telegram channel connected on Web Dashboard
+    let telegramChatId: string | null = (wsData?.telegramEnabled && wsData?.telegramChatId) ? String(wsData.telegramChatId) : null;
+    if (!telegramChatId) {
+      try {
+        const tgSnap = await adminDb
+          .collection(col.telegram(actualWorkspaceId))
+          .where("status", "==", "active")
+          .limit(1)
+          .get();
+        if (!tgSnap.empty) {
+          telegramChatId = String(tgSnap.docs[0].data().telegramChatId || tgSnap.docs[0].id);
+        }
+      } catch (tgErr) {
+        console.warn("[mobile/sync] Telegram check warning:", tgErr);
+      }
+    }
+
     return NextResponse.json({
       workspace: {
         id: actualWorkspaceId,
         name: wsData?.name || "Workspace",
         ownerId: wsData?.ownerUid || wsData?.ownerId || workspaceId,
         subscription: wsData?.subscription || "free_trial",
+        telegramConnected: Boolean(telegramChatId),
+        telegramChatId: telegramChatId || null,
       },
       subscription,
       youtubeAccount,

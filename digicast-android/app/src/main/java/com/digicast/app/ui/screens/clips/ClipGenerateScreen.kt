@@ -119,8 +119,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -130,6 +133,7 @@ import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltViewModel
@@ -518,47 +522,144 @@ class ClipGenerateViewModel @Inject constructor(
         }
     }
 
+    companion object {
+        const val TELEGRAM_BOT_TOKEN = "8818419125:AAEBuSB7EBLiVKLDjdButs5zZIbIzvVJoJ4"
+    }
+
     fun uploadToTelegram(context: Context, localPath: String, workspaceId: String) {
         val currentClip = _clip.value ?: return
         if (_isUploadingTelegram.value) return
 
+        val localFile = File(localPath)
+        if (!localFile.exists() || localFile.length() < 1000L) {
+            _telegramStatusMessage.value = "⚠️ Please download or render the clip first."
+            return
+        }
+
+        val targetWsId = workspaceId.ifBlank { "" }
+
         viewModelScope.launch {
             _isUploadingTelegram.value = true
-            _telegramStatusMessage.value = "Launching Telegram..."
+            _telegramStatusMessage.value = "Verifying connected Telegram channel in Web Dashboard..."
 
             val streamTitle = _stream.value?.title ?: "Live Broadcast"
             val timeOffset = MetricFormatter.formatDuration(currentClip.timestampMs, null)
 
-            // 1. Direct Telegram dispatch: Opens Telegram with actual MP4 file attached!
-            val localFile = File(localPath)
-            if (localFile.exists()) {
-                sendClipViaTelegram(context, localFile, currentClip.label, streamTitle, timeOffset)
-                _telegramStatusMessage.value = "✅ Telegram opened! Select group or chat."
-            } else {
-                _telegramStatusMessage.value = "Please download the clip first to send via Telegram"
+            try {
+                // 1. Check if Telegram channel is connected on the web
+                var telegramChatId: String? = null
+                withContext(Dispatchers.IO) {
+                    val statusUrls = mutableListOf<String>()
+                    if (targetWsId.isNotBlank()) {
+                        statusUrls.add("https://digicast.vercel.app/api/telegram/status?workspaceId=$targetWsId")
+                        statusUrls.add("https://digicast-web.vercel.app/api/telegram/status?workspaceId=$targetWsId")
+                    }
+
+                    for (url in statusUrls) {
+                        try {
+                            val req = Request.Builder().url(url).get().build()
+                            val res = okHttpClient.newCall(req).execute()
+                            if (res.isSuccessful) {
+                                val body = res.body?.string()
+                                if (!body.isNullOrBlank()) {
+                                    val json = JSONObject(body)
+                                    if (json.optBoolean("connected", false)) {
+                                        val cId = json.optString("telegramChatId", "")
+                                        if (cId.isNotBlank()) {
+                                            telegramChatId = cId
+                                            break
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // continue trying
+                        }
+                    }
+                }
+
+                // 2. If channel is not connected in the web, DO NOT UPLOAD!
+                if (telegramChatId.isNullOrBlank()) {
+                    _telegramStatusMessage.value = "⚠️ Channel not connected in web. Connect your Telegram channel in Web Settings first."
+                    _isUploadingTelegram.value = false
+                    return@launch
+                }
+
+                // 3. Channel is connected! Perform background video upload via Bot API
+                _telegramStatusMessage.value = "🤖 Bot uploading MP4 clip to your channel..."
+
+                val uploadSuccess = withContext(Dispatchers.IO) {
+                    try {
+                        val mediaType = "video/mp4".toMediaTypeOrNull()
+                        val fileBody = localFile.asRequestBody(mediaType)
+                        val caption = """
+                        🎬 <b>${currentClip.label}</b>
+                        📺 <b>Stream:</b> $streamTitle
+                        ⏱ <b>Timestamp:</b> $timeOffset
+                        👤 <b>Triggered by:</b> ${currentClip.authorName}
+                        🆔 <code>${currentClip.id}</code>
+
+                        ⚡ <i>Delivered automatically by @digicast_bot</i>
+                        """.trimIndent()
+
+                        val multipart = MultipartBody.Builder()
+                            .setType(MultipartBody.FORM)
+                            .addFormDataPart("chat_id", telegramChatId!!)
+                            .addFormDataPart("video", localFile.name, fileBody)
+                            .addFormDataPart("caption", caption)
+                            .addFormDataPart("parse_mode", "HTML")
+                            .addFormDataPart("supports_streaming", "true")
+                            .build()
+
+                        val uploadClient = okHttpClient.newBuilder()
+                            .connectTimeout(30, TimeUnit.SECONDS)
+                            .writeTimeout(120, TimeUnit.SECONDS)
+                            .readTimeout(120, TimeUnit.SECONDS)
+                            .build()
+
+                        val uploadReq = Request.Builder()
+                            .url("https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendVideo")
+                            .post(multipart)
+                            .build()
+
+                        val res = uploadClient.newCall(uploadReq).execute()
+                        val resBody = res.body?.string() ?: ""
+                        if (res.isSuccessful) {
+                            val resJson = JSONObject(resBody)
+                            if (resJson.optBoolean("ok", false)) {
+                                val messageId = resJson.optJSONObject("result")?.optLong("message_id", 0L) ?: 0L
+                                dao.updateClipTelegramStatus(currentClip.id, "https://t.me/c/${telegramChatId!!.removePrefix("-100")}/$messageId", "UPLOADED")
+                                true
+                            } else {
+                                val desc = resJson.optString("description", "Upload failed")
+                                withContext(Dispatchers.Main) {
+                                    _telegramStatusMessage.value = "Telegram Error: $desc"
+                                }
+                                false
+                            }
+                        } else {
+                            val errDesc = try { JSONObject(resBody).optString("description") } catch (e: Exception) { res.message }
+                            withContext(Dispatchers.Main) {
+                                _telegramStatusMessage.value = "Upload failed (${res.code}): $errDesc"
+                            }
+                            false
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            _telegramStatusMessage.value = "Upload error: ${e.localizedMessage}"
+                        }
+                        false
+                    }
+                }
+
+                if (uploadSuccess) {
+                    _telegramStatusMessage.value = "✅ Bot uploaded clip to Telegram channel successfully!"
+                }
+            } catch (e: Exception) {
+                _telegramStatusMessage.value = "Error: ${e.localizedMessage}"
+            } finally {
+                _isUploadingTelegram.value = false
             }
-
-            // 2. Also notify connected workspace bot if configured
-            if (workspaceId.isNotBlank()) {
-                val tgMessage = """
-🎬 <b>NEW STREAM CLIP CREATED</b>
-📌 <b>Moment:</b> ${currentClip.label}
-👤 <b>Clipped by:</b> ${currentClip.authorName}
-📺 <b>Stream:</b> ${streamTitle}
-⏱ <b>Timestamp:</b> ${timeOffset}
-🆔 <b>Clip ID:</b> <code>${currentClip.id}</code>
-
-<i>Generated via Digicast Mobile Studio Relay</i>
-                """.trimIndent()
-
-                authRepository.sendTelegramClipNotification(
-                    workspaceId = workspaceId,
-                    clipId = currentClip.id,
-                    message = tgMessage
-                )
-            }
-
-            _isUploadingTelegram.value = false
         }
     }
 }

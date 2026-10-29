@@ -51,6 +51,9 @@ interface DigicastDao {
     @Query("UPDATE clip_markers SET localFilePath = :path, status = :status WHERE id = :id")
     suspend fun updateClipMarkerFile(id: String, path: String, status: String)
 
+    @Query("UPDATE clip_markers SET telegramMessageUrl = :telegramUrl, status = :status WHERE id = :id")
+    suspend fun updateClipTelegramStatus(id: String, telegramUrl: String, status: String)
+
     @Query("SELECT * FROM clip_markers WHERE id = :id LIMIT 1")
     suspend fun getClipMarkerById(id: String): ClipMarkerEntity?
 

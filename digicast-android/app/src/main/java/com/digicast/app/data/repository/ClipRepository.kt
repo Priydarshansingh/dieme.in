@@ -24,4 +24,7 @@ class ClipRepository @Inject constructor(
 
     suspend fun attachFile(id: String, path: String) =
         dao.updateClipMarkerFile(id, path, "GENERATED")
+
+    suspend fun updateTelegramStatus(id: String, telegramUrl: String, status: String = "UPLOADED") =
+        dao.updateClipTelegramStatus(id, telegramUrl, status)
 }

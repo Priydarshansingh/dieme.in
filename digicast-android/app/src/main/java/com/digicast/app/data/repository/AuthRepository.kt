@@ -896,6 +896,39 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun sendTelegramClipNotification(
+        workspaceId: String,
+        clipId: String,
+        message: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val session = (_authState.value as? AuthState.SignedIn)?.session
+            ?: return@withContext Result.failure(Exception("Not signed in"))
+
+        try {
+            val body = JSONObject().apply {
+                put("workspaceId", workspaceId)
+                put("clipId", clipId)
+                put("message", message)
+            }.toString().toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url("$BACKEND_URL/api/telegram/send")
+                .addHeader("Authorization", "Bearer ${session.token}")
+                .post(body)
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                Result.success(true)
+            } else {
+                val errBody = response.body?.string() ?: ""
+                Result.failure(Exception("Telegram send response: ${response.code} $errBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // ─── Private helpers ──────────────────────────────────────────────────────
 
     private fun saveRealSession(session: UserSession) {

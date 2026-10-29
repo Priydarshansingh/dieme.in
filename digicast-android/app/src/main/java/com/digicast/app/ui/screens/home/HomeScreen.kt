@@ -125,8 +125,8 @@ class HomeViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val recentMessages = allStreams
-        .map { it.firstOrNull() }
+    val recentMessages = activeStreams
+        .map { list -> list.firstOrNull { s -> !s.liveChatId.isNullOrEmpty() } ?: list.firstOrNull() }
         .flatMapLatest { stream ->
             if (stream == null) flowOf(emptyList())
             else chatRepository.getRecentMessages(stream.id, 50)
@@ -272,7 +272,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = "Welcome Back !",
+                        text = "Welcome back!",
                         color = DigicastSlate,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Normal

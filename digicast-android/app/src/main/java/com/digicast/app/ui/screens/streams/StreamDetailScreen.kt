@@ -1,5 +1,6 @@
 package com.digicast.app.ui.screens.streams
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,9 +26,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -48,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,9 +61,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
 import com.digicast.app.data.local.entity.StreamEntity
+import com.digicast.app.data.repository.AuthRepository
+import com.digicast.app.data.repository.AuthState
 import com.digicast.app.data.repository.ChatRepository
 import com.digicast.app.data.repository.ClipRepository
 import com.digicast.app.data.repository.StreamRepository
+import com.digicast.app.service.LiveChatCaptureService
 import com.digicast.app.ui.components.FolderTabCard
 import com.digicast.app.ui.components.SparklineWaveCard
 import com.digicast.app.ui.theme.DigicastAccentBlue
@@ -90,9 +97,10 @@ import javax.inject.Inject
 @HiltViewModel
 class StreamDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    streamRepository: StreamRepository,
+    private val streamRepository: StreamRepository,
     chatRepository: ChatRepository,
-    clipRepository: ClipRepository
+    clipRepository: ClipRepository,
+    val authRepository: AuthRepository
 ) : ViewModel() {
     private val streamId: String = checkNotNull(savedStateHandle["streamId"])
 
@@ -117,10 +125,16 @@ fun StreamDetailScreen(
     onNavigateToClipGenerate: (String) -> Unit,
     viewModel: StreamDetailViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val stream by viewModel.stream.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val clips by viewModel.clips.collectAsState()
     var selectedTab by remember { mutableStateOf("Overview") }
+
+    // Track live capture state reactively
+    var isCapturing by remember { mutableStateOf(LiveChatCaptureService.isServiceRunning) }
+    val authState by viewModel.authRepository.authState.collectAsState()
+    val session = (authState as? AuthState.SignedIn)?.session
 
     Scaffold(
         containerColor = DigicastDeepNavy,
@@ -152,16 +166,72 @@ fun StreamDetailScreen(
                     )
                 }
 
-                if (stream?.status == "live") {
-                    Row(
-                        modifier = Modifier
-                            .background(DigicastLiveRed.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(DigicastLiveRed))
-                        Text("LIVE", color = DigicastLiveRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // LIVE badge
+                    if (stream?.status == "live") {
+                        Row(
+                            modifier = Modifier
+                                .background(DigicastLiveRed.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(DigicastLiveRed))
+                            Text("LIVE", color = DigicastLiveRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Start / Stop Live Chat Capture button
+                    val canCapture = !stream?.liveChatId.isNullOrEmpty() && session != null && session.uid != "demo-uid"
+                    if (stream?.status == "live" || isCapturing) {
+                        Button(
+                            onClick = {
+                                val currentStream = stream
+                                val chatId = currentStream?.liveChatId
+                                if (isCapturing) {
+                                    LiveChatCaptureService.stop(context)
+                                    isCapturing = false
+                                } else if (currentStream != null && !chatId.isNullOrEmpty() && session != null) {
+                                    LiveChatCaptureService.start(
+                                        context = context,
+                                        streamId = currentStream.id,
+                                        videoId = currentStream.id,
+                                        liveChatId = chatId,
+                                        streamTitle = currentStream.title,
+                                        channelId = currentStream.channelId,
+                                        channelTitle = currentStream.channelTitle,
+                                        workspaceId = session.workspaceId,
+                                        authToken = session.token
+                                    )
+                                    isCapturing = true
+                                }
+                            },
+                            enabled = canCapture || isCapturing,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isCapturing) DigicastLiveRed.copy(alpha = 0.2f)
+                                                else DigicastEmerald.copy(alpha = 0.2f)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isCapturing) Icons.Default.StopCircle else Icons.Default.FiberManualRecord,
+                                contentDescription = null,
+                                tint = if (isCapturing) DigicastLiveRed else DigicastEmerald,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isCapturing) "Stop" else "Capture Chat",
+                                fontSize = 11.sp,
+                                color = if (isCapturing) DigicastLiveRed else DigicastEmerald,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -313,6 +383,50 @@ fun StreamDetailScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                }
+            }
+
+            // ── 2.5 Chat Capture Status Banner ────────────────────────────────
+            item {
+                val chatId = stream?.liveChatId
+                val hasChatId = !chatId.isNullOrEmpty()
+                val bannerColor = when {
+                    isCapturing -> DigicastEmerald.copy(alpha = 0.12f)
+                    hasChatId -> DigicastAccentBlue.copy(alpha = 0.08f)
+                    else -> DigicastSurfaceElevated
+                }
+                val bannerBorder = when {
+                    isCapturing -> DigicastEmerald
+                    hasChatId -> DigicastAccentBlue
+                    else -> DigicastBorder
+                }
+                val statusText = when {
+                    isCapturing -> "🔴 Live chat capture running — type !clip in chat to mark a moment"
+                    hasChatId && stream?.status == "live" -> "⚪ Chat capture ready — tap \"Capture Chat\" to start"
+                    hasChatId -> "Chat ID available — stream is not live right now"
+                    session?.uid == "demo-uid" -> "Sign in with a real account to capture live chat"
+                    else -> "No live chat ID — sync your YouTube channel from Settings"
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(bannerColor)
+                        .border(1.dp, bannerBorder.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = statusText,
+                        color = when {
+                            isCapturing -> DigicastEmerald
+                            hasChatId -> DigicastAccentBlue
+                            else -> DigicastSlate
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = if (isCapturing) FontWeight.SemiBold else FontWeight.Normal
+                    )
                 }
             }
 

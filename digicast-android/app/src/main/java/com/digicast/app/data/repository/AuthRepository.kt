@@ -320,7 +320,10 @@ class AuthRepository @Inject constructor(
 
         when {
             // Previously signed in with a real account — restore and background-sync
-            !signedOut && !isDemo && uid != null && email != null && token != null -> {
+            // A real token always takes precedence over any stale demo flag
+            !signedOut && uid != null && email != null && token != null -> {
+                // Clear stale demo flag if real session is present
+                if (isDemo) prefs.edit().putBoolean(KEY_IS_DEMO, false).apply()
                 val session = UserSession(
                     uid = uid,
                     email = email,
@@ -368,6 +371,9 @@ class AuthRepository @Inject constructor(
      */
     suspend fun signInWithEmail(email: String, password: String): Result<UserSession> = withContext(Dispatchers.IO) {
         try {
+            // Clear any stale demo flag so real sign-in always wins
+            prefs.edit().putBoolean(KEY_IS_DEMO, false).apply()
+
             val displayName = email.substringBefore("@")
             val body = JSONObject().apply {
                 put("email", email)

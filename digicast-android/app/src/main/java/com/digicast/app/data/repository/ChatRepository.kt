@@ -27,9 +27,11 @@ class ChatRepository @Inject constructor(
 
         val markers = mutableListOf<ClipMarkerEntity>()
         for (msg in messages) {
-            if (!msg.messageText.trim().startsWith("!clip", ignoreCase = true)) continue
+            val trimmed = msg.messageText.trim()
+            if (!trimmed.startsWith("!clip", ignoreCase = true)) continue
 
-            val label = msg.messageText.trim().removePrefix("!clip").removePrefix("!CLIP").trim()
+            // Case-insensitive label extraction — drop "!clip" prefix however it was typed
+            val label = trimmed.substring(5).trim() // "!clip" is always 5 chars
             val marker = ClipMarkerEntity(
                 id = UUID.randomUUID().toString(),
                 streamId = msg.streamId,

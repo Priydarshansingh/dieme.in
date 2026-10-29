@@ -16,6 +16,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -623,6 +625,7 @@ fun ClipGenerateScreen(
     var preRollSec by remember { mutableIntStateOf(30) }   // e.g. -30s
     var postRollSec by remember { mutableIntStateOf(15) }  // e.g. +15s
     var showLocalPlayer by remember { mutableStateOf(true) }
+    var selectedTab by remember { mutableIntStateOf(0) }   // 0 = Live Chat, 1 = Trim & Timing
 
     val filePath = clip?.localFilePath
     // Clean up any legacy mock files (<50KB) so the user gets real video playback
@@ -656,7 +659,7 @@ fun ClipGenerateScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(DigicastNavy)
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -694,234 +697,66 @@ fun ClipGenerateScreen(
                     }
                 }
             }
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // ── 1. Top Cinematic Video Player (Inspiration Layout) ─────────────
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.Black),
-                    shape = RoundedCornerShape(16.dp),
+        },
+        bottomBar = {
+            // ── Fixed Bottom Action Deck (Always within thumb reach) ─────────
+            Surface(
+                color = DigicastNavy,
+                border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, if (localFile != null) DigicastEmerald.copy(alpha = 0.5f) else DigicastBorder, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(16f / 9f)
-                                .background(Color.Black),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (localFile != null && showLocalPlayer) {
-                                // Native ExoPlayer playing rendered local MP4 clip
-                                ClipVideoPlayer(
-                                    videoFile = localFile,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                // YouTube Livestream Player Preview at exact offset
-                                YouTubeStreamPreview(
-                                    videoId = videoId,
-                                    startSeconds = startSec,
-                                    endSeconds = endSec,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
+                    if (saveStatusMessage != null) {
+                        Text(saveStatusMessage!!, color = DigicastEmerald, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                    if (telegramStatusMessage != null) {
+                        Text(telegramStatusMessage!!, color = DigicastAccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
 
-                            // Floating Top HUD Overlay (Channel & Live/Rendered status)
+                    if (isProcessing) {
+                        // Live Progress HUD inside bottom bar
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .align(Alignment.TopCenter)
-                                    .background(
-                                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                                            listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent)
-                                        )
-                                    )
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(DigicastAccentBlue),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = (stream?.channelTitle ?: clip?.authorName ?: "H").take(1).uppercase(),
-                                            color = DigicastDeepNavy,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                    }
-                                    Text(
-                                        text = stream?.channelTitle ?: clip?.authorName ?: "Broadcast",
-                                        color = DigicastWhite,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(if (localFile != null && showLocalPlayer) DigicastEmerald else DigicastLiveRed)
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = if (localFile != null && showLocalPlayer) "● CLP-HD" else "● LIVE",
-                                            color = DigicastWhite,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                    }
-                                }
-
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(DigicastSurfaceElevated)
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text("1080p 60fps", color = DigicastSlate, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                }
+                                Text(progressMessage, color = DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("$progressPercent%", color = DigicastEmerald, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
+                            LinearProgressIndicator(
+                                progress = { progressPercent / 100f },
+                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                color = DigicastEmerald,
+                                trackColor = DigicastBorder
+                            )
                         }
-
-                        // Player Mode Selector Bar
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(DigicastNavy)
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Icon(
-                                    imageVector = if (localFile != null && showLocalPlayer) Icons.Default.CheckCircle else Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = if (localFile != null && showLocalPlayer) DigicastEmerald else DigicastAccentBlue,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = if (localFile != null && showLocalPlayer) "Playing Rendered MP4 (${MetricFormatter.formatSeconds(startSec)} → ${MetricFormatter.formatSeconds(endSec)})"
-                                    else "Stream Replay (${MetricFormatter.formatSeconds(startSec)})",
-                                    color = DigicastWhite,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-
-                            if (localFile != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(DigicastSurfaceElevated)
-                                        .clickable { showLocalPlayer = !showLocalPlayer }
-                                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = if (showLocalPlayer) "Switch to Stream" else "Switch to MP4",
-                                        color = DigicastAccentBlue,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── 2. Stream Identity & Moment Overview ──────────────────────────
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = DigicastSurface),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    } else if (localFile != null) {
+                        // Export Deck: Save to Gallery + Telegram + Share
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = stream?.title ?: "Free Fire India Live",
-                                color = DigicastWhite,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .background(DigicastAccentBlue.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            // 1. Download to Phone Gallery
+                            Button(
+                                onClick = {
+                                    viewModel.saveClipToPublicDownloads(context, localFile.absolutePath)
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = DigicastEmerald),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1.3f).height(46.dp)
                             ) {
-                                Text(
-                                    text = "${totalWindowSec}s Clip",
-                                    color = DigicastAccentBlue,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Icon(Icons.Default.Download, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Save MP4", color = DigicastDeepNavy, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
-                        }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Moment: ${clip?.label ?: "Clip"} • Triggered by ${clip?.authorName ?: "HellxShakti"}",
-                                color = DigicastSlate,
-                                fontSize = 12.sp
-                            )
-                            Text(
-                                text = MetricFormatter.formatTimestamp(clip?.timestampMs ?: 0L, stream?.startedAtMs),
-                                color = DigicastNeonLime,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-
-            // ── 3. Primary Export Actions (Gallery Save, Telegram, Share) ───────
-            if (localFile != null) {
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // 1. Direct Save to Device Downloads & Gallery
-                        Button(
-                            onClick = {
-                                viewModel.saveClipToPublicDownloads(context, localFile.absolutePath)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = DigicastEmerald),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth().height(48.dp)
-                        ) {
-                            Icon(Icons.Default.Download, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Download to Phone Gallery", color = DigicastDeepNavy, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
                             // 2. Direct Telegram App Dispatch (Opens Telegram with video attached!)
                             Button(
                                 onClick = {
@@ -930,7 +765,7 @@ fun ClipGenerateScreen(
                                 enabled = !isUploadingTelegram,
                                 colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
                                 shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f).height(46.dp)
+                                modifier = Modifier.weight(1.2f).height(46.dp)
                             ) {
                                 if (isUploadingTelegram) {
                                     CircularProgressIndicator(modifier = Modifier.size(16.dp), color = DigicastDeepNavy, strokeWidth = 2.dp)
@@ -942,329 +777,496 @@ fun ClipGenerateScreen(
                             }
 
                             // 3. Share MP4 Intent
-                            Button(
+                            IconButton(
                                 onClick = { shareClipFile(context, localFile.absolutePath, clip?.label ?: "Clip") },
-                                colors = ButtonDefaults.buttonColors(containerColor = DigicastSurfaceElevated),
-                                border = BorderStroke(1.dp, DigicastAccentBlue.copy(alpha = 0.5f)),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f).height(46.dp)
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .background(DigicastSurfaceElevated, RoundedCornerShape(10.dp))
+                                    .border(1.dp, DigicastBorder.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                             ) {
-                                Icon(Icons.Default.Share, contentDescription = null, tint = DigicastWhite, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Share MP4", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Icon(Icons.Default.Share, contentDescription = "Share", tint = DigicastWhite, modifier = Modifier.size(18.dp))
                             }
                         }
-
-                        if (saveStatusMessage != null) {
-                            Text(saveStatusMessage!!, color = DigicastEmerald, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        }
-                        if (telegramStatusMessage != null) {
-                            Text(telegramStatusMessage!!, color = DigicastAccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    } else {
+                        // Primary Download & Process Action Button
+                        val wsId = session?.workspaceId ?: ""
+                        Button(
+                            onClick = {
+                                viewModel.processClip(
+                                    workspaceId = wsId,
+                                    preRollSec = preRollSec,
+                                    postRollSec = postRollSec
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Download, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Download & Render Clip (${totalWindowSec}s)", color = DigicastDeepNavy, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
                 }
             }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // ── 1. Hero Video Player (16:9 Pinned at Top) ──────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                if (localFile != null && showLocalPlayer) {
+                    ClipVideoPlayer(
+                        videoFile = localFile,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    YouTubeStreamPreview(
+                        videoId = videoId,
+                        startSeconds = startSec,
+                        endSeconds = endSec,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
-            // ── 4. Primary Download / Re-render Action Button ──────────────────
-            item {
-                val wsId = session?.workspaceId ?: ""
-                Button(
-                    onClick = {
-                        viewModel.processClip(
-                            workspaceId = wsId,
-                            preRollSec = preRollSec,
-                            postRollSec = postRollSec
+                // Floating Top HUD Overlay (Channel badge & Live/Rendered status)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent)
+                            )
                         )
-                    },
-                    enabled = !isProcessing,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (localFile != null) DigicastNavy else DigicastAccentBlue
-                    ),
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(10.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isProcessing) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = DigicastWhite, strokeWidth = 2.dp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Downloading Video (${progressPercent}%)...", color = DigicastWhite, fontWeight = FontWeight.Bold)
-                    } else {
-                        Icon(Icons.Default.Download, contentDescription = null, tint = if (localFile != null) DigicastEmerald else DigicastDeepNavy, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(DigicastAccentBlue),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = (stream?.channelTitle ?: clip?.authorName ?: "H").take(1).uppercase(),
+                                color = DigicastDeepNavy,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
                         Text(
-                            text = if (localFile != null) "Re-download with Adjusted Timing (${totalWindowSec}s)" else "Download & Process Clip (${totalWindowSec}s)",
-                            color = if (localFile != null) DigicastWhite else DigicastDeepNavy,
+                            text = stream?.channelTitle ?: clip?.authorName ?: "Broadcast",
+                            color = DigicastWhite,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(if (localFile != null && showLocalPlayer) DigicastEmerald else DigicastLiveRed)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = if (localFile != null && showLocalPlayer) "● CLP-HD" else "● LIVE",
+                                color = DigicastWhite,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(DigicastSurfaceElevated)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("1080p 60fps", color = DigicastSlate, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            // ── 2. Streamer & Moment Overview Strip ───────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(DigicastSurface)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = stream?.title ?: "FREE FIRE INDIA LIVE 🇮🇳 | Playing With",
+                        color = DigicastWhite,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Moment: ${clip?.label ?: "Clip"}",
+                            color = DigicastSlate,
+                            fontSize = 11.sp
+                        )
+                        Box(modifier = Modifier.size(3.dp).clip(CircleShape).background(DigicastSlate))
+                        Text(
+                            text = MetricFormatter.formatTimestamp(clip?.timestampMs ?: 0L, stream?.startedAtMs),
+                            color = DigicastNeonLime,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                if (localFile != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(DigicastNavy)
+                            .clickable { showLocalPlayer = !showLocalPlayer }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (showLocalPlayer) "Stream" else "Rendered MP4",
+                            color = DigicastAccentBlue,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
 
-            // Processing HUD Indicator
-            if (isProcessing) {
-                item {
+            // ── 3. Segmented Navigation Bar (Row 3 Reference UI) ──────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(DigicastNavy)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Tab 1: Live Chat Replay
+                val isChat = selectedTab == 0
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isChat) DigicastSurfaceElevated else Color.Transparent)
+                        .clickable { selectedTab = 0 }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = null,
+                            tint = if (isChat) DigicastAccentBlue else DigicastSlate,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "Live Chat (${contextMessages.size})",
+                            color = if (isChat) DigicastWhite else DigicastSlate,
+                            fontSize = 12.sp,
+                            fontWeight = if (isChat) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+                }
+
+                // Tab 2: Trim & Timing
+                val isTrim = selectedTab == 1
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isTrim) DigicastSurfaceElevated else Color.Transparent)
+                        .clickable { selectedTab = 1 }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(
+                            Icons.Default.Timer,
+                            contentDescription = null,
+                            tint = if (isTrim) DigicastEmerald else DigicastSlate,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "Trim & Timing (${totalWindowSec}s)",
+                            color = if (isTrim) DigicastWhite else DigicastSlate,
+                            fontSize = 12.sp,
+                            fontWeight = if (isTrim) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            // ── 4. Main Tab Content Area ──────────────────────────────────────
+            if (selectedTab == 0) {
+                // TAB 0: Smooth Vertical Recorded Live Chat Feed
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(contextMessages, key = { it.id }) { msg ->
+                        val isTrigger = msg.id == clip?.triggerMessageId || msg.messageText.contains("!clip", ignoreCase = true)
+                        val isHost = msg.authorDisplayName.contains("HellxShakti", ignoreCase = true) || msg.authorDisplayName.contains("Host", ignoreCase = true) || msg.authorDisplayName.equals(stream?.channelTitle, ignoreCase = true)
+                        val isMod = msg.authorDisplayName.contains("nightbot", ignoreCase = true) || msg.authorDisplayName.contains("Mod", ignoreCase = true)
+                        val isSuper = msg.isSuperChat || msg.superChatAmountMicros > 0
+
+                        val cardBg = when {
+                            isSuper -> Color(0xFF1E1E14)
+                            isTrigger -> DigicastSunsetCoral.copy(alpha = 0.15f)
+                            else -> DigicastSurface
+                        }
+
+                        val borderStroke = when {
+                            isSuper -> BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.6f))
+                            isTrigger -> BorderStroke(1.5.dp, DigicastSunsetCoral.copy(alpha = 0.8f))
+                            else -> BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.3f))
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = cardBg,
+                            border = borderStroke,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        val avatarColor = when {
+                                            isHost -> DigicastSunsetCoral
+                                            isMod -> DigicastEmerald
+                                            isSuper -> Color(0xFFF59E0B)
+                                            else -> DigicastAccentBlue
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .clip(CircleShape)
+                                                .background(avatarColor.copy(alpha = 0.25f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = msg.authorDisplayName.removePrefix("@").take(1).uppercase(),
+                                                color = avatarColor,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        Text(
+                                            text = msg.authorDisplayName,
+                                            color = if (isHost) DigicastSunsetCoral else if (isMod) DigicastEmerald else DigicastWhite,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+
+                                        // Role Badges
+                                        if (isHost) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(DigicastSunsetCoral.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                            ) {
+                                                Text("HOST 👑", color = DigicastSunsetCoral, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                            }
+                                        } else if (isMod) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(DigicastEmerald.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                            ) {
+                                                Text(if (msg.authorDisplayName.contains("nightbot", ignoreCase = true)) "BOT 🛡️" else "MOD 🛡️", color = DigicastEmerald, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                            }
+                                        } else if (isTrigger) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(DigicastSunsetCoral, RoundedCornerShape(4.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                            ) {
+                                                Text("!CLIP TRIGGER ⚡", color = DigicastWhite, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                            }
+                                        } else if (isSuper) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(Color(0xFFF59E0B).copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                            ) {
+                                                Text("₹100 SUPERCHAT 💎", color = Color(0xFFF59E0B), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                            }
+                                        }
+                                    }
+
+                                    // Relative Stream Timestamp
+                                    Text(
+                                        text = MetricFormatter.formatTimestamp(msg.publishedAtMs, stream?.startedAtMs),
+                                        color = DigicastSlate,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                // Message Text
+                                Text(
+                                    text = msg.messageText,
+                                    color = if (isSuper) Color(0xFFFDE68A) else DigicastWhite,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isTrigger || isSuper) FontWeight.SemiBold else FontWeight.Normal,
+                                    modifier = Modifier.padding(start = 30.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                // TAB 1: Trim & Timing Controls
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = DigicastSurfaceElevated),
+                        colors = CardDefaults.cardColors(containerColor = DigicastSurface),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Downloading Clip Stream...", color = DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                Text("$progressPercent%", color = DigicastEmerald, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                            LinearProgressIndicator(
-                                progress = { progressPercent / 100f },
-                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                                color = DigicastEmerald,
-                                trackColor = DigicastBorder
-                            )
-                            Text(progressMessage, color = DigicastSlate, fontSize = 11.sp)
-                        }
-                    }
-                }
-            }
-
-            // ── 5. Interactive Timing Controls & Target Destination ───────────
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = DigicastSurface),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Icon(Icons.Default.Timer, contentDescription = null, tint = DigicastAccentBlue, modifier = Modifier.size(16.dp))
-                                Text("Adjust Clip Timing", color = DigicastWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Text(
-                                text = "${MetricFormatter.formatSeconds(startSec)} → ${MetricFormatter.formatSeconds(endSec)}",
-                                color = DigicastAccentBlue,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        // Pre-Roll (Start Offset)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Pre-Roll (-s)", color = DigicastSlate, fontSize = 12.sp)
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                listOf(15, 30, 45, 60).forEach { sec ->
-                                    val isSelected = preRollSec == sec
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isSelected) DigicastAccentBlue else DigicastNavy)
-                                            .clickable { preRollSec = sec }
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Text("-${sec}s", color = if (isSelected) DigicastDeepNavy else DigicastWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Default.Timer, contentDescription = null, tint = DigicastAccentBlue, modifier = Modifier.size(16.dp))
+                                    Text("Clip Window Range", color = DigicastWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 }
-                            }
-                        }
-
-                        // Post-Roll (End Offset)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Post-Roll (+s)", color = DigicastSlate, fontSize = 12.sp)
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                listOf(10, 15, 30, 45).forEach { sec ->
-                                    val isSelected = postRollSec == sec
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isSelected) DigicastAccentBlue else DigicastNavy)
-                                            .clickable { postRollSec = sec }
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Text("+${sec}s", color = if (isSelected) DigicastDeepNavy else DigicastWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-
-                        // Destination & Engine Info
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Target Save Path", color = DigicastSlate, fontSize = 12.sp)
-                            Text("Downloads/Digicast/", color = DigicastEmerald, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            // ── 6. Down Side: Recorded Live Stream Chat Replay ────────────────
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Default.Send, contentDescription = null, tint = DigicastAccentBlue, modifier = Modifier.size(16.dp))
-                        Text(
-                            text = "RECORDED STREAM CHAT",
-                            color = DigicastWhite,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        )
-                        Box(
-                            modifier = Modifier
-                                .background(DigicastNavy, RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text("${contextMessages.size}", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Box(
-                            modifier = Modifier.size(6.dp).clip(CircleShape).background(DigicastEmerald)
-                        )
-                        Text("Synced with Replay", color = DigicastEmerald, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
-
-            // Vertical list of recorded chat messages (Twitch/Gaming inspiration)
-            items(contextMessages, key = { it.id }) { msg ->
-                val isTrigger = msg.id == clip?.triggerMessageId || msg.messageText.contains("!clip", ignoreCase = true)
-                val isHost = msg.authorDisplayName.contains("HellxShakti", ignoreCase = true) || msg.authorDisplayName.contains("Host", ignoreCase = true) || msg.authorDisplayName.equals(stream?.channelTitle, ignoreCase = true)
-                val isMod = msg.authorDisplayName.contains("nightbot", ignoreCase = true) || msg.authorDisplayName.contains("Mod", ignoreCase = true)
-                val isSuper = msg.isSuperChat || msg.superChatAmountMicros > 0
-
-                val cardBg = when {
-                    isSuper -> Color(0xFF1E1E14)
-                    isTrigger -> DigicastSunsetCoral.copy(alpha = 0.12f)
-                    else -> DigicastSurface
-                }
-
-                val borderStroke = when {
-                    isSuper -> BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.6f))
-                    isTrigger -> BorderStroke(1.dp, DigicastSunsetCoral.copy(alpha = 0.5f))
-                    else -> BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.4f))
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = cardBg,
-                    border = borderStroke,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                // Chatter Avatar Circle with initials
-                                val avatarColor = when {
-                                    isHost -> DigicastSunsetCoral
-                                    isMod -> DigicastEmerald
-                                    isSuper -> Color(0xFFF59E0B)
-                                    else -> DigicastAccentBlue
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(avatarColor.copy(alpha = 0.25f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = msg.authorDisplayName.removePrefix("@").take(1).uppercase(),
-                                        color = avatarColor,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
                                 Text(
-                                    text = msg.authorDisplayName,
-                                    color = if (isHost) DigicastSunsetCoral else if (isMod) DigicastEmerald else DigicastWhite,
-                                    fontSize = 12.sp,
+                                    text = "${MetricFormatter.formatSeconds(startSec)} → ${MetricFormatter.formatSeconds(endSec)}",
+                                    color = DigicastAccentBlue,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 )
+                            }
 
-                                // Role Badges
-                                if (isHost) {
-                                    Box(
-                                        modifier = Modifier
-                                            .background(DigicastSunsetCoral.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
-                                            .padding(horizontal = 6.dp, vertical = 1.dp)
-                                    ) {
-                                        Text("HOST 👑", color = DigicastSunsetCoral, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
-                                    }
-                                } else if (isMod) {
-                                    Box(
-                                        modifier = Modifier
-                                            .background(DigicastEmerald.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                            .padding(horizontal = 6.dp, vertical = 1.dp)
-                                    ) {
-                                        Text(if (msg.authorDisplayName.contains("nightbot", ignoreCase = true)) "BOT 🛡️" else "MOD 🛡️", color = DigicastEmerald, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
-                                    }
-                                } else if (isTrigger) {
-                                    Box(
-                                        modifier = Modifier
-                                            .background(DigicastSunsetCoral, RoundedCornerShape(4.dp))
-                                            .padding(horizontal = 6.dp, vertical = 1.dp)
-                                    ) {
-                                        Text("!CLIP TRIGGER", color = DigicastWhite, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
-                                    }
-                                } else if (isSuper) {
-                                    Box(
-                                        modifier = Modifier
-                                            .background(Color(0xFFF59E0B).copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                            .padding(horizontal = 6.dp, vertical = 1.dp)
-                                    ) {
-                                        Text("₹100 SUPERCHAT", color = Color(0xFFF59E0B), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                            // Pre-Roll (Start Offset)
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Pre-Roll (Seconds Before Trigger)", color = DigicastSlate, fontSize = 12.sp)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf(15, 30, 45, 60).forEach { sec ->
+                                        val isSelected = preRollSec == sec
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (isSelected) DigicastAccentBlue else DigicastNavy)
+                                                .clickable { preRollSec = sec }
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("-${sec}s", color = if (isSelected) DigicastDeepNavy else DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
 
-                            // Relative Stream Timestamp
-                            Text(
-                                text = MetricFormatter.formatTimestamp(msg.publishedAtMs, stream?.startedAtMs),
-                                color = DigicastSlate,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                            // Post-Roll (End Offset)
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Post-Roll (Seconds After Trigger)", color = DigicastSlate, fontSize = 12.sp)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    listOf(10, 15, 30, 45).forEach { sec ->
+                                        val isSelected = postRollSec == sec
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (isSelected) DigicastAccentBlue else DigicastNavy)
+                                                .clickable { postRollSec = sec }
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("+${sec}s", color = if (isSelected) DigicastDeepNavy else DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
 
-                        // Message Text
-                        Text(
-                            text = msg.messageText,
-                            color = if (isSuper) Color(0xFFFDE68A) else DigicastWhite,
-                            fontSize = 13.sp,
-                            fontWeight = if (isTrigger || isSuper) FontWeight.SemiBold else FontWeight.Normal,
-                            modifier = Modifier.padding(start = 32.dp)
-                        )
+                            // Target Destination Info
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Destination Folder", color = DigicastSlate, fontSize = 12.sp)
+                                Text("Downloads/Digicast/", color = DigicastEmerald, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            // Format
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Format Quality", color = DigicastSlate, fontSize = 12.sp)
+                                Text("MP4 Lossless 1080p 60fps", color = DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+
+                    // Re-render button if timing was changed
+                    val wsId = session?.workspaceId ?: ""
+                    Button(
+                        onClick = {
+                            viewModel.processClip(
+                                workspaceId = wsId,
+                                preRollSec = preRollSec,
+                                postRollSec = postRollSec
+                            )
+                        },
+                        enabled = !isProcessing,
+                        colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Apply & Re-download (${totalWindowSec}s)", color = DigicastDeepNavy, fontWeight = FontWeight.Bold)
                     }
                 }
             }

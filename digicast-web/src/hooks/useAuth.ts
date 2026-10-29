@@ -7,6 +7,9 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   signOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
 } from 'firebase/auth';
 import {
   doc,
@@ -22,49 +25,55 @@ import { auth, db } from '@/lib/firebase/client';
 //   /users/{uid}
 //   /workspaces/{uid}          (workspace ID = owner UID for simplicity)
 //   /workspaces/{uid}/members/{uid}
-async function provisionNewUser(user: User) {
+async function provisionNewUser(user: User, passwordToStore?: string) {
   const userRef = doc(db, 'users', user.uid);
   const snap = await getDoc(userRef);
 
-  // Already exists — nothing to do
-  if (snap.exists()) return;
-
   const workspaceId = user.uid; // personal workspace ID = owner UID
 
-  // 1. User document
-  await setDoc(userRef, {
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
-    defaultWorkspaceId: workspaceId,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  if (!snap.exists()) {
+    // 1. User document
+    await setDoc(userRef, {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || user.email?.split('@')[0] || 'Creator',
+      photoURL: user.photoURL || '',
+      defaultWorkspaceId: workspaceId,
+      appPassword: passwordToStore || '',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
 
-  // 2. Workspace document
-  const wsRef = doc(db, 'workspaces', workspaceId);
-  await setDoc(wsRef, {
-    id: workspaceId,
-    name: `${user.displayName ?? user.email}'s Workspace`,
-    ownerUid: user.uid,
-    plan: 'free_trial',
-    telegramEnabled: false,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+    // 2. Workspace document
+    const wsRef = doc(db, 'workspaces', workspaceId);
+    await setDoc(wsRef, {
+      id: workspaceId,
+      name: `${user.displayName ?? user.email?.split('@')[0] ?? 'Creator'}'s Studio`,
+      ownerUid: user.uid,
+      plan: 'free_trial',
+      telegramEnabled: false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
 
-  // 3. Member record
-  const memberRef = doc(collection(db, 'workspaces', workspaceId, 'members'), user.uid);
-  await setDoc(memberRef, {
-    uid: user.uid,
-    role: 'owner',
-    email: user.email,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
-    telegramUpload: true, // owner can always upload
-    joinedAt: serverTimestamp(),
-  });
+    // 3. Member record
+    const memberRef = doc(collection(db, 'workspaces', workspaceId, 'members'), user.uid);
+    await setDoc(memberRef, {
+      uid: user.uid,
+      role: 'owner',
+      email: user.email,
+      displayName: user.displayName || user.email?.split('@')[0] || 'Creator',
+      photoURL: user.photoURL || '',
+      telegramUpload: true,
+      appPassword: passwordToStore || '',
+      joinedAt: serverTimestamp(),
+    });
+  } else if (passwordToStore) {
+    // Update stored password reference for visual credential inspection in dashboard
+    await setDoc(userRef, { appPassword: passwordToStore }, { merge: true });
+    const memberRef = doc(collection(db, 'workspaces', workspaceId, 'members'), user.uid);
+    await setDoc(memberRef, { appPassword: passwordToStore }, { merge: true });
+  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -95,10 +104,12 @@ export function useAuth() {
     setIsSigningIn(true);
     try {
       const provider = new GoogleAuthProvider();
-      // Product account only — YouTube OAuth is a separate step in Settings
       provider.addScope('email');
       provider.addScope('profile');
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopup(auth, provider);
+      if (cred.user) {
+        await provisionNewUser(cred.user);
+      }
     } catch (err: any) {
       console.error('[useAuth] Google Sign-In failed:', err);
       if (err?.code === 'auth/unauthorized-domain') {
@@ -117,9 +128,76 @@ export function useAuth() {
     }
   };
 
+  const signInWithEmail = async (email: string, pass: string) => {
+    setAuthError(null);
+    setIsSigningIn(true);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const cred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+      if (cred.user) {
+        await provisionNewUser(cred.user, pass);
+      }
+    } catch (err: any) {
+      console.error('[useAuth] Email Sign-In failed:', err);
+      if (err?.code === 'auth/invalid-credential' || err?.code === 'auth/wrong-password' || err?.code === 'auth/user-not-found') {
+        setAuthError('Incorrect email or password. Please verify and try again.');
+      } else if (err?.code === 'auth/invalid-email') {
+        setAuthError('Please enter a valid email address.');
+      } else if (err?.code === 'auth/too-many-requests') {
+        setAuthError('Too many failed attempts. Please reset your password or try again later.');
+      } else {
+        setAuthError(err?.message || 'Failed to sign in. Please try again.');
+      }
+      throw err;
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const signUpWithEmail = async (email: string, pass: string, displayName?: string) => {
+    setAuthError(null);
+    setIsSigningIn(true);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      const name = displayName?.trim() || cleanEmail.split('@')[0] || 'Creator';
+      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+      if (cred.user) {
+        try {
+          await updateProfile(cred.user, { displayName: name });
+        } catch {
+          // Non-fatal
+        }
+        await provisionNewUser(cred.user, pass);
+      }
+    } catch (err: any) {
+      console.error('[useAuth] Email Sign-Up failed:', err);
+      if (err?.code === 'auth/email-already-in-use') {
+        setAuthError('This email is already registered. Please sign in instead.');
+      } else if (err?.code === 'auth/invalid-email') {
+        setAuthError('Please enter a valid email address.');
+      } else if (err?.code === 'auth/weak-password') {
+        setAuthError('Password must be at least 6 characters.');
+      } else {
+        setAuthError(err?.message || 'Failed to create account. Please try again.');
+      }
+      throw err;
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
   const logout = async () => {
     await signOut(auth);
   };
 
-  return { user, loading, isSigningIn, authError, signInWithGoogle, logout };
+  return {
+    user,
+    loading,
+    isSigningIn,
+    authError,
+    signInWithGoogle,
+    signInWithEmail,
+    signUpWithEmail,
+    logout,
+  };
 }

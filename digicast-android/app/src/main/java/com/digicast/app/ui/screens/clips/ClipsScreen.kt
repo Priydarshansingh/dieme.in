@@ -121,17 +121,23 @@ fun ClipsScreen(
         viewModel.sync()
     }
 
-    val filteredClips = clips.filter { clip ->
-        val isReady = clip.status.uppercase().contains("COMPLET") || clip.status.uppercase() == "GENERATED"
-        val matchesCategory = when (selectedCategory) {
-            "Generated" -> isReady
-            "Pending" -> !isReady
-            else -> true
+    val realClips = remember(clips) {
+        clips.filter { it.id != "demo-clip-001" && !it.authorName.contains("DemoViewer", ignoreCase = true) }
+    }
+
+    val filteredClips = remember(realClips, selectedCategory, searchQuery) {
+        realClips.filter { clip ->
+            val isReady = clip.status.uppercase().contains("COMPLET") || clip.status.uppercase() == "GENERATED"
+            val matchesCategory = when (selectedCategory) {
+                "Generated" -> isReady
+                "Pending" -> !isReady
+                else -> true
+            }
+            val matchesSearch = if (searchQuery.isBlank()) true else {
+                clip.label.contains(searchQuery, ignoreCase = true) || clip.authorName.contains(searchQuery, ignoreCase = true)
+            }
+            matchesCategory && matchesSearch
         }
-        val matchesSearch = if (searchQuery.isBlank()) true else {
-            clip.label.contains(searchQuery, ignoreCase = true) || clip.authorName.contains(searchQuery, ignoreCase = true)
-        }
-        matchesCategory && matchesSearch
     }
 
     Scaffold(
@@ -215,10 +221,25 @@ fun ClipsScreen(
                         tint = DigicastSlate,
                         modifier = Modifier.size(18.dp)
                     )
-                    Text(
-                        text = "Search clip markers, authors, timestamps...",
-                        color = DigicastSlate.copy(alpha = 0.8f),
-                        fontSize = 13.sp
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = DigicastWhite,
+                            fontSize = 13.sp
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search clip markers, authors, timestamps...",
+                                    color = DigicastSlate.copy(alpha = 0.8f),
+                                    fontSize = 13.sp
+                                )
+                            }
+                            innerTextField()
+                        }
                     )
                 }
             }
@@ -229,16 +250,17 @@ fun ClipsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    val readyCount = clips.count { it.status.uppercase().contains("COMPLET") || it.status.uppercase() == "GENERATED" }
-                    val pendingCount = clips.size - readyCount
+                    val readyCount = realClips.count { it.status.uppercase().contains("COMPLET") || it.status.uppercase() == "GENERATED" }
+                    val pendingCount = realClips.size - readyCount
 
                     FolderTabCard(
-                        value = "${clips.size}",
+                        value = "${realClips.size}",
                         label = "Total Clips",
                         sublabel = "$pendingCount pending",
                         icon = Icons.Default.ContentCut,
                         backgroundColor = DigicastSunsetCoral,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        onClick = { selectedCategory = "All Clips" }
                     )
 
                     FolderTabCard(
@@ -247,7 +269,8 @@ fun ClipsScreen(
                         sublabel = "Generated MP4",
                         icon = Icons.Default.CheckCircle,
                         backgroundColor = DigicastSpringGreen,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        onClick = { selectedCategory = "Generated" }
                     )
                 }
             }

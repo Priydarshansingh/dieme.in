@@ -30,6 +30,9 @@ interface DigicastDao {
     @Query("UPDATE streams SET isActive = 0 WHERE id = :streamId")
     suspend fun markStreamInactive(streamId: String)
 
+    @Query("DELETE FROM streams WHERE id = :streamId")
+    suspend fun deleteStream(streamId: String)
+
     // --- Chat Messages ---
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertChatMessages(messages: List<ChatMessageEntity>)
@@ -68,6 +71,9 @@ interface DigicastDao {
 
     @Query("SELECT * FROM clip_markers WHERE status = 'PENDING'")
     suspend fun getPendingClipMarkers(): List<ClipMarkerEntity>
+
+    @Query("DELETE FROM clip_markers WHERE id = :id")
+    suspend fun deleteClipMarker(id: String)
 
     // --- Sync Queue ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)

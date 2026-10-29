@@ -159,9 +159,10 @@ fun HomeScreen(
     val isSyncing by viewModel.isSyncing.collectAsState()
     val ytAccount by viewModel.authRepository.youtubeAccount.collectAsState()
 
-    val live = activeStreams.firstOrNull() ?: allStreams.firstOrNull()
+    val live = activeStreams.firstOrNull { it.id != "demo-stream-001" } ?: allStreams.firstOrNull { it.id != "demo-stream-001" }
     val capturing = LiveChatCaptureService.isServiceRunning
     var selectedCategory by remember { mutableStateOf("All Streams") }
+    val realClips = clips.filter { it.id != "demo-clip-001" && !it.authorName.contains("DemoViewer", ignoreCase = true) }
 
     val signedInSession = (authState as? AuthState.SignedIn)?.session
     var show24hGate by remember { mutableStateOf(false) }
@@ -349,7 +350,8 @@ fun HomeScreen(
                             sublabel = if (messages.isNotEmpty()) "${messages.size} msgs captured" else "No chatters yet",
                             icon = Icons.Default.Group,
                             backgroundColor = DigicastSpringGreen,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            onClick = { selectedCategory = "Chat Intelligence" }
                         )
                     }
 
@@ -358,13 +360,13 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        val clipsCount = "${clips.size}"
-                        val readyCount = clips.count { it.status.uppercase().contains("COMPLET") || it.status.uppercase() == "GENERATED" }
+                        val clipsCount = "${realClips.size}"
+                        val readyCount = realClips.count { it.status.uppercase().contains("COMPLET") || it.status.uppercase() == "GENERATED" }
 
                         FolderTabCard(
                             value = clipsCount,
                             label = "Clips Created",
-                            sublabel = if (clips.isNotEmpty()) "$readyCount ready" else "No clips yet",
+                            sublabel = if (realClips.isNotEmpty()) "$readyCount ready" else "No clips yet",
                             icon = Icons.Default.ContentCut,
                             backgroundColor = DigicastSunsetCoral,
                             modifier = Modifier.weight(1f),
@@ -374,7 +376,7 @@ fun HomeScreen(
                         val likesStr = if (live != null && live.likeCount > 0) {
                             MetricFormatter.formatCount(live.likeCount)
                         } else if (allStreams.isNotEmpty()) {
-                            MetricFormatter.formatCount(allStreams.sumOf { it.likeCount })
+                            MetricFormatter.formatCount(allStreams.filter { it.id != "demo-stream-001" }.sumOf { it.likeCount })
                         } else {
                             "0"
                         }
@@ -385,7 +387,8 @@ fun HomeScreen(
                             sublabel = if (live != null) "Current Stream" else "All broadcasts",
                             icon = Icons.Default.Paid,
                             backgroundColor = DigicastElectricCyan,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            onClick = { if (live != null) onNavigateToStreamDetail(live.id) }
                         )
                     }
                 }
@@ -579,8 +582,92 @@ fun HomeScreen(
                 }
             }
 
+            // ── 6.5 Clips Studio Section ─────────────────────────────────────
+            if (selectedCategory == "All Streams" || selectedCategory == "Clips Studio") {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "CAPTURED CLIPS",
+                            color = DigicastSlate,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = "View All (${realClips.size})",
+                            color = DigicastSunsetCoral,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable { onNavigateToClips() }
+                        )
+                    }
+                }
+
+                items(realClips.take(3), key = { "home_${it.id}" }) { clip ->
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { onNavigateToClips() }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(DigicastSunsetCoral.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.ContentCut,
+                                        contentDescription = null,
+                                        tint = DigicastSunsetCoral,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = clip.label,
+                                        color = DigicastWhite,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = "by ${clip.authorName} • 33:50",
+                                        color = DigicastSlate,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                            Button(
+                                onClick = onNavigateToClips,
+                                colors = ButtonDefaults.buttonColors(containerColor = DigicastSunsetCoral.copy(alpha = 0.2f)),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(30.dp)
+                            ) {
+                                Text("Open", fontSize = 11.sp, color = DigicastSunsetCoral, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
             // ── 7. Connected YouTube Channel Card ─────────────────────────────
-            if (ytAccount != null) {
+            if (ytAccount != null && selectedCategory == "All Streams") {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
@@ -638,49 +725,51 @@ fun HomeScreen(
             }
 
             // ── 8. Chat Intelligence Section ──────────────────────────────────
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "LIVE CHAT FEED",
-                        color = DigicastSlate,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        text = "${messages.size} Messages",
-                        color = DigicastAccentBlue,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            if (messages.isEmpty()) {
+            if (selectedCategory == "All Streams" || selectedCategory == "Chat Intelligence") {
                 item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(DigicastSurface)
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Live chat messages captured during streams appear here in real time.",
+                            text = "LIVE CHAT FEED",
                             color = DigicastSlate,
-                            fontSize = 13.sp
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = "${messages.size} Messages",
+                            color = DigicastAccentBlue,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
-            }
 
-            items(messages, key = { it.id }) { msg ->
-                ChatRow(msg)
+                if (messages.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(DigicastSurface)
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Live chat messages captured during streams appear here in real time.",
+                                color = DigicastSlate,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+
+                items(messages, key = { it.id }) { msg ->
+                    ChatRow(msg)
+                }
             }
         }
     }

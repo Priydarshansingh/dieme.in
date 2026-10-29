@@ -19,6 +19,10 @@ class ClipRepository @Inject constructor(
 
     suspend fun getPending(): List<ClipMarkerEntity> = dao.getPendingClipMarkers()
 
+    suspend fun createClipMarker(marker: ClipMarkerEntity) = dao.insertClipMarker(marker)
+
+    suspend fun deleteClip(id: String) = dao.deleteClipMarker(id)
+
     suspend fun updateStatus(id: String, status: String) =
         dao.updateClipMarkerStatus(id, status)
 

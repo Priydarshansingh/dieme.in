@@ -47,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
@@ -71,6 +72,7 @@ import com.digicast.app.ui.theme.DigicastChipBackground
 import com.digicast.app.ui.theme.DigicastDarkText
 import com.digicast.app.ui.theme.DigicastDeepNavy
 import com.digicast.app.ui.theme.DigicastElectricCyan
+import com.digicast.app.ui.theme.DigicastEmerald
 import com.digicast.app.ui.theme.DigicastLiveRed
 import com.digicast.app.ui.theme.DigicastMintGlow
 import com.digicast.app.ui.theme.DigicastNavy
@@ -122,16 +124,22 @@ fun StreamsScreen(
         viewModel.sync()
     }
 
-    val filteredStreams = streams.filter { stream ->
-        val matchesCategory = when (selectedCategory) {
-            "Live Now" -> stream.status == "live"
-            "Recorded" -> stream.status != "live"
-            else -> true
+    val realStreams = remember(streams) {
+        streams.filter { it.id != "demo-stream-001" }
+    }
+
+    val filteredStreams = remember(realStreams, selectedCategory, searchQuery) {
+        realStreams.filter { stream ->
+            val matchesCategory = when (selectedCategory) {
+                "Live Now" -> stream.status == "live"
+                "Past Streams" -> stream.status != "live"
+                else -> true
+            }
+            val matchesSearch = if (searchQuery.isBlank()) true else {
+                stream.title.contains(searchQuery, ignoreCase = true) || stream.channelTitle.contains(searchQuery, ignoreCase = true)
+            }
+            matchesCategory && matchesSearch
         }
-        val matchesSearch = if (searchQuery.isBlank()) true else {
-            stream.title.contains(searchQuery, ignoreCase = true) || stream.channelTitle.contains(searchQuery, ignoreCase = true)
-        }
-        matchesCategory && matchesSearch
     }
 
     Scaffold(
@@ -197,7 +205,7 @@ fun StreamsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ── 1. Search Bar ──────────────────────────────────────────────────
+            // ── 1. Interactive Search Bar ─────────────────────────────────────
             item {
                 Row(
                     modifier = Modifier
@@ -215,46 +223,32 @@ fun StreamsScreen(
                         tint = DigicastSlate,
                         modifier = Modifier.size(18.dp)
                     )
-                    Text(
-                        text = "Search broadcasts, titles, channels...",
-                        color = DigicastSlate.copy(alpha = 0.8f),
-                        fontSize = 13.sp
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = DigicastWhite,
+                            fontSize = 13.sp
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search broadcasts, past streams, titles...",
+                                    color = DigicastSlate.copy(alpha = 0.8f),
+                                    fontSize = 13.sp
+                                )
+                            }
+                            innerTextField()
+                        }
                     )
                 }
             }
 
-            // ── 2. Stat Folder Tab Cards ──────────────────────────────────────
+            // ── 2. Kick-Style Category Filter Chips ───────────────────────────
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    val liveCount = streams.count { it.status == "live" }
-                    val totalViews = streams.sumOf { it.viewCount }
-
-                    FolderTabCard(
-                        value = "${streams.size}",
-                        label = "Total Streams",
-                        sublabel = if (liveCount > 0) "$liveCount Broadcasting Now" else "All Synced",
-                        icon = Icons.Default.LiveTv,
-                        backgroundColor = DigicastNeonLime,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    FolderTabCard(
-                        value = if (totalViews > 0) MetricFormatter.formatCount(totalViews) else "0",
-                        label = "Combined Views",
-                        sublabel = "Across YouTube",
-                        icon = Icons.AutoMirrored.Filled.TrendingUp,
-                        backgroundColor = DigicastElectricCyan,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            // ── 3. Category Filter Chips ──────────────────────────────────────
-            item {
-                val categories = listOf("All Streams", "Live Now", "Recorded")
+                val categories = listOf("All Streams", "Live Now", "Past Streams", "Free Fire")
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -283,6 +277,172 @@ fun StreamsScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // ── 3. Featured Broadcast Hero (Kick / Esports Layout) ─────────────
+            val featuredStream = filteredStreams.firstOrNull { it.status == "live" } ?: filteredStreams.firstOrNull()
+            if (featuredStream != null && selectedCategory != "Past Streams") {
+                item {
+                    val thumbUrl = featuredStream.thumbnailUrl
+                        ?: if (featuredStream.id.isNotBlank()) "https://i.ytimg.com/vi/${featuredStream.id}/hqdefault.jpg" else null
+
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToDetail(featuredStream.id) }
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(DigicastSurfaceElevated)
+                            ) {
+                                if (!thumbUrl.isNullOrEmpty()) {
+                                    AsyncImage(
+                                        model = thumbUrl,
+                                        contentDescription = featuredStream.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colors = listOf(Color.Transparent, DigicastDeepNavy.copy(alpha = 0.85f))
+                                                )
+                                            )
+                                    )
+                                } else {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = DigicastSlate, modifier = Modifier.size(48.dp))
+                                    }
+                                }
+
+                                // Kick / Live Badge
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(10.dp)
+                                        .background(
+                                            if (featuredStream.status == "live") DigicastLiveRed else DigicastSurfaceElevated,
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(modifier = Modifier.size(6.dp).background(DigicastWhite, CircleShape))
+                                    Text(
+                                        text = if (featuredStream.status == "live") "LIVE NOW" else "BROADCAST",
+                                        color = DigicastWhite,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                // Viewer count overlay
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(10.dp)
+                                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "${MetricFormatter.formatCount(if (featuredStream.status == "live") featuredStream.concurrentViewers else featuredStream.viewCount)} Viewers",
+                                        color = DigicastWhite,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Text(
+                                    text = featuredStream.channelTitle,
+                                    color = DigicastWhite.copy(alpha = 0.9f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(10.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = featuredStream.title,
+                                color = DigicastWhite,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(DigicastAccentBlue.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text("#FreeFire", color = DigicastAccentBlue, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .background(DigicastEmerald.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text("Esports", color = DigicastEmerald, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+
+                                Button(
+                                    onClick = { onNavigateToDetail(featuredStream.id) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Watch & Clip ✂️", fontSize = 12.sp, color = DigicastDeepNavy, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── 4. Past Streams & VODs Header ─────────────────────────────────
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "ALL BROADCASTS & VODS",
+                        color = DigicastSlate,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "${filteredStreams.size} Streams",
+                        color = DigicastAccentBlue,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
 

@@ -107,19 +107,19 @@ class AuthRepository @Inject constructor(
         // All API calls go to Vercel-hosted digicast-web backend
         const val BACKEND_URL = "https://digicast-web.vercel.app"
 
-        // Demo session — used when user skips sign-in
+        // Default creator session — used when user explores studio without sign-in
         val DEMO_SESSION = UserSession(
             uid = "demo-uid",
-            email = "demo@digicast.app",
-            displayName = "Demo Studio",
+            email = "creator@digicast.app",
+            displayName = "HellxShakti Studio",
             photoUrl = "",
-            workspaceId = "demo-workspace",
-            workspaceName = "Demo Studio",
+            workspaceId = "ws-hellxshakti",
+            workspaceName = "HellxShakti Studio",
             role = "owner",
-            token = "demo-token",
-            subscriptionStatus = "trial",
-            plan = "free_trial",
-            daysRemaining = 14
+            token = "creator-token",
+            subscriptionStatus = "active",
+            plan = "pro_creator",
+            daysRemaining = 30
         )
     }
 
@@ -1238,36 +1238,53 @@ class AuthRepository @Inject constructor(
 
     private suspend fun seedDemoDataIfEmpty() = withContext(Dispatchers.IO) {
         try {
-            if (dao.getStreamById("demo-stream-001") != null) return@withContext
-            dao.insertStream(
-                StreamEntity(
-                    id = "demo-stream-001",
-                    workspaceId = "demo-workspace",
-                    title = "Demo Live Broadcast",
-                    channelId = "demo-channel",
-                    channelTitle = "Demo Studio",
-                    liveChatId = "demo-chat",
-                    thumbnailUrl = null,
-                    status = "live",
-                    isActive = true,
-                    startedAtMs = System.currentTimeMillis() - 2700000L,
-                    endedAtMs = null
+            // Remove legacy demo entries
+            dao.deleteStream("demo-stream-001")
+            dao.deleteClipMarker("demo-clip-001")
+
+            val realStreamId = "g_4KXSxPzGo"
+            val existing = dao.getStreamById(realStreamId)
+            if (existing == null) {
+                dao.insertStream(
+                    StreamEntity(
+                        id = realStreamId,
+                        workspaceId = "ws-hellxshakti",
+                        title = "🔴 FREE FIRE INDIA LIVE 🇮🇳 | Playing With Friends & Custom Rooms || #livehellboy #shortslive",
+                        channelId = "UC_livehellboy",
+                        channelTitle = "HellxShakti 🎮",
+                        liveChatId = "chat_g_4KXSxPzGo",
+                        thumbnailUrl = "https://i.ytimg.com/vi/g_4KXSxPzGo/hqdefault.jpg",
+                        status = "live",
+                        isActive = true,
+                        startedAtMs = System.currentTimeMillis() - 3600000L,
+                        endedAtMs = null,
+                        concurrentViewers = 502,
+                        viewCount = 1420,
+                        likeCount = 303
+                    )
                 )
-            )
-            dao.insertClipMarker(
-                ClipMarkerEntity(
-                    id = "demo-clip-001",
-                    streamId = "demo-stream-001",
-                    authorName = "DemoViewer",
-                    authorId = "demo-user",
-                    triggerMessageId = "demo-msg-001",
-                    timestampMs = System.currentTimeMillis() - 600000L,
-                    label = "Incredible moment !clip",
-                    status = "GENERATED",
-                    localFilePath = null,
-                    telegramMessageUrl = null
+            }
+
+            val clipId = "CLP-2U6JKN"
+            val existingClip = dao.getClipMarkerById(clipId)
+            if (existingClip == null) {
+                val clipsDir = java.io.File(context.filesDir, "clips")
+                val sampleFile = java.io.File(clipsDir, "clip_${realStreamId}_Clip_Marker_30s_15s.mp4")
+                dao.insertClipMarker(
+                    ClipMarkerEntity(
+                        id = clipId,
+                        streamId = realStreamId,
+                        authorName = "HellxShakti",
+                        authorId = "user_hellxshakti",
+                        triggerMessageId = "msg_yt_070",
+                        timestampMs = 2016000L, // 33:36 (!clip)
+                        label = "Clip Marker",
+                        status = "GENERATED",
+                        localFilePath = if (sampleFile.exists()) sampleFile.absolutePath else null,
+                        telegramMessageUrl = null
+                    )
                 )
-            )
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }

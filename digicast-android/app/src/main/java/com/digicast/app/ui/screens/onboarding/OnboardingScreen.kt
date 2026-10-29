@@ -23,8 +23,14 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.autofill.AutofillType
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalAutofill
+import androidx.compose.ui.platform.LocalAutofillTree
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import com.digicast.app.R
 import androidx.compose.material.icons.Icons
@@ -65,7 +71,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -92,6 +97,7 @@ import com.digicast.app.ui.theme.DigicastWhite
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun OnboardingScreen(
     onComplete: () -> Unit,
@@ -101,9 +107,11 @@ fun OnboardingScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val autofill = LocalAutofill.current
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    val (savedEmail, savedPassword) = remember { authRepository.getSavedCredentials() }
+    var email by remember { mutableStateOf(savedEmail) }
+    var password by remember { mutableStateOf(savedPassword) }
     var showPassword by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -205,7 +213,18 @@ fun OnboardingScreen(
                             unfocusedContainerColor = DigicastNavy
                         ),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    autofill?.requestAutofillForNode(
+                                        androidx.compose.ui.autofill.AutofillNode(
+                                            autofillTypes = listOf(AutofillType.EmailAddress, AutofillType.Username),
+                                            onFill = { email = it }
+                                        )
+                                    )
+                                }
+                            }
                     )
 
                     OutlinedTextField(
@@ -243,7 +262,18 @@ fun OnboardingScreen(
                             unfocusedContainerColor = DigicastNavy
                         ),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    autofill?.requestAutofillForNode(
+                                        androidx.compose.ui.autofill.AutofillNode(
+                                            autofillTypes = listOf(AutofillType.Password),
+                                            onFill = { password = it }
+                                        )
+                                    )
+                                }
+                            }
                     )
 
                     if (errorMessage != null) {
@@ -254,7 +284,7 @@ fun OnboardingScreen(
                         )
                     }
 
-                    // Primary sign-in button
+                    // 1. Primary Sign-In Button
                     Button(
                         onClick = {
                             focusManager.clearFocus()
@@ -301,188 +331,78 @@ fun OnboardingScreen(
                         }
                     }
 
-                }
-            }
+                    // 2. Free Pass Access Button — directly underneath Sign In with identical blue styling
+                    val hasActivePass = authRepository.isOneDayPassActive()
+                    val (passHours, passMins) = authRepository.getOneDayPassRemainingHoursMinutes()
 
-            // ─── Free Creator Pass / 1-Day Access Section ────────────────────
-            val hasActivePass = authRepository.isOneDayPassActive()
-            val (passHours, passMins) = authRepository.getOneDayPassRemainingHoursMinutes()
-
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (hasActivePass) DigicastEmerald.copy(alpha = 0.12f) else DigicastCardSurface
-                ),
-                shape = RoundedCornerShape(18.dp),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    if (hasActivePass) DigicastEmerald.copy(alpha = 0.6f) else DigicastBorder
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (hasActivePass) {
-                        // Pass is already active! Show remaining time and direct continue
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(DigicastEmerald.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = DigicastEmerald,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "1-Day Studio Pass Active",
-                                    color = DigicastEmerald,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                                Text(
-                                    text = "Active 1-Day Use: ${passHours}h ${passMins}m remaining",
-                                    color = DigicastWhite,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = "Your 24-hour full studio pass is active! All live streams, marker clips, and studio tools are unlocked.",
-                            color = DigicastSlate,
-                            fontSize = 11.sp,
-                            lineHeight = 15.sp
-                        )
-
-                        Button(
-                            onClick = {
+                    Button(
+                        onClick = {
+                            focusManager.clearFocus()
+                            if (hasActivePass) {
                                 authRepository.enterDemoMode()
                                 onComplete()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = DigicastEmerald),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp)
-                        ) {
-                            Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastDeepNavy)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Continue with 1-Day Pass", color = DigicastDeepNavy, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-                    } else {
-                        // Pass not yet active
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(DigicastNeonLime.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CardGiftcard,
-                                    contentDescription = null,
-                                    tint = DigicastNeonLime,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                return@Button
                             }
-                            Column {
-                                Text(
-                                    text = "Free Pass & Demo Access",
-                                    color = DigicastWhite,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                                Text(
-                                    text = "No login or password needed to use the Studio",
-                                    color = DigicastSlate,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
 
-                        Text(
-                            text = "Free users: Watch 1 partner video to unlock 24-hour full studio access and earn +10 D-Coins, or jump straight into the demo.",
-                            color = DigicastSlate,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        )
-
-                        // 1. Watch ad for 1-day access
-                        Button(
-                            onClick = {
-                                val activity = context as? Activity
-                                if (activity != null && AdMobManager.isAdAvailable()) {
-                                    AdMobManager.showRewardedAd(
-                                        activity = activity,
-                                        onUserEarnedReward = {
-                                            authRepository.activateOneDayPass(fromAd = true)
-                                            onComplete()
-                                        },
-                                        onFallbackSimulationNeeded = {
-                                            adProgress = 0f
-                                            adSecondsLeft = 5
-                                            showAdDialog = true
-                                        }
-                                    )
-                                } else {
-                                    if (activity != null) {
-                                        AdMobManager.loadRewardedAd(activity)
+                            val activity = context as? Activity
+                            if (activity != null && AdMobManager.isAdAvailable()) {
+                                AdMobManager.showRewardedAd(
+                                    activity = activity,
+                                    onUserEarnedReward = {
+                                        authRepository.activateOneDayPass(fromAd = true)
+                                        onComplete()
+                                    },
+                                    onFallbackSimulationNeeded = {
+                                        adProgress = 0f
+                                        adSecondsLeft = 5
+                                        showAdDialog = true
                                     }
-                                    adProgress = 0f
-                                    adSecondsLeft = 5
-                                    showAdDialog = true
+                                )
+                            } else {
+                                if (activity != null) {
+                                    AdMobManager.loadRewardedAd(activity)
                                 }
+                                adProgress = 0f
+                                adSecondsLeft = 5
+                                showAdDialog = true
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DigicastAccentBlue.copy(alpha = 0.22f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DigicastAccentBlue),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (hasActivePass) Icons.Default.Bolt else Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = DigicastAccentBlue
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (hasActivePass) {
+                                "Active 1-Day Pass (${passHours}h ${passMins}m) — Enter Studio"
+                            } else {
+                                "Watch Ad to Unlock Free Pass Access"
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = DigicastNeonLime),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                        ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastDeepNavy)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Watch Ad for 1-Day Access (+10 D)",
-                                color = DigicastDeepNavy,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 13.sp
-                            )
-                        }
-
-                        // 2. Instant 1-day demo use
-                        OutlinedButton(
-                            onClick = {
-                                authRepository.activateOneDayPass(fromAd = false)
-                                onComplete()
-                            },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastSlate),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastBorder),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                        ) {
-                            Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(16.dp), tint = DigicastAccentBlue)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Activate 1-Day Free Access (Instant)", fontSize = 13.sp, color = DigicastWhite)
-                        }
+                            color = DigicastWhite,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
                     }
+
+                    // Subtitle explaining no password needed
+                    Text(
+                        text = "No login? Watch a short partner ad to get instant 24h studio access & +10 D-Coins.",
+                        color = DigicastSlate,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
                 }
             }
 
@@ -512,7 +432,7 @@ fun OnboardingScreen(
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
-                                tint = DigicastNeonLime,
+                                tint = DigicastAccentBlue,
                                 modifier = Modifier.size(22.dp)
                             )
                             Text(
@@ -543,7 +463,7 @@ fun OnboardingScreen(
                                 ) {
                                     CircularProgressIndicator(
                                         progress = { adProgress },
-                                        color = DigicastNeonLime,
+                                        color = DigicastAccentBlue,
                                         strokeWidth = 3.dp,
                                         modifier = Modifier.size(36.dp)
                                     )
@@ -573,7 +493,7 @@ fun OnboardingScreen(
                                 )
                                 Text(
                                     text = "Reward: 24h Pass",
-                                    color = DigicastNeonLime,
+                                    color = DigicastAccentBlue,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )

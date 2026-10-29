@@ -99,6 +99,8 @@ class AuthRepository @Inject constructor(
         private const val KEY_SIGNED_OUT = "auth_signed_out_explicitly"
         private const val KEY_IS_DEMO = "auth_is_demo"
         private const val KEY_ONE_DAY_PASS_EXPIRES_AT = "auth_one_day_pass_expires_at"
+        private const val KEY_SAVED_LOGIN_EMAIL = "auth_saved_login_email"
+        private const val KEY_SAVED_LOGIN_PASSWORD = "auth_saved_login_password"
 
         // All API calls go to Vercel-hosted digicast-web backend
         const val BACKEND_URL = "https://digicast-web.vercel.app"
@@ -134,6 +136,29 @@ class AuthRepository @Inject constructor(
 
     init {
         restoreSession()
+    }
+
+    fun getSavedCredentials(): Pair<String, String> {
+        val savedEmail = prefs.getString(KEY_SAVED_LOGIN_EMAIL, "") ?: ""
+        val savedPassword = prefs.getString(KEY_SAVED_LOGIN_PASSWORD, "") ?: ""
+        return Pair(savedEmail, savedPassword)
+    }
+
+    fun saveCredentials(email: String, pass: String) {
+        prefs.edit()
+            .putString(KEY_SAVED_LOGIN_EMAIL, email)
+            .putString(KEY_SAVED_LOGIN_PASSWORD, pass)
+            .apply()
+    }
+
+    fun isPremiumUser(session: UserSession? = (_authState.value as? AuthState.SignedIn)?.session): Boolean {
+        if (session == null) return false
+        val status = session.subscriptionStatus.lowercase()
+        val plan = session.plan.lowercase()
+        val isPaidActive = (status == "active" || status == "trial") &&
+                (plan != "1_day_pass") &&
+                (session.daysRemaining > 0)
+        return isPaidActive
     }
 
     // ─── 1-Day Pass Helpers ──────────────────────────────────────────────────
@@ -420,6 +445,7 @@ class AuthRepository @Inject constructor(
             )
 
             saveRealSession(session)
+            saveCredentials(email, password)
             _authState.value = AuthState.SignedIn(session)
 
             // Immediately trigger background sync for streams, clips, and YouTube channel
@@ -491,12 +517,16 @@ class AuthRepository @Inject constructor(
                 _isSyncing.value = false
                 val respBody = response.body?.string() ?: "{}"
                 val isExpired = runCatching { JSONObject(respBody).optBoolean("isExpired", false) }.getOrDefault(false)
-                if (response.code == 403 || isExpired) {
+                
+                // Never log out active premium / paid users due to temporary API or 403 response
+                val isPremium = isPremiumUser(session)
+
+                if ((response.code == 403 || isExpired) && !isPremium) {
                     _authState.value = AuthState.SignedOut
                     signOut()
                     return@withContext Result.failure(Exception("Subscription Expired: Workspace subscription or trial has ended. Mobile app access suspended."))
                 }
-                if (response.code == 401) {
+                if (response.code == 401 && !isPremium) {
                     _authState.value = AuthState.SignedOut
                     signOut()
                     return@withContext Result.failure(Exception("Session expired or password was updated on web. Please sign in again with your app password."))

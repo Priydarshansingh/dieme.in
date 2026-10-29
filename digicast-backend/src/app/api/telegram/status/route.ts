@@ -4,13 +4,23 @@ import { col } from "@/lib/firestore/collections";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const workspaceId = searchParams.get("workspaceId");
-
-  if (!workspaceId) {
-    return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
-  }
+  let workspaceId = searchParams.get("workspaceId");
 
   try {
+    if (!workspaceId) {
+      const wsSnap = await adminDb.collection("workspaces").limit(1).get();
+      if (!wsSnap.empty) {
+        workspaceId = wsSnap.docs[0].id;
+      }
+    }
+
+    if (!workspaceId) {
+      return NextResponse.json({
+        connected: false,
+        telegramChatId: null,
+        message: "No workspace found. Please log in or connect in Web Dashboard.",
+      });
+    }
     const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
     const wsData = wsDoc.exists ? wsDoc.data() : null;
 

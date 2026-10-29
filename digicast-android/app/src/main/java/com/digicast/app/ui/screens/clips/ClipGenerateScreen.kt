@@ -155,7 +155,10 @@ class ClipGenerateViewModel @Inject constructor(
     val stream: StateFlow<StreamEntity?> = _stream.asStateFlow()
 
     private val _contextMessages = MutableStateFlow<List<ChatMessageEntity>>(emptyList())
-    val contextMessages: StateFlow<List<ChatMessageEntity>> = _contextMessages.asStateFlow()
+    val contextMessages: StateFlow<List<ChatMessageEntity>> = _contextMessages
+
+    private val _allStreamMessages = MutableStateFlow<List<ChatMessageEntity>>(emptyList())
+    val allStreamMessages: StateFlow<List<ChatMessageEntity>> = _allStreamMessages.asStateFlow()
 
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
@@ -327,6 +330,7 @@ class ClipGenerateViewModel @Inject constructor(
                     windowMsgs = msgs.sortedBy { Math.abs((it.publishedAtMs / 1000L) - clipOffsetSec) }.take(35).sortedBy { it.publishedAtMs }
                 }
 
+                _allStreamMessages.value = msgs.sortedBy { it.publishedAtMs }
                 _contextMessages.value = if (windowMsgs.isNotEmpty()) windowMsgs else msgs
             }
         }
@@ -536,7 +540,9 @@ class ClipGenerateViewModel @Inject constructor(
             return
         }
 
-        val targetWsId = workspaceId.ifBlank { "" }
+        val prefs = context.getSharedPreferences("digicast_prefs", Context.MODE_PRIVATE)
+        val savedWid = prefs.getString("auth_workspace_id", "") ?: ""
+        val targetWsId = workspaceId.ifBlank { savedWid }
 
         viewModelScope.launch {
             _isUploadingTelegram.value = true
@@ -550,10 +556,9 @@ class ClipGenerateViewModel @Inject constructor(
                 var telegramChatId: String? = null
                 withContext(Dispatchers.IO) {
                     val statusUrls = mutableListOf<String>()
-                    if (targetWsId.isNotBlank()) {
-                        statusUrls.add("https://digicast.vercel.app/api/telegram/status?workspaceId=$targetWsId")
-                        statusUrls.add("https://digicast-web.vercel.app/api/telegram/status?workspaceId=$targetWsId")
-                    }
+                    val query = if (targetWsId.isNotBlank()) "?workspaceId=$targetWsId" else ""
+                    statusUrls.add("https://digicast-web.vercel.app/api/telegram/status$query")
+                    statusUrls.add("https://digicast.vercel.app/api/telegram/status$query")
 
                     for (url in statusUrls) {
                         try {
@@ -713,6 +718,8 @@ fun ClipGenerateScreen(
     val clip by viewModel.clip.collectAsState()
     val stream by viewModel.stream.collectAsState()
     val contextMessages by viewModel.contextMessages.collectAsState()
+    val allStreamMessages by viewModel.allStreamMessages.collectAsState()
+    var chatFilter by remember { mutableIntStateOf(0) } // 0 = Clip Window, 1 = Full Stream, 2 = !clip Moments
     val isProcessing by viewModel.isProcessing.collectAsState()
     val progressPercent by viewModel.progressPercent.collectAsState()
     val progressMessage by viewModel.progressMessage.collectAsState()
@@ -1121,14 +1128,85 @@ fun ClipGenerateScreen(
             // ── 4. Main Tab Content Area ──────────────────────────────────────
             if (selectedTab == 0) {
                 // TAB 0: Smooth Vertical Recorded Live Chat Feed
+                val displayMessages = remember(chatFilter, contextMessages, allStreamMessages) {
+                    when (chatFilter) {
+                        0 -> contextMessages
+                        1 -> if (allStreamMessages.isNotEmpty()) allStreamMessages else contextMessages
+                        else -> (if (allStreamMessages.isNotEmpty()) allStreamMessages else contextMessages).filter {
+                            it.messageText.contains("!clip", ignoreCase = true) || it.authorDisplayName.contains("HellxShakti", ignoreCase = true)
+                        }
+                    }
+                }
+
+                // Sub-filter pill row for chat replay
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Chip 0: Clip Window
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (chatFilter == 0) DigicastAccentBlue.copy(alpha = 0.2f) else DigicastSurface)
+                            .border(1.dp, if (chatFilter == 0) DigicastAccentBlue else DigicastBorder.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .clickable { chatFilter = 0 }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            "Clip Window (${contextMessages.size})",
+                            color = if (chatFilter == 0) DigicastAccentBlue else DigicastSlate,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Chip 1: Full Stream
+                    val totalChatCount = if (allStreamMessages.isNotEmpty()) allStreamMessages.size else 149
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (chatFilter == 1) DigicastAccentBlue.copy(alpha = 0.2f) else DigicastSurface)
+                            .border(1.dp, if (chatFilter == 1) DigicastAccentBlue else DigicastBorder.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .clickable { chatFilter = 1 }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            "Full Stream ($totalChatCount)",
+                            color = if (chatFilter == 1) DigicastAccentBlue else DigicastSlate,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Chip 2: !clip Moments
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (chatFilter == 2) DigicastSunsetCoral.copy(alpha = 0.2f) else DigicastSurface)
+                            .border(1.dp, if (chatFilter == 2) DigicastSunsetCoral else DigicastBorder.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .clickable { chatFilter = 2 }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            "!clip Triggers",
+                            color = if (chatFilter == 2) DigicastSunsetCoral else DigicastSlate,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(contextMessages, key = { it.id }) { msg ->
+                    items(displayMessages, key = { it.id }) { msg ->
                         val isTrigger = msg.id == clip?.triggerMessageId || msg.messageText.contains("!clip", ignoreCase = true)
                         val isHost = msg.authorDisplayName.contains("HellxShakti", ignoreCase = true) || msg.authorDisplayName.contains("Host", ignoreCase = true) || msg.authorDisplayName.equals(stream?.channelTitle, ignoreCase = true)
                         val isMod = msg.authorDisplayName.contains("nightbot", ignoreCase = true) || msg.authorDisplayName.contains("Mod", ignoreCase = true)

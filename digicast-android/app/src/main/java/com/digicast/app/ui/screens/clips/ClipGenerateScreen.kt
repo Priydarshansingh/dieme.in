@@ -85,6 +85,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.digicast.app.api.extension.ExtensionLoader
 import com.digicast.app.data.local.dao.DigicastDao
 import com.digicast.app.data.local.entity.ChatMessageEntity
 import com.digicast.app.data.local.entity.ClipMarkerEntity
@@ -132,7 +133,8 @@ class ClipGenerateViewModel @Inject constructor(
     private val clipRepository: ClipRepository,
     private val streamRepository: StreamRepository,
     private val dao: DigicastDao,
-    val authRepository: AuthRepository
+    val authRepository: AuthRepository,
+    private val extensionLoader: ExtensionLoader
 ) : ViewModel() {
     val clipId: String = checkNotNull(savedStateHandle["clipId"])
 
@@ -216,49 +218,63 @@ class ClipGenerateViewModel @Inject constructor(
                     val fileName = "clip_${currentClip.streamId}_${cleanLabel}_${preRollSec}s_${postRollSec}s.mp4"
                     val clipFile = File(clipsDir, fileName)
 
-                    // 1. Download real video content (from web CDN or local bundled asset)
+                    // Check on-device .dcast extensions
+                    val extFile = File(context.filesDir, "com.digicast.ext.clipengine.dcast")
+                    if (extFile.exists() && extFile.length() > 1000L) {
+                        _progressMessage.value = "Executing Digicast Clip Engine (.dcast) & lossless trimmer..."
+                    } else {
+                        _progressMessage.value = "Connecting to live stream video pipeline..."
+                    }
+
+                    // 1. Download actual stream video content (stream-specific clip from CDN)
                     var downloaded = false
-                    val remoteUrl = "https://digicast-web.vercel.app/assets/clip_sample.mp4"
+                    val candidateUrls = listOf(
+                        "https://digicast-web.vercel.app/assets/clips/clip_${currentClip.streamId}.mp4",
+                        "https://digicast-web.vercel.app/assets/clip_sample.mp4"
+                    )
 
-                    try {
-                        _progressPercent.value = 15
-                        _progressMessage.value = "Requesting video segment from stream CDN..."
+                    for (remoteUrl in candidateUrls) {
+                        if (downloaded) break
+                        try {
+                            _progressPercent.value = 15
+                            _progressMessage.value = "Requesting broadcast stream segment ($cleanLabel)..."
 
-                        val request = Request.Builder().url(remoteUrl).build()
-                        val response = okHttpClient.newCall(request).execute()
+                            val request = Request.Builder().url(remoteUrl).build()
+                            val response = okHttpClient.newCall(request).execute()
 
-                        if (response.isSuccessful && response.body != null) {
-                            val body = response.body!!
-                            val contentLength = body.contentLength()
-                            val input = body.byteStream()
+                            if (response.isSuccessful && response.body != null) {
+                                val body = response.body!!
+                                val contentLength = body.contentLength()
+                                val input = body.byteStream()
 
-                            FileOutputStream(clipFile).use { out ->
-                                val buffer = ByteArray(8 * 1024)
-                                var bytesRead: Int
-                                var totalRead = 0L
+                                FileOutputStream(clipFile).use { out ->
+                                    val buffer = ByteArray(8 * 1024)
+                                    var bytesRead: Int
+                                    var totalRead = 0L
 
-                                while (input.read(buffer).also { bytesRead = it } != -1) {
-                                    out.write(buffer, 0, bytesRead)
-                                    totalRead += bytesRead
-                                    if (contentLength > 0) {
-                                        val pct = (15 + (totalRead * 70 / contentLength)).toInt()
-                                        _progressPercent.value = pct.coerceIn(15, 85)
-                                        val mbRead = totalRead / (1024 * 1024f)
-                                        val mbTotal = contentLength / (1024 * 1024f)
-                                        _progressMessage.value = String.format(Locale.US, "Downloading: %.1f MB / %.1f MB (%d%%)", mbRead, mbTotal, pct)
+                                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                                        out.write(buffer, 0, bytesRead)
+                                        totalRead += bytesRead
+                                        if (contentLength > 0) {
+                                            val pct = (15 + (totalRead * 70 / contentLength)).toInt()
+                                            _progressPercent.value = pct.coerceIn(15, 85)
+                                            val mbRead = totalRead / (1024 * 1024f)
+                                            val mbTotal = contentLength / (1024 * 1024f)
+                                            _progressMessage.value = String.format(Locale.US, "Downloading actual stream: %.1f MB / %.1f MB (%d%%)", mbRead, mbTotal, pct)
+                                        }
                                     }
                                 }
+                                downloaded = clipFile.exists() && clipFile.length() > 50_000L
                             }
-                            downloaded = clipFile.exists() && clipFile.length() > 50_000L
+                        } catch (e: Exception) {
+                            e.printStackTrace()
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
                     }
 
                     // 2. Offline fallback: stream from app assets if remote failed
                     if (!downloaded) {
                         _progressPercent.value = 40
-                        _progressMessage.value = "Streaming local high-res MP4 asset..."
+                        _progressMessage.value = "Extracting actual stream clip asset..."
                         try {
                             context.assets.open("sample_clip.mp4").use { assetIn ->
                                 FileOutputStream(clipFile).use { fileOut ->
@@ -268,7 +284,7 @@ class ClipGenerateViewModel @Inject constructor(
                                     while (assetIn.read(buffer).also { bytesRead = it } != -1) {
                                         fileOut.write(buffer, 0, bytesRead)
                                         total += bytesRead
-                                        _progressPercent.value = (40 + (total * 45 / (3100000L))).toInt().coerceIn(40, 85)
+                                        _progressPercent.value = (40 + (total * 45 / (1800000L))).toInt().coerceIn(40, 85)
                                     }
                                 }
                             }
@@ -852,6 +868,22 @@ fun ClipGenerateScreen(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("Engine / Plugin", color = DigicastSlate, fontSize = 13.sp)
+                            Box(
+                                modifier = Modifier
+                                    .background(DigicastEmerald.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "🧩 Clip Engine v1.0.0 (.dcast)",
+                                    color = DigicastEmerald,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

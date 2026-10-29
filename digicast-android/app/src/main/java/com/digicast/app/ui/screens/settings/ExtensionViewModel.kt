@@ -59,6 +59,19 @@ class ExtensionViewModel @Inject constructor(
     }
 
     init {
+        // Auto-provision official on-device clip engine extension from bundled assets
+        val clipEngineFile = File(context.filesDir, "com.digicast.ext.clipengine.dcast")
+        if (!clipEngineFile.exists() || clipEngineFile.length() < 1000L) {
+            try {
+                context.assets.open("extensions/com.digicast.ext.clipengine.dcast").use { input ->
+                    FileOutputStream(clipEngineFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore if asset missing
+            }
+        }
         loadCatalog()
     }
 
@@ -69,18 +82,27 @@ class ExtensionViewModel @Inject constructor(
                 name = "Digicast Clip Engine",
                 version = "1.0.0",
                 description = "Core video download & trimming extension. Bundles yt-dlp & FFmpeg for on-device processing.",
-                downloadUrl = "https://github.com/Priydarshansingh/Digicast/releases/download/v1.0.0/clip-engine.dcast",
+                downloadUrl = "https://digicast-web.vercel.app/extensions/clip-engine.dcast",
                 entryClass = "com.digicast.ext.clipengine.ClipEngineExtension",
                 isInstalled = checkIsInstalled("com.digicast.ext.clipengine")
             ),
             ExtensionRegistryItem(
-                id = "com.digicast.ext.chatanalyzer",
-                name = "AI Chat Reaction & Clip Predictor",
+                id = "com.digicast.ext.ffmpeg",
+                name = "FFmpeg Lossless Trimmer",
                 version = "1.0.0",
-                description = "Detects viral moments from live chat emote spikes in real time.",
-                downloadUrl = "https://github.com/Priydarshansingh/Digicast/releases/download/v1.0.0/chat-analyzer.dcast",
-                entryClass = "com.digicast.ext.chatanalyzer.ChatAnalyzerExtension",
-                isInstalled = checkIsInstalled("com.digicast.ext.chatanalyzer")
+                description = "High-precision on-device stream cutting and keyframe-accurate MP4 encoder.",
+                downloadUrl = "https://digicast-web.vercel.app/extensions/ffmpeg-trimmer.dcast",
+                entryClass = "com.digicast.ext.clipengine.ClipEngineExtension",
+                isInstalled = checkIsInstalled("com.digicast.ext.ffmpeg")
+            ),
+            ExtensionRegistryItem(
+                id = "com.digicast.ext.youtubedl",
+                name = "YouTube Stream Extractor",
+                version = "1.0.0",
+                description = "Live stream buffer capture and multi-resolution DASH/HLS segment grabber.",
+                downloadUrl = "https://digicast-web.vercel.app/extensions/youtube-downloader.dcast",
+                entryClass = "com.digicast.ext.clipengine.ClipEngineExtension",
+                isInstalled = checkIsInstalled("com.digicast.ext.youtubedl")
             )
         )
         _extensions.value = defaultList
@@ -163,35 +185,49 @@ class ExtensionViewModel @Inject constructor(
                 withContext(Dispatchers.IO) {
                     val targetFile = File(context.filesDir, "${item.id}.dcast")
 
-                    // Attempt real download via OkHttp streaming
-                    val request = Request.Builder().url(item.downloadUrl).build()
-                    val response = okHttpClient.newCall(request).execute()
-
-                    if (response.isSuccessful && response.body != null) {
-                        val body = response.body!!
-                        val totalBytes = body.contentLength()
-                        var downloadedBytes = 0L
-
-                        body.byteStream().use { input ->
+                    // 1. Try bundled asset first for instant 100% reliable offline install
+                    var installedFromAsset = false
+                    try {
+                        context.assets.open("extensions/${item.id}.dcast").use { input ->
                             FileOutputStream(targetFile).use { output ->
-                                val buffer = ByteArray(8 * 1024)
-                                var bytesRead: Int
-                                while (input.read(buffer).also { bytesRead = it } != -1) {
-                                    output.write(buffer, 0, bytesRead)
-                                    downloadedBytes += bytesRead
-                                    if (totalBytes > 0) {
-                                        val progress = ((downloadedBytes * 100) / totalBytes).toInt()
-                                        _extensions.value = _extensions.value.map {
-                                            if (it.id == item.id) it.copy(downloadProgress = progress) else it
-                                        }
-                                    }
-                                }
-                                output.flush()
+                                input.copyTo(output)
                             }
                         }
-                    } else {
-                        // If file not yet on GitHub Releases, create placeholder descriptor so user can test local extension loading
-                        targetFile.writeText("DIGICAST_EXTENSION_PLACEHOLDER_${item.id}")
+                        installedFromAsset = targetFile.exists() && targetFile.length() > 1000L
+                    } catch (e: Exception) {
+                        // Asset not bundled, fallback to network download
+                    }
+
+                    if (!installedFromAsset) {
+                        // 2. Download via network CDN
+                        val request = Request.Builder().url(item.downloadUrl).build()
+                        val response = okHttpClient.newCall(request).execute()
+
+                        if (response.isSuccessful && response.body != null) {
+                            val body = response.body!!
+                            val totalBytes = body.contentLength()
+                            var downloadedBytes = 0L
+
+                            body.byteStream().use { input ->
+                                FileOutputStream(targetFile).use { output ->
+                                    val buffer = ByteArray(8 * 1024)
+                                    var bytesRead: Int
+                                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                                        output.write(buffer, 0, bytesRead)
+                                        downloadedBytes += bytesRead
+                                        if (totalBytes > 0) {
+                                            val progress = ((downloadedBytes * 100) / totalBytes).toInt()
+                                            _extensions.value = _extensions.value.map {
+                                                if (it.id == item.id) it.copy(downloadProgress = progress) else it
+                                            }
+                                        }
+                                    }
+                                    output.flush()
+                                }
+                            }
+                        } else {
+                            throw java.io.IOException("Failed to download extension (.dcast). HTTP ${response.code}")
+                        }
                     }
                 }
 

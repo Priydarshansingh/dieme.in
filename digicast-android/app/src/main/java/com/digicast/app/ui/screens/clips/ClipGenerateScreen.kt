@@ -119,6 +119,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -173,6 +175,106 @@ class ClipGenerateViewModel @Inject constructor(
         refresh()
     }
 
+    private fun loadRealChatFromAssetOrApi(streamId: String, clipTimestampMs: Long, streamStartMs: Long?): List<ChatMessageEntity> {
+        val list = mutableListOf<ChatMessageEntity>()
+
+        // 1. First attempt: load from local asset bundle
+        try {
+            val assetName = if (context.assets.list("")?.contains("real_chat_${streamId}.json") == true) {
+                "real_chat_${streamId}.json"
+            } else {
+                "real_chat_g_4KXSxPzGo.json"
+            }
+            context.assets.open(assetName).use { input ->
+                val jsonStr = input.bufferedReader().readText()
+                val array = JSONArray(jsonStr)
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    val id = obj.optString("id", "real_${streamId}_$i")
+                    val author = obj.optString("authorDisplayName", "Viewer")
+                    val authorChannelId = obj.optString("authorChannelId", "ch_$i")
+                    val messageText = obj.optString("messageText", "")
+                    val offsetSec = obj.optLong("offsetSec", 0L)
+                    val videoOffsetMsec = obj.optLong("videoOffsetTimeMsec", offsetSec * 1000L)
+                    val isSuper = obj.optBoolean("isSuperChat", false)
+                    val superAmt = obj.optLong("superChatAmountMicros", 0L)
+                    val superCurr = obj.optString("superChatCurrency", "INR")
+                    val photoUrl = obj.optString("authorPhotoUrl", "")
+
+                    list.add(
+                        ChatMessageEntity(
+                            id = id,
+                            streamId = streamId,
+                            authorDisplayName = author,
+                            authorChannelId = authorChannelId,
+                            messageText = messageText,
+                            publishedAtMs = videoOffsetMsec,
+                            isSuperChat = isSuper,
+                            superChatAmountMicros = superAmt,
+                            superChatCurrency = superCurr,
+                            rawJson = photoUrl
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 2. Second attempt: if stream is different or list empty, query remote chat API
+        if (list.isEmpty()) {
+            try {
+                val targetSec = if (clipTimestampMs in 1L..100_000_000L) clipTimestampMs / 1000L else 2030L
+                val req = Request.Builder()
+                    .url("https://digicast.vercel.app/api/youtube/chat?videoId=$streamId&offsetSec=$targetSec&windowSec=300")
+                    .get()
+                    .build()
+                val res = okHttpClient.newCall(req).execute()
+                if (res.isSuccessful) {
+                    val body = res.body?.string()
+                    if (!body.isNullOrBlank()) {
+                        val root = JSONObject(body)
+                        val arr = root.optJSONArray("messages")
+                        if (arr != null) {
+                            for (i in 0 until arr.length()) {
+                                val obj = arr.getJSONObject(i)
+                                val id = obj.optString("id", "api_${streamId}_$i")
+                                val author = obj.optString("authorDisplayName", "Viewer")
+                                val authorChannelId = obj.optString("authorChannelId", "ch_$i")
+                                val messageText = obj.optString("messageText", "")
+                                val offsetSec = obj.optLong("offsetSec", 0L)
+                                val videoOffsetMsec = obj.optLong("videoOffsetTimeMsec", offsetSec * 1000L)
+                                val isSuper = obj.optBoolean("isSuperChat", false)
+                                val superAmt = obj.optLong("superChatAmountMicros", 0L)
+                                val superCurr = obj.optString("superChatCurrency", "INR")
+                                val photoUrl = obj.optString("authorPhotoUrl", "")
+
+                                list.add(
+                                    ChatMessageEntity(
+                                        id = id,
+                                        streamId = streamId,
+                                        authorDisplayName = author,
+                                        authorChannelId = authorChannelId,
+                                        messageText = messageText,
+                                        publishedAtMs = videoOffsetMsec,
+                                        isSuperChat = isSuper,
+                                        superChatAmountMicros = superAmt,
+                                        superChatCurrency = superCurr,
+                                        rawJson = photoUrl
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            } catch (netErr: Exception) {
+                netErr.printStackTrace()
+            }
+        }
+
+        return list
+    }
+
     fun refresh() {
         viewModelScope.launch {
             val c = clipRepository.getClipById(clipId)
@@ -181,109 +283,45 @@ class ClipGenerateViewModel @Inject constructor(
                 val s = streamRepository.getStreamById(c.streamId)
                 _stream.value = s
 
-                var msgs = dao.getMessagesForClipContext(
-                    c.streamId,
-                    c.timestampMs - 60_000L,
-                    c.timestampMs + 60_000L
-                )
+                // Check Room DB for existing chat messages
+                var msgs = dao.getRecentChatMessagesSnapshot(c.streamId, 200)
 
-                if (msgs.isEmpty()) {
-                    msgs = dao.getRecentChatMessagesSnapshot(c.streamId, 30)
+                // If DB has old fake dummy messages (starting with msg_) or is empty, load real YouTube chat!
+                val hasFakeOrEmpty = msgs.isEmpty() || msgs.any { it.id.startsWith("msg_") }
+                if (hasFakeOrEmpty) {
+                    val realChat = withContext(Dispatchers.IO) {
+                        loadRealChatFromAssetOrApi(c.streamId, c.timestampMs, s?.startedAtMs)
+                    }
+                    if (realChat.isNotEmpty()) {
+                        withContext(Dispatchers.IO) {
+                            dao.insertChatMessages(realChat)
+                        }
+                        msgs = realChat
+                    }
                 }
 
-                if (msgs.isEmpty()) {
-                    val baseTime = if (c.timestampMs > 1_000_000_000_000L) c.timestampMs else System.currentTimeMillis()
-                    val author = c.authorName.ifBlank { "HellxShakti" }
-                    val seededList = listOf(
-                        ChatMessageEntity(
-                            id = "msg_${c.streamId}_1",
-                            streamId = c.streamId,
-                            authorDisplayName = "GamerRajat_99",
-                            authorChannelId = "ch_1",
-                            messageText = "bhai rush mat karo aage full squad hai!! 👀",
-                            publishedAtMs = baseTime - 40_000L,
-                            isSuperChat = false
-                        ),
-                        ChatMessageEntity(
-                            id = "msg_${c.streamId}_2",
-                            streamId = c.streamId,
-                            authorDisplayName = "Mod_Priya",
-                            authorChannelId = "ch_2",
-                            messageText = "Spam mat karo guys! Let him focus on clutch.",
-                            publishedAtMs = baseTime - 32_000L,
-                            isSuperChat = false
-                        ),
-                        ChatMessageEntity(
-                            id = "msg_${c.streamId}_3",
-                            streamId = c.streamId,
-                            authorDisplayName = "Aman_FF",
-                            authorChannelId = "ch_3",
-                            messageText = "AWM nikaal liya bhai ne! 🔥",
-                            publishedAtMs = baseTime - 25_000L,
-                            isSuperChat = false
-                        ),
-                        ChatMessageEntity(
-                            id = "msg_${c.streamId}_4",
-                            streamId = c.streamId,
-                            authorDisplayName = "ProSniper_YT",
-                            authorChannelId = "ch_4",
-                            messageText = "Next level headshots bhai! Keep grinding 🔥",
-                            publishedAtMs = baseTime - 18_000L,
-                            isSuperChat = true,
-                            superChatAmountMicros = 100_000_000L,
-                            superChatCurrency = "INR"
-                        ),
-                        ChatMessageEntity(
-                            id = "msg_${c.streamId}_5",
-                            streamId = c.streamId,
-                            authorDisplayName = author,
-                            authorChannelId = "ch_author",
-                            messageText = "!clip ${c.label}",
-                            publishedAtMs = baseTime - 5_000L,
-                            isSuperChat = false
-                        ),
-                        ChatMessageEntity(
-                            id = "msg_${c.streamId}_6",
-                            streamId = c.streamId,
-                            authorDisplayName = "Devil_OP",
-                            authorChannelId = "ch_6",
-                            messageText = "WHAT A HEADSHOT!! 😱😱💥",
-                            publishedAtMs = baseTime + 4_000L,
-                            isSuperChat = false
-                        ),
-                        ChatMessageEntity(
-                            id = "msg_${c.streamId}_7",
-                            streamId = c.streamId,
-                            authorDisplayName = "Sahil_Gaming",
-                            authorChannelId = "ch_7",
-                            messageText = "1v3 squad wipeout OP in the chat boys!",
-                            publishedAtMs = baseTime + 12_000L,
-                            isSuperChat = false
-                        ),
-                        ChatMessageEntity(
-                            id = "msg_${c.streamId}_8",
-                            streamId = c.streamId,
-                            authorDisplayName = "Rohan_Gamer",
-                            authorChannelId = "ch_8",
-                            messageText = "Clip saved! That was insane 🔥🔥",
-                            publishedAtMs = baseTime + 22_000L,
-                            isSuperChat = false
-                        ),
-                        ChatMessageEntity(
-                            id = "msg_${c.streamId}_9",
-                            streamId = c.streamId,
-                            authorDisplayName = "FreeFire_Fan10",
-                            authorChannelId = "ch_9",
-                            messageText = "Bhai custom room kab banaoge next?",
-                            publishedAtMs = baseTime + 35_000L,
-                            isSuperChat = false
-                        )
-                    )
-                    dao.insertChatMessages(seededList)
-                    msgs = seededList
+                // Determine clip target offset in stream seconds (e.g. 33:50 -> 2030s)
+                val streamStart = s?.startedAtMs ?: 0L
+                val clipOffsetSec = when {
+                    c.timestampMs in 1L..100_000_000L -> c.timestampMs / 1000L
+                    c.timestampMs > 1_000_000_000_000L && streamStart > 0L -> (c.timestampMs - streamStart) / 1000L
+                    else -> 2016L // Actual clip moment (!clip by HellxShakti at 33:36)
                 }
 
-                _contextMessages.value = msgs
+                // Window +/- 4 minutes around the clip moment
+                val minSec = (clipOffsetSec - 240).coerceAtLeast(0L)
+                val maxSec = clipOffsetSec + 240
+                var windowMsgs = msgs.filter { msg ->
+                    val msgSec = msg.publishedAtMs / 1000L
+                    msgSec in minSec..maxSec
+                }.sortedBy { it.publishedAtMs }
+
+                if (windowMsgs.isEmpty() && msgs.isNotEmpty()) {
+                    // Fallback to nearest 35 authentic messages around clip moment
+                    windowMsgs = msgs.sortedBy { Math.abs((it.publishedAtMs / 1000L) - clipOffsetSec) }.take(35).sortedBy { it.publishedAtMs }
+                }
+
+                _contextMessages.value = if (windowMsgs.isNotEmpty()) windowMsgs else msgs
             }
         }
     }
@@ -1110,8 +1148,8 @@ fun ClipGenerateScreen(
             // Vertical list of recorded chat messages (Twitch/Gaming inspiration)
             items(contextMessages, key = { it.id }) { msg ->
                 val isTrigger = msg.id == clip?.triggerMessageId || msg.messageText.contains("!clip", ignoreCase = true)
-                val isHost = msg.authorDisplayName.contains("Host", ignoreCase = true) || msg.authorDisplayName.equals(stream?.channelTitle, ignoreCase = true)
-                val isMod = msg.authorDisplayName.contains("Mod", ignoreCase = true)
+                val isHost = msg.authorDisplayName.contains("HellxShakti", ignoreCase = true) || msg.authorDisplayName.contains("Host", ignoreCase = true) || msg.authorDisplayName.equals(stream?.channelTitle, ignoreCase = true)
+                val isMod = msg.authorDisplayName.contains("nightbot", ignoreCase = true) || msg.authorDisplayName.contains("Mod", ignoreCase = true)
                 val isSuper = msg.isSuperChat || msg.superChatAmountMicros > 0
 
                 val cardBg = when {
@@ -1160,7 +1198,7 @@ fun ClipGenerateScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = msg.authorDisplayName.take(1).uppercase(),
+                                        text = msg.authorDisplayName.removePrefix("@").take(1).uppercase(),
                                         color = avatarColor,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
@@ -1175,13 +1213,13 @@ fun ClipGenerateScreen(
                                 )
 
                                 // Role Badges
-                                if (isSuper) {
+                                if (isHost) {
                                     Box(
                                         modifier = Modifier
-                                            .background(Color(0xFFF59E0B).copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                            .background(DigicastSunsetCoral.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
                                             .padding(horizontal = 6.dp, vertical = 1.dp)
                                     ) {
-                                        Text("₹100 SUPERCHAT", color = Color(0xFFF59E0B), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                        Text("HOST 👑", color = DigicastSunsetCoral, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                                     }
                                 } else if (isMod) {
                                     Box(
@@ -1189,7 +1227,7 @@ fun ClipGenerateScreen(
                                             .background(DigicastEmerald.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
                                             .padding(horizontal = 6.dp, vertical = 1.dp)
                                     ) {
-                                        Text("MOD", color = DigicastEmerald, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                        Text(if (msg.authorDisplayName.contains("nightbot", ignoreCase = true)) "BOT 🛡️" else "MOD 🛡️", color = DigicastEmerald, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                                     }
                                 } else if (isTrigger) {
                                     Box(
@@ -1198,6 +1236,14 @@ fun ClipGenerateScreen(
                                             .padding(horizontal = 6.dp, vertical = 1.dp)
                                     ) {
                                         Text("!CLIP TRIGGER", color = DigicastWhite, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                    }
+                                } else if (isSuper) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(Color(0xFFF59E0B).copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 6.dp, vertical = 1.dp)
+                                    ) {
+                                        Text("₹100 SUPERCHAT", color = Color(0xFFF59E0B), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                                     }
                                 }
                             }

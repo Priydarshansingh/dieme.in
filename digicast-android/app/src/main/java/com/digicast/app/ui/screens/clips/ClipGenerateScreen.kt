@@ -1496,8 +1496,8 @@ fun ClipVideoPlayer(
 @Composable
 fun YouTubeStreamPreview(
     videoId: String,
-    startSeconds: Long,
-    endSeconds: Long,
+    startSeconds: Long = 0L,
+    endSeconds: Long? = null,
     modifier: Modifier = Modifier
 ) {
     AndroidView(
@@ -1507,7 +1507,8 @@ fun YouTubeStreamPreview(
                 settings.mediaPlaybackRequiresUserGesture = false
                 settings.domStorageEnabled = true
                 webViewClient = WebViewClient()
-                val embedUrl = "https://www.youtube-nocookie.com/embed/$videoId?start=$startSeconds&end=$endSeconds&autoplay=0&controls=1"
+                val timingParam = if (endSeconds != null && endSeconds > startSeconds) "&start=$startSeconds&end=$endSeconds" else if (startSeconds > 0) "&start=$startSeconds" else ""
+                val embedUrl = "https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&controls=1&rel=0&playsinline=1$timingParam"
                 val html = """
                     <!DOCTYPE html>
                     <html>
@@ -1524,7 +1525,8 @@ fun YouTubeStreamPreview(
             }
         },
         update = { webView ->
-            val embedUrl = "https://www.youtube-nocookie.com/embed/$videoId?start=$startSeconds&end=$endSeconds&autoplay=0&controls=1"
+            val timingParam = if (endSeconds != null && endSeconds > startSeconds) "&start=$startSeconds&end=$endSeconds" else if (startSeconds > 0) "&start=$startSeconds" else ""
+            val embedUrl = "https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&controls=1&rel=0&playsinline=1$timingParam"
             val html = """
                 <!DOCTYPE html>
                 <html>

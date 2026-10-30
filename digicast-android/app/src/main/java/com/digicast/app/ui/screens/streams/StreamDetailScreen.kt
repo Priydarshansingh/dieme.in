@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -193,17 +194,6 @@ fun StreamDetailScreen(
 
     val videoId = stream?.id?.takeIf { it.isNotBlank() } ?: "g_4KXSxPzGo"
 
-    // Check if high-definition clip file is available locally
-    val clipsDir = remember { File(context.filesDir, "clips") }
-    val localClipFile = remember(stream?.id) {
-        val candidates = listOf(
-            File(clipsDir, "clip_${videoId}_Clip_Marker_30s_15s.mp4"),
-            File(clipsDir, "clip_sample.mp4")
-        )
-        candidates.firstOrNull { it.exists() && it.length() > 50_000L }
-    }
-    var showLocalPlayer by remember { mutableStateOf(localClipFile != null) }
-
     Scaffold(
         containerColor = DigicastDeepNavy,
         topBar = {
@@ -239,6 +229,23 @@ fun StreamDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Open on YouTube App Button
+                    IconButton(
+                        onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://youtu.be/$videoId")).apply {
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.PlayArrow,
+                            contentDescription = "YouTube",
+                            tint = DigicastLiveRed
+                        )
+                    }
+
                     // LIVE badge
                     if (stream?.status == "live") {
                         Row(
@@ -311,7 +318,7 @@ fun StreamDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // ── 1. Hero 16:9 Playable Video Player (ExoPlayer / YouTube WebView) ──
+            // ── 1. Hero 16:9 Playable ACTUAL LIVESTREAM PLAYER ─────────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -319,19 +326,13 @@ fun StreamDetailScreen(
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
-                if (localClipFile != null && showLocalPlayer) {
-                    ClipVideoPlayer(
-                        videoFile = localClipFile,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    YouTubeStreamPreview(
-                        videoId = videoId,
-                        startSeconds = 2010L, // 33:30 offset
-                        endSeconds = 2055L,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                // Actual livestream player without any 45s clip time restriction!
+                YouTubeStreamPreview(
+                    videoId = videoId,
+                    startSeconds = 0L,
+                    endSeconds = null,
+                    modifier = Modifier.fillMaxSize()
+                )
 
                 // Top Video HUD Overlay
                 Row(
@@ -375,7 +376,7 @@ fun StreamDetailScreen(
                                 .background(DigicastLiveRed)
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            Text("● LIVE", color = DigicastWhite, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                            Text("● LIVE STREAM", color = DigicastWhite, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                         }
                     }
 

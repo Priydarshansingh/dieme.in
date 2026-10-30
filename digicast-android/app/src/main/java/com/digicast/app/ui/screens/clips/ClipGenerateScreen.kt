@@ -40,16 +40,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -112,6 +116,7 @@ import com.digicast.app.ui.theme.DigicastSunsetCoral
 import com.digicast.app.ui.theme.DigicastSurface
 import com.digicast.app.ui.theme.DigicastSurfaceElevated
 import com.digicast.app.ui.theme.DigicastWhite
+import com.digicast.app.ui.utils.MetricFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -517,8 +522,8 @@ class ClipGenerateViewModel @Inject constructor(
                         MediaScannerConnection.scanFile(context, arrayOf(sourceFile.absolutePath), arrayOf("video/mp4"), null)
                     }
 
-                    _saveStatusMessage.value = "✅ Saved to Downloads/Digicast/$cleanName"
-                    Toast.makeText(context, "Saved to Downloads/Digicast! Ready in Gallery.", Toast.LENGTH_LONG).show()
+                    _saveStatusMessage.value = "Saved to Downloads/Digicast/$cleanName"
+                    Toast.makeText(context, "Saved to Downloads/Digicast. Ready in Gallery.", Toast.LENGTH_LONG).show()
                 } else {
                     _saveStatusMessage.value = "Could not create file in Downloads"
                 }
@@ -538,7 +543,7 @@ class ClipGenerateViewModel @Inject constructor(
 
         val localFile = File(localPath)
         if (!localFile.exists() || localFile.length() < 1000L) {
-            _telegramStatusMessage.value = "⚠️ Please download or render the clip first."
+            _telegramStatusMessage.value = "Please download or render the clip first."
             return
         }
 
@@ -587,26 +592,26 @@ class ClipGenerateViewModel @Inject constructor(
 
                 // 2. If channel is not connected in the web, DO NOT UPLOAD!
                 if (telegramChatId.isNullOrBlank()) {
-                    _telegramStatusMessage.value = "⚠️ Channel not connected in web. Connect your Telegram channel in Web Settings first."
+                    _telegramStatusMessage.value = "Channel not connected in web. Connect your Telegram channel in Web Settings first."
                     _isUploadingTelegram.value = false
                     return@launch
                 }
 
                 // 3. Channel is connected! Perform background video upload via Bot API
-                _telegramStatusMessage.value = "🤖 Bot uploading MP4 clip to your channel..."
+                _telegramStatusMessage.value = "Uploading MP4 clip to your channel..."
 
                 val uploadSuccess = withContext(Dispatchers.IO) {
                     try {
                         val mediaType = "video/mp4".toMediaTypeOrNull()
                         val fileBody = localFile.asRequestBody(mediaType)
                         val caption = """
-                        🎬 <b>${currentClip.label}</b>
-                        📺 <b>Stream:</b> $streamTitle
-                        ⏱ <b>Timestamp:</b> $timeOffset
-                        👤 <b>Triggered by:</b> ${currentClip.authorName}
-                        🆔 <code>${currentClip.id}</code>
+                        <b>Clip:</b> ${currentClip.label}
+                        <b>Broadcast:</b> $streamTitle
+                        <b>Timestamp:</b> $timeOffset
+                        <b>Triggered by:</b> ${currentClip.authorName}
+                        <b>ID:</b> <code>${currentClip.id}</code>
 
-                        ⚡ <i>Delivered automatically by @digicast_bot</i>
+                        <i>Delivered automatically by @digicast_bot</i>
                         """.trimIndent()
 
                         val multipart = MultipartBody.Builder()
@@ -660,7 +665,7 @@ class ClipGenerateViewModel @Inject constructor(
                 }
 
                 if (uploadSuccess) {
-                    _telegramStatusMessage.value = "✅ Bot uploaded clip to Telegram channel successfully!"
+                    _telegramStatusMessage.value = "Clip uploaded to Telegram channel successfully."
                 }
             } catch (e: Exception) {
                 _telegramStatusMessage.value = "Error: ${e.localizedMessage}"
@@ -671,45 +676,7 @@ class ClipGenerateViewModel @Inject constructor(
     }
 }
 
-object MetricFormatter {
-    fun toSeconds(ms: Long, streamStartMs: Long? = null): Long {
-        if (ms <= 0L) return 0L
-        if (ms > 1_000_000_000_000L) {
-            if (streamStartMs != null && streamStartMs > 0L && ms >= streamStartMs) {
-                val offsetSec = (ms - streamStartMs) / 1000L
-                if (offsetSec < 86400L) return offsetSec
-            }
-            return 2016L
-        }
-        if (ms > 100_000L) return ms / 1000L
-        return ms
-    }
 
-    fun formatSeconds(totalSec: Long): String {
-        val s = totalSec.coerceAtLeast(0L)
-        val sec = s % 60
-        val min = (s / 60) % 60
-        val hrs = s / 3600
-        return if (hrs > 0) String.format(Locale.US, "%02d:%02d:%02d", hrs, min, sec)
-        else String.format(Locale.US, "%02d:%02d", min, sec)
-    }
-
-    fun formatTimestamp(ms: Long, streamStartMs: Long? = null): String {
-        if (ms > 1_000_000_000_000L && (streamStartMs == null || streamStartMs <= 0L)) {
-            return SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(ms))
-        }
-        return formatSeconds(toSeconds(ms, streamStartMs))
-    }
-
-    fun formatDuration(startMs: Long?, endMs: Long?): String {
-        if (startMs == null || startMs <= 0L) return "0m"
-        val end = endMs ?: System.currentTimeMillis()
-        val durationMins = ((end - startMs) / 60000L).coerceAtLeast(0L)
-        val hours = durationMins / 60L
-        val mins = durationMins % 60L
-        return if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
-    }
-}
 
 fun resolveYouTubeVideoId(stream: StreamEntity?, clip: ClipMarkerEntity?): String {
     val sId = stream?.id?.trim()
@@ -958,6 +925,7 @@ fun ClipGenerateScreen(
             }
 
             // ── 2. Streamer & Moment Overview Strip ───────────────────────────
+            val clipType = ClipType.fromLabel(clip?.label ?: "", clip?.triggerMessageId ?: "")
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -966,9 +934,9 @@ fun ClipGenerateScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        text = stream?.title ?: "FREE FIRE INDIA LIVE 🇮🇳 | Playing With",
+                        text = stream?.title ?: "FREE FIRE INDIA LIVE | Playing With Friends",
                         color = DigicastWhite,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
@@ -978,10 +946,26 @@ fun ClipGenerateScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(clipType.color.copy(alpha = 0.25f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(clipType.icon, contentDescription = null, tint = clipType.color, modifier = Modifier.size(11.dp))
+                                Text(clipType.title, color = clipType.color, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                         Text(
-                            text = "Moment: ${clip?.label ?: "Clip"}",
-                            color = DigicastSlate,
-                            fontSize = 11.sp
+                            text = clip?.label ?: "Clip",
+                            color = DigicastWhite,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
                         )
                         Box(modifier = Modifier.size(3.dp).clip(CircleShape).background(DigicastSlate))
                         Text(
@@ -1225,33 +1209,45 @@ fun ClipGenerateScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .background(DigicastSunsetCoral.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                                             ) {
-                                                Text("HOST 👑", color = DigicastSunsetCoral, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                    Icon(Icons.Default.Verified, contentDescription = null, tint = DigicastSunsetCoral, modifier = Modifier.size(10.dp))
+                                                    Text("HOST", color = DigicastSunsetCoral, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                }
                                             }
                                         } else if (isMod) {
                                             Box(
                                                 modifier = Modifier
                                                     .background(DigicastEmerald.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                                             ) {
-                                                Text(if (msg.authorDisplayName.contains("nightbot", ignoreCase = true)) "BOT 🛡️" else "MOD 🛡️", color = DigicastEmerald, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                    Icon(Icons.Default.Shield, contentDescription = null, tint = DigicastEmerald, modifier = Modifier.size(10.dp))
+                                                    Text(if (msg.authorDisplayName.contains("nightbot", ignoreCase = true)) "BOT" else "MOD", color = DigicastEmerald, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                }
                                             }
                                         } else if (isTrigger) {
                                             Box(
                                                 modifier = Modifier
                                                     .background(DigicastSunsetCoral, RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                                             ) {
-                                                Text("!CLIP TRIGGER ⚡", color = DigicastWhite, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                    Icon(Icons.Default.Bolt, contentDescription = null, tint = DigicastWhite, modifier = Modifier.size(10.dp))
+                                                    Text("CLIP TRIGGER", color = DigicastWhite, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                }
                                             }
                                         } else if (isSuper) {
                                             Box(
                                                 modifier = Modifier
                                                     .background(Color(0xFFF59E0B).copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                                             ) {
-                                                Text("₹100 SUPERCHAT 💎", color = Color(0xFFF59E0B), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                    Icon(Icons.Default.MonetizationOn, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(10.dp))
+                                                    Text("SUPERCHAT", color = Color(0xFFF59E0B), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                }
                                             }
                                         }
                                     }
@@ -1532,7 +1528,7 @@ fun sendClipViaTelegram(
             "${context.packageName}.fileprovider",
             videoFile
         )
-        val caption = "🎬 Clip: $label\n📺 Broadcast: $streamTitle\n⏱ Timestamp: $timestamp\n\nGenerated via Digicast Mobile Studio"
+        val caption = "Clip: $label\nBroadcast: $streamTitle\nTimestamp: $timestamp\nGenerated via Digicast Studio"
 
         val telegramIntent = Intent(Intent.ACTION_SEND).apply {
             type = "video/mp4"

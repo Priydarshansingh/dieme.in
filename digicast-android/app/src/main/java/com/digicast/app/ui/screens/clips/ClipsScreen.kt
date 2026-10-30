@@ -331,7 +331,7 @@ fun ClipsScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = if (realClips.isEmpty()) "Open any stream console and tap 'Clip Moment ✂️' or type !clip in live chat to create highlights."
+                                text = if (realClips.isEmpty()) "Open any stream console and tap 'Add Moment' or type !clip in live chat to create highlights."
                                 else "Try adjusting your search query or status filter.",
                                 color = DigicastSlate,
                                 fontSize = 12.sp,
@@ -373,6 +373,7 @@ fun ClipsScreen(
                     val streamInfo = realStreams.find { it.id == clip.streamId }
                     val offsetSec = (clip.timestampMs / 1000L) % 3600
                     val timeStr = String.format("%02d:%02d", offsetSec / 60, offsetSec % 60)
+                    val type = ClipType.fromLabel(clip.label, clip.triggerMessageId)
 
                     Card(
                         colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
@@ -399,24 +400,44 @@ fun ClipsScreen(
                                     modifier = Modifier
                                         .size(42.dp)
                                         .clip(CircleShape)
-                                        .background(if (isReady) DigicastEmerald.copy(alpha = 0.15f) else DigicastSunsetCoral.copy(alpha = 0.15f)),
+                                        .background(type.color.copy(alpha = 0.15f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = if (isReady) Icons.Default.CheckCircle else Icons.Default.ContentCut,
+                                        imageVector = type.icon,
                                         contentDescription = null,
-                                        tint = if (isReady) DigicastEmerald else DigicastSunsetCoral,
+                                        tint = type.color,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
 
                                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(
-                                        text = clip.label,
-                                        color = DigicastWhite,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(type.color.copy(alpha = 0.25f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                            ) {
+                                                Icon(type.icon, contentDescription = null, tint = type.color, modifier = Modifier.size(10.dp))
+                                                Text(type.title, color = type.color, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                        Text(
+                                            text = clip.label,
+                                            color = DigicastWhite,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            maxLines = 1
+                                        )
+                                    }
                                     Text(
                                         text = streamInfo?.title?.take(28) ?: "Live Broadcast",
                                         color = DigicastSlate,

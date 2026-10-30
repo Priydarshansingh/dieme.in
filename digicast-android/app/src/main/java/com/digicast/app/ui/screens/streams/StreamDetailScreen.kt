@@ -20,28 +20,46 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SentimentSatisfied
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StopCircle
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,6 +85,7 @@ import com.digicast.app.data.repository.ChatRepository
 import com.digicast.app.data.repository.ClipRepository
 import com.digicast.app.data.repository.StreamRepository
 import com.digicast.app.service.LiveChatCaptureService
+import com.digicast.app.ui.screens.clips.ClipType
 import com.digicast.app.ui.screens.clips.ClipVideoPlayer
 import com.digicast.app.ui.screens.clips.YouTubeStreamPreview
 import com.digicast.app.ui.screens.clips.resolveYouTubeVideoId
@@ -196,6 +215,8 @@ fun StreamDetailScreen(
     val messages by viewModel.messages.collectAsState()
     val clips by viewModel.clips.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Live Chat, 1 = Clips
+    var showAddMomentDialog by remember { mutableStateOf(false) }
+    var targetMomentSec by remember { mutableLongStateOf(0L) }
 
     // Track live capture state reactively
     var isCapturing by remember { mutableStateOf(LiveChatCaptureService.isServiceRunning) }
@@ -203,6 +224,25 @@ fun StreamDetailScreen(
     val session = (authState as? AuthState.SignedIn)?.session
 
     val videoId = resolveYouTubeVideoId(stream, null)
+
+    val currentStream = stream
+    val streamStart = currentStream?.startedAtMs ?: 0L
+    val streamEnd = currentStream?.endedAtMs
+    val now = System.currentTimeMillis()
+    val totalDurationSec = remember(streamStart, streamEnd) {
+        val durationMs = if (streamStart > 0L) {
+            ((streamEnd ?: now) - streamStart).coerceAtLeast(60_000L)
+        } else {
+            3600_000L // 1 hour default
+        }
+        (durationMs / 1000L).coerceAtLeast(300L)
+    }
+
+    val liveOffsetSec = if (streamStart in 1L..now && (now - streamStart) < 86_400_000L) {
+        (now - streamStart) / 1000L
+    } else {
+        2016L // 33:36 marker offset
+    }
 
     Scaffold(
         containerColor = DigicastDeepNavy,
@@ -328,7 +368,7 @@ fun StreamDetailScreen(
                 )
             }
 
-            // ── 2. Streamer Info & Quick "Clip This Moment" Action Bar ────────
+            // ── 2. Streamer Info & Quick Actions ─────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -339,7 +379,7 @@ fun StreamDetailScreen(
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = stream?.title ?: "FREE FIRE INDIA LIVE 🇮🇳 | Playing With Friends",
+                        text = stream?.title ?: "FREE FIRE INDIA LIVE | Playing With Friends",
                         color = DigicastWhite,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
@@ -372,44 +412,178 @@ fun StreamDetailScreen(
                     }
                 }
 
-                // ── ✂️ THE REAL CLIP ACTION SYSTEM ────────────────────────────
+                // Add Moment Quick Trigger
                 Button(
                     onClick = {
-                        val currentStream = stream
-                        val newId = "CLP-${System.currentTimeMillis().toString().takeLast(6).uppercase()}"
-                        val streamStart = currentStream?.startedAtMs ?: 0L
-                        val now = System.currentTimeMillis()
-                        val offsetMs = if (streamStart in 1L..now && (now - streamStart) < 86_400_000L) {
-                            now - streamStart
-                        } else {
-                            2016000L // default marker offset (33:36)
-                        }
-                        val newMarker = ClipMarkerEntity(
-                            id = newId,
-                            streamId = videoId,
-                            authorName = session?.displayName ?: currentStream?.channelTitle ?: "HellxShakti",
-                            authorId = session?.uid ?: "creator",
-                            triggerMessageId = "app_clip_${System.currentTimeMillis()}",
-                            timestampMs = offsetMs,
-                            label = "Clip Marker $newId",
-                            status = "PENDING",
-                            localFilePath = null,
-                            telegramMessageUrl = null
-                        )
-
-                        viewModel.createClip(newMarker) {
-                            Toast.makeText(context, "✂️ Moment clipped! Opening clip editor...", Toast.LENGTH_SHORT).show()
-                            onNavigateToClipGenerate(newId)
-                        }
+                        targetMomentSec = liveOffsetSec
+                        showAddMomentDialog = true
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DigicastSunsetCoral),
                     shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    modifier = Modifier.height(38.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.height(36.dp)
                 ) {
-                    Icon(Icons.Default.ContentCut, contentDescription = null, tint = DigicastWhite, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Clip Moment ✂️", fontSize = 12.sp, color = DigicastWhite, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.Add, contentDescription = null, tint = DigicastWhite, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Add Moment", fontSize = 12.sp, color = DigicastWhite, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // ── 3. Interactive Stream Timeline & Moments Rail ─────────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(DigicastNavy)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Timeline Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Timeline,
+                            contentDescription = null,
+                            tint = DigicastAccentBlue,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            "Stream Timeline",
+                            color = DigicastWhite,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(DigicastSurfaceElevated)
+                                .padding(horizontal = 6.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                "${clips.size} Moments",
+                                color = DigicastSlate,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Text(
+                        "${MetricFormatter.formatSeconds(liveOffsetSec)} / ${MetricFormatter.formatSeconds(totalDurationSec)}",
+                        color = DigicastSlate,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Timeline Track Bar with visual type pins
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(DigicastSurface)
+                        .border(1.dp, DigicastBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .clickable {
+                            targetMomentSec = liveOffsetSec
+                            showAddMomentDialog = true
+                        }
+                        .padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    // Base track line
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .background(DigicastBorder.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
+                    )
+
+                    // Elapsed Progress fill
+                    val progressFraction = (liveOffsetSec.toFloat() / totalDurationSec.toFloat()).coerceIn(0.04f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progressFraction)
+                            .height(4.dp)
+                            .background(DigicastAccentBlue.copy(alpha = 0.45f), RoundedCornerShape(2.dp))
+                    )
+
+                    // Clip moment pins plotted along the track
+                    clips.forEach { clip ->
+                        val clipSec = MetricFormatter.toSeconds(clip.timestampMs, streamStart)
+                        val fraction = (clipSec.toFloat() / totalDurationSec.toFloat()).coerceIn(0.04f, 0.96f)
+                        val type = ClipType.fromLabel(clip.label, clip.triggerMessageId)
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction)
+                                .align(Alignment.CenterStart)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .size(20.dp)
+                                    .clip(CircleShape)
+                                    .background(type.color)
+                                    .border(1.5.dp, DigicastDeepNavy, CircleShape)
+                                    .clickable { onNavigateToClipGenerate(clip.id) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = type.icon,
+                                    contentDescription = type.title,
+                                    tint = DigicastDeepNavy,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Horizontal Moments Chips Row
+                if (clips.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(top = 2.dp, bottom = 2.dp)
+                    ) {
+                        items(clips, key = { it.id }) { clip ->
+                            val type = ClipType.fromLabel(clip.label, clip.triggerMessageId)
+                            val clipSec = MetricFormatter.toSeconds(clip.timestampMs, streamStart)
+                            val timeStr = MetricFormatter.formatSeconds(clipSec)
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = DigicastSurfaceElevated,
+                                border = BorderStroke(1.dp, type.color.copy(alpha = 0.6f)),
+                                modifier = Modifier.clickable { onNavigateToClipGenerate(clip.id) }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .clip(CircleShape)
+                                            .background(type.color.copy(alpha = 0.25f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(type.icon, contentDescription = null, tint = type.color, modifier = Modifier.size(11.dp))
+                                    }
+                                    Text(type.title, color = type.color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text(timeStr, color = DigicastWhite, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -539,25 +713,34 @@ fun StreamDetailScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .background(DigicastSunsetCoral.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                                             ) {
-                                                Text("HOST 👑", color = DigicastSunsetCoral, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                    Icon(Icons.Default.Verified, contentDescription = null, tint = DigicastSunsetCoral, modifier = Modifier.size(10.dp))
+                                                    Text("HOST", color = DigicastSunsetCoral, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                }
                                             }
                                         } else if (isMod) {
                                             Box(
                                                 modifier = Modifier
                                                     .background(DigicastEmerald.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                                             ) {
-                                                Text(if (msg.authorDisplayName.contains("nightbot", ignoreCase = true)) "BOT 🛡️" else "MOD 🛡️", color = DigicastEmerald, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                    Icon(Icons.Default.Shield, contentDescription = null, tint = DigicastEmerald, modifier = Modifier.size(10.dp))
+                                                    Text(if (msg.authorDisplayName.contains("nightbot", ignoreCase = true)) "BOT" else "MOD", color = DigicastEmerald, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                }
                                             }
                                         } else if (isTrigger) {
                                             Box(
                                                 modifier = Modifier
                                                     .background(DigicastSunsetCoral, RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                                             ) {
-                                                Text("!CLIP TRIGGER ⚡", color = DigicastWhite, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                    Icon(Icons.Default.Bolt, contentDescription = null, tint = DigicastWhite, modifier = Modifier.size(10.dp))
+                                                    Text("CLIP TRIGGER", color = DigicastWhite, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                }
                                             }
                                         }
                                     }
@@ -600,12 +783,20 @@ fun StreamDetailScreen(
                                     .padding(24.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("No clips created for this stream yet. Tap 'Clip Moment ✂️' above to mark highlights!", color = DigicastSlate, fontSize = 13.sp)
+                                Text(
+                                    "No clips created for this stream yet. Tap '+ Add Moment' on the timeline above to mark highlights.",
+                                    color = DigicastSlate,
+                                    fontSize = 13.sp
+                                )
                             }
                         }
                     }
 
                     items(clips, key = { it.id }) { clip ->
+                        val type = ClipType.fromLabel(clip.label, clip.triggerMessageId)
+                        val clipSec = MetricFormatter.toSeconds(clip.timestampMs, streamStart)
+                        val timeStr = MetricFormatter.formatSeconds(clipSec)
+
                         Card(
                             colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
                             shape = RoundedCornerShape(12.dp),
@@ -628,14 +819,28 @@ fun StreamDetailScreen(
                                         modifier = Modifier
                                             .size(38.dp)
                                             .clip(CircleShape)
-                                            .background(DigicastSunsetCoral.copy(alpha = 0.2f)),
+                                            .background(type.color.copy(alpha = 0.2f)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(Icons.Default.ContentCut, contentDescription = null, tint = DigicastSunsetCoral, modifier = Modifier.size(18.dp))
+                                        Icon(type.icon, contentDescription = null, tint = type.color, modifier = Modifier.size(18.dp))
                                     }
-                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Text(clip.label, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                        Text("by ${clip.authorName} • ${MetricFormatter.formatDuration(clip.timestampMs, null)}", color = DigicastSlate, fontSize = 12.sp)
+                                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .background(type.color.copy(alpha = 0.25f))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(type.title, color = type.color, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                            Text(timeStr, color = DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                        }
+                                        Text(clip.label, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                                        Text("by ${clip.authorName}", color = DigicastSlate, fontSize = 11.sp)
                                     }
                                 }
 
@@ -654,5 +859,226 @@ fun StreamDetailScreen(
                 }
             }
         }
+
+        if (showAddMomentDialog) {
+            AddClipMomentDialog(
+                initialOffsetSec = targetMomentSec,
+                totalDurationSec = totalDurationSec,
+                onDismiss = { showAddMomentDialog = false },
+                onConfirm = { type, sec, desc ->
+                    showAddMomentDialog = false
+                    val s = stream
+                    val newId = "CLP-${System.currentTimeMillis().toString().takeLast(6).uppercase()}"
+                    val cleanTitle = if (desc.isNotBlank()) desc.trim() else "Moment at ${MetricFormatter.formatSeconds(sec)}"
+                    val formattedLabel = "[${type.title}] $cleanTitle"
+
+                    val newMarker = ClipMarkerEntity(
+                        id = newId,
+                        streamId = videoId,
+                        authorName = session?.displayName ?: s?.channelTitle ?: "Creator",
+                        authorId = session?.uid ?: "creator",
+                        triggerMessageId = "app_clip_${type.id}_${System.currentTimeMillis()}",
+                        timestampMs = sec * 1000L,
+                        label = formattedLabel,
+                        status = "PENDING",
+                        localFilePath = null,
+                        telegramMessageUrl = null
+                    )
+
+                    viewModel.createClip(newMarker) {
+                        Toast.makeText(context, "Moment saved. Opening clip console...", Toast.LENGTH_SHORT).show()
+                        onNavigateToClipGenerate(newId)
+                    }
+                }
+            )
+        }
     }
+}
+
+@Composable
+fun AddClipMomentDialog(
+    initialOffsetSec: Long,
+    totalDurationSec: Long,
+    onDismiss: () -> Unit,
+    onConfirm: (ClipType, Long, String) -> Unit
+) {
+    var selectedType by remember { mutableStateOf(ClipType.HIGHLIGHT) }
+    var offsetSec by remember { mutableLongStateOf(initialOffsetSec.coerceIn(0L, totalDurationSec)) }
+    var title by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DigicastNavy,
+        shape = RoundedCornerShape(16.dp),
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Bookmark, contentDescription = null, tint = DigicastSunsetCoral, modifier = Modifier.size(20.dp))
+                    Text("Add Clip Moment", color = DigicastWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = DigicastSlate)
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // 1. Timestamp Scrubber
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Timeline Offset", color = DigicastSlate, fontSize = 12.sp)
+                        Text(
+                            MetricFormatter.formatSeconds(offsetSec),
+                            color = selectedType.color,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+
+                    Slider(
+                        value = offsetSec.toFloat(),
+                        onValueChange = { offsetSec = it.toLong() },
+                        valueRange = 0f..totalDurationSec.toFloat().coerceAtLeast(60f),
+                        colors = SliderDefaults.colors(
+                            thumbColor = selectedType.color,
+                            activeTrackColor = selectedType.color,
+                            inactiveTrackColor = DigicastBorder
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Step buttons (-30s, -10s, +10s, +30s)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(-30L, -10L, 10L, 30L).forEach { delta ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(DigicastSurfaceElevated)
+                                    .clickable {
+                                        offsetSec = (offsetSec + delta).coerceIn(0L, totalDurationSec)
+                                    }
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    if (delta > 0) "+${delta}s" else "${delta}s",
+                                    color = DigicastWhite,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2. Clip Type Selector
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Clip Type", color = DigicastSlate, fontSize = 12.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        ClipType.entries.take(3).forEach { type ->
+                            val isSelected = selectedType == type
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) type.color.copy(alpha = 0.25f) else DigicastSurfaceElevated)
+                                    .border(if (isSelected) 1.5.dp else 1.dp, if (isSelected) type.color else DigicastBorder.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                    .clickable { selectedType = type }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(type.icon, contentDescription = null, tint = if (isSelected) type.color else DigicastSlate, modifier = Modifier.size(16.dp))
+                                    Text(type.title, color = if (isSelected) DigicastWhite else DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        ClipType.entries.drop(3).forEach { type ->
+                            val isSelected = selectedType == type
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) type.color.copy(alpha = 0.25f) else DigicastSurfaceElevated)
+                                    .border(if (isSelected) 1.5.dp else 1.dp, if (isSelected) type.color else DigicastBorder.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                    .clickable { selectedType = type }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(type.icon, contentDescription = null, tint = if (isSelected) type.color else DigicastSlate, modifier = Modifier.size(16.dp))
+                                    Text(type.title, color = if (isSelected) DigicastWhite else DigicastSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. Moment Title / Note
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Description (Optional)", color = DigicastSlate, fontSize = 12.sp)
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        placeholder = { Text("e.g. 1v4 Clutch at final circle", color = DigicastSlate.copy(alpha = 0.6f), fontSize = 12.sp) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = DigicastWhite,
+                            unfocusedTextColor = DigicastWhite,
+                            focusedBorderColor = selectedType.color,
+                            unfocusedBorderColor = DigicastBorder,
+                            focusedContainerColor = DigicastSurface,
+                            unfocusedContainerColor = DigicastSurface
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(selectedType, offsetSec, title) },
+                colors = ButtonDefaults.buttonColors(containerColor = selectedType.color),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().height(44.dp)
+            ) {
+                Icon(Icons.Default.ContentCut, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Save Moment & Open Console", color = DigicastDeepNavy, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        }
+    )
 }

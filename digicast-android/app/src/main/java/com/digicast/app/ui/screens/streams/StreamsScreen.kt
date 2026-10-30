@@ -420,7 +420,7 @@ fun StreamsScreen(
                                 ) {
                                     Icon(Icons.Default.PlayArrow, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Watch & Clip ✂️", fontSize = 12.sp, color = DigicastDeepNavy, fontWeight = FontWeight.Bold)
+                                    Text("Watch & Clip", fontSize = 12.sp, color = DigicastDeepNavy, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }

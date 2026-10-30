@@ -798,7 +798,7 @@ class AuthRepository @Inject constructor(
                         StreamEntity(
                             id = sid,
                             workspaceId = session.workspaceId,
-                            title = "🔴 FREE FIRE INDIA LIVE 🇮🇳 | Playing With Friends & Custom Rooms",
+                            title = "FREE FIRE INDIA LIVE | Playing With Friends & Custom Rooms",
                             channelId = "UC_livehellboy",
                             channelTitle = "Live hellboy",
                             liveChatId = "chat_g_4KXSxPzGo",
@@ -1255,9 +1255,9 @@ class AuthRepository @Inject constructor(
                     StreamEntity(
                         id = realStreamId,
                         workspaceId = "ws-hellxshakti",
-                        title = "🔴 FREE FIRE INDIA LIVE 🇮🇳 | Playing With Friends & Custom Rooms || #livehellboy #shortslive",
+                        title = "FREE FIRE INDIA LIVE | Playing With Friends & Custom Rooms",
                         channelId = "UC_livehellboy",
-                        channelTitle = "HellxShakti 🎮",
+                        channelTitle = "HellxShakti",
                         liveChatId = "chat_g_4KXSxPzGo",
                         thumbnailUrl = "https://i.ytimg.com/vi/g_4KXSxPzGo/hqdefault.jpg",
                         status = "live",
@@ -1283,7 +1283,7 @@ class AuthRepository @Inject constructor(
                         authorName = "HellxShakti",
                         authorId = "user_hellxshakti",
                         triggerMessageId = "msg_yt_070",
-                        timestampMs = 2016000L, // 33:36 (!clip)
+                        timestampMs = 45000L, // 00:45 (!clip)
                         label = "Clip Marker",
                         status = "GENERATED",
                         localFilePath = if (sampleFile.exists()) sampleFile.absolutePath else null,

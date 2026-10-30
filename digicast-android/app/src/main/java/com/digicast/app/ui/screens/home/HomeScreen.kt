@@ -455,8 +455,8 @@ fun HomeScreen(
 
             // ── 5. Complete Activity Sparkline Wave (Bound to Real Broadcast) ──
             item {
-                val sparklineTitle = if (live != null) "${live.channelTitle} Stream Activity" else "Studio Stream Activity"
-                val sparklineSub = if (live != null) live.title else "No broadcast currently streaming"
+                val sparklineTitle = if (live != null) "${MetricFormatter.cleanText(live.channelTitle)} Stream Activity" else "Studio Stream Activity"
+                val sparklineSub = if (live != null) MetricFormatter.cleanText(live.title) else "No broadcast currently streaming"
                 val sparklineTrend = if (live?.status == "live" && live.concurrentViewers > 0) {
                     "${MetricFormatter.formatCount(live.concurrentViewers)} Live"
                 } else if (live != null && live.viewCount > 0) {
@@ -553,7 +553,7 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = live.title,
+                                text = MetricFormatter.cleanText(live.title),
                                 color = DigicastWhite,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,

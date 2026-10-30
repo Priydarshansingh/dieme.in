@@ -17,15 +17,16 @@ object MetricFormatter {
 
     fun toSeconds(ms: Long, streamStartMs: Long? = null): Long {
         if (ms <= 0L) return 0L
-        if (ms > 1_000_000_000_000L) {
+        // If it's absolute epoch time (e.g. > year 2001: 1_000_000_000_000 ms)
+        if (ms >= 1_000_000_000_000L) {
             if (streamStartMs != null && streamStartMs > 0L && ms >= streamStartMs) {
                 val offsetSec = (ms - streamStartMs) / 1000L
                 if (offsetSec < 86400L) return offsetSec
             }
-            return 2016L
+            return 0L
         }
-        if (ms > 100_000L) return ms / 1000L
-        return ms
+        // If it's offset in milliseconds (>= 1000 ms), divide by 1000
+        return if (ms >= 1000L) ms / 1000L else ms
     }
 
     fun formatSeconds(totalSec: Long): String {
@@ -58,5 +59,18 @@ object MetricFormatter {
         } else {
             String.format(Locale.US, "%02d:%02d", minutes, seconds)
         }
+    }
+
+    fun cleanText(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        return raw
+            .replace(Regex("[\\p{So}\\p{Sk}\\p{Cs}\\p{Cn}]"), "")
+            .replace(Regex("[\\u200B-\\u200D\\uFEFF]"), "")
+            .replace("||", "|")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .trimStart('|', ' ', '-', '•')
+            .trimEnd('|', ' ', '-', '•')
+            .trim()
     }
 }

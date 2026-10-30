@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,6 +33,8 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.PlayArrow
@@ -72,6 +76,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -233,26 +238,15 @@ fun StreamDetailScreen(
     val streamStart = currentStream?.startedAtMs ?: 0L
     val streamEnd = currentStream?.endedAtMs
     val now = System.currentTimeMillis()
-    val totalDurationSec = remember(streamStart, streamEnd, playerDurationSec) {
-        if (playerDurationSec > 30f) {
+    val totalDurationSec = remember(playerDurationSec) {
+        if (playerDurationSec > 10f) {
             playerDurationSec.toLong()
         } else {
-            val durationMs = if (streamStart > 0L) {
-                ((streamEnd ?: now) - streamStart).coerceAtLeast(60_000L)
-            } else {
-                3600_000L // 1 hour default
-            }
-            (durationMs / 1000L).coerceAtLeast(300L)
+            3600L // 1 hour default until player delivers metadata
         }
     }
 
-    val liveOffsetSec = if (streamStart in 1L..now && (now - streamStart) < 86_400_000L) {
-        (now - streamStart) / 1000L
-    } else {
-        2016L // 33:36 marker offset fallback
-    }
-
-    val activeOffsetSec = if (currentPlaybackSec > 0f) currentPlaybackSec.toLong() else liveOffsetSec
+    val activeOffsetSec = currentPlaybackSec.toLong().coerceIn(0L, totalDurationSec)
 
     Scaffold(
         containerColor = DigicastDeepNavy,
@@ -277,7 +271,7 @@ fun StreamDetailScreen(
                         )
                     }
                     Text(
-                        text = stream?.channelTitle ?: "Stream Console",
+                        text = MetricFormatter.cleanText(stream?.channelTitle).ifBlank { "Stream Console" },
                         color = DigicastWhite,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
@@ -375,7 +369,7 @@ fun StreamDetailScreen(
                     startSeconds = 0L,
                     endSeconds = null,
                     onTimeUpdate = { cur, dur ->
-                        if (cur > 0f) currentPlaybackSec = cur
+                        if (cur >= 0f) currentPlaybackSec = cur
                         if (dur > 0f) playerDurationSec = dur
                     },
                     onPlayerReady = { seekAction ->
@@ -396,7 +390,7 @@ fun StreamDetailScreen(
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = stream?.title ?: "FREE FIRE INDIA LIVE | Playing With Friends",
+                        text = MetricFormatter.cleanText(stream?.title).ifBlank { "FREE FIRE INDIA LIVE | Playing With Friends" },
                         color = DigicastWhite,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
@@ -446,7 +440,7 @@ fun StreamDetailScreen(
                 }
             }
 
-            // ── 3. Interactive Stream Timeline & Moments Rail ─────────────────
+            // ── 3. Interactive Video Timeline & Moments Control ─────────────
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -499,67 +493,147 @@ fun StreamDetailScreen(
                     )
                 }
 
-                // Timeline Track Bar with visual type pins
-                Box(
+                // Interactive Scrubber & Timeline Track
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(DigicastSurface)
-                        .border(1.dp, DigicastBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                        .clickable {
-                            targetMomentSec = activeOffsetSec
-                            showAddMomentDialog = true
-                        }
-                        .padding(horizontal = 10.dp),
-                    contentAlignment = Alignment.CenterStart
+                        .padding(horizontal = 2.dp)
                 ) {
-                    // Base track line
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .background(DigicastBorder.copy(alpha = 0.8f), RoundedCornerShape(2.dp))
-                    )
+                    val trackWidth = maxWidth
 
-                    // Elapsed Progress fill
-                    val progressFraction = (activeOffsetSec.toFloat() / totalDurationSec.toFloat()).coerceIn(0.01f, 1f)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(progressFraction)
-                            .height(4.dp)
-                            .background(DigicastAccentBlue.copy(alpha = 0.65f), RoundedCornerShape(2.dp))
-                    )
-
-                    // Clip moment pins plotted along the track
-                    clips.forEach { clip ->
-                        val clipSec = MetricFormatter.toSeconds(clip.timestampMs, streamStart)
-                        val fraction = (clipSec.toFloat() / totalDurationSec.toFloat()).coerceIn(0.04f, 0.96f)
-                        val type = ClipType.fromLabel(clip.label, clip.triggerMessageId)
-
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Slider Track with Interactive Moment Pins
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(fraction)
-                                .align(Alignment.CenterStart)
+                                .fillMaxWidth()
+                                .height(38.dp),
+                            contentAlignment = Alignment.CenterStart
                         ) {
+                            // Draggable real-time scrubber
+                            Slider(
+                                value = currentPlaybackSec.coerceIn(0f, totalDurationSec.toFloat()),
+                                onValueChange = { newSec ->
+                                    currentPlaybackSec = newSec
+                                },
+                                onValueChangeFinished = {
+                                    seekController?.invoke(currentPlaybackSec.toLong())
+                                },
+                                valueRange = 0f..totalDurationSec.toFloat().coerceAtLeast(60f),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = DigicastSunsetCoral,
+                                    activeTrackColor = DigicastAccentBlue,
+                                    inactiveTrackColor = DigicastBorder.copy(alpha = 0.6f)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .zIndex(1f)
+                            )
+
+                            // Moment Pins along track
+                            clips.forEach { clip ->
+                                val clipSec = MetricFormatter.toSeconds(clip.timestampMs, streamStart).coerceIn(0L, totalDurationSec)
+                                val fraction = (clipSec.toFloat() / totalDurationSec.toFloat().coerceAtLeast(1f)).coerceIn(0.01f, 0.99f)
+                                val type = ClipType.fromLabel(clip.label, clip.triggerMessageId)
+                                val pinOffsetDp = ((trackWidth.value - 24f) * fraction).coerceAtLeast(0f).dp
+
+                                Box(
+                                    modifier = Modifier
+                                        .offset(x = pinOffsetDp)
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(type.color)
+                                        .border(2.dp, DigicastDeepNavy, CircleShape)
+                                        .zIndex(2f)
+                                        .clickable {
+                                            currentPlaybackSec = clipSec.toFloat()
+                                            seekController?.invoke(clipSec)
+                                            Toast.makeText(
+                                                context,
+                                                "Seeked to ${type.title} (${MetricFormatter.formatSeconds(clipSec)})",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = type.icon,
+                                        contentDescription = type.title,
+                                        tint = DigicastDeepNavy,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Quick Jump Controls & Instant Moment Capture
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // -10s Jump
                             Box(
                                 modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(type.color)
-                                    .border(1.5.dp, DigicastDeepNavy, CircleShape)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(DigicastSurfaceElevated)
+                                    .border(1.dp, DigicastBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                                     .clickable {
-                                        seekController?.invoke(clipSec)
-                                        onNavigateToClipGenerate(clip.id)
-                                    },
+                                        val newSec = (currentPlaybackSec.toLong() - 10L).coerceAtLeast(0L)
+                                        currentPlaybackSec = newSec.toFloat()
+                                        seekController?.invoke(newSec)
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = type.icon,
-                                    contentDescription = type.title,
-                                    tint = DigicastDeepNavy,
-                                    modifier = Modifier.size(11.dp)
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Icon(Icons.Default.FastRewind, contentDescription = "-10s", tint = DigicastWhite, modifier = Modifier.size(14.dp))
+                                    Text("-10s", color = DigicastWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // +10s Jump
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(DigicastSurfaceElevated)
+                                    .border(1.dp, DigicastBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        val newSec = (currentPlaybackSec.toLong() + 10L).coerceAtMost(totalDurationSec)
+                                        currentPlaybackSec = newSec.toFloat()
+                                        seekController?.invoke(newSec)
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Icon(Icons.Default.FastForward, contentDescription = "+10s", tint = DigicastWhite, modifier = Modifier.size(14.dp))
+                                    Text("+10s", color = DigicastWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // Primary Instant Moment Trigger
+                            Button(
+                                onClick = {
+                                    targetMomentSec = activeOffsetSec
+                                    showAddMomentDialog = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = DigicastSunsetCoral),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(34.dp)
+                            ) {
+                                Icon(Icons.Default.Bookmark, contentDescription = null, tint = DigicastWhite, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "Clip at ${MetricFormatter.formatSeconds(activeOffsetSec)}",
+                                    fontSize = 11.sp,
+                                    color = DigicastWhite,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
@@ -583,6 +657,7 @@ fun StreamDetailScreen(
                                 color = DigicastSurfaceElevated,
                                 border = BorderStroke(1.dp, type.color.copy(alpha = 0.6f)),
                                 modifier = Modifier.clickable {
+                                    currentPlaybackSec = clipSec.toFloat()
                                     seekController?.invoke(clipSec)
                                     onNavigateToClipGenerate(clip.id)
                                 }
@@ -927,7 +1002,7 @@ fun AddClipMomentDialog(
     onConfirm: (ClipType, Long, String) -> Unit
 ) {
     var selectedType by remember { mutableStateOf(ClipType.HIGHLIGHT) }
-    var offsetSec by remember { mutableLongStateOf(initialOffsetSec.coerceIn(0L, totalDurationSec)) }
+    var offsetSec by remember(initialOffsetSec) { mutableLongStateOf(initialOffsetSec.coerceIn(0L, totalDurationSec)) }
     var title by remember { mutableStateOf("") }
 
     AlertDialog(

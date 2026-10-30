@@ -18,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.digicast.app.data.repository.AuthRepository
 import com.digicast.app.data.repository.AuthState
 import com.digicast.app.ui.components.BottomNavBar
@@ -131,7 +132,8 @@ fun DigicastNavGraph(
             }
             composable(
                 route = Screen.StreamDetail.route,
-                arguments = listOf(navArgument("streamId") { type = NavType.StringType })
+                arguments = listOf(navArgument("streamId") { type = NavType.StringType }),
+                deepLinks = listOf(navDeepLink { uriPattern = "digicast://streams/{streamId}" })
             ) { backStackEntry ->
                 if (backStackEntry.arguments?.getString("streamId") == null) return@composable
                 StreamDetailScreen(
@@ -147,7 +149,8 @@ fun DigicastNavGraph(
             }
             composable(
                 route = Screen.ClipGenerate.route,
-                arguments = listOf(navArgument("clipId") { type = NavType.StringType })
+                arguments = listOf(navArgument("clipId") { type = NavType.StringType }),
+                deepLinks = listOf(navDeepLink { uriPattern = "digicast://clips/{clipId}/generate" })
             ) { backStackEntry ->
                 val clipId = backStackEntry.arguments?.getString("clipId") ?: return@composable
                 ClipGenerateScreen(

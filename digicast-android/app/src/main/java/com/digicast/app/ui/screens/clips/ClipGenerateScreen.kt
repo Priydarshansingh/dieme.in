@@ -932,7 +932,7 @@ fun ClipGenerateScreen(
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        text = stream?.title ?: "FREE FIRE INDIA LIVE | Playing With Friends",
+                        text = MetricFormatter.cleanText(stream?.title).ifBlank { "FREE FIRE INDIA LIVE | Playing With Friends" },
                         color = DigicastWhite,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
@@ -957,7 +957,7 @@ fun ClipGenerateScreen(
                             }
                         }
                         Text(
-                            text = clip?.label ?: "Clip",
+                            text = MetricFormatter.cleanText(clip?.label).ifBlank { "Clip" },
                             color = DigicastWhite,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
@@ -1499,6 +1499,16 @@ fun YouTubeStreamPreview(
                                         }
                                     } catch(err) {}
                                 });
+                                function poll() {
+                                    try {
+                                        var iframe = document.querySelector('iframe');
+                                        if (iframe && iframe.contentWindow) {
+                                            iframe.contentWindow.postMessage(JSON.stringify({event: 'listening', id: 1}), '*');
+                                        }
+                                    } catch(e) {}
+                                }
+                                setInterval(poll, 400);
+                                poll();
                             })();
                             """.trimIndent(),
                             null

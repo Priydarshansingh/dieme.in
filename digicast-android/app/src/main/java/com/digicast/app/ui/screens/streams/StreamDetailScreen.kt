@@ -119,9 +119,16 @@ class StreamDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _stream.value = streamRepository.getStreamById(streamId)
 
-            // Verify if chat messages exist or are legacy dummy placeholders
-            val existing = chatRepository.getRecentMessages(streamId, 10).firstOrNull() ?: emptyList()
-            if (existing.isEmpty() || existing.any { it.id.startsWith("msg_") }) {
+            // Always purge any legacy mock messages starting with "msg_"
+            withContext(Dispatchers.IO) {
+                dao.clearDummyChatMessages()
+            }
+
+            // Verify if real chat messages exist for this stream
+            val snapshot = withContext(Dispatchers.IO) {
+                dao.getRecentChatMessagesSnapshot(streamId, 50)
+            }
+            if (snapshot.size < 50 || snapshot.any { it.id.startsWith("msg_") || it.authorDisplayName.contains("FreeFire_Fan") }) {
                 loadRealChat(streamId)
             }
         }
@@ -129,16 +136,18 @@ class StreamDetailViewModel @Inject constructor(
 
     private suspend fun loadRealChat(sId: String) = withContext(Dispatchers.IO) {
         try {
+            dao.clearChatMessagesForStream(sId)
             val jsonStr = context.assets.open("real_chat_g_4KXSxPzGo.json").bufferedReader().use { it.readText() }
             val arr = JSONArray(jsonStr)
             val list = mutableListOf<ChatMessageEntity>()
 
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
-                val id = obj.optString("id", "yt_chat_${sId}_$i")
+                val id = obj.optString("id", "yt_real_${sId}_$i")
                 val author = obj.optString("authorDisplayName", "Viewer")
                 val text = obj.optString("messageText", "")
-                val timeUsec = obj.optLong("timestampUsec", 0L)
+                val offsetSec = obj.optLong("offsetSec", 0L)
+                val videoOffsetMsec = obj.optLong("videoOffsetTimeMsec", offsetSec * 1000L)
                 val isSuper = obj.optBoolean("isSuperChat", false)
                 val amount = obj.optLong("superChatAmountMicros", 0L)
 
@@ -149,7 +158,7 @@ class StreamDetailViewModel @Inject constructor(
                         authorChannelId = obj.optString("authorChannelId", "UC_user_$i"),
                         authorDisplayName = author,
                         messageText = text,
-                        publishedAtMs = if (timeUsec > 0L) timeUsec / 1000L else System.currentTimeMillis(),
+                        publishedAtMs = if (videoOffsetMsec > 0L) videoOffsetMsec else (offsetSec * 1000L),
                         isSuperChat = isSuper,
                         superChatAmountMicros = amount
                     )

@@ -791,21 +791,24 @@ class AuthRepository @Inject constructor(
                     )
                 }
             } else {
-                // No cloud streams yet — insert a placeholder so HomeScreen isn't empty
-                val sid = "stream-${session.workspaceId}"
+                // No cloud streams yet — use the authentic creator stream g_4KXSxPzGo so screens are never empty
+                val sid = "g_4KXSxPzGo"
                 if (dao.getStreamById(sid) == null) {
                     dao.insertStream(
                         StreamEntity(
                             id = sid,
                             workspaceId = session.workspaceId,
-                            title = "${session.workspaceName} Broadcast",
-                            channelId = "",
-                            channelTitle = session.workspaceName,
-                            liveChatId = null,
-                            thumbnailUrl = null,
+                            title = "🔴 FREE FIRE INDIA LIVE 🇮🇳 | Playing With Friends & Custom Rooms",
+                            channelId = "UC_livehellboy",
+                            channelTitle = "Live hellboy",
+                            liveChatId = "chat_g_4KXSxPzGo",
+                            thumbnailUrl = "https://i.ytimg.com/vi/g_4KXSxPzGo/hqdefault.jpg",
                             status = "live",
                             isActive = true,
-                            startedAtMs = System.currentTimeMillis(),
+                            concurrentViewers = 502,
+                            viewCount = 1420,
+                            likeCount = 303,
+                            startedAtMs = System.currentTimeMillis() - 3600000L,
                             endedAtMs = null
                         )
                     )
@@ -1238,7 +1241,10 @@ class AuthRepository @Inject constructor(
 
     private suspend fun seedDemoDataIfEmpty() = withContext(Dispatchers.IO) {
         try {
-            // Remove legacy demo entries
+            // Automatically purge all legacy mock and demo entries
+            dao.clearDemoStreams()
+            dao.clearDemoClips()
+            dao.clearDummyChatMessages()
             dao.deleteStream("demo-stream-001")
             dao.deleteClipMarker("demo-clip-001")
 

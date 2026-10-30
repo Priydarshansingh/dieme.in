@@ -125,7 +125,12 @@ fun StreamsScreen(
     }
 
     val realStreams = remember(streams) {
-        streams.filter { it.id != "demo-stream-001" }
+        streams.filter {
+            it.id != "demo-stream-001" &&
+            !it.id.startsWith("demo", ignoreCase = true) &&
+            !it.channelTitle.contains("Demo", ignoreCase = true) &&
+            !it.title.contains("Demo", ignoreCase = true)
+        }
     }
 
     val filteredStreams = remember(realStreams, selectedCategory, searchQuery) {

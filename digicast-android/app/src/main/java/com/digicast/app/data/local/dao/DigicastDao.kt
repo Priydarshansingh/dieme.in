@@ -33,6 +33,9 @@ interface DigicastDao {
     @Query("DELETE FROM streams WHERE id = :streamId")
     suspend fun deleteStream(streamId: String)
 
+    @Query("DELETE FROM streams WHERE id LIKE 'demo%' OR id LIKE 'stream-%' OR channelTitle LIKE '%Demo%' OR title LIKE '%Demo%'")
+    suspend fun clearDemoStreams()
+
     // --- Chat Messages ---
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertChatMessages(messages: List<ChatMessageEntity>)
@@ -42,6 +45,12 @@ interface DigicastDao {
 
     @Query("SELECT * FROM chat_messages WHERE streamId = :streamId ORDER BY publishedAtMs DESC LIMIT :limit")
     suspend fun getRecentChatMessagesSnapshot(streamId: String, limit: Int = 50): List<ChatMessageEntity>
+
+    @Query("DELETE FROM chat_messages WHERE streamId = :streamId")
+    suspend fun clearChatMessagesForStream(streamId: String)
+
+    @Query("DELETE FROM chat_messages WHERE id LIKE 'msg_%' OR authorDisplayName LIKE '%FreeFire_Fan%' OR authorDisplayName LIKE '%Rohan_Gamer%' OR authorDisplayName LIKE '%Sahil_Gaming%' OR authorDisplayName LIKE '%Devil_OP%'")
+    suspend fun clearDummyChatMessages()
 
     // For local context around a clip
     @Query("SELECT * FROM chat_messages WHERE streamId = :streamId AND publishedAtMs >= :startTimeMs AND publishedAtMs <= :endTimeMs ORDER BY publishedAtMs ASC")
@@ -74,6 +83,9 @@ interface DigicastDao {
 
     @Query("DELETE FROM clip_markers WHERE id = :id")
     suspend fun deleteClipMarker(id: String)
+
+    @Query("DELETE FROM clip_markers WHERE id LIKE 'demo%' OR authorName LIKE '%Demo%'")
+    suspend fun clearDemoClips()
 
     // --- Sync Queue ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)

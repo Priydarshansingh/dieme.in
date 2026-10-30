@@ -8,6 +8,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.view.View
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -1500,46 +1502,61 @@ fun YouTubeStreamPreview(
     endSeconds: Long? = null,
     modifier: Modifier = Modifier
 ) {
+    val cleanVideoId = videoId.trim().ifBlank { "g_4KXSxPzGo" }
+    val timingParam = if (endSeconds != null && endSeconds > startSeconds) "&start=$startSeconds&end=$endSeconds" else if (startSeconds > 0) "&start=$startSeconds" else ""
+    val targetTag = "$cleanVideoId-$startSeconds-$endSeconds"
+
+    fun buildHtml(): String {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                <style>
+                    * { margin:0; padding:0; box-sizing:border-box; }
+                    html, body { width:100%; height:100%; background-color:#000000; overflow:hidden; }
+                    .video-wrapper { position:relative; width:100%; height:100%; }
+                    iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:none; }
+                </style>
+            </head>
+            <body>
+                <div class="video-wrapper">
+                    <iframe 
+                        src="https://www.youtube.com/embed/$cleanVideoId?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1&enablejsapi=1$timingParam"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            </body>
+            </html>
+        """.trimIndent()
+    }
+
     AndroidView(
         factory = { ctx ->
             WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
-                settings.domStorageEnabled = true
+                setBackgroundColor(android.graphics.Color.BLACK)
+                setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                webChromeClient = WebChromeClient()
                 webViewClient = WebViewClient()
-                val timingParam = if (endSeconds != null && endSeconds > startSeconds) "&start=$startSeconds&end=$endSeconds" else if (startSeconds > 0) "&start=$startSeconds" else ""
-                val embedUrl = "https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&controls=1&rel=0&playsinline=1$timingParam"
-                val html = """
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;}iframe{width:100%;height:100%;border:none;}</style>
-                    </head>
-                    <body>
-                        <iframe src="$embedUrl" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                    </body>
-                    </html>
-                """.trimIndent()
-                loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
+                settings.apply {
+                    javaScriptEnabled = true
+                    mediaPlaybackRequiresUserGesture = false
+                    domStorageEnabled = true
+                    databaseEnabled = true
+                    loadWithOverviewMode = true
+                    useWideViewPort = true
+                    userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
+                }
+                tag = targetTag
+                loadDataWithBaseURL("https://www.youtube.com", buildHtml(), "text/html", "UTF-8", null)
             }
         },
         update = { webView ->
-            val timingParam = if (endSeconds != null && endSeconds > startSeconds) "&start=$startSeconds&end=$endSeconds" else if (startSeconds > 0) "&start=$startSeconds" else ""
-            val embedUrl = "https://www.youtube-nocookie.com/embed/$videoId?autoplay=1&controls=1&rel=0&playsinline=1$timingParam"
-            val html = """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <style>body{margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;}iframe{width:100%;height:100%;border:none;}</style>
-                </head>
-                <body>
-                    <iframe src="$embedUrl" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                </body>
-                </html>
-            """.trimIndent()
-            webView.loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
+            if (webView.tag != targetTag) {
+                webView.tag = targetTag
+                webView.loadDataWithBaseURL("https://www.youtube.com", buildHtml(), "text/html", "UTF-8", null)
+            }
         },
         modifier = modifier
     )

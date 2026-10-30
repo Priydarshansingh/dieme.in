@@ -102,13 +102,17 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.digicast.app.data.local.dao.DigicastDao
 import com.digicast.app.data.repository.ClipRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val streamRepository: StreamRepository,
     private val clipRepository: ClipRepository,
     private val chatRepository: ChatRepository,
+    private val dao: DigicastDao,
     val authRepository: AuthRepository
 ) : ViewModel() {
 
@@ -139,6 +143,11 @@ class HomeViewModel @Inject constructor(
 
     fun syncData() {
         viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                dao.clearDemoStreams()
+                dao.clearDemoClips()
+                dao.clearDummyChatMessages()
+            }
             authRepository.syncWorkspaceData()
         }
     }
@@ -159,7 +168,23 @@ fun HomeScreen(
     val isSyncing by viewModel.isSyncing.collectAsState()
     val ytAccount by viewModel.authRepository.youtubeAccount.collectAsState()
 
-    val live = activeStreams.firstOrNull { it.id != "demo-stream-001" } ?: allStreams.firstOrNull { it.id != "demo-stream-001" }
+    val realAllStreams = remember(allStreams) {
+        allStreams.filter {
+            !it.id.startsWith("demo", ignoreCase = true) &&
+            !it.id.startsWith("stream-demo", ignoreCase = true) &&
+            !it.channelTitle.contains("Demo", ignoreCase = true) &&
+            !it.title.contains("Demo", ignoreCase = true)
+        }
+    }
+    val realActiveStreams = remember(activeStreams) {
+        activeStreams.filter {
+            !it.id.startsWith("demo", ignoreCase = true) &&
+            !it.id.startsWith("stream-demo", ignoreCase = true) &&
+            !it.channelTitle.contains("Demo", ignoreCase = true) &&
+            !it.title.contains("Demo", ignoreCase = true)
+        }
+    }
+    val live = realActiveStreams.firstOrNull() ?: realAllStreams.firstOrNull()
     val capturing = LiveChatCaptureService.isServiceRunning
     var selectedCategory by remember { mutableStateOf("All Streams") }
     val realClips = clips.filter { it.id != "demo-clip-001" && !it.authorName.contains("DemoViewer", ignoreCase = true) }
@@ -375,8 +400,8 @@ fun HomeScreen(
 
                         val likesStr = if (live != null && live.likeCount > 0) {
                             MetricFormatter.formatCount(live.likeCount)
-                        } else if (allStreams.isNotEmpty()) {
-                            MetricFormatter.formatCount(allStreams.filter { it.id != "demo-stream-001" }.sumOf { it.likeCount })
+                        } else if (realAllStreams.isNotEmpty()) {
+                            MetricFormatter.formatCount(realAllStreams.sumOf { it.likeCount })
                         } else {
                             "0"
                         }

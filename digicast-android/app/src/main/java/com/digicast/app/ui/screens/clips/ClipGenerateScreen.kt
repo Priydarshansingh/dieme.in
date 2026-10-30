@@ -542,9 +542,9 @@ class ClipGenerateViewModel @Inject constructor(
             return
         }
 
-        val prefs = context.getSharedPreferences("digicast_prefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("digicast_auth_prefs", Context.MODE_PRIVATE)
         val savedWid = prefs.getString("auth_workspace_id", "") ?: ""
-        val targetWsId = workspaceId.ifBlank { savedWid }
+        val targetWsId = workspaceId.ifBlank { savedWid }.ifBlank { "mdv4xDAiBdQAiyd04fymN3Y5yq52" }
 
         viewModelScope.launch {
             _isUploadingTelegram.value = true
@@ -1506,31 +1506,7 @@ fun YouTubeStreamPreview(
     val timingParam = if (endSeconds != null && endSeconds > startSeconds) "&start=$startSeconds&end=$endSeconds" else if (startSeconds > 0) "&start=$startSeconds" else ""
     val targetTag = "$cleanVideoId-$startSeconds-$endSeconds"
 
-    fun buildHtml(): String {
-        return """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-                <style>
-                    * { margin:0; padding:0; box-sizing:border-box; }
-                    html, body { width:100%; height:100%; background-color:#000000; overflow:hidden; }
-                    .video-wrapper { position:relative; width:100%; height:100%; }
-                    iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:none; }
-                </style>
-            </head>
-            <body>
-                <div class="video-wrapper">
-                    <iframe 
-                        src="https://www.youtube.com/embed/$cleanVideoId?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1&enablejsapi=1$timingParam"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowfullscreen>
-                    </iframe>
-                </div>
-            </body>
-            </html>
-        """.trimIndent()
-    }
+    val targetUrl = "https://digicast-web.vercel.app/embed?videoId=$cleanVideoId$timingParam"
 
     AndroidView(
         factory = { ctx ->
@@ -1549,13 +1525,13 @@ fun YouTubeStreamPreview(
                     userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
                 }
                 tag = targetTag
-                loadDataWithBaseURL("https://www.youtube.com", buildHtml(), "text/html", "UTF-8", null)
+                loadUrl(targetUrl)
             }
         },
         update = { webView ->
             if (webView.tag != targetTag) {
                 webView.tag = targetTag
-                webView.loadDataWithBaseURL("https://www.youtube.com", buildHtml(), "text/html", "UTF-8", null)
+                webView.loadUrl(targetUrl)
             }
         },
         modifier = modifier

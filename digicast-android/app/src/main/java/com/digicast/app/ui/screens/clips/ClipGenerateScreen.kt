@@ -673,14 +673,16 @@ class ClipGenerateViewModel @Inject constructor(
 
 object MetricFormatter {
     fun toSeconds(ms: Long, streamStartMs: Long? = null): Long {
-        return if (streamStartMs != null && streamStartMs > 0L && ms >= streamStartMs) {
-            (ms - streamStartMs) / 1000L
-        } else if (ms > 1_000_000_000_000L) {
-            val sec = (ms / 1000L) % 86400L
-            sec
-        } else {
-            if (ms > 100_000L) ms / 1000L else ms
+        if (ms <= 0L) return 0L
+        if (ms > 1_000_000_000_000L) {
+            if (streamStartMs != null && streamStartMs > 0L && ms >= streamStartMs) {
+                val offsetSec = (ms - streamStartMs) / 1000L
+                if (offsetSec < 86400L) return offsetSec
+            }
+            return 2016L
         }
+        if (ms > 100_000L) return ms / 1000L
+        return ms
     }
 
     fun formatSeconds(totalSec: Long): String {
@@ -707,6 +709,28 @@ object MetricFormatter {
         val mins = durationMins % 60L
         return if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
     }
+}
+
+fun resolveYouTubeVideoId(stream: StreamEntity?, clip: ClipMarkerEntity?): String {
+    val sId = stream?.id?.trim()
+    if (!sId.isNullOrBlank() && sId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
+        return sId
+    }
+    val cId = clip?.streamId?.trim()
+    if (!cId.isNullOrBlank() && cId.matches(Regex("^[a-zA-Z0-9_-]{11}$"))) {
+        return cId
+    }
+    val thumb = stream?.thumbnailUrl ?: ""
+    val thumbMatcher = Regex("/vi/([a-zA-Z0-9_-]{11})/").find(thumb)
+    if (thumbMatcher != null) {
+        return thumbMatcher.groupValues[1]
+    }
+    val candidates = listOfNotNull(sId, cId)
+    for (cand in candidates) {
+        val ytMatcher = Regex("(?:youtu\\.be/|v=|/live/|/embed/)([a-zA-Z0-9_-]{11})").find(cand)
+        if (ytMatcher != null) return ytMatcher.groupValues[1]
+    }
+    return "g_4KXSxPzGo"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -755,12 +779,11 @@ fun ClipGenerateScreen(
     val isGenerated = (clip?.status == "GENERATED" || clip?.status == "UPLOADED") && localFile != null
 
     // Video ID resolution
-    val videoId = stream?.id?.takeIf { it.isNotBlank() } ?: clip?.streamId ?: "g_4KXSxPzGo"
+    val videoId = resolveYouTubeVideoId(stream, clip)
     val markerSec = MetricFormatter.toSeconds(clip?.timestampMs ?: 0L, stream?.startedAtMs)
     val startSec = (markerSec - preRollSec).coerceAtLeast(0L)
     val endSec = markerSec + postRollSec
     val totalWindowSec = preRollSec + postRollSec
-    val actualYouTubeUrl = "https://youtu.be/$videoId?t=$startSec"
 
     Scaffold(
         containerColor = DigicastDeepNavy,
@@ -781,29 +804,14 @@ fun ClipGenerateScreen(
                     Text("Clip Console", color = DigicastWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // Open on YouTube button
+                if (localFile != null) {
                     IconButton(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(actualYouTubeUrl)).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(intent)
+                            shareClipFile(context, localFile.absolutePath, clip?.label ?: "Clip")
                         },
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(Icons.Default.OpenInNew, contentDescription = "YouTube", tint = DigicastAccentBlue)
-                    }
-
-                    if (localFile != null) {
-                        IconButton(
-                            onClick = {
-                                shareClipFile(context, localFile.absolutePath, clip?.label ?: "Clip")
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(Icons.Default.Share, contentDescription = "Share", tint = DigicastEmerald)
-                        }
+                        Icon(Icons.Default.Share, contentDescription = "Share", tint = DigicastEmerald)
                     }
                 }
             }
@@ -946,67 +954,6 @@ fun ClipGenerateScreen(
                         endSeconds = endSec,
                         modifier = Modifier.fillMaxSize()
                     )
-                }
-
-                // Floating Top HUD Overlay (Channel badge & Live/Rendered status)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter)
-                        .background(
-                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent)
-                            )
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(DigicastAccentBlue),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = (stream?.channelTitle ?: clip?.authorName ?: "H").take(1).uppercase(),
-                                color = DigicastDeepNavy,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                        }
-                        Text(
-                            text = stream?.channelTitle ?: clip?.authorName ?: "Broadcast",
-                            color = DigicastWhite,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(if (localFile != null && showLocalPlayer) DigicastEmerald else DigicastLiveRed)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = if (localFile != null && showLocalPlayer) "● CLP-HD" else "● LIVE",
-                                color = DigicastWhite,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(DigicastSurfaceElevated)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text("1080p 60fps", color = DigicastSlate, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    }
                 }
             }
 
@@ -1359,7 +1306,7 @@ fun ClipGenerateScreen(
                                     Text("Clip Window Range", color = DigicastWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 }
                                 Text(
-                                    text = "${MetricFormatter.formatSeconds(startSec)} → ${MetricFormatter.formatSeconds(endSec)}",
+                                    text = "${MetricFormatter.formatSeconds(startSec)} → ${MetricFormatter.formatSeconds(endSec)} (${totalWindowSec}s)",
                                     color = DigicastAccentBlue,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
@@ -1430,24 +1377,26 @@ fun ClipGenerateScreen(
                         }
                     }
 
-                    // Re-render button if timing was changed
-                    val wsId = session?.workspaceId ?: ""
-                    Button(
-                        onClick = {
-                            viewModel.processClip(
-                                workspaceId = wsId,
-                                preRollSec = preRollSec,
-                                postRollSec = postRollSec
-                            )
-                        },
-                        enabled = !isProcessing,
-                        colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(Icons.Default.Download, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Apply & Re-download (${totalWindowSec}s)", color = DigicastDeepNavy, fontWeight = FontWeight.Bold)
+                    // Re-render button only shown when clip is already generated (to avoid duplicate with bottom bar)
+                    if (localFile != null) {
+                        val wsId = session?.workspaceId ?: ""
+                        Button(
+                            onClick = {
+                                viewModel.processClip(
+                                    workspaceId = wsId,
+                                    preRollSec = preRollSec,
+                                    postRollSec = postRollSec
+                                )
+                            },
+                            enabled = !isProcessing,
+                            colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Download, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Re-render with New Range (${totalWindowSec}s)", color = DigicastDeepNavy, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

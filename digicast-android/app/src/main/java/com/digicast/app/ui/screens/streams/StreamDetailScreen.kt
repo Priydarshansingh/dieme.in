@@ -69,6 +69,7 @@ import com.digicast.app.data.repository.StreamRepository
 import com.digicast.app.service.LiveChatCaptureService
 import com.digicast.app.ui.screens.clips.ClipVideoPlayer
 import com.digicast.app.ui.screens.clips.YouTubeStreamPreview
+import com.digicast.app.ui.screens.clips.resolveYouTubeVideoId
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastCardSurface
@@ -201,7 +202,7 @@ fun StreamDetailScreen(
     val authState by viewModel.authRepository.authState.collectAsState()
     val session = (authState as? AuthState.SignedIn)?.session
 
-    val videoId = stream?.id?.takeIf { it.isNotBlank() } ?: "g_4KXSxPzGo"
+    val videoId = resolveYouTubeVideoId(stream, null)
 
     Scaffold(
         containerColor = DigicastDeepNavy,
@@ -238,23 +239,6 @@ fun StreamDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Open on YouTube App Button
-                    IconButton(
-                        onClick = {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://youtu.be/$videoId")).apply {
-                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(intent)
-                        },
-                        modifier = Modifier.size(34.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.PlayArrow,
-                            contentDescription = "YouTube",
-                            tint = DigicastLiveRed
-                        )
-                    }
-
                     // LIVE badge
                     if (stream?.status == "live") {
                         Row(
@@ -342,62 +326,6 @@ fun StreamDetailScreen(
                     endSeconds = null,
                     modifier = Modifier.fillMaxSize()
                 )
-
-                // Top Video HUD Overlay
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter)
-                        .background(
-                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent)
-                            )
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(DigicastAccentBlue),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = (stream?.channelTitle ?: "H").take(1).uppercase(),
-                                color = DigicastDeepNavy,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                        }
-                        Text(
-                            text = stream?.channelTitle ?: "HellxShakti",
-                            color = DigicastWhite,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(DigicastLiveRed)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text("● LIVE STREAM", color = DigicastWhite, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(DigicastSurfaceElevated)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text("1080p 60fps", color = DigicastSlate, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
             }
 
             // ── 2. Streamer Info & Quick "Clip This Moment" Action Bar ────────
@@ -449,13 +377,20 @@ fun StreamDetailScreen(
                     onClick = {
                         val currentStream = stream
                         val newId = "CLP-${System.currentTimeMillis().toString().takeLast(6).uppercase()}"
+                        val streamStart = currentStream?.startedAtMs ?: 0L
+                        val now = System.currentTimeMillis()
+                        val offsetMs = if (streamStart in 1L..now && (now - streamStart) < 86_400_000L) {
+                            now - streamStart
+                        } else {
+                            2016000L // default marker offset (33:36)
+                        }
                         val newMarker = ClipMarkerEntity(
                             id = newId,
                             streamId = videoId,
                             authorName = session?.displayName ?: currentStream?.channelTitle ?: "HellxShakti",
                             authorId = session?.uid ?: "creator",
                             triggerMessageId = "app_clip_${System.currentTimeMillis()}",
-                            timestampMs = 2016000L, // 33:36 marker offset
+                            timestampMs = offsetMs,
                             label = "Clip Marker $newId",
                             status = "PENDING",
                             localFilePath = null,

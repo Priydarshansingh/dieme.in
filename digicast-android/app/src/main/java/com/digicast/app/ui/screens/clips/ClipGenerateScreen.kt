@@ -316,13 +316,9 @@ class ClipGenerateViewModel @Inject constructor(
                     }
                 }
 
-                // Determine clip target offset in stream seconds (e.g. 33:50 -> 2030s)
+                // Determine clip target offset in stream seconds
                 val streamStart = s?.startedAtMs ?: 0L
-                val clipOffsetSec = when {
-                    c.timestampMs in 1L..100_000_000L -> c.timestampMs / 1000L
-                    c.timestampMs > 1_000_000_000_000L && streamStart > 0L -> (c.timestampMs - streamStart) / 1000L
-                    else -> 2016L // Actual clip moment (!clip by HellxShakti at 33:36)
-                }
+                val clipOffsetSec = MetricFormatter.toSeconds(c.timestampMs, streamStart)
 
                 // Window +/- 4 minutes around the clip moment
                 val minSec = (clipOffsetSec - 240).coerceAtLeast(0L)
@@ -1437,6 +1433,19 @@ fun ClipVideoPlayer(
     )
 }
 
+class AndroidBridge(
+    private val onTimeUpdateCallback: (Float, Float) -> Unit
+) {
+    @android.webkit.JavascriptInterface
+    fun onTimeUpdate(currentTimeSec: Float, durationSec: Float) {
+        onTimeUpdateCallback(currentTimeSec, durationSec)
+    }
+
+    @android.webkit.JavascriptInterface
+    fun onStateChange(state: Int) {
+    }
+}
+
 /**
  * Embedded YouTube player preview at exact livestream offset.
  */
@@ -1445,6 +1454,8 @@ fun YouTubeStreamPreview(
     videoId: String,
     startSeconds: Long = 0L,
     endSeconds: Long? = null,
+    onTimeUpdate: ((currentTimeSec: Float, durationSec: Float) -> Unit)? = null,
+    onPlayerReady: ((seekTo: (Long) -> Unit) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val cleanVideoId = videoId.trim().ifBlank { "g_4KXSxPzGo" }
@@ -1453,13 +1464,47 @@ fun YouTubeStreamPreview(
 
     val targetUrl = "https://digicast-web.vercel.app/embed?videoId=$cleanVideoId$timingParam"
 
+    val mainHandler = remember { android.os.Handler(android.os.Looper.getMainLooper()) }
+    val bridge = remember {
+        AndroidBridge { cur, dur ->
+            mainHandler.post {
+                onTimeUpdate?.invoke(cur, dur)
+            }
+        }
+    }
+
     AndroidView(
         factory = { ctx ->
             WebView(ctx).apply {
                 setBackgroundColor(android.graphics.Color.BLACK)
                 setLayerType(View.LAYER_TYPE_HARDWARE, null)
                 webChromeClient = WebChromeClient()
-                webViewClient = WebViewClient()
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        super.onPageFinished(view, url)
+                        view?.evaluateJavascript(
+                            """
+                            (function() {
+                                if (window.__yt_bridge_injected) return;
+                                window.__yt_bridge_injected = true;
+                                window.addEventListener('message', function(e) {
+                                    try {
+                                        var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+                                        if (data && data.event === 'infoDelivery' && data.info) {
+                                            var cur = data.info.currentTime;
+                                            var dur = data.info.duration;
+                                            if (typeof cur === 'number' && window.AndroidBridge) {
+                                                window.AndroidBridge.onTimeUpdate(cur, typeof dur === 'number' ? dur : 0);
+                                            }
+                                        }
+                                    } catch(err) {}
+                                });
+                            })();
+                            """.trimIndent(),
+                            null
+                        )
+                    }
+                }
                 settings.apply {
                     javaScriptEnabled = true
                     mediaPlaybackRequiresUserGesture = false
@@ -1469,8 +1514,27 @@ fun YouTubeStreamPreview(
                     useWideViewPort = true
                     userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
                 }
+                addJavascriptInterface(bridge, "AndroidBridge")
                 tag = targetTag
                 loadUrl(targetUrl)
+
+                onPlayerReady?.invoke { sec ->
+                    evaluateJavascript(
+                        """
+                        (function() {
+                            if (window.seekTo) {
+                                window.seekTo($sec);
+                            } else {
+                                var iframe = document.querySelector('iframe');
+                                if (iframe && iframe.contentWindow) {
+                                    iframe.contentWindow.postMessage(JSON.stringify({event: 'command', func: 'seekTo', args: [$sec, true]}), '*');
+                                }
+                            }
+                        })();
+                        """.trimIndent(),
+                        null
+                    )
+                }
             }
         },
         update = { webView ->

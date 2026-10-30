@@ -58,6 +58,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -217,6 +218,9 @@ fun StreamDetailScreen(
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Live Chat, 1 = Clips
     var showAddMomentDialog by remember { mutableStateOf(false) }
     var targetMomentSec by remember { mutableLongStateOf(0L) }
+    var currentPlaybackSec by remember { mutableFloatStateOf(0f) }
+    var playerDurationSec by remember { mutableFloatStateOf(0f) }
+    var seekController by remember { mutableStateOf<((Long) -> Unit)?>(null) }
 
     // Track live capture state reactively
     var isCapturing by remember { mutableStateOf(LiveChatCaptureService.isServiceRunning) }
@@ -229,20 +233,26 @@ fun StreamDetailScreen(
     val streamStart = currentStream?.startedAtMs ?: 0L
     val streamEnd = currentStream?.endedAtMs
     val now = System.currentTimeMillis()
-    val totalDurationSec = remember(streamStart, streamEnd) {
-        val durationMs = if (streamStart > 0L) {
-            ((streamEnd ?: now) - streamStart).coerceAtLeast(60_000L)
+    val totalDurationSec = remember(streamStart, streamEnd, playerDurationSec) {
+        if (playerDurationSec > 30f) {
+            playerDurationSec.toLong()
         } else {
-            3600_000L // 1 hour default
+            val durationMs = if (streamStart > 0L) {
+                ((streamEnd ?: now) - streamStart).coerceAtLeast(60_000L)
+            } else {
+                3600_000L // 1 hour default
+            }
+            (durationMs / 1000L).coerceAtLeast(300L)
         }
-        (durationMs / 1000L).coerceAtLeast(300L)
     }
 
     val liveOffsetSec = if (streamStart in 1L..now && (now - streamStart) < 86_400_000L) {
         (now - streamStart) / 1000L
     } else {
-        2016L // 33:36 marker offset
+        2016L // 33:36 marker offset fallback
     }
+
+    val activeOffsetSec = if (currentPlaybackSec > 0f) currentPlaybackSec.toLong() else liveOffsetSec
 
     Scaffold(
         containerColor = DigicastDeepNavy,
@@ -359,11 +369,18 @@ fun StreamDetailScreen(
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
-                // Actual livestream player without any 45s clip time restriction!
+                // Actual livestream player with real-time playback sync
                 YouTubeStreamPreview(
                     videoId = videoId,
                     startSeconds = 0L,
                     endSeconds = null,
+                    onTimeUpdate = { cur, dur ->
+                        if (cur > 0f) currentPlaybackSec = cur
+                        if (dur > 0f) playerDurationSec = dur
+                    },
+                    onPlayerReady = { seekAction ->
+                        seekController = seekAction
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -415,7 +432,7 @@ fun StreamDetailScreen(
                 // Add Moment Quick Trigger
                 Button(
                     onClick = {
-                        targetMomentSec = liveOffsetSec
+                        targetMomentSec = activeOffsetSec
                         showAddMomentDialog = true
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DigicastSunsetCoral),
@@ -475,10 +492,10 @@ fun StreamDetailScreen(
                     }
 
                     Text(
-                        "${MetricFormatter.formatSeconds(liveOffsetSec)} / ${MetricFormatter.formatSeconds(totalDurationSec)}",
-                        color = DigicastSlate,
+                        "${MetricFormatter.formatSeconds(activeOffsetSec)} / ${MetricFormatter.formatSeconds(totalDurationSec)}",
+                        color = DigicastAccentBlue,
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
@@ -491,7 +508,7 @@ fun StreamDetailScreen(
                         .background(DigicastSurface)
                         .border(1.dp, DigicastBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                         .clickable {
-                            targetMomentSec = liveOffsetSec
+                            targetMomentSec = activeOffsetSec
                             showAddMomentDialog = true
                         }
                         .padding(horizontal = 10.dp),
@@ -506,12 +523,12 @@ fun StreamDetailScreen(
                     )
 
                     // Elapsed Progress fill
-                    val progressFraction = (liveOffsetSec.toFloat() / totalDurationSec.toFloat()).coerceIn(0.04f, 1f)
+                    val progressFraction = (activeOffsetSec.toFloat() / totalDurationSec.toFloat()).coerceIn(0.01f, 1f)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(progressFraction)
                             .height(4.dp)
-                            .background(DigicastAccentBlue.copy(alpha = 0.45f), RoundedCornerShape(2.dp))
+                            .background(DigicastAccentBlue.copy(alpha = 0.65f), RoundedCornerShape(2.dp))
                     )
 
                     // Clip moment pins plotted along the track
@@ -532,7 +549,10 @@ fun StreamDetailScreen(
                                     .clip(CircleShape)
                                     .background(type.color)
                                     .border(1.5.dp, DigicastDeepNavy, CircleShape)
-                                    .clickable { onNavigateToClipGenerate(clip.id) },
+                                    .clickable {
+                                        seekController?.invoke(clipSec)
+                                        onNavigateToClipGenerate(clip.id)
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -562,7 +582,10 @@ fun StreamDetailScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 color = DigicastSurfaceElevated,
                                 border = BorderStroke(1.dp, type.color.copy(alpha = 0.6f)),
-                                modifier = Modifier.clickable { onNavigateToClipGenerate(clip.id) }
+                                modifier = Modifier.clickable {
+                                    seekController?.invoke(clipSec)
+                                    onNavigateToClipGenerate(clip.id)
+                                }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
@@ -868,13 +891,14 @@ fun StreamDetailScreen(
                 onConfirm = { type, sec, desc ->
                     showAddMomentDialog = false
                     val s = stream
+                    val targetStreamId = s?.id ?: videoId
                     val newId = "CLP-${System.currentTimeMillis().toString().takeLast(6).uppercase()}"
                     val cleanTitle = if (desc.isNotBlank()) desc.trim() else "Moment at ${MetricFormatter.formatSeconds(sec)}"
                     val formattedLabel = "[${type.title}] $cleanTitle"
 
                     val newMarker = ClipMarkerEntity(
                         id = newId,
-                        streamId = videoId,
+                        streamId = targetStreamId,
                         authorName = session?.displayName ?: s?.channelTitle ?: "Creator",
                         authorId = session?.uid ?: "creator",
                         triggerMessageId = "app_clip_${type.id}_${System.currentTimeMillis()}",
@@ -886,7 +910,7 @@ fun StreamDetailScreen(
                     )
 
                     viewModel.createClip(newMarker) {
-                        Toast.makeText(context, "Moment saved. Opening clip console...", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Moment saved at ${MetricFormatter.formatSeconds(sec)}. Opening console...", Toast.LENGTH_SHORT).show()
                         onNavigateToClipGenerate(newId)
                     }
                 }

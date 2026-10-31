@@ -7,3 +7,4 @@ KEY DESIGN MANDATES:
 4. METRIC BENTO CARDS: Redesign the mobile home dashboard cards into cohesive, dark-glass Bento cards with subtle luminous edge glows (Cyan for Views, Emerald for Chatters, Coral for Clips, Violet for Support) and crisp white typography (#F8FAFC).
 5. INTERACTIVE TIMELINE: The livestream console must feature an interactive 16:9 broadcast monitor and a real-time scrubber timeline with color-coded moment pins (Highlights, Clutch, Funny, Killstreak, Chat Spike) and instant "-10s", "+10s", and "Clip at [time]" controls.
 6. AESTHETIC REFERENCE: Follow the aesthetic of Linear, Kick, Raycast, and Twitch esports studio suites with 60fps tactile feel, glassmorphism blur (backdrop-filter: blur(16px)), and high-density telemetry.
+

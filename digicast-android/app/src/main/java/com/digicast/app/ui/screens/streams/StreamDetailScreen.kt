@@ -423,20 +423,21 @@ fun StreamDetailScreen(
                     }
                 }
 
-                // Add Moment Quick Trigger
+                // Add Moment Quick Trigger (Deep Teal Silk Pill)
                 Button(
                     onClick = {
                         targetMomentSec = activeOffsetSec
                         showAddMomentDialog = true
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = DigicastSunsetCoral),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                    shape = RoundedCornerShape(9999.dp),
+                    border = BorderStroke(1.dp, Color(0x44FFFFFF)),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     modifier = Modifier.height(36.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = DigicastWhite, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Add Moment", fontSize = 12.sp, color = DigicastWhite, fontWeight = FontWeight.Bold)
+                    Text("Add Moment", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -461,7 +462,7 @@ fun StreamDetailScreen(
                         Icon(
                             Icons.Default.Timeline,
                             contentDescription = null,
-                            tint = DigicastAccentBlue,
+                            tint = Color.White,
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
@@ -487,7 +488,7 @@ fun StreamDetailScreen(
 
                     Text(
                         "${MetricFormatter.formatSeconds(activeOffsetSec)} / ${MetricFormatter.formatSeconds(totalDurationSec)}",
-                        color = DigicastAccentBlue,
+                        color = Color.White,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -523,9 +524,9 @@ fun StreamDetailScreen(
                                 },
                                 valueRange = 0f..totalDurationSec.toFloat().coerceAtLeast(60f),
                                 colors = SliderDefaults.colors(
-                                    thumbColor = DigicastSunsetCoral,
-                                    activeTrackColor = DigicastAccentBlue,
-                                    inactiveTrackColor = DigicastBorder.copy(alpha = 0.6f)
+                                    thumbColor = Color.White,
+                                    activeTrackColor = Color(0xFF134E5E),
+                                    inactiveTrackColor = Color(0xFF0B3037)
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -542,10 +543,10 @@ fun StreamDetailScreen(
                                 Box(
                                     modifier = Modifier
                                         .offset(x = pinOffsetDp)
-                                        .size(20.dp)
+                                        .size(22.dp)
                                         .clip(CircleShape)
-                                        .background(type.color)
-                                        .border(2.dp, DigicastDeepNavy, CircleShape)
+                                        .background(Color(0xFF134E5E))
+                                        .border(1.5.dp, Color.White, CircleShape)
                                         .zIndex(2f)
                                         .clickable {
                                             currentPlaybackSec = clipSec.toFloat()
@@ -561,8 +562,8 @@ fun StreamDetailScreen(
                                     Icon(
                                         imageVector = type.icon,
                                         contentDescription = type.title,
-                                        tint = DigicastDeepNavy,
-                                        modifier = Modifier.size(11.dp)
+                                        tint = Color.White,
+                                        modifier = Modifier.size(12.dp)
                                     )
                                 }
                             }
@@ -574,65 +575,66 @@ fun StreamDetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // -10s Jump
+                            // -10s Jump Pill
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(DigicastSurfaceElevated)
-                                    .border(1.dp, DigicastBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(9999.dp))
+                                    .background(Color(0xFF0B3037))
+                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(9999.dp))
                                     .clickable {
                                         val newSec = (currentPlaybackSec.toLong() - 10L).coerceAtLeast(0L)
                                         currentPlaybackSec = newSec.toFloat()
                                         seekController?.invoke(newSec)
                                     }
-                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Default.FastRewind, contentDescription = "-10s", tint = DigicastWhite, modifier = Modifier.size(14.dp))
-                                    Text("-10s", color = DigicastWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Default.FastRewind, contentDescription = "-10s", tint = Color.White, modifier = Modifier.size(14.dp))
+                                    Text("-10s", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
 
-                            // +10s Jump
+                            // +10s Jump Pill
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(DigicastSurfaceElevated)
-                                    .border(1.dp, DigicastBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(9999.dp))
+                                    .background(Color(0xFF0B3037))
+                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(9999.dp))
                                     .clickable {
                                         val newSec = (currentPlaybackSec.toLong() + 10L).coerceAtMost(totalDurationSec)
                                         currentPlaybackSec = newSec.toFloat()
                                         seekController?.invoke(newSec)
                                     }
-                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Default.FastForward, contentDescription = "+10s", tint = DigicastWhite, modifier = Modifier.size(14.dp))
-                                    Text("+10s", color = DigicastWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Default.FastForward, contentDescription = "+10s", tint = Color.White, modifier = Modifier.size(14.dp))
+                                    Text("+10s", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
 
-                            // Primary Instant Moment Trigger
+                            // Primary Instant Moment Trigger (Deep Teal Silk)
                             Button(
                                 onClick = {
                                     targetMomentSec = activeOffsetSec
                                     showAddMomentDialog = true
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = DigicastSunsetCoral),
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                                shape = RoundedCornerShape(9999.dp),
+                                border = BorderStroke(1.dp, Color(0x44FFFFFF)),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(34.dp)
                             ) {
-                                Icon(Icons.Default.Bookmark, contentDescription = null, tint = DigicastWhite, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Default.Bookmark, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     "Clip at ${MetricFormatter.formatSeconds(activeOffsetSec)}",
                                     fontSize = 11.sp,
-                                    color = DigicastWhite,
+                                    color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -944,12 +946,13 @@ fun StreamDetailScreen(
 
                                 Button(
                                     onClick = { onNavigateToClipGenerate(clip.id) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                    modifier = Modifier.height(32.dp)
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                                    border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                    shape = RoundedCornerShape(9999.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(34.dp)
                                 ) {
-                                    Text("Open & Render", fontSize = 11.sp, color = DigicastDeepNavy, fontWeight = FontWeight.Bold)
+                                    Text("Open & Render", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }

@@ -754,17 +754,17 @@ fun ClipGenerateScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(DigicastNavy)
+                    .background(Color(0xFF0B3037))
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onNavigateBack, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = DigicastWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Clip Console", color = DigicastWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Clip Console", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
                 if (localFile != null) {
@@ -774,29 +774,29 @@ fun ClipGenerateScreen(
                         },
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = "Share", tint = DigicastEmerald)
+                        Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White)
                     }
                 }
             }
         },
         bottomBar = {
-            // ── Fixed Bottom Action Deck (Always within thumb reach) ─────────
+            // ── Fixed Bottom Action Deck (Deep Teal Silk) ─────────
             Surface(
-                color = DigicastNavy,
-                border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f)),
+                color = Color(0xFF0B3037),
+                border = BorderStroke(1.dp, Color(0x33FFFFFF)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (saveStatusMessage != null) {
-                        Text(saveStatusMessage!!, color = DigicastEmerald, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(saveStatusMessage!!, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
                     if (telegramStatusMessage != null) {
-                        Text(telegramStatusMessage!!, color = DigicastAccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(telegramStatusMessage!!, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
 
                     if (isProcessing) {
@@ -807,14 +807,14 @@ fun ClipGenerateScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(progressMessage, color = DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                Text("$progressPercent%", color = DigicastEmerald, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(progressMessage, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("$progressPercent%", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                             LinearProgressIndicator(
                                 progress = { progressPercent / 100f },
                                 modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                                color = DigicastEmerald,
-                                trackColor = DigicastBorder
+                                color = Color.White,
+                                trackColor = Color(0x33FFFFFF)
                             )
                         }
                     } else if (localFile != null) {
@@ -829,32 +829,34 @@ fun ClipGenerateScreen(
                                 onClick = {
                                     viewModel.saveClipToPublicDownloads(context, localFile.absolutePath)
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = DigicastEmerald),
-                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                                border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                shape = RoundedCornerShape(9999.dp),
                                 modifier = Modifier.weight(1.3f).height(46.dp)
                             ) {
-                                Icon(Icons.Default.Download, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Save MP4", color = DigicastDeepNavy, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("Save MP4", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
 
-                            // 2. Direct Telegram App Dispatch (Opens Telegram with video attached!)
+                            // 2. Direct Telegram App Dispatch
                             Button(
                                 onClick = {
                                     viewModel.uploadToTelegram(context, localFile.absolutePath, session?.workspaceId ?: "")
                                 },
                                 enabled = !isUploadingTelegram,
-                                colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
-                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                                border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                shape = RoundedCornerShape(9999.dp),
                                 modifier = Modifier.weight(1.2f).height(46.dp)
                             ) {
                                 if (isUploadingTelegram) {
-                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = DigicastDeepNavy, strokeWidth = 2.dp)
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
                                 } else {
-                                    Icon(Icons.Default.Send, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 }
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Telegram", color = DigicastDeepNavy, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("Telegram", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
 
                             // 3. Share MP4 Intent
@@ -862,14 +864,14 @@ fun ClipGenerateScreen(
                                 onClick = { shareClipFile(context, localFile.absolutePath, clip?.label ?: "Clip") },
                                 modifier = Modifier
                                     .size(46.dp)
-                                    .background(DigicastSurfaceElevated, RoundedCornerShape(10.dp))
-                                    .border(1.dp, DigicastBorder.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF0B3037), CircleShape)
+                                    .border(1.dp, Color(0x33FFFFFF), CircleShape)
                             ) {
-                                Icon(Icons.Default.Share, contentDescription = "Share", tint = DigicastWhite, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(18.dp))
                             }
                         }
                     } else {
-                        // Primary Download & Process Action Button
+                        // Primary Download & Process Action Button (Deep Teal Silk Pill)
                         val wsId = session?.workspaceId ?: ""
                         Button(
                             onClick = {
@@ -879,13 +881,14 @@ fun ClipGenerateScreen(
                                     postRollSec = postRollSec
                                 )
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                            border = BorderStroke(1.dp, Color(0x66FFFFFF)),
                             modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(9999.dp)
                         ) {
-                            Icon(Icons.Default.Download, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Download & Render Clip (${totalWindowSec}s)", color = DigicastDeepNavy, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Download & Render Clip (${totalWindowSec}s)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
                 }
@@ -991,35 +994,36 @@ fun ClipGenerateScreen(
                 }
             }
 
-            // ── 3. Segmented Navigation Bar (Row 3 Reference UI) ──────────────
+            // ── 3. Segmented Navigation Bar (Deep Teal Silk Pills) ──────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(DigicastNavy)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .background(Color(0xFF06181C))
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Tab 1: Live Chat Replay
                 val isChat = selectedTab == 0
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isChat) DigicastSurfaceElevated else Color.Transparent)
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(if (isChat) Color(0xFF134E5E) else Color(0xFF0B3037))
+                        .border(1.dp, if (isChat) Color(0x66FFFFFF) else Color(0x22FFFFFF), RoundedCornerShape(9999.dp))
                         .clickable { selectedTab = 0 }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(
                             Icons.Default.Send,
                             contentDescription = null,
-                            tint = if (isChat) DigicastAccentBlue else DigicastSlate,
+                            tint = Color.White,
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
                             text = "Live Chat (${contextMessages.size})",
-                            color = if (isChat) DigicastWhite else DigicastSlate,
+                            color = Color.White,
                             fontSize = 12.sp,
                             fontWeight = if (isChat) FontWeight.Bold else FontWeight.Medium
                         )
@@ -1031,22 +1035,23 @@ fun ClipGenerateScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isTrim) DigicastSurfaceElevated else Color.Transparent)
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(if (isTrim) Color(0xFF134E5E) else Color(0xFF0B3037))
+                        .border(1.dp, if (isTrim) Color(0x66FFFFFF) else Color(0x22FFFFFF), RoundedCornerShape(9999.dp))
                         .clickable { selectedTab = 1 }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(
                             Icons.Default.Timer,
                             contentDescription = null,
-                            tint = if (isTrim) DigicastEmerald else DigicastSlate,
+                            tint = Color.White,
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
                             text = "Trim & Timing (${totalWindowSec}s)",
-                            color = if (isTrim) DigicastWhite else DigicastSlate,
+                            color = Color.White,
                             fontSize = 12.sp,
                             fontWeight = if (isTrim) FontWeight.Bold else FontWeight.Medium
                         )
@@ -1280,8 +1285,9 @@ fun ClipGenerateScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = DigicastSurface),
-                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B3037)),
+                        border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -1294,54 +1300,74 @@ fun ClipGenerateScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Icon(Icons.Default.Timer, contentDescription = null, tint = DigicastAccentBlue, modifier = Modifier.size(16.dp))
-                                    Text("Clip Window Range", color = DigicastWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Default.Timer, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Text("Clip Window Range", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 }
                                 Text(
                                     text = "${MetricFormatter.formatSeconds(startSec)} → ${MetricFormatter.formatSeconds(endSec)} (${totalWindowSec}s)",
-                                    color = DigicastAccentBlue,
+                                    color = Color.White,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
 
                             // Pre-Roll (Start Offset)
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("Pre-Roll (Seconds Before Trigger)", color = DigicastSlate, fontSize = 12.sp)
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Pre-Roll (Seconds Before Trigger)", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     listOf(15, 30, 45, 60).forEach { sec ->
                                         val isSelected = preRollSec == sec
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(if (isSelected) DigicastAccentBlue else DigicastNavy)
+                                                .clip(RoundedCornerShape(9999.dp))
+                                                .background(if (isSelected) Color(0xFF134E5E) else Color(0xFF06181C))
+                                                .border(
+                                                    if (isSelected) 1.5.dp else 1.dp,
+                                                    if (isSelected) Color.White else Color(0x33FFFFFF),
+                                                    RoundedCornerShape(9999.dp)
+                                                )
                                                 .clickable { preRollSec = sec }
                                                 .padding(vertical = 10.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("-${sec}s", color = if (isSelected) DigicastDeepNavy else DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text(
+                                                "-${sec}s",
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
+                                            )
                                         }
                                     }
                                 }
                             }
 
                             // Post-Roll (End Offset)
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("Post-Roll (Seconds After Trigger)", color = DigicastSlate, fontSize = 12.sp)
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Post-Roll (Seconds After Trigger)", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     listOf(10, 15, 30, 45).forEach { sec ->
                                         val isSelected = postRollSec == sec
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(if (isSelected) DigicastAccentBlue else DigicastNavy)
+                                                .clip(RoundedCornerShape(9999.dp))
+                                                .background(if (isSelected) Color(0xFF134E5E) else Color(0xFF06181C))
+                                                .border(
+                                                    if (isSelected) 1.5.dp else 1.dp,
+                                                    if (isSelected) Color.White else Color(0x33FFFFFF),
+                                                    RoundedCornerShape(9999.dp)
+                                                )
                                                 .clickable { postRollSec = sec }
                                                 .padding(vertical = 10.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("+${sec}s", color = if (isSelected) DigicastDeepNavy else DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text(
+                                                "+${sec}s",
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
+                                            )
                                         }
                                     }
                                 }
@@ -1353,8 +1379,8 @@ fun ClipGenerateScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Destination Folder", color = DigicastSlate, fontSize = 12.sp)
-                                Text("Downloads/Digicast/", color = DigicastEmerald, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Destination Folder", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                                Text("Downloads/Digicast/", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
 
                             // Format
@@ -1363,8 +1389,8 @@ fun ClipGenerateScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Format Quality", color = DigicastSlate, fontSize = 12.sp)
-                                Text("MP4 Lossless 1080p 60fps", color = DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Format Quality", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                                Text("MP4 Lossless 1080p 60fps", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -1381,13 +1407,14 @@ fun ClipGenerateScreen(
                                 )
                             },
                             enabled = !isProcessing,
-                            colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                            border = BorderStroke(1.dp, Color(0x66FFFFFF)),
                             modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(9999.dp)
                         ) {
-                            Icon(Icons.Default.Download, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Re-render with New Range (${totalWindowSec}s)", color = DigicastDeepNavy, fontWeight = FontWeight.Bold)
+                            Text("Re-render with New Range (${totalWindowSec}s)", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

@@ -306,16 +306,20 @@ fun HomeScreen(
                 }
             }
 
-            // ── 2. Modern Search Pill (From Reference Image 1) ─────────────────
+            // ── 2. Modern Search Pill (Deep Teal Silk) ───────────────────────
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(DigicastSearchBackground)
-                        .border(1.dp, DigicastBorder, RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFF0B3037), Color(0xFF134E5E))
+                            )
+                        )
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(9999.dp))
                         .clickable { /* Search action */ }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -326,12 +330,12 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = DigicastSlate,
+                            tint = Color.White,
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
                             text = "Search streams, clips, markers...",
-                            color = DigicastSlate.copy(alpha = 0.8f),
+                            color = Color.White.copy(alpha = 0.75f),
                             fontSize = 13.sp
                         )
                     }
@@ -432,19 +436,29 @@ fun HomeScreen(
                         val isSelected = selectedCategory == cat
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(if (isSelected) DigicastMintGlow else DigicastChipBackground)
+                                .clip(RoundedCornerShape(9999.dp))
+                                .background(
+                                    if (isSelected) {
+                                        Brush.horizontalGradient(
+                                            listOf(Color(0xFF0B3037), Color(0xFF134E5E))
+                                        )
+                                    } else {
+                                        Brush.horizontalGradient(
+                                            listOf(Color(0xFF06181C), Color(0xFF0B3037))
+                                        )
+                                    }
+                                )
                                 .border(
                                     1.dp,
-                                    if (isSelected) DigicastMintGlow else DigicastBorder,
-                                    RoundedCornerShape(20.dp)
+                                    if (isSelected) Color(0x66FFFFFF) else Color(0x22FFFFFF),
+                                    RoundedCornerShape(9999.dp)
                                 )
                                 .clickable { selectedCategory = cat }
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = cat,
-                                color = if (isSelected) DigicastDarkText else DigicastWhite,
+                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.75f),
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )

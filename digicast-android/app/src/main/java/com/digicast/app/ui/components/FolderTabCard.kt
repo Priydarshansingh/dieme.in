@@ -105,16 +105,15 @@ fun FolderTabCard(
                 scaleY = scale
             }
             .clip(FolderTabShape)
-            .background(DigicastSurface)
             .background(
-                Brush.verticalGradient(
+                Brush.horizontalGradient(
                     listOf(
-                        backgroundColor.copy(alpha = 0.16f),
-                        Color.Transparent
+                        Color(0xFF0B3037),
+                        Color(0xFF134E5E)
                     )
                 )
             )
-            .border(1.dp, backgroundColor.copy(alpha = 0.35f), FolderTabShape)
+            .border(1.dp, Color(0x33FFFFFF), FolderTabShape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -126,18 +125,19 @@ fun FolderTabCard(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Tab Icon Badge
+            // Top Tab Icon Badge in White Silk Style
             Box(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(backgroundColor.copy(alpha = 0.2f)),
+                    .background(Color.White.copy(alpha = 0.15f))
+                    .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
-                    tint = backgroundColor,
+                    tint = Color.White,
                     modifier = Modifier.size(15.dp)
                 )
             }
@@ -147,7 +147,7 @@ fun FolderTabCard(
             // Main Stat Value
             Text(
                 text = value,
-                color = DigicastWhite,
+                color = Color.White,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = (-0.5).sp
@@ -156,7 +156,7 @@ fun FolderTabCard(
             // Label
             Text(
                 text = label,
-                color = DigicastSlate,
+                color = Color.White.copy(alpha = 0.9f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.1.sp
@@ -165,7 +165,7 @@ fun FolderTabCard(
             if (!sublabel.isNullOrEmpty()) {
                 Text(
                     text = sublabel,
-                    color = backgroundColor.copy(alpha = 0.9f),
+                    color = Color.White.copy(alpha = 0.7f),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium
                 )

@@ -1,36 +1,127 @@
 package com.digicast.app.ui.theme
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
-// ── Obsidian & Stealth Canvas System (Unified with Web & Stitch DESIGN.md) ──
-val DigicastDeepNavy = Color(0xFF07080C)       // Pure Deep Obsidian Canvas
-val DigicastNavy = Color(0xFF0D111A)           // Navigation Deck & Sub-surface midnight
-val DigicastSurface = Color(0xFF111622)        // Bento Container & Card Surface
-val DigicastSurfaceElevated = Color(0xFF161D2E)// Elevated Surface & Active Chips
-val DigicastSurfaceFloating = Color(0xFF1C2333)// Dialog & Floating Surface
-val DigicastBorder = Color(0xFF1E2638)         // Specular Hairline Border
-val DigicastCardSurface = Color(0xFF111622)    // Base Card Surface
+/*
+ * DIGICAST DESIGN SYSTEM — DEEP TEAL SILK PALETTE
+ * Based on authentic Deep Teal Silk reference:
+ *   #0B3037 (Dark Teal Silk base, shadow & deck)
+ *   #134E5E (Deep Teal Silk surface, highlight & glow)
+ *   #06181C (Midnight Deep Teal root canvas)
+ * Paired with crisp pure White (#FFFFFF) typography & vector iconography.
+ */
 
-// ── Typography & Content Colors ───────────────────────────────────────────
-val DigicastWhite = Color(0xFFF8FAFC)          // High-emphasis White
-val DigicastOffWhite = Color(0xFFF1F5F9)
-val DigicastGrayLight = Color(0xFFE2E8F0)
-val DigicastSlate = Color(0xFF94A3B8)          // Medium-emphasis Slate
-val DigicastMuted = Color(0xFF64748B)          // Muted Content
+// ═══════════════════════════════════════════════════════════════
+// DEEP TEAL SILK CANVASES & SURFACES
+// ═══════════════════════════════════════════════════════════════
 
-// ── Unified Brand Accents ─────────────────────────────────────────────────
-val DigicastAccentBlue = Color(0xFF00F0FF)     // Electric Cyan (Primary CTA)
-val DigicastSunsetCoral = Color(0xFFFF5C5C)    // Live Alert & Moment Trigger
-val DigicastNeonLime = Color(0xFF53FC18)       // Kick Neon / Chat Surge
-val DigicastEmerald = Color(0xFF10B981)        // Highlight Green
-val DigicastLiveRed = Color(0xFFF43F5E)        // Broadcast Live Dot
-val DigicastAmber = Color(0xFFFBBF24)          // Monetization Amber
-val DigicastElectricCyan = Color(0xFF00F0FF)   // Cyan Accent
-val DigicastElectricViolet = Color(0xFFA855F7) // AI Intelligence
-val DigicastSpringGreen = Color(0xFF10B981)
-val DigicastMintGlow = Color(0xFF81F7D8)
-val DigicastDarkText = Color(0xFF07080C)
-val DigicastChipBackground = Color(0xFF161D2E)
-val DigicastSearchBackground = Color(0xFF0D111A)
+val TealSilkDark = Color(0xFF0B3037)         // #0B3037 Base & Shadow
+val TealSilkSurface = Color(0xFF134E5E)      // #134E5E Surface & Highlight
+val TealSilkCanvas = Color(0xFF06181C)       // Root Velvet Teal Canvas
+val TealSilkDeck = Color(0xFF0B3037)         // Top & Bottom Navigation Decks
+val TealSilkCard = Color(0xFF0D373F)         // Card & Container Base
+val TealSilkElevated = Color(0xFF134E5E)     // Elevated Surfaces, Active Pills
+val TealSilkFloating = Color(0xFF165464)     // Floating Dialogs & Menus
 
+val CanvasDeep = TealSilkCanvas
+val CanvasDeck = TealSilkDeck
+val SurfaceCard = TealSilkCard
+val SurfaceElevated = TealSilkElevated
+val SurfaceFloating = TealSilkFloating
 
+// Standard aliases used throughout screens
+val DigicastDeepNavy = TealSilkCanvas
+val DigicastNavy = TealSilkDeck
+val DigicastSurface = TealSilkCard
+val DigicastSurfaceElevated = TealSilkElevated
+val DigicastSurfaceFloating = TealSilkFloating
+val DigicastCardSurface = TealSilkCard
+val DigicastSearchBackground = Color(0xFF08262C)
+val DigicastChipBackground = Color(0xFF0B3037)
+
+// ═══════════════════════════════════════════════════════════════
+// SPECULAR GLASS BORDERS
+// ═══════════════════════════════════════════════════════════════
+
+val BorderHairline = Color(0x33FFFFFF)       // 1px Translucent White Glass Border
+val BorderSpecular = Color(0xFF1C5360)       // Specular Teal Border
+val BorderActive = Color(0x80FFFFFF)         // Active Highlight Border
+val DigicastBorder = Color(0x33FFFFFF)       // Glass Hairline Border
+
+// ═══════════════════════════════════════════════════════════════
+// TYPOGRAPHY & ICONS (Pure White & Teal-Tinted Slate)
+// ═══════════════════════════════════════════════════════════════
+
+val TextPrimary = Color(0xFFFFFFFF)          // Pure White
+val TextSecondary = Color(0xFFA5C4CA)        // Soft Teal Slate
+val TextMuted = Color(0xFF6B929A)            // Muted Subtitle
+
+val DigicastWhite = Color(0xFFFFFFFF)        // Pure White
+val DigicastOffWhite = Color(0xFFEAF5F7)
+val DigicastGrayLight = Color(0xFFD2E7EB)
+val DigicastSlate = Color(0xFFA5C4CA)
+val DigicastMuted = Color(0xFF6B929A)
+val DigicastDarkText = Color(0xFF06181C)
+
+// ═══════════════════════════════════════════════════════════════
+// DEEP TEAL SILK BRAND ACCENTS & BRUSHES
+// ═══════════════════════════════════════════════════════════════
+
+val BrandTealSilk = Color(0xFF134E5E)
+val BrandTealDark = Color(0xFF0B3037)
+val BrandTealGlow = Color(0xFF2DD4BF)        // Radiant Mint-Teal
+val BrandWhite = Color(0xFFFFFFFF)
+
+val DigicastAccentBlue = Color(0xFF134E5E)   // Deep Teal Silk Surface
+val DigicastSunsetCoral = Color(0xFF134E5E)  // Deep Teal Action
+val DigicastNeonLime = Color(0xFF2DD4BF)
+val DigicastEmerald = Color(0xFF2DD4BF)
+val DigicastElectricCyan = Color(0xFF134E5E)
+val DigicastElectricViolet = Color(0xFF1A5868)
+val DigicastSpringGreen = Color(0xFF2DD4BF)
+val DigicastMintGlow = Color(0xFF134E5E)
+val DigicastLiveRed = Color(0xFFE05260)       // Subtle Broadcast Red
+val DigicastAmber = Color(0xFFFBBF24)
+
+val BrandCyan = Color(0xFF134E5E)
+val BrandCoral = Color(0xFF134E5E)
+val BrandLime = Color(0xFF2DD4BF)
+val BrandEmerald = Color(0xFF2DD4BF)
+val BrandViolet = Color(0xFF1A5868)
+val BrandAmber = Color(0xFFFBBF24)
+val LiveRed = Color(0xFFE05260)
+
+// Reusable Deep Teal Silk Gradients
+val TealSilkBrush = Brush.horizontalGradient(
+    listOf(Color(0xFF0B3037), Color(0xFF134E5E))
+)
+val TealSilkVerticalBrush = Brush.verticalGradient(
+    listOf(Color(0xFF134E5E), Color(0xFF0B3037))
+)
+val TealSilkCardBrush = Brush.linearGradient(
+    listOf(Color(0xFF0B3037), Color(0xFF134E5E))
+)
+
+// ═══════════════════════════════════════════════════════════════
+// CLIP TYPES (Deep Teal Silk Harmonized)
+// ═══════════════════════════════════════════════════════════════
+
+val ClipHighlight = Color(0xFF2DD4BF)        // Mint-Teal
+val ClipClutch = Color(0xFF166072)           // Silky Teal
+val ClipFunny = Color(0xFF134E5E)            // Deep Teal
+val ClipKillstreak = Color(0xFF0E3D48)       // Ocean Teal
+val ClipChatSpike = Color(0xFF1A5868)        // Radiant Teal
+val ClipCustom = Color(0xFFA5C4CA)           // White-Slate
+
+val StatusError = Color(0xFFE05260)
+val StatusWarning = Color(0xFFF59E0B)
+val StatusSuccess = Color(0xFF2DD4BF)
+val StatusInfo = Color(0xFF134E5E)
+
+@Composable
+fun isColorLight(color: Color): Boolean {
+    return color.luminance() > 0.5f
+}

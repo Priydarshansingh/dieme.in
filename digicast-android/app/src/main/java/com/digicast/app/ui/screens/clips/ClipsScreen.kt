@@ -1,5 +1,6 @@
 package com.digicast.app.ui.screens.clips
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
@@ -234,17 +236,17 @@ fun ClipsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(DigicastSearchBackground)
-                        .border(1.dp, DigicastBorder, RoundedCornerShape(14.dp))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(Brush.horizontalGradient(listOf(Color(0xFF0B3037), Color(0xFF134E5E))))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(9999.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Search",
-                        tint = DigicastSlate,
+                        tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
                     androidx.compose.foundation.text.BasicTextField(
@@ -252,7 +254,7 @@ fun ClipsScreen(
                         onValueChange = { searchQuery = it },
                         singleLine = true,
                         textStyle = androidx.compose.ui.text.TextStyle(
-                            color = DigicastWhite,
+                            color = Color.White,
                             fontSize = 13.sp
                         ),
                         modifier = Modifier.fillMaxWidth(),
@@ -260,7 +262,7 @@ fun ClipsScreen(
                             if (searchQuery.isEmpty()) {
                                 Text(
                                     text = "Search clips, authors, tags...",
-                                    color = DigicastSlate.copy(alpha = 0.8f),
+                                    color = Color.White.copy(alpha = 0.6f),
                                     fontSize = 13.sp
                                 )
                             }
@@ -278,14 +280,19 @@ fun ClipsScreen(
                         val isSelected = selectedStatusFilter == status
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) DigicastMintGlow else DigicastChipBackground)
+                                .clip(RoundedCornerShape(9999.dp))
+                                .background(if (isSelected) Color(0xFF134E5E) else Color(0xFF0B3037))
+                                .border(
+                                    1.dp,
+                                    if (isSelected) Color(0x66FFFFFF) else Color(0x22FFFFFF),
+                                    RoundedCornerShape(9999.dp)
+                                )
                                 .clickable { selectedStatusFilter = status }
-                                .padding(horizontal = 14.dp, vertical = 7.dp)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = status,
-                                color = if (isSelected) DigicastDarkText else DigicastSlate,
+                                color = Color.White,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )
@@ -376,11 +383,12 @@ fun ClipsScreen(
                     val type = ClipType.fromLabel(clip.label, clip.triggerMessageId)
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B3037)),
+                        border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable { onNavigateToClipGenerate(clip.id) }
                     ) {
                         Row(
@@ -454,7 +462,7 @@ fun ClipsScreen(
                                         Text("•", color = DigicastSlate, fontSize = 11.sp)
                                         Text(
                                             text = if (isReady) "READY MP4" else "PENDING",
-                                            color = if (isReady) DigicastEmerald else DigicastAmber,
+                                            color = if (isReady) Color.White else DigicastAmber,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.ExtraBold
                                         )
@@ -465,16 +473,17 @@ fun ClipsScreen(
                             Button(
                                 onClick = { onNavigateToClipGenerate(clip.id) },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isReady) DigicastSurfaceElevated else DigicastAccentBlue.copy(alpha = 0.18f)
+                                    containerColor = Color(0xFF134E5E)
                                 ),
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.height(32.dp)
+                                border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                shape = RoundedCornerShape(9999.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                modifier = Modifier.height(34.dp)
                             ) {
                                 Text(
                                     text = if (isReady) "View & Export" else "Render MP4",
                                     fontSize = 11.sp,
-                                    color = if (isReady) DigicastWhite else DigicastAccentBlue,
+                                    color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
                             }

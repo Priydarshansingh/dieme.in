@@ -1,5 +1,6 @@
 package com.digicast.app.ui.screens.streams
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -210,22 +211,22 @@ fun StreamsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ── 1. Interactive Search Bar ─────────────────────────────────────
+            // ── 1. Interactive Search Bar (Deep Teal Silk) ───────────────────
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(DigicastSearchBackground)
-                        .border(1.dp, DigicastBorder, RoundedCornerShape(14.dp))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(Brush.horizontalGradient(listOf(Color(0xFF0B3037), Color(0xFF134E5E))))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(9999.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Search",
-                        tint = DigicastSlate,
+                        tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
                     androidx.compose.foundation.text.BasicTextField(
@@ -233,7 +234,7 @@ fun StreamsScreen(
                         onValueChange = { searchQuery = it },
                         singleLine = true,
                         textStyle = androidx.compose.ui.text.TextStyle(
-                            color = DigicastWhite,
+                            color = Color.White,
                             fontSize = 13.sp
                         ),
                         modifier = Modifier.fillMaxWidth(),
@@ -241,7 +242,7 @@ fun StreamsScreen(
                             if (searchQuery.isEmpty()) {
                                 Text(
                                     text = "Search broadcasts, past streams, titles...",
-                                    color = DigicastSlate.copy(alpha = 0.8f),
+                                    color = Color.White.copy(alpha = 0.6f),
                                     fontSize = 13.sp
                                 )
                             }
@@ -251,7 +252,7 @@ fun StreamsScreen(
                 }
             }
 
-            // ── 2. Kick-Style Category Filter Chips ───────────────────────────
+            // ── 2. Deep Teal Silk Category Filter Pills ───────────────────────────
             item {
                 val categories = listOf("All Streams", "Live Now", "Past Streams", "Free Fire")
                 Row(
@@ -264,19 +265,19 @@ fun StreamsScreen(
                         val isSelected = selectedCategory == cat
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(if (isSelected) DigicastMintGlow else DigicastChipBackground)
+                                .clip(RoundedCornerShape(9999.dp))
+                                .background(if (isSelected) Color(0xFF134E5E) else Color(0xFF0B3037))
                                 .border(
                                     1.dp,
-                                    if (isSelected) DigicastMintGlow else DigicastBorder,
-                                    RoundedCornerShape(20.dp)
+                                    if (isSelected) Color(0x66FFFFFF) else Color(0x22FFFFFF),
+                                    RoundedCornerShape(9999.dp)
                                 )
                                 .clickable { selectedCategory = cat }
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = cat,
-                                color = if (isSelected) DigicastDarkText else DigicastWhite,
+                                color = Color.White,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )
@@ -293,7 +294,8 @@ fun StreamsScreen(
                         ?: if (featuredStream.id.isNotBlank()) "https://i.ytimg.com/vi/${featuredStream.id}/hqdefault.jpg" else null
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B3037)),
+                        border = BorderStroke(1.dp, Color(0x33FFFFFF)),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -413,14 +415,15 @@ fun StreamsScreen(
 
                                 Button(
                                     onClick = { onNavigateToDetail(featuredStream.id) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
-                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                                    border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                    shape = RoundedCornerShape(9999.dp),
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                     modifier = Modifier.height(34.dp)
                                 ) {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = DigicastDeepNavy, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Watch & Clip", fontSize = 12.sp, color = DigicastDeepNavy, fontWeight = FontWeight.Bold)
+                                    Text("Watch & Clip", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -444,7 +447,7 @@ fun StreamsScreen(
                     )
                     Text(
                         text = "${filteredStreams.size} Streams",
-                        color = DigicastAccentBlue,
+                        color = Color.White,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -458,7 +461,8 @@ fun StreamsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(DigicastCardSurface)
+                            .background(Color(0xFF0B3037))
+                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -478,11 +482,12 @@ fun StreamsScreen(
                     ?: if (stream.id.isNotBlank()) "https://i.ytimg.com/vi/${stream.id}/hqdefault.jpg" else null
 
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0B3037)),
+                    border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable { onNavigateToDetail(stream.id) }
                 ) {
                     Row(

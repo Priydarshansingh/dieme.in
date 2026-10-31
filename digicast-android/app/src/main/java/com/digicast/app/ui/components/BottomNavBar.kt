@@ -51,10 +51,10 @@ private data class NavItem(
     val unselectedIcon: ImageVector
 )
 
-// Active icon accent color from the video demo (Hex #FFB800)
-private val ActiveGold = Color(0xFFFFB800)
-private val BarBgColor = Color(0xFF000000)
-private val BorderColor = Color(0xFF1C1F26)
+// Deep Teal Silk Bottom Nav Bar styling
+private val ActiveIconColor = Color(0xFF0B3037)
+private val BarBgColor = Color(0xFF0B3037)
+private val BorderColor = Color(0x33FFFFFF)
 
 @Composable
 fun BottomNavBar(
@@ -199,7 +199,7 @@ fun BottomNavBar(
                 Icon(
                     imageVector = activeItem.selectedIcon,
                     contentDescription = activeItem.label,
-                    tint = ActiveGold,
+                    tint = ActiveIconColor,
                     modifier = Modifier.size(26.dp)
                 )
             }

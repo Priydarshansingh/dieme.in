@@ -51,8 +51,12 @@ fun SparklineWaveCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(DigicastCardSurface)
-            .border(1.dp, DigicastBorder, RoundedCornerShape(16.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Color(0xFF0B3037), Color(0xFF134E5E))
+                )
+            )
+            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -65,13 +69,13 @@ fun SparklineWaveCard(
                 Column {
                     Text(
                         text = title,
-                        color = DigicastWhite,
+                        color = Color.White,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = subtitle,
-                        color = DigicastSlate,
+                        color = Color.White.copy(alpha = 0.75f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal
                     )
@@ -83,20 +87,21 @@ fun SparklineWaveCard(
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier
                         .background(
-                            (if (isPositiveTrend) DigicastEmerald else DigicastSunsetCoral).copy(alpha = 0.15f),
+                            Color.White.copy(alpha = 0.18f),
                             RoundedCornerShape(8.dp)
                         )
+                        .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowDropUp,
                         contentDescription = null,
-                        tint = if (isPositiveTrend) DigicastEmerald else DigicastSunsetCoral,
+                        tint = Color.White,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = trendPercent,
-                        color = if (isPositiveTrend) DigicastEmerald else DigicastSunsetCoral,
+                        color = Color.White,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -109,7 +114,8 @@ fun SparklineWaveCard(
             Box(
                 modifier = Modifier
                     .padding(start = 56.dp)
-                    .background(DigicastSunsetCoral, RoundedCornerShape(6.dp))
+                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
                     .padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 Text(
@@ -151,7 +157,7 @@ fun SparklineWaveCard(
                     path = fillPath,
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            DigicastSunsetCoral.copy(alpha = 0.30f),
+                            Color.White.copy(alpha = 0.25f),
                             Color.Transparent
                         )
                     )
@@ -160,8 +166,8 @@ fun SparklineWaveCard(
                 // Glowing stroke
                 drawPath(
                     path = path,
-                    color = DigicastSunsetCoral,
-                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                    color = Color.White,
+                    style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
                 )
 
                 // Highlight point at active marker
@@ -173,7 +179,7 @@ fun SparklineWaveCard(
                     center = Offset(pointX, pointY)
                 )
                 drawCircle(
-                    color = DigicastSunsetCoral.copy(alpha = 0.4f),
+                    color = Color.White.copy(alpha = 0.4f),
                     radius = 7.dp.toPx(),
                     center = Offset(pointX, pointY)
                 )

@@ -106,6 +106,52 @@ val TealSilkCardBrush = Brush.linearGradient(
 )
 
 // ═══════════════════════════════════════════════════════════════
+// APPLE-TYPE DARK-EDGE VIGNETTE GRADIENTS ("from edges darker side")
+// ═══════════════════════════════════════════════════════════════
+
+val TealSilkEdgeDark = Color(0xFF041215)
+val TealSilkEdgeMid = Color(0xFF08262C)
+
+// Dark edge card brush: dark perimeter on both sides, silk sheen in center
+val AppleDarkEdgeCardBrush = Brush.linearGradient(
+    listOf(
+        Color(0xFF041215), // Deep dark edge
+        Color(0xFF0A2E35),
+        Color(0xFF134E5E), // Lighter silk sheen in center
+        Color(0xFF0A2E35),
+        Color(0xFF041215)  // Deep dark edge
+    )
+)
+
+// Dark edge pill / button brush: darker on left and right borders
+val AppleDarkEdgePillBrush = Brush.horizontalGradient(
+    listOf(
+        Color(0xFF071F24), // Dark edge
+        Color(0xFF134E5E), // Silk surface
+        Color(0xFF165A6C), // Sheen highlight
+        Color(0xFF134E5E), // Silk surface
+        Color(0xFF071F24)  // Dark edge
+    )
+)
+
+// Dark edge unselected chip / container brush
+val AppleDarkEdgeSubtleBrush = Brush.horizontalGradient(
+    listOf(
+        Color(0xFF030E10),
+        Color(0xFF08262C),
+        Color(0xFF030E10)
+    )
+)
+
+// Apple Specular Hairline Glass Border (rim highlight top, subtle bottom)
+val AppleSpecularBorder = Brush.verticalGradient(
+    listOf(
+        Color(0x55FFFFFF),
+        Color(0x18FFFFFF)
+    )
+)
+
+// ═══════════════════════════════════════════════════════════════
 // CLIP TYPES (Deep Teal Silk Harmonized)
 // ═══════════════════════════════════════════════════════════════
 

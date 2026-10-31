@@ -1,0 +1,70 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic:
+      - generic: "[12+12]"
+      - generic: STREAM_INGEST // RELAY_ACTIVE
+      - generic: "LATENCY: 240ms"
+      - generic: "24"
+      - generic: 4K 60FPS • ZERO_QUOTA_BURN
+    - banner [ref=e3]:
+      - link [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e5]:
+          - img "Digicast Logo" [ref=e6]
+          - img "Digicast" [ref=e7]
+        - generic [ref=e8]: LIVE
+      - link "Back to Home" [ref=e10] [cursor=pointer]:
+        - /url: /
+    - main [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]: CREATOR STUDIO INGEST PORTAL
+          - heading "Capture every moment your viewers loved live." [level=1] [ref=e21]
+          - paragraph [ref=e22]: Turn YouTube livestream highlights into viral shorts in seconds. Let your moderators trigger 1-tap clip markers — delivered instantly to Telegram and your video editor with zero stream latency.
+          - generic [ref=e23]:
+            - generic [ref=e25]:
+              - generic [ref=e26]: STREAM INGEST ACTIVE
+              - generic [ref=e31]:
+                - generic [ref=e32]: 02:31:18.42
+                - generic [ref=e33]: "RELAY: 240ms"
+            - generic [ref=e35]:
+              - generic [ref=e36]: 45s Lookback Rolling Buffer
+              - generic [ref=e43]: "Buffer: 100% OK"
+            - generic [ref=e81]:
+              - generic [ref=e90]:
+                - paragraph [ref=e91]: "Clip: \"1v4 Clutch & Ace\""
+                - paragraph [ref=e92]: Dispatched to @YT_digicast
+              - generic [ref=e96]: SYNCED
+          - generic [ref=e101]:
+            - generic [ref=e102]: Zero Quota Burn
+            - generic [ref=e107]: 45s Lookback
+            - generic [ref=e112]: Telegram Sync
+        - generic [ref=e117]:
+          - generic [ref=e119]:
+            - generic [ref=e120]: STUDIO ACCESS INGRESS
+            - heading "Sign In to Studio" [level=2] [ref=e122]
+            - paragraph [ref=e123]: Authenticate via Google to access your broadcast streams, clip markers, and Telegram editor relays.
+          - button "Continue with Google" [disabled] [ref=e124]
+          - generic [ref=e131]:
+            - generic [ref=e132]:
+              - generic [ref=e133]: Local Session Security
+              - paragraph [ref=e138]: Your stream chat and markers remain on your device. We never store personal YouTube credentials.
+            - generic [ref=e139]:
+              - link "Terms" [ref=e140] [cursor=pointer]:
+                - /url: /terms
+              - generic [ref=e141]: •
+              - link "Privacy" [ref=e142] [cursor=pointer]:
+                - /url: /privacy
+              - generic [ref=e143]: •
+              - link "Support Bot" [ref=e144] [cursor=pointer]:
+                - /url: https://t.me/YT_digicast?start=help
+    - contentinfo [ref=e146]:
+      - generic [ref=e147]:
+        - generic [ref=e148]:
+          - generic [ref=e149]: © 2026 Digicast Technologies
+          - generic [ref=e150]: •
+          - generic [ref=e151]: Built for YouTube Creators & Editors
+        - generic [ref=e152]:
+          - generic [ref=e154]: SYSTEM OPERATIONAL
+          - generic [ref=e155]: "[99.9% UPTIME]"
+  - alert [ref=e156]

@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.digicast.app.ui.navigation.Screen
+import com.digicast.app.ui.theme.AppleDarkEdgePillBrush
 import com.digicast.app.ui.theme.DigicastDeepNavy
 
 private data class NavItem(
@@ -142,8 +143,8 @@ fun BottomNavBar(
                     close()
                 }
 
-                // Fill solid black
-                drawPath(path = path, color = BarBgColor, style = Fill)
+                // Fill Apple dark-edge pill gradient (darker on outer sides, silk center)
+                drawPath(path = path, brush = AppleDarkEdgePillBrush, style = Fill)
                 // Outline border
                 drawPath(path = path, color = BorderColor, style = Stroke(width = with(density) { 1.dp.toPx() }))
             }

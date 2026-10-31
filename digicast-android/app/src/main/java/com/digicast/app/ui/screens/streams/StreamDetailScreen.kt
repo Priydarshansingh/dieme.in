@@ -95,6 +95,10 @@ import com.digicast.app.ui.screens.clips.ClipType
 import com.digicast.app.ui.screens.clips.ClipVideoPlayer
 import com.digicast.app.ui.screens.clips.YouTubeStreamPreview
 import com.digicast.app.ui.screens.clips.resolveYouTubeVideoId
+import com.digicast.app.ui.theme.AppleDarkEdgeCardBrush
+import com.digicast.app.ui.theme.AppleDarkEdgePillBrush
+import com.digicast.app.ui.theme.AppleDarkEdgeSubtleBrush
+import com.digicast.app.ui.theme.AppleSpecularBorder
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastCardSurface
@@ -423,17 +427,20 @@ fun StreamDetailScreen(
                     }
                 }
 
-                // Add Moment Quick Trigger (Deep Teal Silk Pill)
+                // Add Moment Quick Trigger (Apple Dark-Edge Capsule Pill)
                 Button(
                     onClick = {
                         targetMomentSec = activeOffsetSec
                         showAddMomentDialog = true
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                     shape = RoundedCornerShape(9999.dp),
-                    border = BorderStroke(1.dp, Color(0x44FFFFFF)),
+                    border = BorderStroke(1.dp, AppleSpecularBorder),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    modifier = Modifier.height(36.dp)
+                    modifier = Modifier
+                        .height(36.dp)
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(AppleDarkEdgePillBrush)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
@@ -898,11 +905,13 @@ fun StreamDetailScreen(
                         val timeStr = MetricFormatter.formatSeconds(clipSec)
 
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                            border = BorderStroke(1.dp, AppleSpecularBorder),
+                            shape = RoundedCornerShape(22.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(AppleDarkEdgeCardBrush)
                                 .clickable { onNavigateToClipGenerate(clip.id) }
                         ) {
                             Row(

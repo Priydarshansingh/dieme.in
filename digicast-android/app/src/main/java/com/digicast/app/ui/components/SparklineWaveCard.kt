@@ -31,6 +31,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.digicast.app.ui.theme.AppleDarkEdgeCardBrush
+import com.digicast.app.ui.theme.AppleSpecularBorder
 import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastCardSurface
 import com.digicast.app.ui.theme.DigicastEmerald
@@ -50,14 +52,10 @@ fun SparklineWaveCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                Brush.horizontalGradient(
-                    listOf(Color(0xFF0B3037), Color(0xFF134E5E))
-                )
-            )
-            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
-            .padding(16.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(AppleDarkEdgeCardBrush)
+            .border(1.dp, AppleSpecularBorder, RoundedCornerShape(24.dp))
+            .padding(18.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Header Row: Title on left, Trend pill on right
@@ -81,17 +79,17 @@ fun SparklineWaveCard(
                     )
                 }
 
-                // Trend badge
+                // Trend badge (Apple pill)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier
                         .background(
-                            Color.White.copy(alpha = 0.18f),
-                            RoundedCornerShape(8.dp)
+                            Color.White.copy(alpha = 0.15f),
+                            RoundedCornerShape(9999.dp)
                         )
-                        .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(9999.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowDropUp,

@@ -81,6 +81,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -104,6 +105,10 @@ import com.digicast.app.data.repository.AuthRepository
 import com.digicast.app.data.repository.AuthState
 import com.digicast.app.data.repository.ClipRepository
 import com.digicast.app.data.repository.StreamRepository
+import com.digicast.app.ui.theme.AppleDarkEdgeCardBrush
+import com.digicast.app.ui.theme.AppleDarkEdgePillBrush
+import com.digicast.app.ui.theme.AppleDarkEdgeSubtleBrush
+import com.digicast.app.ui.theme.AppleSpecularBorder
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastDeepNavy
@@ -829,10 +834,14 @@ fun ClipGenerateScreen(
                                 onClick = {
                                     viewModel.saveClipToPublicDownloads(context, localFile.absolutePath)
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
-                                border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                                border = BorderStroke(1.dp, AppleSpecularBorder),
                                 shape = RoundedCornerShape(9999.dp),
-                                modifier = Modifier.weight(1.3f).height(46.dp)
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(9999.dp))
+                                    .background(AppleDarkEdgePillBrush)
                             ) {
                                 Icon(Icons.Default.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -845,10 +854,14 @@ fun ClipGenerateScreen(
                                     viewModel.uploadToTelegram(context, localFile.absolutePath, session?.workspaceId ?: "")
                                 },
                                 enabled = !isUploadingTelegram,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
-                                border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                                border = BorderStroke(1.dp, AppleSpecularBorder),
                                 shape = RoundedCornerShape(9999.dp),
-                                modifier = Modifier.weight(1.2f).height(46.dp)
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(9999.dp))
+                                    .background(AppleDarkEdgePillBrush)
                             ) {
                                 if (isUploadingTelegram) {
                                     CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
@@ -864,14 +877,14 @@ fun ClipGenerateScreen(
                                 onClick = { shareClipFile(context, localFile.absolutePath, clip?.label ?: "Clip") },
                                 modifier = Modifier
                                     .size(46.dp)
-                                    .background(Color(0xFF0B3037), CircleShape)
-                                    .border(1.dp, Color(0x33FFFFFF), CircleShape)
+                                    .background(Color(0xFF041215), CircleShape)
+                                    .border(1.dp, AppleSpecularBorder, CircleShape)
                             ) {
                                 Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(18.dp))
                             }
                         }
                     } else {
-                        // Primary Download & Process Action Button (Deep Teal Silk Pill)
+                        // Primary Download & Process Action Button (Apple Dark-Edge Capsule)
                         val wsId = session?.workspaceId ?: ""
                         Button(
                             onClick = {
@@ -881,9 +894,13 @@ fun ClipGenerateScreen(
                                     postRollSec = postRollSec
                                 )
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
-                            border = BorderStroke(1.dp, Color(0x66FFFFFF)),
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                            border = BorderStroke(1.dp, AppleSpecularBorder),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                                .clip(RoundedCornerShape(9999.dp))
+                                .background(AppleDarkEdgePillBrush),
                             shape = RoundedCornerShape(9999.dp)
                         ) {
                             Icon(Icons.Default.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
@@ -994,11 +1011,11 @@ fun ClipGenerateScreen(
                 }
             }
 
-            // ── 3. Segmented Navigation Bar (Deep Teal Silk Pills) ──────────────
+            // ── 3. Segmented Navigation Bar (Apple Dark-Edge Pills) ──────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF06181C))
+                    .background(Color(0xFF041215))
                     .padding(horizontal = 14.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -1008,8 +1025,12 @@ fun ClipGenerateScreen(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(9999.dp))
-                        .background(if (isChat) Color(0xFF134E5E) else Color(0xFF0B3037))
-                        .border(1.dp, if (isChat) Color(0x66FFFFFF) else Color(0x22FFFFFF), RoundedCornerShape(9999.dp))
+                        .background(if (isChat) AppleDarkEdgePillBrush else AppleDarkEdgeSubtleBrush)
+                        .border(
+                            1.dp,
+                            if (isChat) AppleSpecularBorder else Brush.verticalGradient(listOf(Color(0x28FFFFFF), Color(0x10FFFFFF))),
+                            RoundedCornerShape(9999.dp)
+                        )
                         .clickable { selectedTab = 0 }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
@@ -1036,8 +1057,12 @@ fun ClipGenerateScreen(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(9999.dp))
-                        .background(if (isTrim) Color(0xFF134E5E) else Color(0xFF0B3037))
-                        .border(1.dp, if (isTrim) Color(0x66FFFFFF) else Color(0x22FFFFFF), RoundedCornerShape(9999.dp))
+                        .background(if (isTrim) AppleDarkEdgePillBrush else AppleDarkEdgeSubtleBrush)
+                        .border(
+                            1.dp,
+                            if (isTrim) AppleSpecularBorder else Brush.verticalGradient(listOf(Color(0x28FFFFFF), Color(0x10FFFFFF))),
+                            RoundedCornerShape(9999.dp)
+                        )
                         .clickable { selectedTab = 1 }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
@@ -1285,13 +1310,16 @@ fun ClipGenerateScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B3037)),
-                        border = BorderStroke(1.dp, Color(0x33FFFFFF)),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, AppleSpecularBorder),
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(AppleDarkEdgeCardBrush)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(18.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Row(
@@ -1321,10 +1349,10 @@ fun ClipGenerateScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .clip(RoundedCornerShape(9999.dp))
-                                                .background(if (isSelected) Color(0xFF134E5E) else Color(0xFF06181C))
+                                                .background(if (isSelected) AppleDarkEdgePillBrush else AppleDarkEdgeSubtleBrush)
                                                 .border(
                                                     if (isSelected) 1.5.dp else 1.dp,
-                                                    if (isSelected) Color.White else Color(0x33FFFFFF),
+                                                    if (isSelected) Color.White.copy(alpha = 0.9f) else Color(0x28FFFFFF),
                                                     RoundedCornerShape(9999.dp)
                                                 )
                                                 .clickable { preRollSec = sec }
@@ -1352,10 +1380,10 @@ fun ClipGenerateScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .clip(RoundedCornerShape(9999.dp))
-                                                .background(if (isSelected) Color(0xFF134E5E) else Color(0xFF06181C))
+                                                .background(if (isSelected) AppleDarkEdgePillBrush else AppleDarkEdgeSubtleBrush)
                                                 .border(
                                                     if (isSelected) 1.5.dp else 1.dp,
-                                                    if (isSelected) Color.White else Color(0x33FFFFFF),
+                                                    if (isSelected) Color.White.copy(alpha = 0.9f) else Color(0x28FFFFFF),
                                                     RoundedCornerShape(9999.dp)
                                                 )
                                                 .clickable { postRollSec = sec }

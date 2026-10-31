@@ -34,51 +34,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.digicast.app.ui.theme.AppleDarkEdgeCardBrush
+import com.digicast.app.ui.theme.AppleSpecularBorder
 import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastDarkText
 import com.digicast.app.ui.theme.DigicastSlate
 import com.digicast.app.ui.theme.DigicastSurface
 import com.digicast.app.ui.theme.DigicastWhite
 
-/**
- * Custom Folder Tab Shape replicating the iconic asymmetric tab geometry
- * seen in modern mobile design system references.
- */
-val FolderTabShape = GenericShape { size, _ ->
-    val w = size.width
-    val h = size.height
-    val r = 36f            // Corner radius
-    val tabW = w * 0.46f   // Tab width: approx 46% of card width
-    val step = 28f         // Tab height step down to the shoulder
-
-    // Start at top-left corner
-    moveTo(r, 0f)
-    // Line across tab top
-    lineTo(tabW - r, 0f)
-    // Curve down to shoulder
-    cubicTo(
-        tabW, 0f,
-        tabW - 4f, step,
-        tabW + r, step
-    )
-    // Line across right shoulder
-    lineTo(w - r, step)
-    // Top-right corner
-    cubicTo(w, step, w, step + r, w, step + r)
-    // Right edge down
-    lineTo(w, h - r)
-    // Bottom-right corner
-    cubicTo(w, h, w - r, h, w - r, h)
-    // Bottom edge left
-    lineTo(r, h)
-    // Bottom-left corner
-    cubicTo(0f, h, 0f, h - r, 0f, h - r)
-    // Left edge up
-    lineTo(0f, r)
-    // Top-left corner
-    cubicTo(0f, 0f, r, 0f, r, 0f)
-    close()
-}
+val AppleCardShape = RoundedCornerShape(24.dp)
 
 @Composable
 fun FolderTabCard(
@@ -104,31 +68,24 @@ fun FolderTabCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .clip(FolderTabShape)
-            .background(
-                Brush.horizontalGradient(
-                    listOf(
-                        Color(0xFF0B3037),
-                        Color(0xFF134E5E)
-                    )
-                )
-            )
-            .border(1.dp, Color(0x33FFFFFF), FolderTabShape)
+            .clip(AppleCardShape)
+            .background(AppleDarkEdgeCardBrush)
+            .border(1.dp, AppleSpecularBorder, AppleCardShape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Tab Icon Badge in White Silk Style
+            // Top Tab Icon Badge in Apple White Silk Style
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.15f))
                     .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape),
@@ -138,7 +95,7 @@ fun FolderTabCard(
                     imageVector = icon,
                     contentDescription = label,
                     tint = Color.White,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
 

@@ -1,0 +1,73 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - banner [ref=f5e3]:
+      - generic [ref=f5e4]:
+        - link "Digicast Logo Digicast LIVE" [ref=f5e5] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f5e6]:
+            - img "Digicast Logo" [ref=f5e7]
+            - img "Digicast" [ref=f5e8]
+          - generic [ref=f5e9]: LIVE
+        - link "Back to Home" [ref=f5e10] [cursor=pointer]:
+          - /url: /
+    - main [ref=f5e14]:
+      - generic [ref=f5e15]:
+        - generic [ref=f5e16]:
+          - generic [ref=f5e17]:
+            - generic [ref=f5e18]: CREATOR STUDIO INGEST PORTAL
+            - heading "Capture every moment your viewers loved live." [level=1] [ref=f5e22]
+            - paragraph [ref=f5e23]: Turn YouTube livestream highlights into viral shorts in seconds. Use the web dashboard and mobile app with the same login credentials.
+          - generic [ref=f5e24]:
+            - generic [ref=f5e25]:
+              - generic [ref=f5e26]: STREAM INGEST ACTIVE
+              - generic [ref=f5e29]:
+                - generic [ref=f5e30]: 02:31:18.42
+                - generic [ref=f5e31]: •
+                - generic [ref=f5e32]: "RELAY: 240ms"
+            - generic [ref=f5e34]:
+              - generic [ref=f5e35]: 45s Lookback Rolling Buffer
+              - generic [ref=f5e36]: "Buffer: 100% OK"
+            - generic [ref=f5e74]:
+              - generic [ref=f5e83]:
+                - paragraph [ref=f5e84]: "Clip: \"1v4 Clutch & Ace\""
+                - paragraph [ref=f5e85]: Dispatched to @YT_digicast
+              - generic [ref=f5e89]: SYNCED
+          - generic [ref=f5e94]:
+            - generic [ref=f5e95]: Zero Quota Burn
+            - generic [ref=f5e100]: 45s Lookback
+            - generic [ref=f5e105]: Telegram Sync
+        - generic [ref=f5e110]:
+          - generic [ref=f5e112]:
+            - generic [ref=f5e113]: STUDIO ACCESS INGRESS
+            - heading "Sign In to Studio" [level=2] [ref=f5e115]
+            - paragraph [ref=f5e116]: Sign in with your email and password or Google to manage your broadcast streams and clips.
+          - generic [ref=f5e117]:
+            - generic [ref=f5e118]:
+              - generic [ref=f5e119]: App Email
+              - textbox "creator@gmail.com" [ref=f5e124]
+            - generic [ref=f5e125]:
+              - generic [ref=f5e126]: Password
+              - generic [ref=f5e127]:
+                - textbox "••••••••" [ref=f5e131]
+                - button [ref=f5e132] [cursor=pointer]
+            - button "Sign In to Studio" [ref=f5e136] [cursor=pointer]
+          - generic [ref=f5e137]: Or
+          - button "Continue with Google" [ref=f5e140] [cursor=pointer]
+          - generic [ref=f5e147]:
+            - text: New to Digicast?
+            - link "Create Studio Account & App Pass" [ref=f5e148] [cursor=pointer]:
+              - /url: /signup
+          - generic [ref=f5e150]:
+            - link "Terms" [ref=f5e151] [cursor=pointer]:
+              - /url: /terms
+            - generic [ref=f5e152]: •
+            - link "Privacy" [ref=f5e153] [cursor=pointer]:
+              - /url: /privacy
+            - generic [ref=f5e154]: •
+            - link "Support Bot" [ref=f5e155] [cursor=pointer]:
+              - /url: https://t.me/YT_digicast?start=help
+    - contentinfo [ref=f5e156]:
+      - generic [ref=f5e157]:
+        - generic [ref=f5e158]: © 2026 Digicast Technologies • Built for YouTube Creators & Editors
+        - generic [ref=f5e159]: SYSTEM OPERATIONAL
+  - alert [ref=f5e162]

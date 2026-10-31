@@ -1,6 +1,7 @@
 package com.digicast.app.ui.screens.home
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -72,6 +73,10 @@ import com.digicast.app.ui.components.Access24hGateDialog
 import com.digicast.app.ui.components.FolderTabCard
 import com.digicast.app.ui.components.ProfileAvatarButton
 import com.digicast.app.ui.components.SparklineWaveCard
+import com.digicast.app.ui.theme.AppleDarkEdgeCardBrush
+import com.digicast.app.ui.theme.AppleDarkEdgePillBrush
+import com.digicast.app.ui.theme.AppleDarkEdgeSubtleBrush
+import com.digicast.app.ui.theme.AppleSpecularBorder
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastCardSurface
@@ -306,18 +311,14 @@ fun HomeScreen(
                 }
             }
 
-            // ── 2. Modern Search Pill (Deep Teal Silk) ───────────────────────
+            // ── 2. Apple Dark-Edge Search Pill ───────────────────────
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(9999.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(Color(0xFF0B3037), Color(0xFF134E5E))
-                            )
-                        )
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(9999.dp))
+                        .background(AppleDarkEdgePillBrush)
+                        .border(1.dp, AppleSpecularBorder, RoundedCornerShape(9999.dp))
                         .clickable { /* Search action */ }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -437,20 +438,10 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(9999.dp))
-                                .background(
-                                    if (isSelected) {
-                                        Brush.horizontalGradient(
-                                            listOf(Color(0xFF0B3037), Color(0xFF134E5E))
-                                        )
-                                    } else {
-                                        Brush.horizontalGradient(
-                                            listOf(Color(0xFF06181C), Color(0xFF0B3037))
-                                        )
-                                    }
-                                )
+                                .background(if (isSelected) AppleDarkEdgePillBrush else AppleDarkEdgeSubtleBrush)
                                 .border(
                                     1.dp,
-                                    if (isSelected) Color(0x66FFFFFF) else Color(0x22FFFFFF),
+                                    if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0x28FFFFFF),
                                     RoundedCornerShape(9999.dp)
                                 )
                                 .clickable { selectedCategory = cat }
@@ -458,7 +449,7 @@ fun HomeScreen(
                         ) {
                             Text(
                                 text = cat,
-                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.75f),
+                                color = Color.White,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )
@@ -494,16 +485,20 @@ fun HomeScreen(
                 item {
                     val thumbUrl = live.thumbnailUrl ?: if (live.id.isNotBlank()) "https://i.ytimg.com/vi/${live.id}/hqdefault.jpg" else null
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, AppleSpecularBorder),
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(AppleDarkEdgeCardBrush)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(180.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(DigicastSurfaceElevated)
                                     .clickable { onNavigateToStreamDetail(live.id) }
                             ) {
@@ -598,21 +593,23 @@ fun HomeScreen(
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Button(
                                         onClick = onNavigateToClips,
-                                        colors = ButtonDefaults.buttonColors(containerColor = DigicastSurfaceElevated),
-                                        shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                                        border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                        shape = RoundedCornerShape(9999.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                         modifier = Modifier.height(34.dp)
                                     ) {
-                                        Text("Create Clip", fontSize = 12.sp, color = DigicastWhite)
+                                        Text("Create Clip", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                                     }
                                     Button(
                                         onClick = { onNavigateToStreamDetail(live.id) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue.copy(alpha = 0.15f)),
-                                        shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF041215)),
+                                        border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                                        shape = RoundedCornerShape(9999.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                         modifier = Modifier.height(34.dp)
                                     ) {
-                                        Text("Dashboard", fontSize = 12.sp, color = DigicastAccentBlue, fontWeight = FontWeight.SemiBold)
+                                        Text("Dashboard", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -648,12 +645,17 @@ fun HomeScreen(
 
                 items(realClips.take(3), key = { "home_${it.id}" }) { clip ->
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth().clickable { onNavigateToClips() }
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, AppleSpecularBorder),
+                        shape = RoundedCornerShape(22.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(AppleDarkEdgeCardBrush)
+                            .clickable { onNavigateToClips() }
                     ) {
                         Row(
-                            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                            modifier = Modifier.padding(14.dp).fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -666,39 +668,40 @@ fun HomeScreen(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(CircleShape)
-                                        .background(DigicastSunsetCoral.copy(alpha = 0.2f)),
+                                        .background(Color.White.copy(alpha = 0.15f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         Icons.Default.ContentCut,
                                         contentDescription = null,
-                                        tint = DigicastSunsetCoral,
+                                        tint = Color.White,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
                                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(
                                         text = clip.label,
-                                        color = DigicastWhite,
+                                        color = Color.White,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1
                                     )
                                     Text(
                                         text = "by ${clip.authorName} • 33:50",
-                                        color = DigicastSlate,
+                                        color = Color.White.copy(alpha = 0.7f),
                                         fontSize = 11.sp
                                     )
                                 }
                             }
                             Button(
                                 onClick = onNavigateToClips,
-                                colors = ButtonDefaults.buttonColors(containerColor = DigicastSunsetCoral.copy(alpha = 0.2f)),
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                                border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                shape = RoundedCornerShape(9999.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                                 modifier = Modifier.height(30.dp)
                             ) {
-                                Text("Open", fontSize = 11.sp, color = DigicastSunsetCoral, fontWeight = FontWeight.Bold)
+                                Text("Open", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -709,9 +712,13 @@ fun HomeScreen(
             if (ytAccount != null && selectedCategory == "All Streams") {
                 item {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, AppleSpecularBorder),
+                        shape = RoundedCornerShape(22.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(AppleDarkEdgeCardBrush)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),

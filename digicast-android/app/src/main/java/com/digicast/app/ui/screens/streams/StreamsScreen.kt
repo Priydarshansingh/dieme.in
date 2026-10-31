@@ -66,6 +66,10 @@ import com.digicast.app.data.repository.StreamRepository
 import com.digicast.app.ui.components.FolderTabCard
 import com.digicast.app.ui.components.ProfileAvatarButton
 import com.digicast.app.ui.components.StatusBadge
+import com.digicast.app.ui.theme.AppleDarkEdgeCardBrush
+import com.digicast.app.ui.theme.AppleDarkEdgePillBrush
+import com.digicast.app.ui.theme.AppleDarkEdgeSubtleBrush
+import com.digicast.app.ui.theme.AppleSpecularBorder
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastCardSurface
@@ -211,14 +215,14 @@ fun StreamsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ── 1. Interactive Search Bar (Deep Teal Silk) ───────────────────
+            // ── 1. Interactive Search Bar (Apple Dark-Edge Capsule) ───────────────────
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(9999.dp))
-                        .background(Brush.horizontalGradient(listOf(Color(0xFF0B3037), Color(0xFF134E5E))))
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(9999.dp))
+                        .background(AppleDarkEdgePillBrush)
+                        .border(1.dp, AppleSpecularBorder, RoundedCornerShape(9999.dp))
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -266,10 +270,10 @@ fun StreamsScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(9999.dp))
-                                .background(if (isSelected) Color(0xFF134E5E) else Color(0xFF0B3037))
+                                .background(if (isSelected) AppleDarkEdgePillBrush else AppleDarkEdgeSubtleBrush)
                                 .border(
                                     1.dp,
-                                    if (isSelected) Color(0x66FFFFFF) else Color(0x22FFFFFF),
+                                    if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0x28FFFFFF),
                                     RoundedCornerShape(9999.dp)
                                 )
                                 .clickable { selectedCategory = cat }
@@ -286,7 +290,7 @@ fun StreamsScreen(
                 }
             }
 
-            // ── 3. Featured Broadcast Hero (Kick / Esports Layout) ─────────────
+            // ── 3. Featured Broadcast Hero (Apple Card Style) ─────────────
             val featuredStream = filteredStreams.firstOrNull { it.status == "live" } ?: filteredStreams.firstOrNull()
             if (featuredStream != null && selectedCategory != "Past Streams") {
                 item {
@@ -294,11 +298,13 @@ fun StreamsScreen(
                         ?: if (featuredStream.id.isNotBlank()) "https://i.ytimg.com/vi/${featuredStream.id}/hqdefault.jpg" else null
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B3037)),
-                        border = BorderStroke(1.dp, Color(0x33FFFFFF)),
-                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, AppleSpecularBorder),
+                        shape = RoundedCornerShape(24.dp),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(AppleDarkEdgeCardBrush)
                             .clickable { onNavigateToDetail(featuredStream.id) }
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
@@ -306,7 +312,7 @@ fun StreamsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(180.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(DigicastSurfaceElevated)
                             ) {
                                 if (!thumbUrl.isNullOrEmpty()) {
@@ -482,12 +488,13 @@ fun StreamsScreen(
                     ?: if (stream.id.isNotBlank()) "https://i.ytimg.com/vi/${stream.id}/hqdefault.jpg" else null
 
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0B3037)),
-                    border = BorderStroke(1.dp, Color(0x33FFFFFF)),
-                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    border = BorderStroke(1.dp, AppleSpecularBorder),
+                    shape = RoundedCornerShape(22.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(AppleDarkEdgeCardBrush)
                         .clickable { onNavigateToDetail(stream.id) }
                 ) {
                     Row(

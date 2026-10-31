@@ -63,6 +63,10 @@ import com.digicast.app.data.repository.AuthRepository
 import com.digicast.app.data.repository.ClipRepository
 import com.digicast.app.data.repository.StreamRepository
 import com.digicast.app.ui.components.ProfileAvatarButton
+import com.digicast.app.ui.theme.AppleDarkEdgeCardBrush
+import com.digicast.app.ui.theme.AppleDarkEdgePillBrush
+import com.digicast.app.ui.theme.AppleDarkEdgeSubtleBrush
+import com.digicast.app.ui.theme.AppleSpecularBorder
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastAmber
 import com.digicast.app.ui.theme.DigicastBorder
@@ -231,14 +235,14 @@ fun ClipsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // ── 1. Search Bar ──────────────────────────────────────────────────
+            // ── 1. Search Bar (Apple Dark-Edge Capsule) ────────────────────────
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(9999.dp))
-                        .background(Brush.horizontalGradient(listOf(Color(0xFF0B3037), Color(0xFF134E5E))))
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(9999.dp))
+                        .background(AppleDarkEdgePillBrush)
+                        .border(1.dp, AppleSpecularBorder, RoundedCornerShape(9999.dp))
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -281,10 +285,10 @@ fun ClipsScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(9999.dp))
-                                .background(if (isSelected) Color(0xFF134E5E) else Color(0xFF0B3037))
+                                .background(if (isSelected) AppleDarkEdgePillBrush else AppleDarkEdgeSubtleBrush)
                                 .border(
                                     1.dp,
-                                    if (isSelected) Color(0x66FFFFFF) else Color(0x22FFFFFF),
+                                    if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0x28FFFFFF),
                                     RoundedCornerShape(9999.dp)
                                 )
                                 .clickable { selectedStatusFilter = status }
@@ -383,12 +387,13 @@ fun ClipsScreen(
                     val type = ClipType.fromLabel(clip.label, clip.triggerMessageId)
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B3037)),
-                        border = BorderStroke(1.dp, Color(0x33FFFFFF)),
-                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, AppleSpecularBorder),
+                        shape = RoundedCornerShape(24.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(AppleDarkEdgeCardBrush)
                             .clickable { onNavigateToClipGenerate(clip.id) }
                     ) {
                         Row(

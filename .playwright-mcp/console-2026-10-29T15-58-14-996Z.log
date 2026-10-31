@@ -1,0 +1,7 @@
+[   71810ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.closed call. @ https://digicast-web.vercel.app/_next/static/chunks/69806262-c9d68b313f48c3ae.js:840
+[   71810ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.closed call. @ https://digicast-web.vercel.app/_next/static/chunks/69806262-c9d68b313f48c3ae.js:840
+[  100369ms] [ERROR] Failed to load resource: net::ERR_TIMED_OUT @ https://digicast-web.vercel.app/logo-mark.png:0
+[  105607ms] [ERROR] [useAuth] Google Sign-In failed: FirebaseError: Firebase: Error (auth/popup-closed-by-user).
+    at v (https://digicast-web.vercel.app/_next/static/chunks/69806262-c9d68b313f48c3ae.js:16:499)
+    at f (https://digicast-web.vercel.app/_next/static/chunks/69806262-c9d68b313f48c3ae.js:16:65)
+    at https://digicast-web.vercel.app/_next/static/chunks/69806262-c9d68b313f48c3ae.js:841:1727 @ https://digicast-web.vercel.app/_next/static/chunks/23-0365f7d94a2b243b.js:0

@@ -2,7 +2,9 @@ package com.digicast.app.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -25,13 +27,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastDarkText
+import com.digicast.app.ui.theme.DigicastSlate
+import com.digicast.app.ui.theme.DigicastSurface
+import com.digicast.app.ui.theme.DigicastWhite
 
 /**
  * Custom Folder Tab Shape replicating the iconic asymmetric tab geometry
@@ -98,7 +105,16 @@ fun FolderTabCard(
                 scaleY = scale
             }
             .clip(FolderTabShape)
-            .background(backgroundColor)
+            .background(DigicastSurface)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        backgroundColor.copy(alpha = 0.16f),
+                        Color.Transparent
+                    )
+                )
+            )
+            .border(1.dp, backgroundColor.copy(alpha = 0.35f), FolderTabShape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -115,13 +131,13 @@ fun FolderTabCard(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF0E1015).copy(alpha = 0.88f)),
+                    .background(backgroundColor.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
-                    tint = Color.White,
+                    tint = backgroundColor,
                     modifier = Modifier.size(15.dp)
                 )
             }
@@ -131,7 +147,7 @@ fun FolderTabCard(
             // Main Stat Value
             Text(
                 text = value,
-                color = DigicastDarkText,
+                color = DigicastWhite,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = (-0.5).sp
@@ -140,16 +156,16 @@ fun FolderTabCard(
             // Label
             Text(
                 text = label,
-                color = DigicastDarkText.copy(alpha = 0.85f),
+                color = DigicastSlate,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.1.sp
             )
 
             if (!sublabel.isNullOrEmpty()) {
                 Text(
                     text = sublabel,
-                    color = DigicastDarkText.copy(alpha = 0.6f),
+                    color = backgroundColor.copy(alpha = 0.9f),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium
                 )

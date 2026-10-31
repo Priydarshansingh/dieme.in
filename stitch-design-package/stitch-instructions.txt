@@ -1,0 +1,9 @@
+Design a world-class, cyber-editorial dark mode mobile app and web dashboard for "Digicast" — the Creator Live Intelligence Platform for gaming broadcasters and video editors.
+
+KEY DESIGN MANDATES:
+1. THEME: Strict tactile stealth dark mode. Use #07080C (Deep Obsidian) for the base canvas, #111622 for cards and bento containers, and #1E2638 for hairline specular borders. Avoid any bright white backgrounds or light mode elements.
+2. ACCENTS & BRANDING: Primary CTA is Electric Cyan (#00F0FF). Live broadcast actions, bookmark triggers, and clutch moments use Sunset Coral (#FF5C5C). Real-time chat surges use Kick Neon (#53FC18).
+3. ZERO EMOJIS: Do not use cartoon emojis anywhere. Use professional, crisp vector iconography (Material 3 / Lucide symbols) for all badges, clips, tabs, and action buttons.
+4. METRIC BENTO CARDS: Redesign the mobile home dashboard cards into cohesive, dark-glass Bento cards with subtle luminous edge glows (Cyan for Views, Emerald for Chatters, Coral for Clips, Violet for Support) and crisp white typography (#F8FAFC).
+5. INTERACTIVE TIMELINE: The livestream console must feature an interactive 16:9 broadcast monitor and a real-time scrubber timeline with color-coded moment pins (Highlights, Clutch, Funny, Killstreak, Chat Spike) and instant "-10s", "+10s", and "Clip at [time]" controls.
+6. AESTHETIC REFERENCE: Follow the aesthetic of Linear, Kick, Raycast, and Twitch esports studio suites with 60fps tactile feel, glassmorphism blur (backdrop-filter: blur(16px)), and high-density telemetry.

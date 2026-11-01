@@ -67,29 +67,15 @@ export interface SyncYouTubeResult {
  */
 export async function syncWorkspaceYouTubeStreams(workspaceId: string): Promise<SyncYouTubeResult> {
   try {
-    // 1. Fetch connected YouTube account for this workspace
-    let accountsSnap = await adminDb
+    // 1. Fetch connected YouTube account strictly for this workspace (strict tenant isolation)
+    const accountsSnap = await adminDb
       .collection(col.youtube(workspaceId))
       .where('connectionStatus', '==', 'connected')
       .limit(1)
       .get();
 
-    // Fallback: If not found directly, check if another workspace in the organization / linked team has it
     if (accountsSnap.empty) {
-      const membersSnap = await adminDb.collectionGroup('members').where('workspaceId', '==', workspaceId).limit(5).get();
-      for (const mDoc of membersSnap.docs) {
-        const uid = mDoc.data().uid;
-        if (!uid) continue;
-        const userWsSnap = await adminDb.collection(col.youtube(uid)).where('connectionStatus', '==', 'connected').limit(1).get();
-        if (!userWsSnap.empty) {
-          accountsSnap = userWsSnap;
-          break;
-        }
-      }
-    }
-
-    if (accountsSnap.empty) {
-      return { success: false, syncedCount: 0, error: 'No connected YouTube channel found' };
+      return { success: false, syncedCount: 0, error: 'No connected YouTube channel found for this workspace' };
     }
 
     const accountData = accountsSnap.docs[0].data();
@@ -104,11 +90,14 @@ export async function syncWorkspaceYouTubeStreams(workspaceId: string): Promise<
     let activeLiveStream: any = null;
     const seenVideoIds = new Set<string>();
 
-    // A. Check for currently active live broadcast via liveBroadcasts API
+    // A. Check for currently active live broadcast via liveBroadcasts API (with 5s timeout)
     try {
       const liveRes = await fetch(
         'https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,status,contentDetails&broadcastStatus=active&maxResults=5',
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(5000)
+        }
       );
       const liveData = await liveRes.json();
 
@@ -153,7 +142,10 @@ export async function syncWorkspaceYouTubeStreams(workspaceId: string): Promise<
       try {
         const searchLiveRes = await fetch(
           `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&type=video&eventType=live&maxResults=5`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(5000)
+          }
         );
         const searchLiveData = await searchLiveRes.json();
 
@@ -197,7 +189,10 @@ export async function syncWorkspaceYouTubeStreams(workspaceId: string): Promise<
     try {
       const allBroadcastsRes = await fetch(
         'https://www.googleapis.com/youtube/v3/liveBroadcasts?part=snippet,status&broadcastStatus=all&maxResults=10',
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(5000)
+        }
       );
       const allBroadcastsData = await allBroadcastsRes.json();
 
@@ -244,7 +239,10 @@ export async function syncWorkspaceYouTubeStreams(workspaceId: string): Promise<
     try {
       const recentRes = await fetch(
         `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&type=video&order=date&maxResults=15`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(5000)
+        }
       );
       const recentData = await recentRes.json();
 
@@ -290,7 +288,10 @@ export async function syncWorkspaceYouTubeStreams(workspaceId: string): Promise<
         try {
           const statsRes = await fetch(
             `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails,statistics&id=${batch}`,
-            { headers: { Authorization: `Bearer ${token}` } }
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: AbortSignal.timeout(5000)
+            }
           );
           const statsData = await statsRes.json();
           if (statsData.items && Array.isArray(statsData.items)) {

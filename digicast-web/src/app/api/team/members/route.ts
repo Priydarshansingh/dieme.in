@@ -49,12 +49,36 @@ export async function GET(req: NextRequest) {
     const callerMemberDoc = await adminDb.doc(col.member(workspaceId, caller.uid)).get();
     const callerRole = isOwnerByDoc ? "owner" : (callerMemberDoc.data()?.role || "viewer");
 
-    const canViewCredentials = callerRole === "owner" || callerRole === "admin";
+    const canManage = callerRole === "owner" || callerRole === "admin";
+    const canViewTeam = canManage || callerRole === "moderator";
+
+    if (!canViewTeam && !isOwnerByDoc) {
+      return NextResponse.json({ error: "Access denied. Only workspace owners, admins, and moderators can view team access." }, { status: 403 });
+    }
 
     // Fetch all members in this workspace
     const snap = await adminDb.collection(col.members(workspaceId)).get();
     const members = snap.docs.map(doc => {
       const data = doc.data();
+      const targetRole = (data.role || "editor").toLowerCase();
+      const isSelf = doc.id === caller.uid || data.uid === caller.uid;
+
+      // Strict Role-Based Credential Isolation:
+      // - Self: Can view own credentials
+      // - Owner: Can check Editor, Moderator, and Admin passwords
+      // - Admin: Can check Editor and Moderator passwords (never Owner)
+      // - Moderator: Can ONLY check Editor passwords (never Admin, Owner, or other Mods)
+      let allowedToSeePassword = false;
+      if (isSelf) {
+        allowedToSeePassword = true;
+      } else if (callerRole === "owner") {
+        allowedToSeePassword = ["editor", "moderator", "admin"].includes(targetRole);
+      } else if (callerRole === "admin") {
+        allowedToSeePassword = ["editor", "moderator"].includes(targetRole);
+      } else if (callerRole === "moderator") {
+        allowedToSeePassword = targetRole === "editor";
+      }
+
       return {
         id: doc.id,
         uid: data.uid || doc.id,
@@ -62,7 +86,8 @@ export async function GET(req: NextRequest) {
         email: data.email || "",
         photoURL: data.photoURL || "",
         role: data.role || "editor",
-        appPassword: canViewCredentials ? (data.appPassword || "") : undefined,
+        appPassword: allowedToSeePassword ? (data.appPassword || "") : undefined,
+        canViewPassword: allowedToSeePassword,
         telegramUpload: Boolean(data.telegramUpload),
         joinedAt: data.joinedAt || data.updatedAt || null,
       };
@@ -71,7 +96,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       members,
       callerRole,
-      canManage: canViewCredentials,
+      canManage,
     });
   } catch (err: any) {
     console.error("[api/team/members GET] Error:", err);

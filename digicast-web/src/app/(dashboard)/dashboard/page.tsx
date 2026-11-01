@@ -155,7 +155,9 @@ function DashboardContent() {
     setIsSyncing(true);
     setSyncFeedback(null);
     try {
-      const res = await fetch(`/api/youtube/sync?workspaceId=${workspaceId}`);
+      const res = await fetch(`/api/youtube/sync?workspaceId=${workspaceId}`, {
+        signal: AbortSignal.timeout(6000)
+      });
       const data = await res.json();
       if (data.syncedCount !== undefined) {
         setSyncFeedback(`✅ Synced ${data.syncedCount} stream(s) from YouTube!`);
@@ -164,7 +166,11 @@ function DashboardContent() {
         setSyncFeedback(`⚠️ ${data.error}`);
       }
     } catch (e: any) {
-      setSyncFeedback('⚠️ Failed to sync with YouTube.');
+      if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+        setSyncFeedback('⚠️ Sync request timed out (taking longer than 6s).');
+      } else {
+        setSyncFeedback('⚠️ Failed to sync with YouTube.');
+      }
     } finally {
       setIsSyncing(false);
     }
@@ -172,39 +178,78 @@ function DashboardContent() {
 
   useEffect(() => {
     if (!user) return;
+    let isCancelled = false;
+
     async function init() {
-      const userSnap = await getDoc(doc(db, 'users', user!.uid));
-      if (!userSnap.exists()) return;
-      const wid: string = userSnap.data().defaultWorkspaceId || user!.uid;
-      setWorkspaceId(wid);
-
-      // Load workspace details & subscription
       try {
-        const wsDoc = await getDoc(doc(db, 'workspaces', wid));
-        if (wsDoc.exists() && wsDoc.data()?.name) {
-          setWorkspaceName(wsDoc.data().name);
-        }
-        const subRes = await fetch(`/api/workspaces/subscription?workspaceId=${wid}`);
-        if (subRes.ok) {
-          const subData = await subRes.json();
-          setSubscription(subData.subscription);
-        }
-      } catch (e) {
-        console.error('Subscription load error in dashboard:', e);
-      }
+        const wid = user!.uid;
+        setWorkspaceId(wid);
 
-      const count = await loadData(wid);
-      // Auto-trigger sync on first load if empty
-      if (count === 0) {
-        try {
-          await fetch(`/api/youtube/sync?workspaceId=${wid}`);
-          await loadData(wid);
-        } catch {
-          // Ignore
+        // 1. Kick off streams & clips fetch immediately in parallel
+        const streamsPromise = loadData(wid);
+
+        // 2. Load user and workspace metadata concurrently
+        const metaPromise = (async () => {
+          try {
+            const [userSnap, wsDoc] = await Promise.all([
+              getDoc(doc(db, 'users', user!.uid)).catch(() => null),
+              getDoc(doc(db, 'workspaces', wid)).catch(() => null),
+            ]);
+
+            if (userSnap && userSnap.exists()) {
+              const defaultWid = userSnap.data()?.defaultWorkspaceId;
+              if (defaultWid && defaultWid !== wid && !isCancelled) {
+                setWorkspaceId(defaultWid);
+              }
+            }
+            if (wsDoc && wsDoc.exists() && wsDoc.data()?.name && !isCancelled) {
+              setWorkspaceName(wsDoc.data().name);
+            }
+          } catch (e) {
+            console.warn('[dashboard] metadata fetch warning:', e);
+          }
+        })();
+
+        // 3. Load subscription in background
+        const subPromise = (async () => {
+          try {
+            const res = await fetch(`/api/workspaces/subscription?workspaceId=${wid}`, {
+              signal: AbortSignal.timeout(4000)
+            });
+            if (res.ok && !isCancelled) {
+              const subData = await res.json();
+              setSubscription(subData.subscription);
+            }
+          } catch (e) {
+            console.warn('[dashboard] subscription fetch warning:', e);
+          }
+        })();
+
+        // Wait for initial dashboard data in parallel
+        const [count] = await Promise.all([streamsPromise, metaPromise, subPromise]);
+
+        // Background auto-trigger sync if empty without blocking screen
+        if (count === 0 && !isCancelled) {
+          fetch(`/api/youtube/sync?workspaceId=${wid}`, { signal: AbortSignal.timeout(4000) })
+            .then(r => r.json())
+            .then(data => {
+              if (data.syncedCount && !isCancelled) {
+                loadData(wid);
+              }
+            })
+            .catch(() => {});
+        }
+      } catch (err) {
+        console.error('Dashboard init error:', err);
+      } finally {
+        if (!isCancelled) {
+          setLoadingData(false);
         }
       }
     }
+
     init();
+    return () => { isCancelled = true; };
   }, [user, loadData]);
 
   if (loadingData) {

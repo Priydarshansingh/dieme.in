@@ -338,6 +338,17 @@ export default function TeamPage() {
         </div>
       )}
 
+      {/* Moderator Role Notice Banner */}
+      {currentUserRole === 'moderator' && (
+        <div className="glass-card rounded-2xl p-5 border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 flex items-center gap-3">
+          <Shield className="w-5 h-5 text-cyan-400 shrink-0" />
+          <div className="text-xs">
+            <p className="font-bold text-cyan-300">Moderator Access</p>
+            <p className="text-slate-300 mt-0.5">You can inspect and copy Editor mobile app login credentials below. Provisioning and workspace administration are reserved for Admins and Owners.</p>
+          </div>
+        </div>
+      )}
+
       {/* Creator / Owner Mobile App Login Card */}
       {currentUserRole === 'owner' && (
         <div
@@ -616,6 +627,22 @@ export default function TeamPage() {
               const cfg = ROLE_CONFIG[member.role] ?? ROLE_CONFIG.viewer;
               const isPasswordVisible = Boolean(visiblePasswords[member.uid]);
               const hasPassword = Boolean(member.appPassword);
+              const isSelf = member.uid === user?.uid;
+
+              // Exact Role-Based Credential Permissions:
+              // - Admin & Owner can check Mods and Editors
+              // - Moderator can ONLY check Editors
+              // - Member can see their own password
+              const canViewThisPassword = isSelf ||
+                (currentUserRole === 'owner' && ['editor', 'moderator', 'admin'].includes(member.role)) ||
+                (currentUserRole === 'admin' && ['editor', 'moderator'].includes(member.role)) ||
+                (currentUserRole === 'moderator' && member.role === 'editor');
+
+              // Delete permissions:
+              const canDeleteThisMember = !isSelf && (
+                currentUserRole === 'owner' ||
+                (currentUserRole === 'admin' && ['editor', 'moderator'].includes(member.role))
+              );
 
               return (
                 <div key={member.uid} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white/[0.03] transition">
@@ -652,9 +679,9 @@ export default function TeamPage() {
                     </div>
                   </div>
 
-                  {/* Credentials Box (Visible to Owner & Admin) */}
+                  {/* Credentials Box (Strict Role-Based Access) */}
                   <div className="flex flex-wrap items-center gap-2.5">
-                    {canManageTeam && (
+                    {canViewThisPassword ? (
                       <div className="flex items-center gap-2 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-1.5">
                         <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span className="text-xs text-slate-400 font-medium">Password:</span>
@@ -697,10 +724,15 @@ export default function TeamPage() {
                           <span className="text-xs text-slate-500 italic">Not set</span>
                         )}
                       </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 rounded-xl px-2.5 py-1 text-slate-500 text-xs">
+                        <Lock className="w-3 h-3 text-slate-600" />
+                        <span>Protected</span>
+                      </div>
                     )}
 
-                    {/* Quick Reset Button */}
-                    {canManageTeam && (
+                    {/* Quick Reset Button (Admin/Owner for eligible members) */}
+                    {canManageTeam && canViewThisPassword && !isSelf && (
                       <button
                         onClick={() => {
                           setInviteEmail(member.email || '');
@@ -716,7 +748,7 @@ export default function TeamPage() {
                     )}
 
                     {/* Remove Member Button */}
-                    {member.role !== 'owner' && canManageTeam && (
+                    {canDeleteThisMember && (
                       <button
                         onClick={() => handleDeleteMember(member.uid)}
                         className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition"

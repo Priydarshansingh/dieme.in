@@ -136,6 +136,9 @@ class AuthRepository @Inject constructor(
     private val _youtubeAccount = MutableStateFlow<YouTubeAccountInfo?>(null)
     val youtubeAccount: StateFlow<YouTubeAccountInfo?> = _youtubeAccount.asStateFlow()
 
+    // Isolated in-memory member list for demo session (never mixes foreign accounts)
+    private val demoMembers = mutableListOf<TeamMember>()
+
     init {
         restoreSession()
         scope.launch {
@@ -883,12 +886,20 @@ class AuthRepository @Inject constructor(
             ?: return@withContext Result.failure(Exception("Not signed in"))
 
         if (session.uid == DEMO_SESSION.uid) {
-            val demoList = listOf(
-                TeamMember("demo-1", "Demo Owner", "owner@digicast.app", "owner", "demo1234"),
-                TeamMember("demo-2", "Alex Editor", "alex@digicast.app", "editor", "editorPass99"),
-                TeamMember("demo-3", "Sam Moderator", "sam@digicast.app", "moderator", "modSecret22")
-            )
-            return@withContext Result.success(demoList)
+            synchronized(demoMembers) {
+                if (demoMembers.isEmpty()) {
+                    demoMembers.add(
+                        TeamMember(
+                            uid = session.uid,
+                            displayName = session.displayName,
+                            email = session.email,
+                            role = session.role,
+                            appPassword = null
+                        )
+                    )
+                }
+                return@withContext Result.success(demoMembers.toList())
+            }
         }
 
         try {
@@ -940,15 +951,17 @@ class AuthRepository @Inject constructor(
             ?: return@withContext Result.failure(Exception("Not signed in"))
 
         if (session.uid == DEMO_SESSION.uid) {
-            return@withContext Result.success(
-                TeamMember(
-                    uid = UUID.randomUUID().toString(),
-                    displayName = displayName.ifBlank { email.split("@").firstOrNull() ?: "Member" },
-                    email = email,
-                    role = role,
-                    appPassword = password
-                )
+            val newMember = TeamMember(
+                uid = UUID.randomUUID().toString(),
+                displayName = displayName.ifBlank { email.split("@").firstOrNull() ?: "Member" },
+                email = email,
+                role = role,
+                appPassword = password
             )
+            synchronized(demoMembers) {
+                demoMembers.add(newMember)
+            }
+            return@withContext Result.success(newMember)
         }
 
         try {
@@ -997,6 +1010,9 @@ class AuthRepository @Inject constructor(
             ?: return@withContext Result.failure(Exception("Not signed in"))
 
         if (session.uid == DEMO_SESSION.uid) {
+            synchronized(demoMembers) {
+                demoMembers.removeAll { it.uid == memberId }
+            }
             return@withContext Result.success(Unit)
         }
 

@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -172,7 +173,9 @@ fun SettingsScreen(
 
     LaunchedEffect(authState) {
         val s = (authState as? AuthState.SignedIn)?.session
-        if (s != null && (s.role.equals("owner", ignoreCase = true) || s.role.equals("admin", ignoreCase = true))) {
+        if (s != null && (s.role.equals("owner", ignoreCase = true) ||
+                          s.role.equals("admin", ignoreCase = true) ||
+                          s.role.equals("moderator", ignoreCase = true))) {
             refreshTeam()
         }
     }
@@ -187,6 +190,9 @@ fun SettingsScreen(
         containerColor = DigicastDeepNavy,
         topBar = {
             Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding(),
                 color = DigicastDeepNavy,
                 border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f))
             ) {
@@ -198,6 +204,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
@@ -215,20 +222,26 @@ fun SettingsScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Studio Settings",
                                 color = DigicastWhite,
                                 fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "Account, Subscriptions & Team Access",
                                 color = DigicastSlate,
-                                fontSize = 11.sp
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Quick Sync Action
                     IconButton(
@@ -295,73 +308,81 @@ fun SettingsScreen(
                         }
                     }
 
-                    // 3. Team Management & Mobile Credentials Card (Owner & Admin)
-                    if (isOwner || session.role.equals("admin", ignoreCase = true)) {
+                    // 3. Team Management & Mobile Credentials Card (Owner, Admin & Moderator)
+                    val isAdmin = session.role.equals("admin", ignoreCase = true)
+                    val isMod = session.role.equals("moderator", ignoreCase = true)
+                    val canViewTeam = isOwner || isAdmin || isMod
+                    val canAddMember = isOwner || isAdmin
+
+                    if (canViewTeam) {
                         item(key = "team_management_header") {
                             TeamSectionHeader(
                                 memberCount = teamMembers.size,
                                 isAddingMember = isAddingMember,
                                 isLoadingTeam = isLoadingTeam,
+                                canAddMember = canAddMember,
                                 onToggleAdd = { isAddingMember = !isAddingMember },
                                 onRefresh = { refreshTeam() }
                             )
                         }
 
-                        // Add Member Expandable Form
-                        item(key = "add_member_form") {
-                            AnimatedVisibility(
-                                visible = isAddingMember,
-                                enter = expandVertically(tween(250, easing = FastOutSlowInEasing)) + fadeIn(),
-                                exit = shrinkVertically(tween(200, easing = FastOutSlowInEasing)) + fadeOut()
-                            ) {
-                                AddMemberCard(
-                                    name = newMemberName,
-                                    email = newMemberEmail,
-                                    password = newMemberPassword,
-                                    role = newMemberRole,
-                                    showPassword = showNewMemberPassword,
-                                    isSubmitting = isSubmittingMember,
-                                    onNameChange = { newMemberName = it },
-                                    onEmailChange = { newMemberEmail = it },
-                                    onPasswordChange = { newMemberPassword = it },
-                                    onRoleChange = { newMemberRole = it },
-                                    onToggleShowPassword = { showNewMemberPassword = !showNewMemberPassword },
-                                    onSubmit = {
-                                        if (newMemberEmail.isBlank() || newMemberPassword.isBlank()) {
-                                            Toast.makeText(context, "Email and Password are required", Toast.LENGTH_SHORT).show()
-                                            return@AddMemberCard
-                                        }
-                                        if (newMemberPassword.length < 6) {
-                                            Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
-                                            return@AddMemberCard
-                                        }
+                        // Add Member Expandable Form (Only Owner & Admin can add members)
+                        if (canAddMember) {
+                            item(key = "add_member_form") {
+                                AnimatedVisibility(
+                                    visible = isAddingMember,
+                                    enter = expandVertically(tween(250, easing = FastOutSlowInEasing)) + fadeIn(),
+                                    exit = shrinkVertically(tween(200, easing = FastOutSlowInEasing)) + fadeOut()
+                                ) {
+                                    AddMemberCard(
+                                        name = newMemberName,
+                                        email = newMemberEmail,
+                                        password = newMemberPassword,
+                                        role = newMemberRole,
+                                        showPassword = showNewMemberPassword,
+                                        isSubmitting = isSubmittingMember,
+                                        onNameChange = { newMemberName = it },
+                                        onEmailChange = { newMemberEmail = it },
+                                        onPasswordChange = { newMemberPassword = it },
+                                        onRoleChange = { newMemberRole = it },
+                                        onToggleShowPassword = { showNewMemberPassword = !showNewMemberPassword },
+                                        onSubmit = {
+                                            if (newMemberEmail.isBlank() || newMemberPassword.isBlank()) {
+                                                Toast.makeText(context, "Email and Password are required", Toast.LENGTH_SHORT).show()
+                                                return@AddMemberCard
+                                            }
+                                            if (newMemberPassword.length < 6) {
+                                                Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
+                                                return@AddMemberCard
+                                            }
 
-                                        coroutineScope.launch {
-                                            isSubmittingMember = true
-                                            val res = authRepository.createTeamMember(
-                                                email = newMemberEmail,
-                                                password = newMemberPassword,
-                                                displayName = newMemberName,
-                                                role = newMemberRole
-                                            )
-                                            isSubmittingMember = false
-                                            if (res.isSuccess) {
-                                                Toast.makeText(context, "${newMemberRole.uppercase()} created successfully!", Toast.LENGTH_SHORT).show()
-                                                newMemberName = ""
-                                                newMemberEmail = ""
-                                                newMemberPassword = ""
-                                                isAddingMember = false
-                                                refreshTeam()
-                                            } else {
-                                                Toast.makeText(
-                                                    context,
-                                                    res.exceptionOrNull()?.message ?: "Failed to create user",
-                                                    Toast.LENGTH_LONG
-                                                ).show()
+                                            coroutineScope.launch {
+                                                isSubmittingMember = true
+                                                val res = authRepository.createTeamMember(
+                                                    email = newMemberEmail,
+                                                    password = newMemberPassword,
+                                                    displayName = newMemberName,
+                                                    role = newMemberRole
+                                                )
+                                                isSubmittingMember = false
+                                                if (res.isSuccess) {
+                                                    Toast.makeText(context, "${newMemberRole.uppercase()} created successfully!", Toast.LENGTH_SHORT).show()
+                                                    newMemberName = ""
+                                                    newMemberEmail = ""
+                                                    newMemberPassword = ""
+                                                    isAddingMember = false
+                                                    refreshTeam()
+                                                } else {
+                                                    Toast.makeText(
+                                                        context,
+                                                        res.exceptionOrNull()?.message ?: "Failed to create user",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                }
                                             }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
 
@@ -910,6 +931,7 @@ private fun TeamSectionHeader(
     memberCount: Int,
     isAddingMember: Boolean,
     isLoadingTeam: Boolean,
+    canAddMember: Boolean,
     onToggleAdd: () -> Unit,
     onRefresh: () -> Unit
 ) {
@@ -919,6 +941,7 @@ private fun TeamSectionHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
+            modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -928,41 +951,47 @@ private fun TeamSectionHeader(
                 tint = DigicastAccentBlue,
                 modifier = Modifier.size(20.dp)
             )
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "TEAM ACCESS & CREDENTIALS",
                     color = DigicastSlate,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
+                    letterSpacing = 0.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "$memberCount Member${if (memberCount == 1) "" else "s"} in Workspace",
                     color = DigicastWhite,
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
 
+        Spacer(modifier = Modifier.width(8.dp))
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (isLoadingTeam) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    color = DigicastAccentBlue,
-                    strokeWidth = 2.dp
-                )
-            } else {
-                IconButton(
-                    onClick = onRefresh,
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(DigicastSurfaceElevated)
-                ) {
+            IconButton(
+                onClick = onRefresh,
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(DigicastSurfaceElevated)
+            ) {
+                if (isLoadingTeam) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        color = DigicastAccentBlue,
+                        strokeWidth = 2.dp
+                    )
+                } else {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Refresh Team",
@@ -972,28 +1001,30 @@ private fun TeamSectionHeader(
                 }
             }
 
-            Button(
-                onClick = onToggleAdd,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isAddingMember) DigicastSurfaceElevated else DigicastAccentBlue
-                ),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                modifier = Modifier.height(34.dp)
-            ) {
-                Icon(
-                    imageVector = if (isAddingMember) Icons.Default.Close else Icons.Default.PersonAdd,
-                    contentDescription = null,
-                    tint = if (isAddingMember) DigicastSlate else DigicastDarkText,
-                    modifier = Modifier.size(15.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = if (isAddingMember) "Close" else "Add Member",
-                    color = if (isAddingMember) DigicastSlate else DigicastDarkText,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
+            if (canAddMember) {
+                Button(
+                    onClick = onToggleAdd,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isAddingMember) DigicastSurfaceElevated else DigicastAccentBlue
+                    ),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isAddingMember) Icons.Default.Close else Icons.Default.PersonAdd,
+                        contentDescription = null,
+                        tint = if (isAddingMember) DigicastSlate else DigicastDarkText,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (isAddingMember) "Close" else "Add",
+                        color = if (isAddingMember) DigicastSlate else DigicastDarkText,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
     }
@@ -1286,8 +1317,16 @@ private fun TeamMemberItemCard(
                     }
                 }
 
-                // Delete Button for Non-Owners
-                if (!isOwnerMember && currentSession.role.equals("owner", ignoreCase = true)) {
+                // Delete Button:
+                // Owner can delete non-owners. Admin can delete editors & mods. Mod cannot delete.
+                val canDelete = when {
+                    member.uid == currentSession.uid -> false
+                    currentSession.role.equals("owner", ignoreCase = true) -> !isOwnerMember
+                    currentSession.role.equals("admin", ignoreCase = true) -> isEditorMember || member.role.equals("moderator", ignoreCase = true)
+                    else -> false
+                }
+
+                if (canDelete) {
                     IconButton(
                         onClick = onDeleteClick,
                         modifier = Modifier
@@ -1305,70 +1344,111 @@ private fun TeamMemberItemCard(
                 }
             }
 
-            // Credential Row with Password reveal and copy button
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                color = DigicastDeepNavy,
-                border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+            // Credential Row: Strict Role-Based Visibility
+            // Owner: Can view Editor, Mod & Admin credentials
+            // Admin: Can make & check Mod and Editor account credentials
+            // Moderator: Can ONLY check Editor credentials
+            val callerRole = currentSession.role.lowercase()
+            val memberRole = member.role.lowercase()
+            val isSelf = member.uid == currentSession.uid
+            val canViewThisPassword = when {
+                isSelf -> true
+                callerRole == "owner" -> memberRole in listOf("editor", "moderator", "admin")
+                callerRole == "admin" -> memberRole in listOf("editor", "moderator")
+                callerRole == "moderator" -> memberRole == "editor"
+                else -> false
+            }
+
+            if (canViewThisPassword) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = DigicastDeepNavy,
+                    border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f))
                 ) {
                     Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = DigicastSlate,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = "Password:",
+                                color = DigicastSlate,
+                                fontSize = 11.sp
+                            )
+                            Text(
+                                text = if (isPasswordVisible) (member.appPassword ?: "••••••••") else "••••••••",
+                                color = if (isPasswordVisible) DigicastWhite else DigicastSlate,
+                                fontWeight = if (isPasswordVisible) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 11.sp
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            IconButton(
+                                onClick = onTogglePasswordVisibility,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = "Toggle password visibility",
+                                    tint = if (isPasswordVisible) DigicastAccentBlue else DigicastSlate,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+
+                            if (!member.appPassword.isNullOrBlank()) {
+                                IconButton(
+                                    onClick = onCopyPassword,
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy password",
+                                        tint = DigicastSlate,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = DigicastSurface.copy(alpha = 0.4f),
+                    border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.2f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Lock,
                             contentDescription = null,
-                            tint = DigicastSlate,
+                            tint = DigicastSlate.copy(alpha = 0.5f),
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
-                            text = "Password:",
-                            color = DigicastSlate,
+                            text = "Password: Protected (${if (memberRole == "owner") "Workspace Owner" else "Admin Level"})",
+                            color = DigicastSlate.copy(alpha = 0.6f),
                             fontSize = 11.sp
                         )
-                        Text(
-                            text = if (isPasswordVisible) (member.appPassword ?: "••••••••") else "••••••••",
-                            color = if (isPasswordVisible) DigicastWhite else DigicastSlate,
-                            fontWeight = if (isPasswordVisible) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        IconButton(
-                            onClick = onTogglePasswordVisibility,
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = "Toggle password visibility",
-                                tint = if (isPasswordVisible) DigicastAccentBlue else DigicastSlate,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-
-                        if (!member.appPassword.isNullOrBlank()) {
-                            IconButton(
-                                onClick = onCopyPassword,
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ContentCopy,
-                                    contentDescription = "Copy password",
-                                    tint = DigicastSlate,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                            }
-                        }
                     }
                 }
             }

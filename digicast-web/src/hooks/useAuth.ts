@@ -84,17 +84,17 @@ export function useAuth() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        // Provision on first sign-in (idempotent — checks before writing)
-        try {
-          await provisionNewUser(u);
-        } catch (e) {
-          console.warn('[useAuth] User provision error:', e);
-        }
-      }
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      // Set user immediately so UI renders without delay
       setUser(u);
       setLoading(false);
+
+      if (u) {
+        // Provision in background without blocking initial render or transitions
+        provisionNewUser(u).catch((e) => {
+          console.warn('[useAuth] Background user provision error:', e);
+        });
+      }
     });
     return unsubscribe;
   }, []);

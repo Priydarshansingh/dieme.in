@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { PRICING_PLANS, PricingPlan, PlanId, buildUpiDeepLink } from '@/lib/pricingPlans';
 import UpiPaymentModal from '@/components/subscription/UpiPaymentModal';
+import AvatarStudioSection from '@/components/profile/AvatarStudioSection';
 
 // ─── Reusable card wrapper ─────────────────────────────────────────────────────
 function SettingsCard({
@@ -401,9 +402,12 @@ function SettingsContent() {
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Settings</h1>
         <p className="text-sm mt-1 text-slate-400">
-          Manage connections and workspace preferences.
+          Manage connections, gamer avatars, and workspace preferences.
         </p>
       </div>
+
+      {/* Duolingo Gamer Avatar Studio */}
+      <AvatarStudioSection workspaceId={workspaceId} isAdminOrOwner={true} />
 
       {/* YouTube */}
       <SettingsCard

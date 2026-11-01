@@ -38,6 +38,17 @@ data class UserSession(
     val daysRemaining: Int = 14
 )
 
+data class GamerAvatarDto(
+    val id: String,
+    val name: String,
+    val series: String,
+    val badge: String,
+    val color: String,
+    val url: String,
+    val description: String,
+    val isDefault: Boolean = false
+)
+
 data class YouTubeAccountInfo(
     val channelId: String,
     val channelName: String,
@@ -1249,6 +1260,178 @@ class AuthRepository @Inject constructor(
             } else {
                 val errBody = response.body?.string() ?: ""
                 Result.failure(Exception("Telegram send response: ${response.code} $errBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateUserAvatar(photoUrl: String): Result<String> = withContext(Dispatchers.IO) {
+        val currentSession = (_authState.value as? AuthState.SignedIn)?.session
+            ?: return@withContext Result.failure(Exception("Not signed in"))
+
+        try {
+            // 1. Immediately update local storage and memory state
+            prefs.edit().putString(KEY_PHOTO, photoUrl).apply()
+            val updated = currentSession.copy(photoUrl = photoUrl)
+            _authState.value = AuthState.SignedIn(updated)
+
+            // 2. Sync to cloud backend
+            val body = JSONObject().apply {
+                put("photoURL", photoUrl)
+                put("workspaceId", currentSession.workspaceId)
+            }.toString().toRequestBody("application/json".toMediaType())
+
+            val reqBuilder = Request.Builder()
+                .url("$BACKEND_URL/api/user/avatar")
+                .addHeader("x-user-uid", currentSession.uid)
+                .addHeader("x-user-email", currentSession.email)
+                .post(body)
+
+            if (currentSession.token.isNotBlank()) {
+                reqBuilder.addHeader("Authorization", "Bearer ${currentSession.token}")
+            }
+
+            val response = okHttpClient.newCall(reqBuilder.build()).execute()
+            Result.success(photoUrl)
+        } catch (e: Exception) {
+            Result.success(photoUrl)
+        }
+    }
+
+    suspend fun getAvatars(): Result<List<GamerAvatarDto>> = withContext(Dispatchers.IO) {
+        val defaultAvatars = listOf(
+            GamerAvatarDto(
+                id = "gojo-satoru",
+                name = "Gojo Satoru",
+                series = "Jujutsu Kaisen",
+                badge = "Six Eyes",
+                color = "#8B5CF6",
+                url = "https://digicast-web.vercel.app/avatars/gojo_satoru.svg",
+                description = "The Honored One wielding limitless cursed energy and Hollow Purple.",
+                isDefault = true
+            ),
+            GamerAvatarDto(
+                id = "goku-ssj",
+                name = "Goku (SSJ)",
+                series = "Dragon Ball Z",
+                badge = "Super Saiyan",
+                color = "#F59E0B",
+                url = "https://digicast-web.vercel.app/avatars/goku_super_saiyan.svg",
+                description = "Legendary Saiyan warrior burning with golden Super Saiyan ki.",
+                isDefault = true
+            ),
+            GamerAvatarDto(
+                id = "luffy-gear5",
+                name = "Luffy (Gear 5)",
+                series = "One Piece",
+                badge = "Sun God Nika",
+                color = "#EC4899",
+                url = "https://digicast-web.vercel.app/avatars/luffy_gear5.svg",
+                description = "Warrior of Liberation powered by the Drums of Liberation.",
+                isDefault = true
+            ),
+            GamerAvatarDto(
+                id = "sung-jinwoo",
+                name = "Sung Jin-woo",
+                series = "Solo Leveling",
+                badge = "Shadow Monarch",
+                color = "#06B6D4",
+                url = "https://digicast-web.vercel.app/avatars/sung_jinwoo.svg",
+                description = "Shadow Monarch commanding legions of risen shadow extraction soldiers.",
+                isDefault = true
+            ),
+            GamerAvatarDto(
+                id = "naruto-sage",
+                name = "Naruto Uzumaki",
+                series = "Naruto Shippuden",
+                badge = "Toad Sage Mode",
+                color = "#F97316",
+                url = "https://digicast-web.vercel.app/avatars/naruto_sage.svg",
+                description = "Hero of the Hidden Leaf with senjutsu orange pigments and toad sage eyes.",
+                isDefault = true
+            )
+        )
+
+        try {
+            val req = Request.Builder()
+                .url("$BACKEND_URL/api/avatars")
+                .get()
+                .build()
+
+            val res = okHttpClient.newCall(req).execute()
+            if (res.isSuccessful) {
+                val bodyStr = res.body?.string() ?: ""
+                val json = JSONObject(bodyStr)
+                val array = json.optJSONArray("avatars")
+                if (array != null && array.length() > 0) {
+                    val list = mutableListOf<GamerAvatarDto>()
+                    for (i in 0 until array.length()) {
+                        val item = array.getJSONObject(i)
+                        var url = item.optString("url", "")
+                        if (url.startsWith("/")) {
+                            url = "https://digicast-web.vercel.app$url"
+                        }
+                        list.add(
+                            GamerAvatarDto(
+                                id = item.optString("id", "avatar-$i"),
+                                name = item.optString("name", "Champion"),
+                                series = item.optString("series", "Anime"),
+                                badge = item.optString("badge", "Legend"),
+                                color = item.optString("color", "#8B5CF6"),
+                                url = url,
+                                description = item.optString("description", ""),
+                                isDefault = item.optBoolean("isDefault", false)
+                            )
+                        )
+                    }
+                    return@withContext Result.success(list)
+                }
+            }
+            Result.success(defaultAvatars)
+        } catch (e: Exception) {
+            Result.success(defaultAvatars)
+        }
+    }
+
+    suspend fun addCustomAvatar(
+        name: String,
+        series: String,
+        badge: String,
+        color: String,
+        url: String,
+        description: String
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val session = (_authState.value as? AuthState.SignedIn)?.session
+            ?: return@withContext Result.failure(Exception("Not signed in"))
+
+        try {
+            val body = JSONObject().apply {
+                put("name", name)
+                put("series", series)
+                put("badge", badge)
+                put("color", color)
+                put("url", url)
+                put("description", description)
+                put("workspaceId", session.workspaceId)
+            }.toString().toRequestBody("application/json".toMediaType())
+
+            val reqBuilder = Request.Builder()
+                .url("$BACKEND_URL/api/avatars")
+                .addHeader("x-user-uid", session.uid)
+                .addHeader("x-user-email", session.email)
+                .post(body)
+
+            if (session.token.isNotBlank()) {
+                reqBuilder.addHeader("Authorization", "Bearer ${session.token}")
+            }
+
+            val response = okHttpClient.newCall(reqBuilder.build()).execute()
+            if (response.isSuccessful) {
+                Result.success(true)
+            } else {
+                val err = response.body?.string() ?: ""
+                Result.failure(Exception("Failed to add avatar: $err"))
             }
         } catch (e: Exception) {
             Result.failure(e)

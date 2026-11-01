@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <radialGradient id="gojoGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#3B82F6" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0F172A" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="sixEyes" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#C084FC"/>
+    </linearGradient>
+    <linearGradient id="hairGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="80%" stop-color="#E2E8F0"/>
+      <stop offset="100%" stop-color="#94A3B8"/>
+    </linearGradient>
+    <filter id="purpleAura" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="200" height="200" rx="100" fill="url(#gojoGlow)"/>
+
+  <!-- Hollow Purple Spheres Ambient -->
+  <circle cx="35" cy="50" r="14" fill="#C084FC" opacity="0.3" filter="url(#purpleAura)"/>
+  <circle cx="165" cy="140" r="18" fill="#38BDF8" opacity="0.25" filter="url(#purpleAura)"/>
+  <circle cx="170" cy="45" r="8" fill="#A855F7" opacity="0.4"/>
+
+  <!-- High Collar High Jujutsu Jacket -->
+  <path d="M 50 200 L 70 148 L 100 162 L 130 148 L 150 200 Z" fill="#0B0F19"/>
+  <path d="M 68 152 L 100 168 L 132 152 L 126 142 L 100 152 L 74 142 Z" fill="#1E1B4B" stroke="#6366F1" stroke-width="1.5"/>
+
+  <!-- Neck -->
+  <path d="M 86 130 L 114 130 L 112 154 L 88 154 Z" fill="#F8D7C4"/>
+
+  <!-- Face -->
+  <path d="M 72 90 Q 70 128 100 144 Q 130 128 128 90 Z" fill="#FCE8DE"/>
+
+  <!-- Jaw shadow -->
+  <path d="M 85 130 Q 100 144 115 130 Q 100 138 85 130 Z" fill="#E8BFA8"/>
+
+  <!-- Gojo's Iconic Half-Lowered Blindfold -->
+  <path d="M 66 84 C 66 74 134 74 134 84 L 132 98 C 132 104 68 104 68 98 Z" fill="#0F172A" stroke="#312E81" stroke-width="2"/>
+  <!-- Fabric folds -->
+  <path d="M 68 91 Q 100 96 132 91" stroke="#3730A3" stroke-width="1.5" fill="none"/>
+
+  <!-- Left Glowing Six Eye Peeking Out (Infinite Blue) -->
+  <ellipse cx="86" cy="104" rx="7" ry="5.5" fill="url(#sixEyes)" filter="url(#purpleAura)"/>
+  <circle cx="86" cy="104" r="3" fill="#FFFFFF"/>
+  <circle cx="85" cy="103" r="1" fill="#38BDF8"/>
+  <!-- Right Eye (Subtle Glimmer) -->
+  <ellipse cx="114" cy="104" rx="7" ry="5.5" fill="url(#sixEyes)" filter="url(#purpleAura)"/>
+  <circle cx="114" cy="104" r="3" fill="#FFFFFF"/>
+  <circle cx="113" cy="103" r="1" fill="#38BDF8"/>
+
+  <!-- Confident Smirk -->
+  <path d="M 94 124 Q 100 128 108 123" stroke="#9A3412" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+
+  <!-- Signature Spiky White Hair -->
+  <!-- Back / Side spikes -->
+  <path d="M 64 88 L 48 76 L 62 70 L 44 54 L 66 52 L 56 36 L 76 42 L 80 20 L 96 34 L 100 16 L 112 34 L 126 22 L 128 42 L 146 36 L 138 54 L 158 56 L 140 72 L 154 78 L 138 88 Z" fill="url(#hairGrad)"/>
+  <!-- Front Bangs -->
+  <path d="M 72 68 L 78 86 L 86 70 L 94 90 L 102 68 L 112 92 L 118 70 L 126 84 L 130 68 Z" fill="#FFFFFF"/>
+
+  <!-- Frame Ring (Gamer Level Specular Border) -->
+  <circle cx="100" cy="100" r="97" fill="none" stroke="#A855F7" stroke-width="3" opacity="0.8"/>
+  <circle cx="100" cy="100" r="94" fill="none" stroke="#38BDF8" stroke-width="1" opacity="0.6"/>
+</svg>

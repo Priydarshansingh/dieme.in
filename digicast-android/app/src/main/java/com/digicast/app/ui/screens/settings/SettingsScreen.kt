@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -48,6 +50,21 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SmartDisplay
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import com.digicast.app.data.repository.GamerAvatarDto
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.QrCode
@@ -136,6 +153,23 @@ fun SettingsScreen(
     var isSyncing by remember { mutableStateOf(false) }
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showUpgradeDialog by remember { mutableStateOf(false) }
+
+    // Duolingo Anime Avatar Studio State
+    var showAvatarPicker by remember { mutableStateOf(false) }
+    var showAddAvatarDialog by remember { mutableStateOf(false) }
+    var avatarList by remember { mutableStateOf<List<GamerAvatarDto>>(emptyList()) }
+    var isLoadingAvatars by remember { mutableStateOf(false) }
+
+    fun loadAvatars() {
+        coroutineScope.launch {
+            isLoadingAvatars = true
+            val res = authRepository.getAvatars()
+            isLoadingAvatars = false
+            if (res.isSuccess) {
+                avatarList = res.getOrDefault(emptyList())
+            }
+        }
+    }
 
     // Team Access & Credentials State
     var teamMembers by remember { mutableStateOf<List<TeamMember>>(emptyList()) }
@@ -296,7 +330,22 @@ fun SettingsScreen(
                         WorkspaceProfileBentoCard(
                             session = session,
                             context = context,
-                            onOpenUpgrade = { showUpgradeDialog = true }
+                            onOpenUpgrade = { showUpgradeDialog = true },
+                            onChangeAvatar = {
+                                loadAvatars()
+                                showAvatarPicker = true
+                            }
+                        )
+                    }
+
+                    // 1a. Duolingo Gamer Avatar Studio Bento Card
+                    item(key = "gamer_avatar_studio_card") {
+                        DuolingoAvatarStudioBentoCard(
+                            session = session,
+                            onOpenPicker = {
+                                loadAvatars()
+                                showAvatarPicker = true
+                            }
                         )
                     }
 
@@ -734,6 +783,54 @@ fun SettingsScreen(
             }
         )
     }
+
+    // Duolingo Avatar Picker Dialog
+    if (showAvatarPicker) {
+        val currentSession = (authState as? AuthState.SignedIn)?.session
+        val isOwnerOrAdmin = currentSession?.role.let { it.equals("owner", true) || it.equals("admin", true) }
+
+        DuolingoAvatarPickerDialog(
+            currentPhotoUrl = currentSession?.photoUrl ?: "",
+            currentDisplayName = currentSession?.displayName ?: "User",
+            avatars = avatarList,
+            isLoading = isLoadingAvatars,
+            isOwnerOrAdmin = isOwnerOrAdmin,
+            onDismiss = { showAvatarPicker = false },
+            onSelectAvatar = { avatar ->
+                coroutineScope.launch {
+                    val res = authRepository.updateUserAvatar(avatar.url)
+                    if (res.isSuccess) {
+                        Toast.makeText(context, "✨ Equipped ${avatar.name}!", Toast.LENGTH_SHORT).show()
+                        showAvatarPicker = false
+                    } else {
+                        Toast.makeText(context, "Failed to update avatar", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onOpenAddAvatar = {
+                showAddAvatarDialog = true
+            }
+        )
+    }
+
+    // Add Custom Avatar Dialog (Admin/Owner)
+    if (showAddAvatarDialog) {
+        AddCustomAvatarDialog(
+            onDismiss = { showAddAvatarDialog = false },
+            onSubmit = { name, series, badge, color, url, desc ->
+                coroutineScope.launch {
+                    val res = authRepository.addCustomAvatar(name, series, badge, color, url, desc)
+                    if (res.isSuccess) {
+                        Toast.makeText(context, "🔥 Avatar published to roster!", Toast.LENGTH_SHORT).show()
+                        showAddAvatarDialog = false
+                        loadAvatars()
+                    } else {
+                        Toast.makeText(context, res.exceptionOrNull()?.message ?: "Failed to add avatar", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        )
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -744,7 +841,8 @@ fun SettingsScreen(
 private fun WorkspaceProfileBentoCard(
     session: UserSession,
     context: Context,
-    onOpenUpgrade: () -> Unit
+    onOpenUpgrade: () -> Unit,
+    onChangeAvatar: () -> Unit
 ) {
     val isOwner = session.role.equals("owner", ignoreCase = true)
 
@@ -784,21 +882,51 @@ private fun WorkspaceProfileBentoCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Profile Avatar Box with glowing border
+                // Profile Avatar Box with Duolingo-style glowing border and edit badge
                 Box(
                     modifier = Modifier
-                        .size(54.dp)
+                        .size(56.dp)
                         .clip(CircleShape)
                         .background(DigicastSurfaceElevated)
-                        .border(1.5.dp, if (isOwner) DigicastAmber else DigicastAccentBlue, CircleShape),
+                        .border(2.dp, if (isOwner) DigicastAmber else DigicastAccentBlue, CircleShape)
+                        .clickable { onChangeAvatar() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = session.displayName.take(1).uppercase().ifBlank { "U" },
-                        color = DigicastWhite,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 22.sp
-                    )
+                    if (session.photoUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = session.photoUrl,
+                            contentDescription = "Avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        Text(
+                            text = session.displayName.take(1).uppercase().ifBlank { "U" },
+                            color = DigicastWhite,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 22.sp
+                        )
+                    }
+
+                    // Edit badge overlay
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(DigicastElectricCyan)
+                            .border(1.5.dp, DigicastCardSurface, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Change Avatar",
+                            tint = DigicastDeepNavy,
+                            modifier = Modifier.size(10.dp)
+                        )
+                    }
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
@@ -838,6 +966,38 @@ private fun WorkspaceProfileBentoCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { onChangeAvatar() },
+                            color = DigicastSurfaceElevated,
+                            border = BorderStroke(1.dp, DigicastBorder)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Palette,
+                                    contentDescription = null,
+                                    tint = DigicastElectricCyan,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = "Anime Avatar",
+                                    color = DigicastElectricCyan,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                 }
             }
 

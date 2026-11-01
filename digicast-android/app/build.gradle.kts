@@ -102,6 +102,7 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.datastore)
     implementation(libs.coil.compose)
+    implementation("io.coil-kt:coil-svg:2.7.0")
     implementation("com.google.android.gms:play-services-ads:23.4.0")
 }
 

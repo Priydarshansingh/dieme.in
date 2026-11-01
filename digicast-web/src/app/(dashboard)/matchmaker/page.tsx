@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { ComingSoonGate } from '@/components/common/ComingSoonGate';
 import {
   Sparkles,
   Send,
@@ -135,7 +136,18 @@ export default function AIMatchmakerPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto flex flex-col h-[calc(100vh-140px)]">
+    <ComingSoonGate
+      title="AI Video Matchmaker & Talent Engine"
+      subtitle="Intelligently match your livestream footage, pacing requirements, and turnaround deadlines with verified top-tier video editors and shorts cutters."
+      icon={<Sparkles className="w-6 h-6" />}
+      category="AI_MATCHMAKER"
+      highlights={[
+        { title: "Gemini Pacing Analysis", desc: "Automated analysis of your Twitch/YouTube stream genre, humor, and retention hooks.", tag: "AI ENGINE" },
+        { title: "Direct Telegram Handoff", desc: "Instantly chat with verified montage cutters and shorts creators with guaranteed turnaround.", tag: "INSTANT CHAT" },
+        { title: "Escrow Protected Payments", desc: "Release DP or INR payments only after you approve the rendered 9:16 vertical clip.", tag: "ESCROW" }
+      ]}
+    >
+      <div className="space-y-6 max-w-5xl mx-auto flex flex-col h-[calc(100vh-140px)]">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-4">
         <div>
@@ -292,5 +304,6 @@ export default function AIMatchmakerPage() {
         </button>
       </form>
     </div>
+    </ComingSoonGate>
   );
 }

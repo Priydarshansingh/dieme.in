@@ -9,9 +9,10 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   KeyRound, Mail, Shield, Trash2, Users, Eye, EyeOff,
   AlertTriangle, Smartphone, RefreshCw, CheckCircle2, Lock,
-  Copy, Check, UserCheck, ShieldCheck
+  Copy, Check, UserCheck, ShieldCheck, Code2, Terminal
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useDeveloperAccess } from '@/hooks/useDeveloperAccess';
 
 interface Member {
   uid: string;
@@ -22,6 +23,7 @@ interface Member {
   appPassword?: string;
   telegramUpload?: boolean;
   joinedAt?: Timestamp | string;
+  developerAccess?: boolean;
 }
 
 const ROLE_CONFIG: Record<Member['role'], { label: string; color: string; bg: string; border: string }> = {
@@ -305,6 +307,43 @@ export default function TeamPage() {
     navigator.clipboard.writeText(text);
     setCopiedUid(uid);
     setTimeout(() => setCopiedUid(null), 2000);
+  };
+
+  const { hasDeveloperAccess, toggleTargetDeveloperAccess } = useDeveloperAccess();
+  const [updatingDevUid, setUpdatingDevUid] = useState<string | null>(null);
+  const [devActionFeedback, setDevActionFeedback] = useState<string | null>(null);
+
+  const handleToggleDevAccess = async (targetMember: Member) => {
+    if (targetMember.email === 'pskishnawat133@gmail.com') {
+      setDevActionFeedback('pskishnawat133@gmail.com is the permanent Master Developer and cannot be revoked.');
+      setTimeout(() => setDevActionFeedback(null), 4000);
+      return;
+    }
+
+    setUpdatingDevUid(targetMember.uid);
+    setDevActionFeedback(null);
+    const nextVal = !Boolean(targetMember.developerAccess);
+
+    try {
+      const ok = await toggleTargetDeveloperAccess(targetMember.uid, nextVal, workspaceId || undefined);
+      if (ok) {
+        setMembers(prev =>
+          prev.map(m => m.uid === targetMember.uid ? { ...m, developerAccess: nextVal } : m)
+        );
+        setDevActionFeedback(
+          nextVal
+            ? `Granted Developer Preview Access to ${targetMember.displayName || targetMember.email}! They can now view Marketplace, Matchmaker & Leaderboard.`
+            : `Revoked Developer Preview Access from ${targetMember.displayName || targetMember.email}. They will now see the Coming Soon gate.`
+        );
+      } else {
+        setDevActionFeedback('Failed to update developer permission. Please try again.');
+      }
+    } catch (err: any) {
+      setDevActionFeedback(err?.message || 'Error updating developer permissions.');
+    } finally {
+      setUpdatingDevUid(null);
+      setTimeout(() => setDevActionFeedback(null), 5000);
+    }
   };
 
   const currentUserMember = members.find(m => m.uid === user?.uid);
@@ -637,6 +676,44 @@ export default function TeamPage() {
         </div>
       )}
 
+      {/* Developer & Admin Preview Permissions Card */}
+      {canManageTeam && (
+        <div className="rounded-2xl p-5 border border-cyan-500/30 bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-cyan-950/40 shadow-xl space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center shrink-0">
+                <Code2 className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                  <span>Developer & Admin Preview Access</span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                    Feature Gate
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  The <span className="text-cyan-300 font-medium">Marketplace</span>, <span className="text-cyan-300 font-medium">AI Matchmaker</span>, and <span className="text-cyan-300 font-medium">Leaderboard</span> pages display a <em>Coming Soon</em> gate to normal accounts. You can grant developer access to any team member below to let them view and test the live pages.
+                </p>
+              </div>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-2">
+              <span className="text-xs font-mono text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Master Dev: pskishnawat133@gmail.com
+              </span>
+            </div>
+          </div>
+
+          {devActionFeedback && (
+            <div className="p-3 text-xs rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 flex items-center gap-2 font-medium">
+              <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+              <span>{devActionFeedback}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Member list with Credentials & Eye Toggle */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -717,6 +794,12 @@ export default function TeamPage() {
                         >
                           {cfg.label}
                         </span>
+                        {(member.developerAccess || member.email === 'pskishnawat133@gmail.com') && (
+                          <span className="text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 flex items-center gap-1 shadow-sm">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                            DEV PREVIEW
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs font-mono text-slate-400 truncate mt-0.5">{member.email}</p>
                     </div>
@@ -772,6 +855,38 @@ export default function TeamPage() {
                         <Lock className="w-3 h-3 text-slate-600" />
                         <span>Protected</span>
                       </div>
+                    )}
+
+                    {/* Developer Access Permission Toggle */}
+                    {canManageTeam && (
+                      <button
+                        type="button"
+                        disabled={updatingDevUid === member.uid || member.email === 'pskishnawat133@gmail.com'}
+                        onClick={() => handleToggleDevAccess(member)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition shadow-sm ${
+                          member.developerAccess || member.email === 'pskishnawat133@gmail.com'
+                            ? 'bg-cyan-950/70 border-cyan-500/50 text-cyan-300 hover:bg-cyan-900/80 hover:border-cyan-400'
+                            : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:border-white/25 hover:bg-white/[0.08]'
+                        } ${member.email === 'pskishnawat133@gmail.com' ? 'opacity-85 cursor-default' : 'cursor-pointer'}`}
+                        title={
+                          member.email === 'pskishnawat133@gmail.com'
+                            ? 'Permanent Master Developer Access'
+                            : member.developerAccess
+                            ? 'Developer preview is ACTIVE (can view Marketplace, Matchmaker, Leaderboard). Click to revoke.'
+                            : 'Developer preview is OFF (sees Coming Soon gate). Click to grant access.'
+                        }
+                      >
+                        <Code2 className={`w-3.5 h-3.5 ${member.developerAccess || member.email === 'pskishnawat133@gmail.com' ? 'text-cyan-400' : 'text-slate-500'}`} />
+                        <span>
+                          {updatingDevUid === member.uid
+                            ? 'Updating...'
+                            : member.email === 'pskishnawat133@gmail.com'
+                            ? 'Master Dev'
+                            : member.developerAccess
+                            ? 'Dev Access: ON'
+                            : 'Dev Access: OFF'}
+                        </span>
+                      </button>
                     )}
 
                     {/* Quick Reset Button (Admin/Owner for eligible members) */}

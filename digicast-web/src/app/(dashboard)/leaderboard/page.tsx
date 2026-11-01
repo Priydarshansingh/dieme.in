@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { ComingSoonGate } from '@/components/common/ComingSoonGate';
 import {
   Trophy,
   Star,
@@ -65,7 +66,18 @@ export default function LeaderboardPage() {
   ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <ComingSoonGate
+      title="Top Editors & Creator Leaderboard"
+      subtitle="The official competitive ranking of verified short-form video editors, reel cutters, and motion designers ranked by performance, speed, and creator satisfaction."
+      icon={<Trophy className="w-6 h-6" />}
+      category="LEADERBOARD"
+      highlights={[
+        { title: "Transparent ELO Ranking", desc: "Calculated dynamically using real client ratings, verified on-time project completions, and revision rates.", tag: "RANKINGS" },
+        { title: "Monthly Cash & DP Rewards", desc: "Top 3 editors every calendar month unlock featured portfolio placement and fee waivers.", tag: "PRIZES" },
+        { title: "Verified Pro Badging", desc: "Stand out to top creators and multi-channel production studios with proof-of-work authenticity.", tag: "VERIFIED" }
+      ]}
+    >
+      <div className="space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -236,5 +248,6 @@ export default function LeaderboardPage() {
         </div>
       </div>
     </div>
+    </ComingSoonGate>
   );
 }

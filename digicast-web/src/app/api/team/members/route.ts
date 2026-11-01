@@ -113,6 +113,7 @@ export async function GET(req: NextRequest) {
         role: data.role || "editor",
         appPassword: allowedToSeePassword ? (data.appPassword || "") : undefined,
         canViewPassword: allowedToSeePassword,
+        developerAccess: Boolean(data.developerAccess || data.isDeveloper || data.email === "pskishnawat133@gmail.com"),
         telegramUpload: Boolean(data.telegramUpload),
         joinedAt: data.joinedAt || data.updatedAt || null,
       };

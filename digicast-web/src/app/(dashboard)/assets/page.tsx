@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { ComingSoonGate } from '@/components/common/ComingSoonGate';
 import {
   Palette,
   Tv,
@@ -161,8 +162,19 @@ export default function StreamAssetsPage() {
     : assets.filter((a) => a.category === selectedCategory);
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
+    <ComingSoonGate
+      title="Live Stream Assets & Overlay Marketplace"
+      subtitle="Curated overlays, animated facecams, alert packs, sound effects, and transitions tailored for OBS Studio, Streamlabs, and mobile live streaming."
+      icon={<Palette className="w-6 h-6" />}
+      category="MARKETPLACE"
+      highlights={[
+        { title: "Animated Facecam Borders", desc: "Minimal titanium, cyberpunk neon, and responsive audio visualizer webcam frames.", tag: "OVERLAYS" },
+        { title: "Green Screen FX & Alerts", desc: "Subscribe bells, killstreak banners, and transparent WebM intermission stingers.", tag: "ALERTS" },
+        { title: "1-Click OBS Integration", desc: "Download and auto-install into your live streaming setup with loss-free alpha channels.", tag: "STREAMLABS" }
+      ]}
+    >
+      <div className="space-y-8 max-w-7xl mx-auto">
+        {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
@@ -351,5 +363,6 @@ export default function StreamAssetsPage() {
         </div>
       )}
     </div>
-  );
+  </ComingSoonGate>
+);
 }

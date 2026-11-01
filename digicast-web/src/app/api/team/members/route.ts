@@ -35,18 +35,29 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId");
-    if (!workspaceId) {
-      return NextResponse.json({ error: "Missing workspaceId" }, { status: 400 });
+    let workspaceId = searchParams.get("workspaceId");
+
+    // Auto-resolve workspaceId if missing, null, or undefined
+    if (!workspaceId || workspaceId === "null" || workspaceId === "undefined") {
+      const userDoc = await adminDb.doc(col.user(caller.uid)).get();
+      workspaceId = (userDoc.exists && userDoc.data()?.defaultWorkspaceId) ? userDoc.data()?.defaultWorkspaceId : caller.uid;
     }
 
     // Check workspace doc
-    const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
-    const wsData = wsDoc.exists ? wsDoc.data() : null;
+    let wsDoc = await adminDb.doc(col.workspace(workspaceId!)).get();
+    let wsData = wsDoc.exists ? wsDoc.data() : null;
+
+    // If workspace not found by ID, check if caller is owner of personal workspace
+    if (!wsDoc.exists && workspaceId !== caller.uid) {
+      workspaceId = caller.uid;
+      wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
+      wsData = wsDoc.exists ? wsDoc.data() : null;
+    }
+
     const isOwnerByDoc = wsData?.ownerUid === caller.uid || wsData?.ownerId === caller.uid || workspaceId === caller.uid;
 
     // Check member doc for caller's role
-    const callerMemberDoc = await adminDb.doc(col.member(workspaceId, caller.uid)).get();
+    const callerMemberDoc = await adminDb.doc(col.member(workspaceId!, caller.uid)).get();
     const callerRole = isOwnerByDoc ? "owner" : (callerMemberDoc.data()?.role || "viewer");
 
     const canManage = callerRole === "owner" || callerRole === "admin";
@@ -57,7 +68,21 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch all members in this workspace
-    const snap = await adminDb.collection(col.members(workspaceId)).get();
+    let snap = await adminDb.collection(col.members(workspaceId!)).get();
+
+    // Fallback: if empty, check if caller defaultWorkspaceId has the members
+    if (snap.empty) {
+      const userDoc = await adminDb.doc(col.user(caller.uid)).get();
+      const altWid = userDoc.exists ? userDoc.data()?.defaultWorkspaceId : null;
+      if (altWid && altWid !== workspaceId) {
+        const altSnap = await adminDb.collection(col.members(altWid)).get();
+        if (!altSnap.empty) {
+          snap = altSnap;
+          workspaceId = altWid;
+        }
+      }
+    }
+
     const members = snap.docs.map(doc => {
       const data = doc.data();
       const targetRole = (data.role || "editor").toLowerCase();
@@ -97,6 +122,7 @@ export async function GET(req: NextRequest) {
       members,
       callerRole,
       canManage,
+      workspaceId,
     });
   } catch (err: any) {
     console.error("[api/team/members GET] Error:", err);
@@ -114,8 +140,13 @@ export async function DELETE(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId");
+    let workspaceId = searchParams.get("workspaceId");
     const memberId = searchParams.get("memberId");
+
+    if (!workspaceId || workspaceId === "null" || workspaceId === "undefined") {
+      const userDoc = await adminDb.doc(col.user(caller.uid)).get();
+      workspaceId = (userDoc.exists && userDoc.data()?.defaultWorkspaceId) ? userDoc.data()?.defaultWorkspaceId : caller.uid;
+    }
 
     if (!workspaceId || !memberId) {
       return NextResponse.json({ error: "workspaceId and memberId are required" }, { status: 400 });

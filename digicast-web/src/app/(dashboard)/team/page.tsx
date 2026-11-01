@@ -70,6 +70,7 @@ export default function TeamPage() {
   } | null>(null);
 
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [serverCallerRole, setServerCallerRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -78,9 +79,15 @@ export default function TeamPage() {
 
   async function loadSubscription(wid: string) {
     try {
-      const idToken = await auth.currentUser?.getIdToken();
+      const idToken = await auth.currentUser?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
       const res = await fetch(`/api/workspaces/subscription?workspaceId=${wid}`, {
-        headers: { Authorization: `Bearer ${idToken}` }
+        headers
       });
       if (res.ok) {
         const data = await res.json();
@@ -92,33 +99,54 @@ export default function TeamPage() {
   }
 
   async function loadMembers() {
+    if (!user) return;
     try {
-      let wid = user!.uid;
-      const userSnap = await getDoc(doc(db, 'users', user!.uid));
-      if (userSnap.exists() && userSnap.data()?.defaultWorkspaceId) {
-        wid = userSnap.data().defaultWorkspaceId;
+      let wid = user.uid;
+      // Resolve default workspace without letting client firestore exceptions break page
+      try {
+        const userSnap = await getDoc(doc(db, 'users', user.uid));
+        if (userSnap.exists() && userSnap.data()?.defaultWorkspaceId) {
+          wid = userSnap.data().defaultWorkspaceId;
+        }
+      } catch (docErr) {
+        console.warn('User doc client lookup note:', docErr);
       }
+
       setWorkspaceId(wid);
       loadSubscription(wid);
 
-      // Load members via API or direct Firestore
+      // Robust authenticated fetch with fallback headers
+      let idToken = '';
       try {
-        const idToken = await auth.currentUser?.getIdToken();
-        const res = await fetch(`/api/team/members?workspaceId=${wid}`, {
-          headers: { Authorization: `Bearer ${idToken}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setMembers(data.members || []);
-        } else {
-          // Fallback to Firestore direct query
+        idToken = (await auth.currentUser?.getIdToken()) || '';
+      } catch (tokenErr) {
+        console.warn('idToken refresh note:', tokenErr);
+      }
+
+      const headers: Record<string, string> = {
+        'x-user-uid': user.uid,
+        'x-user-email': user.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
+      const res = await fetch(`/api/team/members?workspaceId=${wid}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data.members || []);
+        if (data.workspaceId) {
+          setWorkspaceId(data.workspaceId);
+        }
+        if (data.callerRole) {
+          setServerCallerRole(data.callerRole);
+        }
+      } else {
+        console.warn('Team members API returned non-ok status:', res.status);
+        try {
           const snap = await getDocs(collection(db, 'workspaces', wid, 'members'));
           setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as Member)));
+        } catch (clientErr) {
+          console.warn('Client Firestore query error:', clientErr);
         }
-      } catch (err) {
-        console.warn('Team members query fallback:', err);
-        const snap = await getDocs(collection(db, 'workspaces', wid, 'members'));
-        setMembers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as Member)));
       }
     } catch (err) {
       console.error('Team load error:', err);
@@ -147,13 +175,17 @@ export default function TeamPage() {
     setOwnerPasswordSuccess(null);
 
     try {
-      const idToken = await auth.currentUser?.getIdToken();
+      const idToken = await auth.currentUser?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
       const res = await fetch('/api/team/set-owner-app-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
+        headers,
         body: JSON.stringify({
           workspaceId: activeWid,
           password: ownerPassword
@@ -196,14 +228,17 @@ export default function TeamPage() {
     setCreateSuccess(null);
 
     try {
-      const idToken = await auth.currentUser?.getIdToken();
+      const idToken = await auth.currentUser?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
 
       const res = await fetch('/api/team/create-app-user', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
+        headers,
         body: JSON.stringify({
           workspaceId: activeWid,
           email: inviteEmail.trim().toLowerCase(),
@@ -240,10 +275,16 @@ export default function TeamPage() {
     if (!activeWid) return;
 
     try {
-      const idToken = await auth.currentUser?.getIdToken();
+      const idToken = await auth.currentUser?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
       const res = await fetch(`/api/team/members?workspaceId=${activeWid}&memberId=${memberId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${idToken}` }
+        headers
       });
       if (res.ok) {
         loadMembers();
@@ -267,7 +308,9 @@ export default function TeamPage() {
   };
 
   const currentUserMember = members.find(m => m.uid === user?.uid);
-  const currentUserRole = (!workspaceId || workspaceId === user?.uid) ? 'owner' : (currentUserMember?.role || 'owner');
+  const currentUserRole = serverCallerRole ||
+    (currentUserMember?.role) ||
+    ((!workspaceId || workspaceId === user?.uid) ? 'owner' : 'owner');
   const canManageTeam = currentUserRole === 'owner' || currentUserRole === 'admin';
 
   if (loading) {

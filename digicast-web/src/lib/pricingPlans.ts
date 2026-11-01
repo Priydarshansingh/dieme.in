@@ -148,7 +148,7 @@ export function buildUpiDeepLink(params: {
   const { amount, planName } = params;
   const upiId = UPI_CONFIG.upiId;
   const payeeName = UPI_CONFIG.payeeName;
-  const formattedAmount = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  const formattedAmount = Number(amount).toFixed(2);
   const cleanNote = planName ? `Digicast ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20) : 'Digicast';
 
   return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${formattedAmount}&cu=INR&tn=${encodeURIComponent(cleanNote)}`;
@@ -160,7 +160,7 @@ export function buildUpiDeepLink(params: {
 export function buildMobileAppUpiLinks(amount: number, planName: string) {
   const upiId = encodeURIComponent(UPI_CONFIG.upiId);
   const payeeName = encodeURIComponent(UPI_CONFIG.payeeName);
-  const amtStr = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  const amtStr = Number(amount).toFixed(2);
   const note = encodeURIComponent(`Digicast ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20));
 
   return {

@@ -158,8 +158,14 @@ export default function PricingAndSubscriptionsPage() {
                 <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{p.description}</p>
               </div>
 
-              <div className="pt-2">
-                <span className="text-3xl font-extrabold text-white">{p.price}</span>
+              <div
+                onClick={() => {
+                  if (!p.isTrial) handleOpenPayment(p.id as PlanId);
+                }}
+                className={`pt-2 ${!p.isTrial ? 'cursor-pointer hover:opacity-90 group' : ''}`}
+                title={!p.isTrial ? `Click to subscribe for ${p.price}` : ''}
+              >
+                <span className="text-3xl font-extrabold text-white group-hover:text-cyan-300 transition-colors">{p.price}</span>
                 <span className="text-xs text-slate-400 ml-1">/{p.period}</span>
               </div>
 

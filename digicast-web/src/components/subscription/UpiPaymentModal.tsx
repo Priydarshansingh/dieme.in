@@ -13,7 +13,7 @@ import {
 import {
   X, Check, Copy, ExternalLink, QrCode, Smartphone,
   ShieldCheck, Sparkles, AlertCircle, Loader2, Upload,
-  Image as ImageIcon, Trash2, Clock, RefreshCw, Zap
+  Image as ImageIcon, Trash2, Clock, RefreshCw, Zap, Eye, Receipt
 } from 'lucide-react';
 import { auth } from '@/lib/firebase/client';
 
@@ -57,6 +57,81 @@ export default function UpiPaymentModal({
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [gatewayStatus, setGatewayStatus] = useState<string>('listening');
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 5-10 minute Gateway Session Countdown Timer (8 minutes = 480 seconds)
+  const GATEWAY_TIMEOUT_SEC = 480;
+  const [timeLeft, setTimeLeft] = useState(GATEWAY_TIMEOUT_SEC);
+
+  // Modals state for screenshot preview and transaction history
+  const [showScreenshotModal, setShowScreenshotModal] = useState(false);
+  const [showAllPaymentsModal, setShowAllPaymentsModal] = useState(false);
+  const [allPaymentsList, setAllPaymentsList] = useState<any[]>([]);
+  const [isLoadingAllPayments, setIsLoadingAllPayments] = useState(false);
+
+  // Synchronize initialPlanId prop whenever changed or modal opens
+  useEffect(() => {
+    if (initialPlanId) {
+      setSelectedPlanId(initialPlanId);
+      setSubmittedPayment(null);
+    }
+  }, [initialPlanId, isOpen]);
+
+  // Session timer countdown
+  useEffect(() => {
+    if (!isOpen || submittedPayment) return;
+    setTimeLeft(GATEWAY_TIMEOUT_SEC);
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isOpen, selectedPlanId, submittedPayment]);
+
+  const formatTimer = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleRestartTimer = () => {
+    setTimeLeft(GATEWAY_TIMEOUT_SEC);
+    setSubmitError(null);
+  };
+
+  const handleCheckAllPayments = async () => {
+    setIsLoadingAllPayments(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch(`/api/payments/check?workspaceId=${workspaceId}&all=true`);
+      const data = await res.json();
+      if (data.recentPayments && Array.isArray(data.recentPayments)) {
+        setAllPaymentsList(data.recentPayments);
+        setShowAllPaymentsModal(true);
+      } else {
+        setAllPaymentsList([]);
+        setShowAllPaymentsModal(true);
+      }
+      if (data.isPaid || data.status === 'approved') {
+        setSubmittedPayment({
+          ...data,
+          utrNumber: data.utrNumber || utrNumber || 'BANK_VERIFIED',
+          amount: data.amountReceived || selectedPlan.priceINR,
+        });
+        if (onPaymentSubmitted) onPaymentSubmitted();
+      }
+    } catch {
+      setSubmitError('Failed to fetch payment history. Please try again.');
+    } finally {
+      setIsLoadingAllPayments(false);
+    }
+  };
 
   // Auto-detect mobile device on mount to optimize tab
   useEffect(() => {
@@ -315,6 +390,16 @@ export default function UpiPaymentModal({
                 INSTANT UPI ACTIVATION • 0% FEE
               </span>
               <span className="text-xs text-slate-300 font-mono">Workspace: {workspaceName}</span>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-mono font-bold tracking-wider flex items-center gap-1.5 border transition-colors ${
+                timeLeft === 0
+                  ? 'bg-rose-500/30 text-rose-300 border-rose-500/50'
+                  : timeLeft < 120
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
+                  : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+              }`}>
+                <Clock className="w-3 h-3" />
+                <span>Session: {timeLeft === 0 ? 'Expired' : formatTimer(timeLeft)}</span>
+              </span>
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white">Choose Your Digicast Plan</h2>
             <p className="text-slate-300 text-xs sm:text-sm mt-1">
@@ -400,19 +485,39 @@ export default function UpiPaymentModal({
 
                 {activePayTab === 'qr' ? (
                   <div className="flex flex-col items-center">
-                    <div className="p-3 bg-white rounded-2xl shadow-xl relative group">
+                    <div className="p-3 bg-white rounded-2xl shadow-xl relative group overflow-hidden">
                       {qrDataUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={qrDataUrl}
                           alt="Digicast UPI Payment QR Code"
-                          className="w-56 h-56 sm:w-64 sm:h-64 rounded-xl"
+                          className={`w-56 h-56 sm:w-64 sm:h-64 rounded-xl transition duration-300 ${timeLeft === 0 ? 'filter blur-[3px] opacity-40' : ''}`}
                         />
                       ) : (
                         <div className="w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center bg-slate-100 rounded-xl text-slate-500 text-xs">
                           <Loader2 className="w-6 h-6 animate-spin text-slate-700" />
                         </div>
                       )}
+
+                      {/* Session Expired Overlay */}
+                      {timeLeft === 0 && (
+                        <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center rounded-2xl animate-fade-in">
+                          <Clock className="w-8 h-8 text-amber-400 mb-2" />
+                          <p className="text-xs font-bold text-white">Payment Session Expired</p>
+                          <p className="text-[10px] text-slate-300 mt-1 mb-3">
+                            For security, UPI dynamic sessions refresh every 8 minutes.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={handleRestartTimer}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black shadow-md flex items-center gap-1.5 transition"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Restart 8-Min Session</span>
+                          </button>
+                        </div>
+                      )}
+
                       <div className="absolute inset-x-0 -bottom-2 flex justify-center">
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-950 text-emerald-400 border border-emerald-500/30 shadow-md">
                           ₹{selectedPlan.priceINR}.00 EXACT
@@ -474,6 +579,26 @@ export default function UpiPaymentModal({
                     <span>Check Now</span>
                   </button>
                 </div>
+
+                {/* Check All Payments & Past Receipts Button */}
+                <button
+                  type="button"
+                  onClick={handleCheckAllPayments}
+                  disabled={isLoadingAllPayments}
+                  className="w-full mt-2.5 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] active:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 flex items-center justify-center gap-2 transition shadow-sm"
+                >
+                  {isLoadingAllPayments ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                      <span>Checking All Workspace Payments...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Receipt className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Check All Payments &amp; Receipts</span>
+                    </>
+                  )}
+                </button>
 
                 {/* Copy VPA & Amount */}
                 <div className="w-full mt-3 space-y-2 text-left">
@@ -596,30 +721,56 @@ export default function UpiPaymentModal({
                         </label>
                       ) : (
                         <div className="p-3 bg-white/[0.04] border border-white/10 rounded-xl flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={screenshotFile}
-                              alt="Receipt thumbnail"
-                              className="w-10 h-10 rounded-lg object-cover border border-white/10 shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-white truncate">
-                                {screenshotName || 'receipt_screenshot.jpg'}
-                              </p>
-                              <p className="text-[10px] text-emerald-400 font-medium">Attached for verification</p>
-                            </div>
-                          </div>
                           <button
                             type="button"
-                            onClick={() => {
-                              setScreenshotFile(null);
-                              setScreenshotName(null);
-                            }}
-                            className="p-1 rounded text-slate-400 hover:text-red-400 transition"
+                            onClick={() => setShowScreenshotModal(true)}
+                            className="flex items-center gap-3 min-w-0 text-left hover:opacity-85 transition group"
+                            title="Tap to preview full receipt"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <div className="relative shrink-0">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={screenshotFile}
+                                alt="Receipt thumbnail"
+                                className="w-10 h-10 rounded-lg object-cover border border-white/10 group-hover:border-emerald-400/50"
+                              />
+                              <span className="absolute inset-0 bg-black/30 group-hover:bg-black/10 rounded-lg flex items-center justify-center text-white/90">
+                                <Eye className="w-3.5 h-3.5" />
+                              </span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-white truncate group-hover:text-emerald-300 transition">
+                                {screenshotName || 'receipt_screenshot.jpg'}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] text-emerald-400 font-medium">✓ Attached</span>
+                                <span className="text-[10px] text-cyan-400 underline decoration-dotted flex items-center gap-0.5">
+                                  Tap to preview
+                                </span>
+                              </div>
+                            </div>
                           </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setShowScreenshotModal(true)}
+                              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition"
+                              title="View full receipt"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setScreenshotFile(null);
+                                setScreenshotName(null);
+                              }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
+                              title="Remove receipt"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -741,6 +892,166 @@ export default function UpiPaymentModal({
             </div>
           )}
         </div>
+
+        {/* Modal Overlay 1: Screenshot Lightbox Preview with Verified Amount */}
+        {showScreenshotModal && screenshotFile && (
+          <div className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-slate-900 border border-white/15 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+              <button
+                onClick={() => setShowScreenshotModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition z-10"
+                aria-label="Close image preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="mb-4 pr-10">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
+                  Payment Receipt Verification
+                </span>
+                <h3 className="text-lg font-black text-white mt-1">Receipt Screenshot Preview</h3>
+                <div className="flex flex-wrap items-center gap-3 mt-1 text-xs">
+                  <span className="text-slate-300">Target Plan: <b className="text-white">{selectedPlan.name}</b></span>
+                  <span className="text-slate-400">•</span>
+                  <span className="text-slate-300">Required Amount: <b className="text-emerald-400 font-mono">₹{selectedPlan.priceINR}.00</b></span>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto bg-black/50 rounded-2xl p-2 border border-white/10 flex items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={screenshotFile}
+                  alt="Payment Receipt Full Preview"
+                  className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-lg"
+                />
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+                <p className="text-slate-400 truncate">
+                  File: <span className="text-white font-mono">{screenshotName || 'receipt_screenshot.jpg'}</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowScreenshotModal(false)}
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition shrink-0"
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Overlay 2: All Workspace Payments & Receipts History */}
+        {showAllPaymentsModal && (
+          <div className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-[#0D131F] border border-white/15 rounded-3xl max-w-3xl w-full p-5 sm:p-7 shadow-2xl relative max-h-[85vh] flex flex-col text-white">
+              <button
+                onClick={() => setShowAllPaymentsModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition z-10"
+                aria-label="Close payments history"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="mb-5 pr-10">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                    <Receipt className="w-4 h-4" />
+                  </span>
+                  <h3 className="text-lg sm:text-xl font-black text-white">All Workspace Payments</h3>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Workspace: <span className="font-mono text-slate-200">{workspaceName}</span> ({workspaceId})
+                </p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                {allPaymentsList.length === 0 ? (
+                  <div className="text-center py-12 px-4 rounded-2xl bg-white/[0.02] border border-white/10">
+                    <Receipt className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-slate-300">No Past Payments Found</p>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                      No payments have been recorded for this workspace yet. Once you complete payment or submit a UTR, it will show up here.
+                    </p>
+                  </div>
+                ) : (
+                  allPaymentsList.map((payment, idx) => {
+                    const isApproved = payment.status === 'approved';
+                    const amountDisplay = payment.amount ? `₹${Number(payment.amount).toFixed(2)}` : `₹${selectedPlan.priceINR}.00`;
+                    const dateDisplay = payment.createdAt ? new Date(payment.createdAt).toLocaleString() : 'Recent';
+
+                    return (
+                      <div
+                        key={payment.id || payment.orderId || idx}
+                        className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-white/20 transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black text-white capitalize">
+                              {payment.planName || payment.planId || selectedPlan.name}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                isApproved
+                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              }`}
+                            >
+                              {isApproved ? 'Approved • Active' : 'Under Verification'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 font-mono">
+                            {payment.utrNumber && (
+                              <span>UTR: <b className="text-slate-200">{payment.utrNumber}</b></span>
+                            )}
+                            {payment.orderId && (
+                              <span>Order: <b className="text-slate-300">{payment.orderId}</b></span>
+                            )}
+                            <span>{dateDisplay}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-center">
+                          <span className="text-base sm:text-lg font-black text-emerald-400 font-mono">
+                            {amountDisplay}
+                          </span>
+                          {payment.screenshotUrl && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setScreenshotFile(payment.screenshotUrl);
+                                setScreenshotName('Saved Receipt Screenshot');
+                                setShowScreenshotModal(true);
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-200 flex items-center gap-1.5 transition"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                              <span>View Receipt</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between">
+                <span className="text-xs text-slate-400">
+                  Total Records: <b className="text-white">{allPaymentsList.length}</b>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAllPaymentsModal(false)}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black shadow-md transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

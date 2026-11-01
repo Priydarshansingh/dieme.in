@@ -16,8 +16,9 @@ export async function GET(req: NextRequest) {
   const orderId = searchParams.get("orderId") || "";
   const workspaceId = searchParams.get("workspaceId") || "";
   const utrNumber = searchParams.get("utrNumber") || "";
+  const listAll = searchParams.get("all") === "true";
 
-  return processCheck({ paymentId, orderId, workspaceId, utrNumber });
+  return processCheck({ paymentId, orderId, workspaceId, utrNumber, listAll });
 }
 
 export async function POST(req: NextRequest) {
@@ -34,8 +35,9 @@ async function processCheck(params: {
   orderId?: string;
   workspaceId?: string;
   utrNumber?: string;
+  listAll?: boolean;
 }) {
-  const { paymentId, orderId, workspaceId, utrNumber } = params;
+  const { paymentId, orderId, workspaceId, utrNumber, listAll } = params;
 
   if (!paymentId && !orderId && !workspaceId) {
     return NextResponse.json(
@@ -67,19 +69,43 @@ async function processCheck(params: {
       }
     }
 
-    if (!paymentData && workspaceId) {
-      // Find latest pending payment for workspace
-      const snap = await adminDb
-        .collection("payments")
-        .where("workspaceId", "==", workspaceId)
-        .orderBy("createdAt", "desc")
-        .limit(1)
-        .get();
-      if (!snap.empty) {
-        paymentDoc = snap.docs[0];
-        paymentData = paymentDoc.data();
-        resolvedPaymentId = paymentDoc.id;
+    let recentPayments: any[] = [];
+    if (workspaceId) {
+      try {
+        const snap = await adminDb
+          .collection("payments")
+          .where("workspaceId", "==", workspaceId)
+          .limit(20)
+          .get();
+        recentPayments = snap.docs.map((d) => {
+          const item = d.data();
+          return {
+            id: d.id,
+            orderId: item.orderId || d.id,
+            planName: item.planName || "Subscription Pass",
+            amount: item.amount || 0,
+            status: item.status || "pending_verification",
+            utrNumber: item.utrNumber || "",
+            createdAt: item.createdAt || "",
+            hasScreenshot: Boolean(item.screenshotUrl),
+            screenshotUrl: item.screenshotUrl || null,
+          };
+        });
+        recentPayments.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
+
+        const approvedItem = recentPayments.find((p) => p.status === "approved");
+        if (approvedItem && (!paymentData || paymentData.status !== "approved")) {
+          paymentData = approvedItem;
+          resolvedPaymentId = approvedItem.id;
+        }
+      } catch (e) {
+        console.warn("[payments/check] recent payments note:", e);
       }
+    }
+
+    if (!paymentData && workspaceId && recentPayments.length > 0) {
+      paymentData = recentPayments[0];
+      resolvedPaymentId = paymentData.id;
     }
 
     // If payment is already approved, return immediately
@@ -100,6 +126,7 @@ async function processCheck(params: {
         verifiedBy: paymentData.verifiedBy || "UPI_GATEWAY_OBSERVER",
         verifiedAt: paymentData.verifiedAt,
         activatedUntil: paymentData.activatedUntil,
+        recentPayments,
         message: "Payment verified and approved",
       });
     }
@@ -155,6 +182,7 @@ async function processCheck(params: {
       amount: paymentData?.amount,
       planId: paymentData?.planId,
       graceGranted: Boolean(paymentData?.graceGranted),
+      recentPayments,
       message: paymentData ? "Payment is pending bank credit verification" : "No pending payment found",
     });
   } catch (err: any) {

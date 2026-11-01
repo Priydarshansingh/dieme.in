@@ -4,9 +4,11 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
@@ -59,6 +62,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -79,6 +83,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -117,6 +123,8 @@ fun OnboardingScreen(
     var showPassword by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isErrorExpanded by remember { mutableStateOf(false) }
+    var showPassUnlockedPopup by remember { mutableStateOf(false) }
 
     // Check device verification state
     val hasRegisteredAccount = savedEmail.isNotBlank()
@@ -182,8 +190,9 @@ fun OnboardingScreen(
 
             // Sign-In Card — email and password
             Card(
-                colors = CardDefaults.cardColors(),
-                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, DigicastBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -194,19 +203,7 @@ fun OnboardingScreen(
                         text = "Sign in to your Studio",
                         color = DigicastWhite,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = when {
-                            isSignInUnlocked && hasRegisteredAccount -> "⭐ 1-Day Trial Active for $savedEmail"
-                            isSignInUnlocked && !hasRegisteredAccount -> "🎉 Access Unlocked! Create your account or sign in below."
-                            !isSignInUnlocked && hasRegisteredAccount -> "⏳ 24-Hour Pass Expired for $savedEmail — Watch Ad to Renew"
-                            else -> "🔒 Sign-In Locked: Tap \"Watch Ad to Unlock Access\" below to activate."
-                        },
-                        color = if (isSignInUnlocked) DigicastEmerald else if (hasRegisteredAccount) DigicastSlate else DigicastSlate.copy(alpha = 0.8f),
-                        fontSize = 12.sp,
-                        fontWeight = if (isSignInUnlocked) FontWeight.SemiBold else FontWeight.Normal,
-                        lineHeight = 17.sp
+                        fontSize = 17.sp
                     )
 
                     OutlinedTextField(
@@ -276,11 +273,47 @@ fun OnboardingScreen(
                     )
 
                     if (errorMessage != null) {
-                        Text(
-                            text = errorMessage!!,
-                            color = DigicastLiveRed,
-                            fontSize = 12.sp
-                        )
+                        val isLong = (errorMessage?.length ?: 0) > 70
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = DigicastLiveRed.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, DigicastLiveRed.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.Top,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = DigicastLiveRed,
+                                    modifier = Modifier.size(16.dp).padding(top = 1.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = errorMessage!!,
+                                        color = DigicastLiveRed,
+                                        fontSize = 11.5.sp,
+                                        lineHeight = 16.sp,
+                                        maxLines = if (isErrorExpanded || !isLong) Int.MAX_VALUE else 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (isLong) {
+                                        Text(
+                                            text = if (isErrorExpanded) "Show less" else "Read more",
+                                            color = DigicastAccentBlue,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .clickable { isErrorExpanded = !isErrorExpanded }
+                                                .padding(top = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // 1. Primary Sign-In Button (Grayed out for brand new free users until they watch ad)
@@ -361,6 +394,7 @@ fun OnboardingScreen(
                                         onUserEarnedReward = {
                                             authRepository.markAdWatchedUnlocked()
                                             hasWatchedAd = true
+                                            showPassUnlockedPopup = true
                                         },
                                         onFallbackSimulationNeeded = {
                                             adProgress = 0f
@@ -429,7 +463,10 @@ fun OnboardingScreen(
                         color = DigicastSlate,
                         fontSize = 11.sp,
                         lineHeight = 15.sp,
-                        modifier = Modifier.padding(top = 2.dp)
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp)
                     )
                 }
             }
@@ -447,6 +484,7 @@ fun OnboardingScreen(
                     authRepository.markAdWatchedUnlocked()
                     hasWatchedAd = true
                     showAdDialog = false
+                    showPassUnlockedPopup = true
                 }
 
                 AlertDialog(
@@ -529,6 +567,79 @@ fun OnboardingScreen(
                         }
                     },
                     confirmButton = {}
+                )
+            }
+
+            // 24-Hour Access Enabled Celebration Popup
+            if (showPassUnlockedPopup) {
+                AlertDialog(
+                    onDismissRequest = { showPassUnlockedPopup = false },
+                    containerColor = DigicastNavy,
+                    shape = RoundedCornerShape(20.dp),
+                    icon = {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(DigicastEmerald.copy(alpha = 0.15f))
+                                .border(1.5.dp, DigicastEmerald.copy(alpha = 0.4f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = DigicastEmerald,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                    },
+                    title = {
+                        Text(
+                            text = "24-Hour Access Enabled!",
+                            color = DigicastWhite,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 18.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    },
+                    text = {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "🎉 Your studio access has been activated for the next 24 hours.",
+                                color = DigicastWhite,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = "Sign in with your workspace credentials below or create a new account on web.",
+                                color = DigicastSlate,
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = { showPassUnlockedPopup = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = DigicastEmerald),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                        ) {
+                            Text(
+                                "Got It • Sign In Now",
+                                color = DigicastDeepNavy,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
                 )
             }
 

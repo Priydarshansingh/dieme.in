@@ -87,3 +87,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message || "Failed to update developer access" }, { status: 500 });
   }
 }
+

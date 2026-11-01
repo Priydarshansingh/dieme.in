@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSearchParams } from 'next/navigation';
 import {
   Youtube, Send, Bell, CreditCard, Key, ChevronRight, Check,
-  Loader2, AlertCircle, Bot, Copy, ExternalLink, QrCode, Sparkles
+  Loader2, AlertCircle, Bot, Copy, ExternalLink, QrCode, Sparkles, RefreshCw
 } from 'lucide-react';
 import { PRICING_PLANS, PricingPlan, PlanId, buildUpiDeepLink } from '@/lib/pricingPlans';
 import UpiPaymentModal from '@/components/subscription/UpiPaymentModal';
@@ -113,6 +113,8 @@ function SettingsContent() {
   const [isConnectingYoutube, setIsConnectingYoutube] = useState(false);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [youtubeSuccess, setYoutubeSuccess] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
   const [telegramConnected, setTelegramConnected] = useState(false);
   const [telegramChatId, setTelegramChatId] = useState('');
@@ -151,36 +153,94 @@ function SettingsContent() {
   // Load user workspace and listen to connected YouTube channels & Telegram
   useEffect(() => {
     if (!user) return;
-    async function load() {
-      const userSnap = await getDoc(doc(db, 'users', user!.uid));
-      if (!userSnap.exists()) return;
-      const wid: string = userSnap.data().defaultWorkspaceId || user!.uid;
-      setWorkspaceId(wid);
+    let isCancelled = false;
+    const fallbackWid = user.uid;
 
-      const wsSnap = await getDoc(doc(db, 'workspaces', wid));
-      if (wsSnap.exists()) {
-        const wsData = wsSnap.data();
-        if (wsData.name) setWorkspaceName(wsData.name);
-        setPlan(wsData.plan ?? 'free_trial');
-        setTelegramConnected(Boolean(wsData.telegramEnabled));
-        if (wsData.telegramChatId) setTelegramChatId(wsData.telegramChatId);
-      }
+    // Immediately initialize workspaceId so Nightbot command and buttons are NEVER null
+    setWorkspaceId((prev) => prev || fallbackWid);
 
-      loadSubscription(wid);
+    // 1. Authoritative Server Status Check (uses adminDb on server, mirrors mobile app reliability)
+    async function fetchServerStatus(widToQuery?: string) {
+      try {
+        const idToken = await user?.getIdToken().catch(() => '');
+        const targetWid = widToQuery || fallbackWid;
+        const headers: Record<string, string> = {
+          'x-user-uid': user!.uid,
+          'x-user-email': user!.email || '',
+        };
+        if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
 
-      // Realtime listener on connected YouTube channels
-      const unsub = onSnapshot(collection(db, 'workspaces', wid, 'youtube'), (snap) => {
-        if (!snap.empty) {
-          const docData = snap.docs[0].data() as ConnectedChannel;
-          setConnectedChannel(docData);
-        } else {
-          setConnectedChannel(null);
+        const res = await fetch(`/api/youtube/status?workspaceId=${targetWid}`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (isCancelled) return;
+          if (data.workspaceId) {
+            setWorkspaceId(data.workspaceId);
+          }
+          if (data.workspaceName) setWorkspaceName(data.workspaceName);
+          if (data.plan) setPlan(data.plan);
+          if (data.telegramConnected !== undefined) setTelegramConnected(data.telegramConnected);
+          if (data.telegramChatId) setTelegramChatId(data.telegramChatId);
+          if (data.channel) {
+            setConnectedChannel(data.channel);
+          }
+          loadSubscription(data.workspaceId || targetWid);
         }
-      });
-
-      return () => unsub();
+      } catch (err) {
+        console.warn('[settings] fetchServerStatus note:', err);
+      }
     }
-    load();
+
+    fetchServerStatus();
+
+    // 2. Client Firestore fallback & realtime listener
+    async function initClient() {
+      try {
+        const userSnap = await getDoc(doc(db, 'users', user!.uid)).catch(() => null);
+        const resolvedWid: string = (userSnap && userSnap.exists() && userSnap.data()?.defaultWorkspaceId)
+          ? userSnap.data().defaultWorkspaceId
+          : fallbackWid;
+
+        if (!isCancelled) {
+          setWorkspaceId(resolvedWid);
+          loadSubscription(resolvedWid);
+        }
+
+        const wsSnap = await getDoc(doc(db, 'workspaces', resolvedWid)).catch(() => null);
+        if (wsSnap && wsSnap.exists() && !isCancelled) {
+          const wsData = wsSnap.data();
+          if (wsData.name) setWorkspaceName(wsData.name);
+          setPlan(wsData.plan ?? 'free_trial');
+          setTelegramConnected(Boolean(wsData.telegramEnabled));
+          if (wsData.telegramChatId) setTelegramChatId(wsData.telegramChatId);
+        }
+
+        // Realtime listener on connected YouTube channels
+        const unsub = onSnapshot(
+          collection(db, 'workspaces', resolvedWid, 'youtube'),
+          (snap) => {
+            if (isCancelled) return;
+            if (!snap.empty) {
+              const docData = snap.docs[0].data() as ConnectedChannel;
+              setConnectedChannel(docData);
+            }
+          },
+          (err) => {
+            console.warn('[settings] Client realtime listener note:', err?.message);
+          }
+        );
+
+        return () => unsub();
+      } catch (e) {
+        console.warn('[settings] Client init warning:', e);
+      }
+    }
+
+    initClient();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [user]);
 
   async function loadSubscription(wid: string) {
@@ -263,6 +323,37 @@ function SettingsContent() {
     }
   };
 
+  const handleSyncStreams = async () => {
+    const wid = workspaceId || user?.uid;
+    if (!wid) return;
+    setIsSyncing(true);
+    setSyncFeedback(null);
+    try {
+      const idToken = await user?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
+      const res = await fetch(`/api/youtube/sync?workspaceId=${wid}`, {
+        headers,
+        signal: AbortSignal.timeout(8000),
+      });
+      const data = await res.json();
+      if (data.syncedCount !== undefined) {
+        setSyncFeedback(`✅ Synced ${data.syncedCount} stream(s) from YouTube!`);
+      } else {
+        setSyncFeedback(`⚠️ ${data.error || 'Failed to sync with YouTube.'}`);
+      }
+    } catch {
+      setSyncFeedback('⚠️ Failed to sync with YouTube. Please try again.');
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncFeedback(null), 6000);
+    }
+  };
+
   const handleDisconnectYoutube = async () => {
     if (!workspaceId || !connectedChannel) return;
     try {
@@ -336,34 +427,62 @@ function SettingsContent() {
         )}
 
         {connectedChannel ? (
-          <div
-            className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25"
-          >
-            <div className="flex items-center gap-3">
-              {connectedChannel.channelThumbnail ? (
-                <img
-                  src={connectedChannel.channelThumbnail}
-                  alt={connectedChannel.channelName}
-                  className="w-10 h-10 rounded-full object-cover ring-2 ring-emerald-500/30"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center">
-                  <Youtube className="w-5 h-5 text-red-400" />
+          <div className="space-y-3">
+            <div
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25"
+            >
+              <div className="flex items-center gap-3.5">
+                {connectedChannel.channelThumbnail ? (
+                  <img
+                    src={connectedChannel.channelThumbnail}
+                    alt={connectedChannel.channelName}
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-emerald-500/30 shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center shrink-0">
+                    <Youtube className="w-6 h-6 text-red-400" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-base font-bold text-white truncate">{connectedChannel.channelName}</p>
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Connected
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    Channel ID: {connectedChannel.channelId || connectedChannel.id}
+                  </p>
                 </div>
-              )}
-              <div>
-                <p className="text-sm font-bold text-white">{connectedChannel.channelName}</p>
-                <p className="text-xs text-emerald-400 flex items-center gap-1 font-medium">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> Channel connected
-                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSyncStreams}
+                  disabled={isSyncing}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white transition disabled:opacity-50"
+                  title="Synchronize live broadcasts and recent streams from YouTube"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-cyan-400' : 'text-slate-300'}`} />
+                  <span>{isSyncing ? 'Syncing...' : 'Sync Streams'}</span>
+                </button>
+
+                <button
+                  onClick={handleDisconnectYoutube}
+                  className="text-xs font-semibold px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition"
+                >
+                  Disconnect
+                </button>
               </div>
             </div>
-            <button
-              onClick={handleDisconnectYoutube}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition"
-            >
-              Disconnect
-            </button>
+
+            {syncFeedback && (
+              <div className="p-3.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-slate-200 flex items-center gap-2 shadow">
+                <span>{syncFeedback}</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

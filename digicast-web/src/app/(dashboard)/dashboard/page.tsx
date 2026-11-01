@@ -155,8 +155,16 @@ function DashboardContent() {
     setIsSyncing(true);
     setSyncFeedback(null);
     try {
+      const token = await user?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch(`/api/youtube/sync?workspaceId=${workspaceId}`, {
-        signal: AbortSignal.timeout(6000)
+        headers,
+        signal: AbortSignal.timeout(8000)
       });
       const data = await res.json();
       if (data.syncedCount !== undefined) {

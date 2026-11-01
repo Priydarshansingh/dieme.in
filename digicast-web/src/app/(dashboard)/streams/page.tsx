@@ -123,22 +123,38 @@ function StreamsContent() {
 
   useEffect(() => {
     if (!user) return;
+    let isCancelled = false;
+
     async function init() {
-      const userSnap = await getDoc(doc(db, 'users', user!.uid));
-      if (!userSnap.exists()) return;
-      const wid: string = userSnap.data().defaultWorkspaceId || user!.uid;
-      setWorkspaceId(wid);
+      const fallbackWid = user!.uid;
+      setWorkspaceId(fallbackWid);
+
+      let wid = fallbackWid;
+      try {
+        const userSnap = await getDoc(doc(db, 'users', user!.uid));
+        if (userSnap.exists() && userSnap.data()?.defaultWorkspaceId) {
+          wid = userSnap.data().defaultWorkspaceId;
+          if (!isCancelled) setWorkspaceId(wid);
+        }
+      } catch (err) {
+        console.warn('[streams] user doc note:', err);
+      }
+
       const count = await loadStreams(wid);
-      if (count === 0) {
+      if (count === 0 && !isCancelled) {
         try {
           await fetch(`/api/youtube/sync?workspaceId=${wid}`);
-          await loadStreams(wid);
+          if (!isCancelled) await loadStreams(wid);
         } catch {
           // Ignore
         }
       }
     }
     init();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [user, loadStreams]);
 
   if (loading) {

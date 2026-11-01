@@ -15,6 +15,7 @@ build/
 */build/
 */*/build/
 *.apk
+!download/digicast-app-latest.apk
 *.aab
 *.jks
 *.keystore

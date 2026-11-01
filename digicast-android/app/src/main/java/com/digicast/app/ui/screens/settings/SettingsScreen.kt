@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SmartDisplay
@@ -98,6 +99,7 @@ import com.digicast.app.data.repository.AuthRepository
 import com.digicast.app.data.repository.AuthState
 import com.digicast.app.data.repository.TeamMember
 import com.digicast.app.data.repository.UserSession
+import com.digicast.app.ui.components.Access24hGateDialog
 import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastAmber
 import com.digicast.app.ui.theme.DigicastBorder
@@ -132,6 +134,7 @@ fun SettingsScreen(
 
     var isSyncing by remember { mutableStateOf(false) }
     var showSignOutDialog by remember { mutableStateOf(false) }
+    var showUpgradeDialog by remember { mutableStateOf(false) }
 
     // Team Access & Credentials State
     var teamMembers by remember { mutableStateOf<List<TeamMember>>(emptyList()) }
@@ -289,7 +292,8 @@ fun SettingsScreen(
                     item(key = "workspace_profile_bento") {
                         WorkspaceProfileBentoCard(
                             session = session,
-                            context = context
+                            context = context,
+                            onOpenUpgrade = { showUpgradeDialog = true }
                         )
                     }
 
@@ -614,6 +618,20 @@ fun SettingsScreen(
             }
         )
     }
+
+    // Upgrade Passes & UPI Scanner Dialog
+    if (showUpgradeDialog && authState is AuthState.SignedIn) {
+        Access24hGateDialog(
+            session = (authState as AuthState.SignedIn).session,
+            authRepository = authRepository,
+            initialShowScanner = true,
+            onDismiss = { showUpgradeDialog = false },
+            onUnlocked = {
+                showUpgradeDialog = false
+                Toast.makeText(context, "Subscription updated!", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -623,7 +641,8 @@ fun SettingsScreen(
 @Composable
 private fun WorkspaceProfileBentoCard(
     session: UserSession,
-    context: Context
+    context: Context,
+    onOpenUpgrade: () -> Unit
 ) {
     val isOwner = session.role.equals("owner", ignoreCase = true)
 
@@ -834,7 +853,7 @@ private fun WorkspaceProfileBentoCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = planTitle,
                                 color = DigicastWhite,
@@ -845,6 +864,27 @@ private fun WorkspaceProfileBentoCard(
                                 text = if (isGraceActive) "Instant platform access granted while admin verifies UTR proof"
                                 else "${session.daysRemaining} days remaining on this plan",
                                 color = DigicastSlate,
+                                fontSize = 11.sp
+                            )
+                        }
+
+                        Button(
+                            onClick = onOpenUpgrade,
+                            colors = ButtonDefaults.buttonColors(containerColor = DigicastElectricCyan),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCode,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = DigicastDeepNavy
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Upgrade Pass",
+                                color = DigicastDeepNavy,
+                                fontWeight = FontWeight.ExtraBold,
                                 fontSize = 11.sp
                             )
                         }

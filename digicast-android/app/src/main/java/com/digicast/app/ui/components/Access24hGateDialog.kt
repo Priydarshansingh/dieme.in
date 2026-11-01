@@ -27,10 +27,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Send
@@ -40,6 +42,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -97,6 +101,8 @@ data class GatePricingPlan(
 fun Access24hGateDialog(
     session: UserSession,
     authRepository: AuthRepository,
+    initialShowScanner: Boolean = false,
+    onDismiss: (() -> Unit)? = null,
     onUnlocked: () -> Unit
 ) {
     val context = LocalContext.current
@@ -106,7 +112,7 @@ fun Access24hGateDialog(
     var walletInfo by remember { mutableStateOf<MobileWalletInfo?>(null) }
     var isLoadingWallet by remember { mutableStateOf(true) }
     var isDeductingCoins by remember { mutableStateOf(false) }
-    var showScannerView by remember { mutableStateOf(false) }
+    var showScannerView by remember { mutableStateOf(initialShowScanner) }
 
     // UPI submission state
     var selectedPlanId by remember { mutableStateOf("intro_29") }
@@ -176,10 +182,10 @@ fun Access24hGateDialog(
     val hasSufficientCoins = currentDCoins >= 50
 
     Dialog(
-        onDismissRequest = { /* Cannot dismiss without unlocking */ },
+        onDismissRequest = { onDismiss?.invoke() },
         properties = DialogProperties(
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
+            dismissOnBackPress = onDismiss != null,
+            dismissOnClickOutside = onDismiss != null,
             usePlatformDefaultWidth = false
         )
     ) {
@@ -187,15 +193,30 @@ fun Access24hGateDialog(
             modifier = Modifier.fillMaxSize(),
             color = DigicastDeepNavy
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Spacer(modifier = Modifier.height(10.dp))
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (onDismiss != null) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(16.dp)
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(DigicastCardSurface)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = DigicastWhite, modifier = Modifier.size(20.dp))
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(10.dp))
 
                 // Brand & Icon
                 Box(
@@ -534,9 +555,10 @@ fun Access24hGateDialog(
                             }
 
                             // UPI QR Code Image
+                            val upiAmountFormatted = String.format(java.util.Locale.US, "%.2f", selectedPlan.priceINR.toDouble())
                             val cleanNote = URLEncoder.encode("Digicast ${selectedPlan.name}", "UTF-8")
-                            val upiString = "upi://pay?pa=$upiVpa&pn=Digicast&am=${selectedPlan.priceINR}&cu=INR&tn=$cleanNote"
-                            val qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${URLEncoder.encode(upiString, "UTF-8")}"
+                            val upiString = "upi://pay?pa=$upiVpa&pn=Digicast&am=$upiAmountFormatted&cu=INR&tn=$cleanNote"
+                            val qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${URLEncoder.encode(upiString, "UTF-8")}"
 
                             Column(
                                 modifier = Modifier
@@ -553,7 +575,7 @@ fun Access24hGateDialog(
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "Scan to Pay ₹${selectedPlan.priceINR}",
+                                    text = "Scan to Pay ₹$upiAmountFormatted EXACT",
                                     color = Color.Black,
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 14.sp
@@ -564,6 +586,28 @@ fun Access24hGateDialog(
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
+                            }
+
+                            // Open Web Gateway with 8-Minute Live Timer
+                            OutlinedButton(
+                                onClick = {
+                                    try {
+                                        val webGatewayUrl = "https://digicast-web.vercel.app/pricing"
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(webGatewayUrl))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, DigicastElectricCyan.copy(alpha = 0.6f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp)
+                            ) {
+                                Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp), tint = DigicastElectricCyan)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Open Web Gateway (8-Min Live Timer)", color = DigicastElectricCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
 
                             // Quick Action Buttons (Copy VPA & 1-Tap Mobile Apps)
@@ -705,4 +749,5 @@ fun Access24hGateDialog(
             }
         }
     }
+}
 }

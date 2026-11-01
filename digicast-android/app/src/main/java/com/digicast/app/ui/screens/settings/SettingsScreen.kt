@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
@@ -142,6 +143,8 @@ fun SettingsScreen(
     var visiblePasswords by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var isAddingMember by remember { mutableStateOf(false) }
     var memberToDelete by remember { mutableStateOf<TeamMember?>(null) }
+    var memberToChangeRole by remember { mutableStateOf<TeamMember?>(null) }
+    var isUpdatingRole by remember { mutableStateOf(false) }
 
     // Add Member Form State
     var newMemberName by remember { mutableStateOf("") }
@@ -344,6 +347,7 @@ fun SettingsScreen(
                                         password = newMemberPassword,
                                         role = newMemberRole,
                                         showPassword = showNewMemberPassword,
+                                        canAssignAdmin = isOwner,
                                         isSubmitting = isSubmittingMember,
                                         onNameChange = { newMemberName = it },
                                         onEmailChange = { newMemberEmail = it },
@@ -444,6 +448,9 @@ fun SettingsScreen(
                                     },
                                     onDeleteClick = {
                                         memberToDelete = member
+                                    },
+                                    onChangeRoleClick = {
+                                        memberToChangeRole = member
                                     }
                                 )
                             }
@@ -613,6 +620,101 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { memberToDelete = null }) {
+                    Text("Cancel", color = DigicastSlate)
+                }
+            }
+        )
+    }
+
+    // Role Change Dialog (Admin / Moderator / Editor)
+    memberToChangeRole?.let { member ->
+        val isCallerOwner = (authState as? AuthState.SignedIn)?.session?.role.equals("owner", ignoreCase = true)
+        val isCallerAdmin = (authState as? AuthState.SignedIn)?.session?.role.equals("admin", ignoreCase = true)
+
+        fun updateRole(newRole: String) {
+            coroutineScope.launch {
+                isUpdatingRole = true
+                val res = authRepository.updateTeamMemberRole(member.uid, newRole)
+                isUpdatingRole = false
+                memberToChangeRole = null
+                if (res.isSuccess) {
+                    Toast.makeText(context, "Access updated to ${newRole.uppercase()}!", Toast.LENGTH_SHORT).show()
+                    refreshTeam()
+                } else {
+                    Toast.makeText(context, res.exceptionOrNull()?.message ?: "Failed to update role", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { memberToChangeRole = null },
+            containerColor = DigicastSurfaceFloating,
+            shape = RoundedCornerShape(18.dp),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = DigicastElectricCyan, modifier = Modifier.size(20.dp))
+                    Text("Change Access Role", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Select access level for ${member.displayName} (${member.email}):",
+                        color = DigicastSlate,
+                        fontSize = 12.sp
+                    )
+
+                    if (isCallerOwner) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable(enabled = !isUpdatingRole) { updateRole("admin") },
+                            color = if (member.role.equals("admin", ignoreCase = true)) DigicastAccentBlue.copy(alpha = 0.2f) else DigicastSurfaceElevated,
+                            border = BorderStroke(1.dp, if (member.role.equals("admin", ignoreCase = true)) DigicastAccentBlue else DigicastBorder)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text("ADMIN", color = DigicastAccentBlue, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                                Text("Full studio settings, members & pass access", color = DigicastWhite, fontSize = 11.sp)
+                            }
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable(enabled = !isUpdatingRole) { updateRole("moderator") },
+                        color = if (member.role.equals("moderator", ignoreCase = true)) DigicastElectricCyan.copy(alpha = 0.2f) else DigicastSurfaceElevated,
+                        border = BorderStroke(1.dp, if (member.role.equals("moderator", ignoreCase = true)) DigicastElectricCyan else DigicastBorder)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("MODERATOR", color = DigicastElectricCyan, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                            Text("Chat & stream monitor, editor access management", color = DigicastWhite, fontSize = 11.sp)
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable(enabled = !isUpdatingRole) { updateRole("editor") },
+                        color = if (member.role.equals("editor", ignoreCase = true)) DigicastEmerald.copy(alpha = 0.2f) else DigicastSurfaceElevated,
+                        border = BorderStroke(1.dp, if (member.role.equals("editor", ignoreCase = true)) DigicastEmerald else DigicastBorder)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("EDITOR", color = DigicastEmerald, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                            Text("Video clipping, trimming & stream markers", color = DigicastWhite, fontSize = 11.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { memberToChangeRole = null }) {
                     Text("Cancel", color = DigicastSlate)
                 }
             }
@@ -1077,6 +1179,7 @@ private fun AddMemberCard(
     password: String,
     role: String,
     showPassword: Boolean,
+    canAssignAdmin: Boolean = false,
     isSubmitting: Boolean,
     onNameChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
@@ -1096,7 +1199,7 @@ private fun AddMemberCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Create Editor / Moderator Mobile Login",
+                text = "Create Team Member & App Login",
                 color = DigicastWhite,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
@@ -1107,26 +1210,28 @@ private fun AddMemberCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (role == "editor") DigicastEmerald.copy(alpha = 0.2f) else DigicastSurface)
-                        .border(
-                            1.dp,
-                            if (role == "editor") DigicastEmerald else DigicastBorder,
-                            RoundedCornerShape(8.dp)
+                if (canAssignAdmin) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (role == "admin") DigicastAccentBlue.copy(alpha = 0.2f) else DigicastSurface)
+                            .border(
+                                1.dp,
+                                if (role == "admin") DigicastAccentBlue else DigicastBorder,
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable { onRoleChange("admin") }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Admin",
+                            color = if (role == "admin") DigicastAccentBlue else DigicastSlate,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
                         )
-                        .clickable { onRoleChange("editor") }
-                        .padding(vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Editor",
-                        color = if (role == "editor") DigicastEmerald else DigicastSlate,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
+                    }
                 }
 
                 Box(
@@ -1146,6 +1251,28 @@ private fun AddMemberCard(
                     Text(
                         text = "Moderator",
                         color = if (role == "moderator") DigicastElectricCyan else DigicastSlate,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (role == "editor") DigicastEmerald.copy(alpha = 0.2f) else DigicastSurface)
+                        .border(
+                            1.dp,
+                            if (role == "editor") DigicastEmerald else DigicastBorder,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .clickable { onRoleChange("editor") }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Editor",
+                        color = if (role == "editor") DigicastEmerald else DigicastSlate,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
                     )
@@ -1265,11 +1392,19 @@ private fun TeamMemberItemCard(
     isPasswordVisible: Boolean,
     onTogglePasswordVisibility: () -> Unit,
     onCopyPassword: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onChangeRoleClick: () -> Unit = {}
 ) {
     val isOwnerMember = member.role.equals("owner", ignoreCase = true)
     val isAdminMember = member.role.equals("admin", ignoreCase = true)
     val isEditorMember = member.role.equals("editor", ignoreCase = true)
+
+    val canChangeRole = when {
+        member.uid == currentSession.uid -> false
+        currentSession.role.equals("owner", ignoreCase = true) -> !isOwnerMember
+        currentSession.role.equals("admin", ignoreCase = true) -> !isOwnerMember && !isAdminMember
+        else -> false
+    }
 
     val roleColor = when {
         isOwnerMember -> DigicastAmber
@@ -1333,18 +1468,45 @@ private fun TeamMemberItemCard(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Box(
-                                modifier = Modifier
-                                    .background(roleBg, RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = member.role.uppercase(),
-                                    color = roleColor,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 9.sp,
-                                    letterSpacing = 0.5.sp
-                                )
+                            if (canChangeRole) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(roleBg)
+                                        .border(1.dp, roleColor.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                        .clickable { onChangeRoleClick() }
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = member.role.uppercase(),
+                                        color = roleColor,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 9.sp,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Change Role",
+                                        tint = roleColor,
+                                        modifier = Modifier.size(9.dp)
+                                    )
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .background(roleBg, RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = member.role.uppercase(),
+                                        color = roleColor,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 9.sp,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                }
                             }
                         }
                         Text(

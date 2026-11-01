@@ -1041,6 +1041,49 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun updateTeamMemberRole(memberId: String, newRole: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val session = (_authState.value as? AuthState.SignedIn)?.session
+            ?: return@withContext Result.failure(Exception("Not signed in"))
+
+        if (session.uid == DEMO_SESSION.uid) {
+            synchronized(demoMembers) {
+                val idx = demoMembers.indexOfFirst { it.uid == memberId }
+                if (idx != -1) {
+                    demoMembers[idx] = demoMembers[idx].copy(role = newRole)
+                }
+            }
+            return@withContext Result.success(Unit)
+        }
+
+        try {
+            val url = "$BACKEND_URL/api/team/members"
+            val jsonBody = JSONObject().apply {
+                put("workspaceId", session.workspaceId.ifBlank { session.uid })
+                put("memberId", memberId)
+                put("role", newRole)
+            }
+            val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer ${session.token}")
+                .addHeader("x-user-uid", session.uid)
+                .addHeader("x-user-email", session.email)
+                .patch(requestBody)
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                val body = response.body?.string() ?: "{}"
+                val err = runCatching { JSONObject(body).optString("error") }.getOrNull()
+                return@withContext Result.failure(Exception(err ?: "Failed to update member role (${response.code})"))
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchWalletBalance(uid: String): Result<MobileWalletInfo> = withContext(Dispatchers.IO) {
         try {
             val url = "$BACKEND_URL/api/wallet/balance?uid=$uid"

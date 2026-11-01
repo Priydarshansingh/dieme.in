@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   KeyRound, Mail, Shield, Trash2, Users, Eye, EyeOff,
   AlertTriangle, Smartphone, RefreshCw, CheckCircle2, Lock,
-  Copy, Check, UserCheck, ShieldCheck, Code2, Terminal
+  Copy, Check, UserCheck, ShieldCheck, Code2, Terminal, ChevronDown
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useDeveloperAccess } from '@/hooks/useDeveloperAccess';
@@ -343,6 +343,49 @@ export default function TeamPage() {
     } finally {
       setUpdatingDevUid(null);
       setTimeout(() => setDevActionFeedback(null), 5000);
+    }
+  };
+
+  const [updatingRoleUid, setUpdatingRoleUid] = useState<string | null>(null);
+  const [roleActionFeedback, setRoleActionFeedback] = useState<string | null>(null);
+
+  const handleUpdateMemberRole = async (targetMemberUid: string, newRole: string) => {
+    setUpdatingRoleUid(targetMemberUid);
+    setRoleActionFeedback(null);
+    try {
+      const idToken = await auth.currentUser?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
+      const res = await fetch('/api/team/members', {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          workspaceId,
+          memberId: targetMemberUid,
+          role: newRole,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update member access role');
+      }
+
+      setMembers(prev =>
+        prev.map(m => m.uid === targetMemberUid ? { ...m, role: newRole as any } : m)
+      );
+
+      setRoleActionFeedback(`Access updated: Member is now an ${newRole.toUpperCase()}!`);
+    } catch (err: any) {
+      setRoleActionFeedback(err.message || 'Error updating member role');
+    } finally {
+      setUpdatingRoleUid(null);
+      setTimeout(() => setRoleActionFeedback(null), 5000);
     }
   };
 
@@ -716,6 +759,13 @@ export default function TeamPage() {
 
       {/* Member list with Credentials & Eye Toggle */}
       <div className="space-y-3">
+        {roleActionFeedback && (
+          <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{roleActionFeedback}</span>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-lg text-white">
             Workspace Members & Credentials
@@ -788,12 +838,46 @@ export default function TeamPage() {
                         <p className="text-sm font-bold truncate text-white">
                           {member.displayName ?? 'Unknown'}
                         </p>
-                        <span
-                          className="text-xs font-semibold px-2 py-0.5 rounded-md border"
-                          style={{ color: cfg.color, backgroundColor: cfg.bg, borderColor: cfg.border }}
-                        >
-                          {cfg.label}
-                        </span>
+                        {/* Interactive Role Switcher for Owner & Admin */}
+                        {canManageTeam && !isSelf && member.role !== 'owner' ? (
+                          <div className="relative inline-flex items-center">
+                            <select
+                              value={member.role}
+                              disabled={updatingRoleUid === member.uid}
+                              onChange={(e) => handleUpdateMemberRole(member.uid, e.target.value)}
+                              className="appearance-none text-xs font-bold pl-2.5 pr-6 py-0.5 rounded-md border cursor-pointer outline-none transition focus:ring-1 focus:ring-cyan-400 disabled:opacity-50"
+                              style={{
+                                color: cfg.color,
+                                backgroundColor: cfg.bg,
+                                borderColor: cfg.border,
+                              }}
+                              title="Change Member Access Role (Admin, Moderator, Editor)"
+                            >
+                              {currentUserRole === 'owner' && (
+                                <option value="admin" className="bg-slate-900 text-blue-400">
+                                  Admin
+                                </option>
+                              )}
+                              <option value="moderator" className="bg-slate-900 text-cyan-400">
+                                Moderator
+                              </option>
+                              <option value="editor" className="bg-slate-900 text-emerald-400">
+                                Editor
+                              </option>
+                            </select>
+                            <ChevronDown
+                              className="w-3 h-3 absolute right-1.5 pointer-events-none opacity-70"
+                              style={{ color: cfg.color }}
+                            />
+                          </div>
+                        ) : (
+                          <span
+                            className="text-xs font-semibold px-2 py-0.5 rounded-md border"
+                            style={{ color: cfg.color, backgroundColor: cfg.bg, borderColor: cfg.border }}
+                          >
+                            {cfg.label}
+                          </span>
+                        )}
                         {(member.developerAccess || member.email === 'pskishnawat133@gmail.com') && (
                           <span className="text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 flex items-center gap-1 shadow-sm">
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />

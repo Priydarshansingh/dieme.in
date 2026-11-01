@@ -183,3 +183,101 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: err.message || "Failed to remove member" }, { status: 500 });
   }
 }
+
+// PATCH /api/team/members
+// Body: { workspaceId, memberId, role: "admin" | "moderator" | "editor" }
+// Changes a member's access / role in the workspace
+export async function PATCH(req: NextRequest) {
+  try {
+    const caller = await getCaller(req);
+    if (!caller) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    let { workspaceId, memberId, role: newRole } = body;
+
+    if (!newRole) {
+      return NextResponse.json({ error: "Role is required" }, { status: 400 });
+    }
+
+    newRole = String(newRole).toLowerCase().trim();
+    if (!["admin", "moderator", "editor"].includes(newRole)) {
+      return NextResponse.json({ error: "Invalid role. Must be 'admin', 'moderator', or 'editor'" }, { status: 400 });
+    }
+
+    if (!workspaceId || workspaceId === "null" || workspaceId === "undefined") {
+      const userDoc = await adminDb.doc(col.user(caller.uid)).get();
+      workspaceId = (userDoc.exists && userDoc.data()?.defaultWorkspaceId) ? userDoc.data()?.defaultWorkspaceId : caller.uid;
+    }
+
+    if (!workspaceId || !memberId) {
+      return NextResponse.json({ error: "workspaceId and memberId are required" }, { status: 400 });
+    }
+
+    // Verify caller role
+    const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
+    const wsData = wsDoc.exists ? wsDoc.data() : null;
+    const isOwnerByDoc = wsData?.ownerUid === caller.uid || wsData?.ownerId === caller.uid || workspaceId === caller.uid;
+
+    const callerMemberDoc = await adminDb.doc(col.member(workspaceId, caller.uid)).get();
+    const callerRole = isOwnerByDoc ? "owner" : (callerMemberDoc.data()?.role || "viewer");
+
+    if (callerRole !== "owner" && callerRole !== "admin") {
+      return NextResponse.json({ error: "Only owners and admins can change member roles" }, { status: 403 });
+    }
+
+    // Target member check
+    const targetMemberDoc = await adminDb.doc(col.member(workspaceId, memberId)).get();
+    if (!targetMemberDoc.exists) {
+      return NextResponse.json({ error: "Member not found in this workspace" }, { status: 404 });
+    }
+
+    const targetData = targetMemberDoc.data();
+    const targetCurrentRole = (targetData?.role || "").toLowerCase();
+
+    // Prevent modifying the workspace owner
+    if (targetCurrentRole === "owner" || memberId === wsData?.ownerUid || memberId === wsData?.ownerId) {
+      return NextResponse.json({ error: "Cannot change the workspace owner's role" }, { status: 403 });
+    }
+
+    // Admin restrictions:
+    // Admin cannot change another admin's role, nor promote anyone to admin
+    if (callerRole === "admin") {
+      if (targetCurrentRole === "admin") {
+        return NextResponse.json({ error: "Admins cannot modify another admin's role" }, { status: 403 });
+      }
+      if (newRole === "admin") {
+        return NextResponse.json({ error: "Only workspace owners can assign the Admin role" }, { status: 403 });
+      }
+    }
+
+    const now = new Date().toISOString();
+
+    // Update in workspace members subcollection
+    await adminDb.doc(col.member(workspaceId, memberId)).update({
+      role: newRole,
+      updatedAt: now,
+    });
+
+    // Also update role in user root doc if it exists
+    const userRootRef = adminDb.doc(col.user(memberId));
+    const userRootDoc = await userRootRef.get();
+    if (userRootDoc.exists) {
+      await userRootRef.update({
+        role: newRole,
+        updatedAt: now,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      memberId,
+      newRole,
+      message: `Member role updated to ${newRole.toUpperCase()} successfully`,
+    });
+  } catch (err: any) {
+    console.error("[api/team/members PATCH] Error:", err);
+    return NextResponse.json({ error: err.message || "Failed to update member role" }, { status: 500 });
+  }
+}

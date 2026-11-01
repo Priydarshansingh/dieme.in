@@ -212,7 +212,8 @@ fun OnboardingScreen(
                     OutlinedTextField(
                         value = email,
                         onValueChange = {
-                            email = it
+                            // Automatically remove accidental spaces or mobile keyboard auto-spaces
+                            email = it.replace("\\s+".toRegex(), "")
                             errorMessage = null
                         },
                         label = { Text("App Email", color = DigicastSlate) },
@@ -286,18 +287,22 @@ fun OnboardingScreen(
                     Button(
                         onClick = {
                             focusManager.clearFocus()
-                            if (email.isBlank() || !email.contains("@")) {
+                            val cleanEmail = email.replace("\\s+".toRegex(), "").trim().lowercase()
+                            val cleanPassword = password.trim()
+
+                            if (cleanEmail.isBlank()) {
                                 errorMessage = "Enter a valid email address."
                                 return@Button
                             }
-                            if (password.isBlank()) {
+                            if (cleanPassword.isBlank()) {
                                 errorMessage = "Enter your password."
                                 return@Button
                             }
                             isLoading = true
                             errorMessage = null
                             scope.launch {
-                                val result = authRepository.signInWithEmail(email.trim(), password)
+                                val finalEmail = if (!cleanEmail.contains("@")) "$cleanEmail@gmail.com" else cleanEmail
+                                val result = authRepository.signInWithEmail(finalEmail, cleanPassword)
                                 isLoading = false
                                 result.onSuccess {
                                     onComplete()

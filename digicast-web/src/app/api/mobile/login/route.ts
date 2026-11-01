@@ -6,8 +6,50 @@ import { computeWorkspaceSubscription } from "@/lib/subscription";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const email = (body.email || "").toLowerCase().trim();
-    const password = body.password || "";
+    const rawEmail = (body.email || "").toString();
+    // 1. Strip ALL whitespace (standard spaces, NBSP \u00a0, zero-width spaces, tabs, newlines)
+    let email = rawEmail.replace(/[\s\u00a0\u200b\u200c\u200d\ufeff]+/g, "").toLowerCase().trim();
+    const password = (body.password || "").toString().trim();
+
+    // 2. Fix common domain typos automatically
+    if (email.endsWith("@gmial.com")) email = email.replace("@gmial.com", "@gmail.com");
+    if (email.endsWith("@gamil.com")) email = email.replace("@gamil.com", "@gmail.com");
+    if (email.endsWith("@gmil.com")) email = email.replace("@gmil.com", "@gmail.com");
+    if (email.endsWith("@gmai.com")) email = email.replace("@gmai.com", "@gmail.com");
+
+    // 3. If phone number entered as identifier, resolve user by appPassword or contact
+    if (/^\+?\d{10,12}$/.test(email)) {
+      const cleanPhone = email.replace(/\D/g, "").slice(-10);
+      try {
+        const snap = await adminDb.collection(col.users()).where("appPassword", "==", cleanPhone).limit(1).get();
+        if (!snap.empty && snap.docs[0].data()?.email) {
+          email = snap.docs[0].data().email.toLowerCase().trim();
+        }
+      } catch (phoneErr) {
+        console.warn("[mobile/login] Phone fallback lookup error:", phoneErr);
+      }
+    }
+
+    // 4. If no '@' is provided, try looking up in Auth or Firestore
+    if (!email.includes("@") && email.length > 0) {
+      const gmailVariant = `${email}@gmail.com`;
+      try {
+        const u = await adminAuth.getUserByEmail(gmailVariant);
+        if (u) {
+          email = gmailVariant;
+        }
+      } catch {
+        // Fallback: check Firestore users for matching username or displayName
+        try {
+          const usersSnap = await adminDb.collection(col.users()).where("displayName", "==", rawEmail.trim()).limit(1).get();
+          if (!usersSnap.empty && usersSnap.docs[0].data()?.email) {
+            email = usersSnap.docs[0].data().email.toLowerCase().trim();
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
 
     // We get role & workspace requests from the app, but they are overridden by server truth if the user already belongs to a workspace
     const requestedRole = (body.role || "owner").toLowerCase();

@@ -181,21 +181,25 @@ fun SignInDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    if (email.isBlank() || !email.contains("@")) {
+                    val cleanEmail = email.replace("\\s+".toRegex(), "").trim().lowercase()
+                    val cleanPassword = password.trim()
+
+                    if (cleanEmail.isBlank()) {
                         errorMessage = "Enter a valid email address."
                         return@Button
                     }
-                    if (password.isBlank()) {
+                    if (cleanPassword.isBlank()) {
                         errorMessage = "Enter your password."
                         return@Button
                     }
                     isLoading = true
                     errorMessage = null
                     coroutineScope.launch {
-                        val res = authRepository.signInWithEmail(email.trim(), password)
+                        val finalEmail = if (!cleanEmail.contains("@")) "$cleanEmail@gmail.com" else cleanEmail
+                        val res = authRepository.signInWithEmail(finalEmail, cleanPassword)
                         isLoading = false
                         if (res.isSuccess) {
-                            Toast.makeText(context, "Signed in as ${email.trim()}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Signed in as $finalEmail", Toast.LENGTH_SHORT).show()
                             onSuccess()
                             onDismissRequest()
                         } else {

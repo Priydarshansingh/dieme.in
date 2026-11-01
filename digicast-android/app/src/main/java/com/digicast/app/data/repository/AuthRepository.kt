@@ -570,10 +570,12 @@ class AuthRepository @Inject constructor(
             // Clear any stale demo flag so real sign-in always wins
             prefs.edit().putBoolean(KEY_IS_DEMO, false).apply()
 
-            val displayName = email.substringBefore("@")
+            val cleanEmail = email.replace("\\s+".toRegex(), "").trim().lowercase()
+            val cleanPassword = password.trim()
+            val displayName = cleanEmail.substringBefore("@")
             val body = JSONObject().apply {
-                put("email", email)
-                put("password", password)
+                put("email", cleanEmail)
+                put("password", cleanPassword)
                 put("displayName", displayName)
             }.toString().toRequestBody("application/json".toMediaType())
 

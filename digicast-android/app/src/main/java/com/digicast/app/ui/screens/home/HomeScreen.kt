@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Paid
@@ -49,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -197,6 +200,45 @@ fun HomeScreen(
     var selectedCategory by remember { mutableStateOf("Overview") }
     val realClips = clips.filter { it.id != "demo-clip-001" && !it.authorName.contains("DemoViewer", ignoreCase = true) }
 
+    // ── Telemetry Period State (7D, 30D, Custom) ──
+    var selectedPeriod by remember { mutableStateOf(TelemetryPeriod.DAYS_7) }
+    var customDays by remember { mutableIntStateOf(60) }
+    var showCustomDialog by remember { mutableStateOf(false) }
+
+    // Actual Channel Data filtered by period
+    val filteredStreams = remember(realAllStreams, selectedPeriod, customDays) {
+        val now = System.currentTimeMillis()
+        val cutoff = when (selectedPeriod) {
+            TelemetryPeriod.DAYS_7 -> now - 7L * 86_400_000L
+            TelemetryPeriod.DAYS_30 -> now - 30L * 86_400_000L
+            TelemetryPeriod.CUSTOM -> if (customDays >= 9999) 0L else now - customDays.toLong() * 86_400_000L
+        }
+        realAllStreams.filter { s ->
+            val t = s.startedAtMs ?: s.createdAtMs
+            t >= cutoff
+        }
+    }
+
+    val filteredClips = remember(realClips, selectedPeriod, customDays) {
+        val now = System.currentTimeMillis()
+        val cutoff = when (selectedPeriod) {
+            TelemetryPeriod.DAYS_7 -> now - 7L * 86_400_000L
+            TelemetryPeriod.DAYS_30 -> now - 30L * 86_400_000L
+            TelemetryPeriod.CUSTOM -> if (customDays >= 9999) 0L else now - customDays.toLong() * 86_400_000L
+        }
+        realClips.filter { it.timestampMs >= cutoff }
+    }
+
+    val filteredMessages = remember(messages, selectedPeriod, customDays) {
+        val now = System.currentTimeMillis()
+        val cutoff = when (selectedPeriod) {
+            TelemetryPeriod.DAYS_7 -> now - 7L * 86_400_000L
+            TelemetryPeriod.DAYS_30 -> now - 30L * 86_400_000L
+            TelemetryPeriod.CUSTOM -> if (customDays >= 9999) 0L else now - customDays.toLong() * 86_400_000L
+        }
+        messages.filter { (it.publishedAtMs.takeIf { t -> t > 0 } ?: it.createdAtMs) >= cutoff }
+    }
+
     val signedInSession = (authState as? AuthState.SignedIn)?.session
     var show24hGate by remember { mutableStateOf(false) }
 
@@ -297,25 +339,46 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .padding(top = 4.dp, bottom = 2.dp)
                 ) {
+                    // Line 1: Live Status indicator on Left, 3 Filter Buttons on Top-Right!
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(if (capturing) DigicastLiveRed else DigicastElectricCyan)
-                        )
-                        Text(
-                            text = if (capturing) "BROADCAST ACTIVE" else "STUDIO ONLINE",
-                            color = if (capturing) DigicastLiveRed else DigicastElectricCyan,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(if (capturing) DigicastLiveRed else DigicastElectricCyan)
+                            )
+                            Text(
+                                text = if (capturing) "BROADCAST ACTIVE" else "STUDIO ONLINE",
+                                color = if (capturing) DigicastLiveRed else DigicastElectricCyan,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+
+                        // Top-Right 3 Buttons: 7 Days | 30 Days | Custom (small type)
+                        TelemetryPeriodSelector(
+                            selectedPeriod = selectedPeriod,
+                            customDays = customDays,
+                            onSelect = { period ->
+                                selectedPeriod = period
+                                if (period == TelemetryPeriod.CUSTOM) {
+                                    showCustomDialog = true
+                                }
+                            },
+                            onOpenCustom = { showCustomDialog = true }
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = channelTitle,
                         color = DigicastWhite,
@@ -337,39 +400,76 @@ fun HomeScreen(
 
             // ── 2. The 4 Iconic Folder-Tab Cards (100% Real Live Metrics) ──────
             item {
+                // Calculate Real Metrics for the Selected Period
+                val periodStreamCount = filteredStreams.size
+                val periodViews = if (filteredStreams.isNotEmpty()) {
+                    filteredStreams.sumOf { it.viewCount }
+                } else if (live != null && live.viewCount > 0) {
+                    live.viewCount
+                } else {
+                    0L
+                }
+                val viewsCountStr = MetricFormatter.formatCount(periodViews)
+                val viewsSublabel = when (selectedPeriod) {
+                    TelemetryPeriod.DAYS_7 -> if (periodStreamCount > 0) "Last 7 days • $periodStreamCount streams" else "No streams in 7D"
+                    TelemetryPeriod.DAYS_30 -> if (periodStreamCount > 0) "Last 30 days • $periodStreamCount streams" else "No streams in 30D"
+                    TelemetryPeriod.CUSTOM -> if (customDays >= 9999) "All-time • $periodStreamCount streams" else "Last ${customDays}D • $periodStreamCount streams"
+                }
+
+                val distinctChatters = filteredMessages.map { it.authorDisplayName }.distinct().size
+                val totalComments = filteredStreams.sumOf { it.commentCount }
+                val chattersCount = if (distinctChatters > 0) {
+                    distinctChatters.toLong()
+                } else if (totalComments > 0) {
+                    totalComments
+                } else {
+                    filteredMessages.size.toLong()
+                }
+                val chattersStr = MetricFormatter.formatCount(chattersCount)
+                val chattersSublabel = if (filteredMessages.isNotEmpty()) {
+                    "${filteredMessages.size} msgs captured"
+                } else if (totalComments > 0) {
+                    "Comments in period"
+                } else {
+                    "No chatters in period"
+                }
+
+                val clipsCountStr = "${filteredClips.size}"
+                val readyClipsCount = filteredClips.count { it.status.uppercase().contains("COMPLET") || it.status.uppercase() == "GENERATED" }
+                val clipsSublabel = if (filteredClips.isNotEmpty()) {
+                    "$readyClipsCount ready"
+                } else {
+                    "No clips in period"
+                }
+
+                val periodLikes = filteredStreams.sumOf { it.likeCount }
+                val likesStr = MetricFormatter.formatCount(periodLikes)
+                val likesSublabel = when (selectedPeriod) {
+                    TelemetryPeriod.DAYS_7 -> "Last 7 days"
+                    TelemetryPeriod.DAYS_30 -> "Last 30 days"
+                    TelemetryPeriod.CUSTOM -> if (customDays >= 9999) "All-time support" else "Last ${customDays}D"
+                }
+
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Top Row: Neon Lime & Spring Green
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        val viewsCount = if (live != null && live.concurrentViewers > 0) {
-                            MetricFormatter.formatCount(live.concurrentViewers)
-                        } else if (live != null && live.viewCount > 0) {
-                            MetricFormatter.formatCount(live.viewCount)
-                        } else if (allStreams.isNotEmpty()) {
-                            MetricFormatter.formatCount(allStreams.sumOf { it.viewCount })
-                        } else {
-                            "0"
-                        }
-
                         FolderTabCard(
-                            value = viewsCount,
+                            value = viewsCountStr,
                             label = if (live?.status == "live") "Live Viewers" else "Total Views",
-                            sublabel = if (live != null) live.channelTitle else "No streams yet",
+                            sublabel = viewsSublabel,
                             icon = Icons.AutoMirrored.Filled.TrendingUp,
                             backgroundColor = DigicastNeonLime,
                             modifier = Modifier.weight(1f),
                             onClick = { if (live != null) onNavigateToStreamDetail(live.id) }
                         )
 
-                        val distinctChatters = messages.map { it.authorDisplayName }.distinct().size
-                        val chattersStr = if (distinctChatters > 0) MetricFormatter.formatCount(distinctChatters.toLong()) else if (messages.isNotEmpty()) "${messages.size}" else "0"
-
                         FolderTabCard(
                             value = chattersStr,
                             label = "Chatters",
-                            sublabel = if (messages.isNotEmpty()) "${messages.size} msgs captured" else "No chatters yet",
+                            sublabel = chattersSublabel,
                             icon = Icons.Default.Group,
                             backgroundColor = DigicastSpringGreen,
                             modifier = Modifier.weight(1f),
@@ -382,31 +482,20 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        val clipsCount = "${realClips.size}"
-                        val readyCount = realClips.count { it.status.uppercase().contains("COMPLET") || it.status.uppercase() == "GENERATED" }
-
                         FolderTabCard(
-                            value = clipsCount,
+                            value = clipsCountStr,
                             label = "Clips Created",
-                            sublabel = if (realClips.isNotEmpty()) "$readyCount ready" else "No clips yet",
+                            sublabel = clipsSublabel,
                             icon = Icons.Default.ContentCut,
                             backgroundColor = DigicastSunsetCoral,
                             modifier = Modifier.weight(1f),
                             onClick = onNavigateToClips
                         )
 
-                        val likesStr = if (live != null && live.likeCount > 0) {
-                            MetricFormatter.formatCount(live.likeCount)
-                        } else if (realAllStreams.isNotEmpty()) {
-                            MetricFormatter.formatCount(realAllStreams.sumOf { it.likeCount })
-                        } else {
-                            "0"
-                        }
-
                         FolderTabCard(
                             value = likesStr,
                             label = "Likes & Support",
-                            sublabel = if (live != null) "Current Stream" else "All broadcasts",
+                            sublabel = likesSublabel,
                             icon = Icons.Default.Paid,
                             backgroundColor = DigicastElectricCyan,
                             modifier = Modifier.weight(1f),
@@ -908,6 +997,170 @@ fun HomeScreen(
                 show24hGate = false
                 viewModel.syncData()
             }
+        )
+    }
+
+    if (showCustomDialog) {
+        Dialog(onDismissRequest = { showCustomDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF09282F)),
+                border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        text = "Custom Timeframe",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Select a period to filter actual channel telemetry:",
+                        color = DigicastSlate,
+                        fontSize = 12.sp
+                    )
+
+                    val customOptions = listOf(
+                        14 to "Last 14 Days",
+                        60 to "Last 60 Days",
+                        90 to "Last 90 Days",
+                        9999 to "All-Time (Lifetime)"
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        customOptions.forEach { (days, label) ->
+                            val isSelected = customDays == days
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isSelected) Color(0xFF134E5E) else Color(0xFF0D373F))
+                                    .border(
+                                        BorderStroke(
+                                            1.dp,
+                                            if (isSelected) Color.White.copy(alpha = 0.5f) else Color(0x1AFFFFFF)
+                                        ),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable {
+                                        customDays = days
+                                        selectedPeriod = TelemetryPeriod.CUSTOM
+                                        showCustomDialog = false
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.85f),
+                                    fontSize = 14.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = { showCustomDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Done", color = Color(0xFF06181C), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Telemetry Period Types & Selector ───────────────────────────
+
+enum class TelemetryPeriod(val label: String, val shortLabel: String) {
+    DAYS_7("7 Days", "7D"),
+    DAYS_30("30 Days", "30D"),
+    CUSTOM("Custom", "Custom")
+}
+
+@Composable
+private fun TelemetryPeriodSelector(
+    selectedPeriod: TelemetryPeriod,
+    customDays: Int,
+    onSelect: (TelemetryPeriod) -> Unit,
+    onOpenCustom: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF072126))
+            .border(BorderStroke(1.dp, Color(0x33FFFFFF)), RoundedCornerShape(10.dp))
+            .padding(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TelemetryPeriodPill(
+            label = "7 Days",
+            isSelected = selectedPeriod == TelemetryPeriod.DAYS_7,
+            onClick = { onSelect(TelemetryPeriod.DAYS_7) }
+        )
+        TelemetryPeriodPill(
+            label = "30 Days",
+            isSelected = selectedPeriod == TelemetryPeriod.DAYS_30,
+            onClick = { onSelect(TelemetryPeriod.DAYS_30) }
+        )
+        TelemetryPeriodPill(
+            label = if (selectedPeriod == TelemetryPeriod.CUSTOM) {
+                if (customDays >= 9999) "All Time" else "${customDays}D"
+            } else {
+                "Custom"
+            },
+            isSelected = selectedPeriod == TelemetryPeriod.CUSTOM,
+            onClick = {
+                onSelect(TelemetryPeriod.CUSTOM)
+                onOpenCustom()
+            }
+        )
+    }
+}
+
+@Composable
+private fun TelemetryPeriodPill(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isSelected) Color.White else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+            color = if (isSelected) Color(0xFF06181C) else Color.White.copy(alpha = 0.75f),
+            letterSpacing = (-0.2).sp
         )
     }
 }

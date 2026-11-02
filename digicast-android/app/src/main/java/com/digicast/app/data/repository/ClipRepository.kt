@@ -15,6 +15,9 @@ class ClipRepository @Inject constructor(
 
     fun getAllClips(): Flow<List<ClipMarkerEntity>> = dao.getAllClipMarkers()
 
+    fun getClipsForWorkspace(workspaceId: String): Flow<List<ClipMarkerEntity>> =
+        if (workspaceId.isBlank()) dao.getAllClipMarkers() else dao.getClipMarkersForWorkspace(workspaceId)
+
     suspend fun getClipById(id: String): ClipMarkerEntity? = dao.getClipMarkerById(id)
 
     suspend fun getPending(): List<ClipMarkerEntity> = dao.getPendingClipMarkers()

@@ -24,6 +24,15 @@ interface DigicastDao {
     @Query("SELECT * FROM streams ORDER BY isActive DESC, startedAtMs DESC")
     fun getAllStreams(): Flow<List<StreamEntity>>
 
+    @Query("SELECT * FROM streams WHERE workspaceId = :workspaceId ORDER BY isActive DESC, startedAtMs DESC")
+    fun getStreamsForWorkspace(workspaceId: String): Flow<List<StreamEntity>>
+
+    @Query("SELECT * FROM streams WHERE workspaceId = :workspaceId AND isActive = 1")
+    fun getActiveStreamsForWorkspace(workspaceId: String): Flow<List<StreamEntity>>
+
+    @Query("SELECT * FROM streams WHERE workspaceId = :workspaceId")
+    suspend fun getStreamsForWorkspaceSnapshot(workspaceId: String): List<StreamEntity>
+
     @Query("SELECT * FROM streams WHERE id = :streamId")
     suspend fun getStreamById(streamId: String): StreamEntity?
 
@@ -32,6 +41,15 @@ interface DigicastDao {
 
     @Query("DELETE FROM streams WHERE id = :streamId")
     suspend fun deleteStream(streamId: String)
+
+    @Query("DELETE FROM streams WHERE workspaceId != :workspaceId")
+    suspend fun clearStreamsExceptWorkspace(workspaceId: String)
+
+    @Query("DELETE FROM streams WHERE workspaceId = :workspaceId")
+    suspend fun clearStreamsForWorkspace(workspaceId: String)
+
+    @Query("DELETE FROM streams")
+    suspend fun clearAllStreams()
 
     @Query("DELETE FROM streams WHERE id LIKE 'demo%' OR id LIKE 'stream-%' OR channelTitle LIKE '%Demo%' OR title LIKE '%Demo%'")
     suspend fun clearDemoStreams()
@@ -78,11 +96,23 @@ interface DigicastDao {
     @Query("SELECT * FROM clip_markers ORDER BY timestampMs DESC")
     fun getAllClipMarkers(): Flow<List<ClipMarkerEntity>>
 
+    @Query("SELECT c.* FROM clip_markers c INNER JOIN streams s ON c.streamId = s.id WHERE s.workspaceId = :workspaceId ORDER BY c.timestampMs DESC")
+    fun getClipMarkersForWorkspace(workspaceId: String): Flow<List<ClipMarkerEntity>>
+
     @Query("SELECT * FROM clip_markers WHERE status = 'PENDING'")
     suspend fun getPendingClipMarkers(): List<ClipMarkerEntity>
 
     @Query("DELETE FROM clip_markers WHERE id = :id")
     suspend fun deleteClipMarker(id: String)
+
+    @Query("DELETE FROM clip_markers")
+    suspend fun clearAllClips()
+
+    @Query("DELETE FROM clip_markers WHERE streamId NOT IN (SELECT id FROM streams)")
+    suspend fun clearOrphanClips()
+
+    @Query("DELETE FROM chat_messages")
+    suspend fun clearAllChatMessages()
 
     @Query("DELETE FROM clip_markers WHERE id LIKE 'demo%' OR authorName LIKE '%Demo%'")
     suspend fun clearDemoClips()

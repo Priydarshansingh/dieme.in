@@ -177,19 +177,10 @@ export async function GET(req: NextRequest) {
     // 4. Fetch YouTube Account connection status
     let youtubeAccount: any = null;
     try {
-      let ytSnap = await adminDb
+      const ytSnap = await adminDb
         .collection(col.youtube(actualWorkspaceId))
         .limit(1)
         .get();
-
-      // Check linked/team workspaces if empty
-      if (ytSnap.empty) {
-        const linkedSnap = await adminDb
-          .collection(col.youtube("mdv4xDAiBdQAiyd04fymN3Y5yq52"))
-          .limit(1)
-          .get();
-        if (!linkedSnap.empty) ytSnap = linkedSnap;
-      }
 
       if (!ytSnap.empty) {
         const ytDoc = ytSnap.docs[0];

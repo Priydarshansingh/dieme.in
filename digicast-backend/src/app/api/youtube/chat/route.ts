@@ -4,7 +4,10 @@ import path from "path";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const videoId = searchParams.get("videoId") || "g_4KXSxPzGo";
+  const videoId = searchParams.get("videoId");
+  if (!videoId) {
+    return NextResponse.json({ success: true, videoId: "", totalCount: 0, returnedCount: 0, messages: [] });
+  }
   const offsetSec = searchParams.get("offsetSec") ? parseInt(searchParams.get("offsetSec")!, 10) : null;
   const windowSec = searchParams.get("windowSec") ? parseInt(searchParams.get("windowSec")!, 10) : 120; // 2 min window default
 
@@ -16,13 +19,6 @@ export async function GET(req: NextRequest) {
     if (fs.existsSync(assetPath)) {
       const raw = fs.readFileSync(assetPath, "utf-8");
       messages = JSON.parse(raw);
-    } else {
-      // Fallback check generic clip asset
-      const genericPath = path.join(process.cwd(), "public", "assets", "real_chat_g_4KXSxPzGo.json");
-      if (fs.existsSync(genericPath)) {
-        const raw = fs.readFileSync(genericPath, "utf-8");
-        messages = JSON.parse(raw);
-      }
     }
 
     // 2. Filter by offset window if specified

@@ -686,9 +686,16 @@ class AuthRepository @Inject constructor(
             saveCredentials(email, password)
             _authState.value = AuthState.SignedIn(session)
 
-            // Immediately trigger background sync for streams, clips, and YouTube channel
+            // Immediately clear any old workspace data and trigger background sync
             scope.launch {
                 try {
+                    dao.clearDemoStreams()
+                    dao.clearDemoClips()
+                    dao.clearDummyChatMessages()
+                    dao.deleteStream("g_4KXSxPzGo")
+                    dao.deleteClipMarker("CLP-2U6JKN")
+                    dao.clearStreamsExceptWorkspace(session.workspaceId)
+                    dao.clearOrphanClips()
                     syncWorkspaceData()
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -722,6 +729,15 @@ class AuthRepository @Inject constructor(
             .apply()
         _authState.value = AuthState.SignedOut
         _youtubeAccount.value = null
+        scope.launch(Dispatchers.IO) {
+            try {
+                dao.clearAllStreams()
+                dao.clearAllClips()
+                dao.clearAllChatMessages()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     // ─── Sync workspace data from Vercel (/api/mobile/sync) ──────────────────
@@ -812,11 +828,24 @@ class AuthRepository @Inject constructor(
                     channelThumbnail = ytObj.optString("channelThumbnail", ""),
                     connectionStatus = ytObj.optString("connectionStatus", "connected")
                 )
+            } else {
+                _youtubeAccount.value = null
             }
+
+            // Cleanly isolate local database from foreign workspace records
+            dao.clearStreamsExceptWorkspace(session.workspaceId)
+            dao.clearOrphanClips()
+
+            val isDemo = session.uid == DEMO_SESSION.uid || prefs.getBoolean(KEY_IS_DEMO, false)
 
             // 1. Streams
             val streamsArr = json.optJSONArray("streams")
             if (streamsArr != null && streamsArr.length() > 0) {
+                if (!isDemo) {
+                    dao.deleteStream("g_4KXSxPzGo")
+                    dao.deleteClipMarker("CLP-2U6JKN")
+                }
+                val incomingStreamIds = mutableSetOf<String>()
                 var hasLive = false
                 for (i in 0 until streamsArr.length()) {
                     if (streamsArr.getJSONObject(i).optString("status") == "live") {
@@ -825,15 +854,17 @@ class AuthRepository @Inject constructor(
                 }
                 for (i in 0 until streamsArr.length()) {
                     val s = streamsArr.getJSONObject(i)
+                    val streamId = s.optString("id", UUID.randomUUID().toString())
+                    incomingStreamIds.add(streamId)
                     val status = s.optString("status", "ended")
-                    val videoId = s.optString("youtubeVideoId", s.optString("id", ""))
+                    val videoId = s.optString("youtubeVideoId", streamId)
                     val resolvedThumb = s.optString("thumbnailUrl").takeIf { it.isNotEmpty() }
                         ?: s.optString("thumbnail").takeIf { it.isNotEmpty() }
                         ?: if (videoId.isNotEmpty()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else null
 
                     dao.insertStream(
                         StreamEntity(
-                            id = s.optString("id", UUID.randomUUID().toString()),
+                            id = streamId,
                             workspaceId = session.workspaceId,
                             title = s.optString("title", "Live Stream"),
                             channelId = s.optString("channelId", s.optString("youtubeChannelId", "")),
@@ -851,28 +882,43 @@ class AuthRepository @Inject constructor(
                         )
                     )
                 }
+
+                // Delete any local streams for this workspace that are no longer in the cloud list
+                val existingLocal = dao.getStreamsForWorkspaceSnapshot(session.workspaceId)
+                existingLocal.forEach { local ->
+                    if (local.id !in incomingStreamIds) {
+                        dao.deleteStream(local.id)
+                    }
+                }
             } else {
-                // No cloud streams yet — use the authentic creator stream g_4KXSxPzGo so screens are never empty
-                val sid = "g_4KXSxPzGo"
-                if (dao.getStreamById(sid) == null) {
-                    dao.insertStream(
-                        StreamEntity(
-                            id = sid,
-                            workspaceId = session.workspaceId,
-                            title = "FREE FIRE INDIA LIVE | Playing With Friends & Custom Rooms",
-                            channelId = "UC_livehellboy",
-                            channelTitle = "Live hellboy",
-                            liveChatId = "chat_g_4KXSxPzGo",
-                            thumbnailUrl = "https://i.ytimg.com/vi/g_4KXSxPzGo/hqdefault.jpg",
-                            status = "live",
-                            isActive = true,
-                            concurrentViewers = 502,
-                            viewCount = 1420,
-                            likeCount = 303,
-                            startedAtMs = System.currentTimeMillis() - 3600000L,
-                            endedAtMs = null
+                if (isDemo) {
+                    val sid = "g_4KXSxPzGo"
+                    if (dao.getStreamById(sid) == null) {
+                        dao.insertStream(
+                            StreamEntity(
+                                id = sid,
+                                workspaceId = session.workspaceId,
+                                title = "FREE FIRE INDIA LIVE | Playing With Friends & Custom Rooms",
+                                channelId = "UC_livehellboy",
+                                channelTitle = "Live hellboy",
+                                liveChatId = "chat_g_4KXSxPzGo",
+                                thumbnailUrl = "https://i.ytimg.com/vi/g_4KXSxPzGo/hqdefault.jpg",
+                                status = "live",
+                                isActive = true,
+                                concurrentViewers = 502,
+                                viewCount = 1420,
+                                likeCount = 303,
+                                startedAtMs = System.currentTimeMillis() - 3600000L,
+                                endedAtMs = null
+                            )
                         )
-                    )
+                    }
+                } else {
+                    // Authenticated real user has 0 streams: purge any fake demo streams and clear workspace streams
+                    dao.deleteStream("g_4KXSxPzGo")
+                    dao.deleteClipMarker("CLP-2U6JKN")
+                    dao.clearStreamsForWorkspace(session.workspaceId)
+                    dao.clearOrphanClips()
                 }
             }
 
@@ -926,6 +972,11 @@ class AuthRepository @Inject constructor(
                         )
                     )
                 }
+            }
+
+            if (!isDemo) {
+                dao.deleteClipMarker("CLP-2U6JKN")
+                dao.clearOrphanClips()
             }
 
             _isSyncing.value = false
@@ -1586,6 +1637,13 @@ class AuthRepository @Inject constructor(
             dao.clearDummyChatMessages()
             dao.deleteStream("demo-stream-001")
             dao.deleteClipMarker("demo-clip-001")
+
+            val current = (_authState.value as? AuthState.SignedIn)?.session
+            val isDemo = prefs.getBoolean(KEY_IS_DEMO, false) || current?.uid == DEMO_SESSION.uid
+            if (!isDemo) {
+                // Strictly isolated: NEVER seed demo or sample data for real authenticated accounts!
+                return@withContext
+            }
 
             val realStreamId = "g_4KXSxPzGo"
             val existing = dao.getStreamById(realStreamId)

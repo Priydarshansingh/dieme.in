@@ -89,18 +89,28 @@ import com.digicast.app.ui.theme.DigicastWhite
 import com.digicast.app.ui.utils.MetricFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class StreamsViewModel @Inject constructor(
-    streamRepository: StreamRepository,
+    private val streamRepository: StreamRepository,
     val authRepository: AuthRepository
 ) : ViewModel() {
     val isSyncing = authRepository.isSyncing
-    val streams = streamRepository.getAllStreams()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val streams = authRepository.authState.flatMapLatest { state ->
+        val session = (state as? com.digicast.app.data.repository.AuthState.SignedIn)?.session
+        if (session != null) {
+            streamRepository.getStreamsForWorkspace(session.workspaceId)
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
         sync()

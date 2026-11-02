@@ -204,39 +204,43 @@ class ClipGenerateViewModel @Inject constructor(
         try {
             val assetName = if (context.assets.list("")?.contains("real_chat_${streamId}.json") == true) {
                 "real_chat_${streamId}.json"
-            } else {
+            } else if (streamId == "g_4KXSxPzGo") {
                 "real_chat_g_4KXSxPzGo.json"
+            } else {
+                null
             }
-            context.assets.open(assetName).use { input ->
-                val jsonStr = input.bufferedReader().readText()
-                val array = JSONArray(jsonStr)
-                for (i in 0 until array.length()) {
-                    val obj = array.getJSONObject(i)
-                    val id = obj.optString("id", "real_${streamId}_$i")
-                    val author = obj.optString("authorDisplayName", "Viewer")
-                    val authorChannelId = obj.optString("authorChannelId", "ch_$i")
-                    val messageText = obj.optString("messageText", "")
-                    val offsetSec = obj.optLong("offsetSec", 0L)
-                    val videoOffsetMsec = obj.optLong("videoOffsetTimeMsec", offsetSec * 1000L)
-                    val isSuper = obj.optBoolean("isSuperChat", false)
-                    val superAmt = obj.optLong("superChatAmountMicros", 0L)
-                    val superCurr = obj.optString("superChatCurrency", "INR")
-                    val photoUrl = obj.optString("authorPhotoUrl", "")
+            if (assetName != null) {
+                context.assets.open(assetName).use { input ->
+                    val jsonStr = input.bufferedReader().readText()
+                    val array = JSONArray(jsonStr)
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val id = obj.optString("id", "real_${streamId}_$i")
+                        val author = obj.optString("authorDisplayName", "Viewer")
+                        val authorChannelId = obj.optString("authorChannelId", "ch_$i")
+                        val messageText = obj.optString("messageText", "")
+                        val offsetSec = obj.optLong("offsetSec", 0L)
+                        val videoOffsetMsec = obj.optLong("videoOffsetTimeMsec", offsetSec * 1000L)
+                        val isSuper = obj.optBoolean("isSuperChat", false)
+                        val superAmt = obj.optLong("superChatAmountMicros", 0L)
+                        val superCurr = obj.optString("superChatCurrency", "INR")
+                        val photoUrl = obj.optString("authorPhotoUrl", "")
 
-                    list.add(
-                        ChatMessageEntity(
-                            id = id,
-                            streamId = streamId,
-                            authorDisplayName = author,
-                            authorChannelId = authorChannelId,
-                            messageText = messageText,
-                            publishedAtMs = videoOffsetMsec,
-                            isSuperChat = isSuper,
-                            superChatAmountMicros = superAmt,
-                            superChatCurrency = superCurr,
-                            rawJson = photoUrl
+                        list.add(
+                            ChatMessageEntity(
+                                id = id,
+                                streamId = streamId,
+                                authorDisplayName = author,
+                                authorChannelId = authorChannelId,
+                                messageText = messageText,
+                                publishedAtMs = videoOffsetMsec,
+                                isSuperChat = isSuper,
+                                superChatAmountMicros = superAmt,
+                                superChatCurrency = superCurr,
+                                rawJson = photoUrl
+                            )
                         )
-                    )
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -586,7 +590,7 @@ class ClipGenerateViewModel @Inject constructor(
 
         val prefs = context.getSharedPreferences("digicast_auth_prefs", Context.MODE_PRIVATE)
         val savedWid = prefs.getString("auth_workspace_id", "") ?: ""
-        val targetWsId = workspaceId.ifBlank { savedWid }.ifBlank { "mdv4xDAiBdQAiyd04fymN3Y5yq52" }
+        val targetWsId = workspaceId.ifBlank { savedWid }
 
         viewModelScope.launch {
             _isUploadingTelegram.value = true
@@ -734,7 +738,7 @@ fun resolveYouTubeVideoId(stream: StreamEntity?, clip: ClipMarkerEntity?): Strin
         val ytMatcher = Regex("(?:youtu\\.be/|v=|/live/|/embed/)([a-zA-Z0-9_-]{11})").find(cand)
         if (ytMatcher != null) return ytMatcher.groupValues[1]
     }
-    return "g_4KXSxPzGo"
+    return candidates.firstOrNull { it.isNotBlank() } ?: ""
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1559,11 +1563,11 @@ fun YouTubeStreamPreview(
     onPlayerReady: ((seekTo: (Long) -> Unit) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val cleanVideoId = videoId.trim().ifBlank { "g_4KXSxPzGo" }
+    val cleanVideoId = videoId.trim()
     val timingParam = if (endSeconds != null && endSeconds > startSeconds) "&start=$startSeconds&end=$endSeconds" else if (startSeconds > 0) "&start=$startSeconds" else ""
     val targetTag = "$cleanVideoId-$startSeconds-$endSeconds"
 
-    val targetUrl = "https://digicast-web.vercel.app/embed?videoId=$cleanVideoId$timingParam"
+    val targetUrl = if (cleanVideoId.isNotEmpty()) "https://digicast-web.vercel.app/embed?videoId=$cleanVideoId$timingParam" else "about:blank"
 
     val mainHandler = remember { android.os.Handler(android.os.Looper.getMainLooper()) }
     val bridge = remember {

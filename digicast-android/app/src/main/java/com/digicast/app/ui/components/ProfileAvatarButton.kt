@@ -34,36 +34,42 @@ fun ProfileAvatarButton(
 ) {
     Box(
         modifier = modifier
-            .size(34.dp)
-            .clip(CircleShape)
-            .background(DigicastSurfaceElevated)
-            .border(1.dp, DigicastBorder, CircleShape)
+            .size(44.dp)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        if (!photoUrl.isNullOrEmpty()) {
-            AsyncImage(
-                model = photoUrl,
-                contentDescription = "Profile",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-            )
-        } else if (!displayName.isNullOrBlank()) {
-            Text(
-                text = displayName.take(1).uppercase(),
-                color = DigicastAccentBlue,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Settings Profile",
-                tint = DigicastWhite,
-                modifier = Modifier.size(18.dp)
-            )
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(DigicastSurfaceElevated)
+                .border(1.dp, DigicastBorder, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!photoUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = photoUrl,
+                    contentDescription = "Profile",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                )
+            } else if (!displayName.isNullOrBlank()) {
+                Text(
+                    text = displayName.take(1).uppercase(),
+                    color = DigicastAccentBlue,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Settings Profile",
+                    tint = DigicastWhite,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

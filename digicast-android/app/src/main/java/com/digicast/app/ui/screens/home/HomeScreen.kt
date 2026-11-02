@@ -41,8 +41,10 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.ui.text.font.FontFamily
@@ -142,18 +144,39 @@ class HomeViewModel @Inject constructor(
     val authState = authRepository.authState
     val isSyncing = authRepository.isSyncing
 
-    val activeStreams = streamRepository.getActiveStreams()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val activeStreams = authRepository.authState.flatMapLatest { state ->
+        val session = (state as? AuthState.SignedIn)?.session
+        if (session != null) {
+            streamRepository.getActiveStreamsForWorkspace(session.workspaceId)
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val allStreams = streamRepository.getAllStreams()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val allStreams = authRepository.authState.flatMapLatest { state ->
+        val session = (state as? AuthState.SignedIn)?.session
+        if (session != null) {
+            streamRepository.getStreamsForWorkspace(session.workspaceId)
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val clips = clipRepository.getAllClips()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val clips = authRepository.authState.flatMapLatest { state ->
+        val session = (state as? AuthState.SignedIn)?.session
+        if (session != null) {
+            clipRepository.getClipsForWorkspace(session.workspaceId)
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val recentMessages = allStreams
-        .map { list -> list.firstOrNull { s -> s.id == "g_4KXSxPzGo" } ?: list.firstOrNull() }
+        .map { list -> list.firstOrNull { it.isActive } ?: list.firstOrNull() }
         .flatMapLatest { stream ->
             if (stream == null) flowOf(emptyList())
             else chatRepository.getRecentMessages(stream.id, 100)
@@ -166,17 +189,27 @@ class HomeViewModel @Inject constructor(
 
     fun syncData() {
         viewModelScope.launch {
+            val session = (authRepository.authState.value as? AuthState.SignedIn)?.session
+            val isDemo = session?.uid == AuthRepository.DEMO_SESSION.uid
             withContext(Dispatchers.IO) {
                 dao.clearDemoStreams()
                 dao.clearDemoClips()
                 dao.clearDummyChatMessages()
-                seedRealChatIfEmpty()
+                if (isDemo) {
+                    seedRealChatIfEmpty()
+                } else {
+                    dao.deleteStream("g_4KXSxPzGo")
+                    dao.deleteClipMarker("CLP-2U6JKN")
+                }
             }
             authRepository.syncWorkspaceData()
         }
     }
 
     private suspend fun seedRealChatIfEmpty() = withContext(Dispatchers.IO) {
+        val session = (authRepository.authState.value as? AuthState.SignedIn)?.session
+        val isDemo = session?.uid == AuthRepository.DEMO_SESSION.uid
+        if (!isDemo) return@withContext
         val sId = "g_4KXSxPzGo"
         try {
             val existing = dao.getRecentChatMessagesSnapshot(sId, 1)
@@ -630,137 +663,198 @@ fun HomeScreen(
                 )
             }
 
-            // ── 5. Live Broadcast Hero Card (When Active Stream Exists) ────────
-            if (live != null && (selectedCategory == "Overview" || selectedCategory == "Live Broadcast")) {
+            // ── 5. Live Broadcast Hero Card ─────────────────────────────────
+            if (selectedCategory == "Overview" || selectedCategory == "Live Broadcast") {
                 item {
-                    val thumbUrl = live.thumbnailUrl ?: if (live.id.isNotBlank()) "https://i.ytimg.com/vi/${live.id}/hqdefault.jpg" else null
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                        border = BorderStroke(1.dp, AppleSpecularBorder),
-                        shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(AppleDarkEdgeCardBrush)
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(180.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(DigicastSurfaceElevated)
-                                    .clickable { onNavigateToStreamDetail(live.id) }
-                            ) {
-                                if (!thumbUrl.isNullOrEmpty()) {
-                                    AsyncImage(
-                                        model = thumbUrl,
-                                        contentDescription = live.title,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    colors = listOf(Color.Transparent, DigicastDeepNavy.copy(alpha = 0.85f))
-                                                )
-                                            )
-                                    )
-                                } else {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Default.PlayCircle, contentDescription = null, tint = DigicastSlate, modifier = Modifier.size(48.dp))
-                                    }
-                                }
-
-                                // Live Badge
-                                Row(
+                    if (live != null) {
+                        val thumbUrl = live.thumbnailUrl ?: if (live.id.isNotBlank()) "https://i.ytimg.com/vi/${live.id}/hqdefault.jpg" else null
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                            border = BorderStroke(1.dp, AppleSpecularBorder),
+                            shape = RoundedCornerShape(24.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(AppleDarkEdgeCardBrush)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Box(
                                     modifier = Modifier
-                                        .align(Alignment.TopStart)
-                                        .padding(10.dp)
-                                        .background(
-                                            if (live.status == "live") DigicastLiveRed else DigicastSurfaceElevated,
-                                            RoundedCornerShape(6.dp)
-                                        )
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        .fillMaxWidth()
+                                        .height(180.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(DigicastSurfaceElevated)
+                                        .clickable { onNavigateToStreamDetail(live.id) }
                                 ) {
-                                    Box(modifier = Modifier.size(6.dp).background(DigicastWhite, CircleShape))
+                                    if (!thumbUrl.isNullOrEmpty()) {
+                                        AsyncImage(
+                                            model = thumbUrl,
+                                            contentDescription = live.title,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        colors = listOf(Color.Transparent, DigicastDeepNavy.copy(alpha = 0.85f))
+                                                    )
+                                                )
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.PlayCircle, contentDescription = null, tint = DigicastSlate, modifier = Modifier.size(48.dp))
+                                        }
+                                    }
+
+                                    // Live Badge
+                                    Row(
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .padding(10.dp)
+                                            .background(
+                                                if (live.status == "live") DigicastLiveRed else DigicastSurfaceElevated,
+                                                RoundedCornerShape(6.dp)
+                                            )
+                                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Box(modifier = Modifier.size(6.dp).background(DigicastWhite, CircleShape))
+                                        Text(
+                                            text = if (live.status == "live") "LIVE NOW" else "BROADCAST",
+                                            color = DigicastWhite,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
                                     Text(
-                                        text = if (live.status == "live") "LIVE NOW" else "BROADCAST",
-                                        color = DigicastWhite,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
+                                        text = live.channelTitle,
+                                        color = DigicastWhite.copy(alpha = 0.9f),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier
+                                            .align(Alignment.BottomStart)
+                                            .padding(10.dp)
                                     )
                                 }
 
+                                Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = live.channelTitle,
-                                    color = DigicastWhite.copy(alpha = 0.9f),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .padding(10.dp)
+                                    text = MetricFormatter.cleanText(live.title),
+                                    color = DigicastWhite,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
                                 )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = if (live.concurrentViewers > 0) "${MetricFormatter.formatCount(live.concurrentViewers)} Viewers" else "Active",
+                                            color = DigicastLiveRed,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "${MetricFormatter.formatCount(live.likeCount)} Likes",
+                                            color = DigicastSlate,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(
+                                            onClick = onNavigateToClips,
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                                            border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                            shape = RoundedCornerShape(9999.dp),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                            modifier = Modifier.height(34.dp)
+                                        ) {
+                                            Text("Create Clip", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                        }
+                                        Button(
+                                            onClick = { onNavigateToStreamDetail(live.id) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF041215)),
+                                            border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                                            shape = RoundedCornerShape(9999.dp),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                            modifier = Modifier.height(34.dp)
+                                        ) {
+                                            Text("Dashboard", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
                             }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = MetricFormatter.cleanText(live.title),
-                                color = DigicastWhite,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                        }
+                    } else {
+                        // Empty State Broadcast Card
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                            border = BorderStroke(1.dp, AppleSpecularBorder),
+                            shape = RoundedCornerShape(24.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(AppleDarkEdgeCardBrush)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(24.dp)
+                                    .fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = if (live.concurrentViewers > 0) "${MetricFormatter.formatCount(live.concurrentViewers)} Viewers" else "Active",
-                                        color = DigicastLiveRed,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "${MetricFormatter.formatCount(live.likeCount)} Likes",
-                                        color = DigicastSlate,
-                                        fontSize = 13.sp
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(DigicastSurfaceElevated, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LiveTv,
+                                        contentDescription = null,
+                                        tint = DigicastSlate,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
-
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(
-                                        onClick = onNavigateToClips,
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
-                                        border = BorderStroke(1.dp, Color(0x55FFFFFF)),
-                                        shape = RoundedCornerShape(9999.dp),
-                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                        modifier = Modifier.height(34.dp)
-                                    ) {
-                                        Text("Create Clip", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                                    }
-                                    Button(
-                                        onClick = { onNavigateToStreamDetail(live.id) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF041215)),
-                                        border = BorderStroke(1.dp, Color(0x33FFFFFF)),
-                                        shape = RoundedCornerShape(9999.dp),
-                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                        modifier = Modifier.height(34.dp)
-                                    ) {
-                                        Text("Dashboard", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.SemiBold)
-                                    }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "No Live Broadcast Detected",
+                                    color = DigicastWhite,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (ytAccount != null) "Connected: ${ytAccount?.channelName}. Start streaming on YouTube to capture highlights." else "Connect your YouTube channel on web to sync live broadcasts.",
+                                    color = DigicastSlate,
+                                    fontSize = 12.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Button(
+                                    onClick = { viewModel.syncData() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                                    border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                    shape = RoundedCornerShape(9999.dp),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Sync Broadcasts", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }

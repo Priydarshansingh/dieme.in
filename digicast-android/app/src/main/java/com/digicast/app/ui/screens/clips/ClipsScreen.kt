@@ -87,6 +87,8 @@ import com.digicast.app.ui.utils.MetricFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -94,16 +96,32 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ClipsViewModel @Inject constructor(
-    clipRepository: ClipRepository,
-    streamRepository: StreamRepository,
+    private val clipRepository: ClipRepository,
+    private val streamRepository: StreamRepository,
     private val dao: DigicastDao,
     val authRepository: AuthRepository
 ) : ViewModel() {
     val isSyncing = authRepository.isSyncing
-    val clips = clipRepository.getAllClips()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val streams = streamRepository.getAllStreams()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val clips = authRepository.authState.flatMapLatest { state ->
+        val session = (state as? com.digicast.app.data.repository.AuthState.SignedIn)?.session
+        if (session != null) {
+            clipRepository.getClipsForWorkspace(session.workspaceId)
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val streams = authRepository.authState.flatMapLatest { state ->
+        val session = (state as? com.digicast.app.data.repository.AuthState.SignedIn)?.session
+        if (session != null) {
+            streamRepository.getStreamsForWorkspace(session.workspaceId)
+        } else {
+            flowOf(emptyList())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
         sync()
@@ -111,9 +129,16 @@ class ClipsViewModel @Inject constructor(
 
     fun sync() {
         viewModelScope.launch {
+            val session = (authRepository.authState.value as? com.digicast.app.data.repository.AuthState.SignedIn)?.session
+            val isDemo = session?.uid == com.digicast.app.data.repository.AuthRepository.DEMO_SESSION.uid
             withContext(Dispatchers.IO) {
                 dao.clearDemoClips()
                 dao.clearDemoStreams()
+                if (!isDemo) {
+                    dao.deleteStream("g_4KXSxPzGo")
+                    dao.deleteClipMarker("CLP-2U6JKN")
+                    dao.clearOrphanClips()
+                }
             }
             authRepository.syncWorkspaceData()
         }

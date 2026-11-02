@@ -166,8 +166,16 @@ class StreamDetailViewModel @Inject constructor(
 
     private suspend fun loadRealChat(sId: String) = withContext(Dispatchers.IO) {
         try {
+            val assetName = if (context.assets.list("")?.contains("real_chat_${sId}.json") == true) {
+                "real_chat_${sId}.json"
+            } else if (sId == "g_4KXSxPzGo") {
+                "real_chat_g_4KXSxPzGo.json"
+            } else {
+                null
+            } ?: return@withContext
+
             dao.clearChatMessagesForStream(sId)
-            val jsonStr = context.assets.open("real_chat_g_4KXSxPzGo.json").bufferedReader().use { it.readText() }
+            val jsonStr = context.assets.open(assetName).bufferedReader().use { it.readText() }
             val arr = JSONArray(jsonStr)
             val list = mutableListOf<ChatMessageEntity>()
 

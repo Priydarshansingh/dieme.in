@@ -13,6 +13,12 @@ class StreamRepository @Inject constructor(
     fun getActiveStreams(): Flow<List<StreamEntity>> = dao.getActiveStreams()
     fun getAllStreams(): Flow<List<StreamEntity>> = dao.getAllStreams()
 
+    fun getStreamsForWorkspace(workspaceId: String): Flow<List<StreamEntity>> =
+        if (workspaceId.isBlank()) dao.getAllStreams() else dao.getStreamsForWorkspace(workspaceId)
+
+    fun getActiveStreamsForWorkspace(workspaceId: String): Flow<List<StreamEntity>> =
+        if (workspaceId.isBlank()) dao.getActiveStreams() else dao.getActiveStreamsForWorkspace(workspaceId)
+
     suspend fun getStreamById(id: String): StreamEntity? = dao.getStreamById(id)
 
     suspend fun saveStream(stream: StreamEntity) = dao.insertStream(stream)

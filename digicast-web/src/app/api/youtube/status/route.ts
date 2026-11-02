@@ -105,17 +105,6 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // Check known primary account workspace if caller is owner
-      if (ytSnap.empty && caller?.email === "pskishnawat133@gmail.com") {
-        const masterSnap = await adminDb
-          .collection(col.youtube("mdv4xDAiBdQAiyd04fymN3Y5yq52"))
-          .limit(1)
-          .get();
-        if (!masterSnap.empty) {
-          ytSnap = masterSnap;
-        }
-      }
-
       if (!ytSnap.empty) {
         const doc = ytSnap.docs[0];
         const data = doc.data();

@@ -150,7 +150,6 @@ fun SettingsScreen(
     val extensions by extensionViewModel.extensions.collectAsState()
     val statusMsg by extensionViewModel.statusMessage.collectAsState()
 
-    var isSyncing by remember { mutableStateOf(false) }
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showUpgradeDialog by remember { mutableStateOf(false) }
 
@@ -187,18 +186,6 @@ fun SettingsScreen(
     var newMemberRole by remember { mutableStateOf("editor") }
     var showNewMemberPassword by remember { mutableStateOf(false) }
     var isSubmittingMember by remember { mutableStateOf(false) }
-
-    // Rotation animation for sync button
-    val infiniteTransition = rememberInfiniteTransition(label = "sync_spin")
-    val spinAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "spin_angle"
-    )
 
     fun refreshTeam() {
         coroutineScope.launch {
@@ -251,7 +238,7 @@ fun SettingsScreen(
                         IconButton(
                             onClick = onNavigateBack,
                             modifier = Modifier
-                                .size(38.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
                                 .background(DigicastSurfaceElevated)
                         ) {
@@ -259,14 +246,14 @@ fun SettingsScreen(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
                                 tint = DigicastWhite,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Studio Settings",
                                 color = DigicastWhite,
-                                fontSize = 18.sp,
+                                fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -283,31 +270,32 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Quick Sync Action
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                isSyncing = true
-                                val res = authRepository.syncWorkspaceData()
-                                isSyncing = false
-                                val msg = if (res.isSuccess) "Workspace synchronized!"
-                                else "Sync failed: ${res.exceptionOrNull()?.message}"
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                            }
-                        },
+                    // Sign Out Action Button in Top Right
+                    Surface(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(DigicastSurfaceElevated)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { showSignOutDialog = true },
+                        color = DigicastLiveRed.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, DigicastLiveRed.copy(alpha = 0.4f))
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Sync Workspace",
-                            tint = if (isSyncing) DigicastAccentBlue else DigicastSlate,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .rotate(if (isSyncing) spinAngle else 0f)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PowerSettingsNew,
+                                contentDescription = "Sign Out",
+                                tint = DigicastLiveRed,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Sign Out",
+                                color = DigicastLiveRed,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -324,6 +312,9 @@ fun SettingsScreen(
                 is AuthState.SignedIn -> {
                     val session = state.session
                     val isOwner = session.role.equals("owner", ignoreCase = true)
+                    val isPaidSubscriber = (session.daysRemaining > 0 || session.subscriptionStatus.equals("active", true)) &&
+                            !session.plan.equals("free", true) &&
+                            !session.plan.equals("free_trial", true)
 
                     // 1. Workspace Profile & Subscription Bento Card
                     item(key = "workspace_profile_bento") {
@@ -338,18 +329,22 @@ fun SettingsScreen(
                         )
                     }
 
-                    // 1a. Duolingo Gamer Avatar Studio Bento Card
+                    // 1a. Gamer Avatar Studio Bento Card (Swipeable with Premium Locks)
                     item(key = "gamer_avatar_studio_card") {
                         DuolingoAvatarStudioBentoCard(
                             session = session,
+                            isPremium = isPaidSubscriber,
                             onOpenPicker = {
                                 loadAvatars()
                                 showAvatarPicker = true
+                            },
+                            onOpenUpgrade = {
+                                showUpgradeDialog = true
                             }
                         )
                     }
 
-                    // 1b. Creator Wallet, 24H Ad Pass & Top Editors Showcase
+                    // 1b. Creator Wallet & Ad Pass
                     item(key = "wallet_and_ads_card") {
                         WalletAndAdsCard(
                             session = session,
@@ -364,7 +359,7 @@ fun SettingsScreen(
                         }
                     }
 
-                    // 3. Team Management & Mobile Credentials Card (Owner, Admin & Moderator)
+                    // 3. Team Management & Mobile Credentials Card (Hierarchy sorted: Owner > Admin > Mod > Editor)
                     val isAdmin = session.role.equals("admin", ignoreCase = true)
                     val isMod = session.role.equals("moderator", ignoreCase = true)
                     val canViewTeam = isOwner || isAdmin || isMod
@@ -375,10 +370,8 @@ fun SettingsScreen(
                             TeamSectionHeader(
                                 memberCount = teamMembers.size,
                                 isAddingMember = isAddingMember,
-                                isLoadingTeam = isLoadingTeam,
                                 canAddMember = canAddMember,
-                                onToggleAdd = { isAddingMember = !isAddingMember },
-                                onRefresh = { refreshTeam() }
+                                onToggleAdd = { isAddingMember = !isAddingMember }
                             )
                         }
 
@@ -443,8 +436,12 @@ fun SettingsScreen(
                             }
                         }
 
+                        // Hierarchy Sorted Team Members: Owner -> Admin -> Moderator -> Editor
+                        val roleHierarchyOrder = mapOf("owner" to 0, "admin" to 1, "moderator" to 2, "editor" to 3)
+                        val sortedTeamMembers = teamMembers.sortedBy { roleHierarchyOrder[it.role.lowercase()] ?: 99 }
+
                         // Team Member Cards List
-                        if (teamMembers.isEmpty() && !isLoadingTeam) {
+                        if (sortedTeamMembers.isEmpty() && !isLoadingTeam) {
                             item(key = "no_members_placeholder") {
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
@@ -479,7 +476,7 @@ fun SettingsScreen(
                                 }
                             }
                         } else {
-                            items(teamMembers, key = { it.uid }) { member ->
+                            items(sortedTeamMembers, key = { it.uid }) { member ->
                                 TeamMemberItemCard(
                                     member = member,
                                     currentSession = session,
@@ -516,42 +513,9 @@ fun SettingsScreen(
                         )
                     }
 
-                    // 5. Hardware Diagnostics & On-Device Engine
-                    item(key = "hardware_diagnostics") {
-                        DiagnosticsCard()
-                    }
-
-                    // 6. Security Architecture Card
+                    // 5. Security & Privacy Card (Direct Link)
                     item(key = "security_architecture") {
-                        SecurityCard()
-                    }
-
-                    // 7. Sign Out Button
-                    item(key = "sign_out_action") {
-                        OutlinedButton(
-                            onClick = { showSignOutDialog = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = DigicastLiveRed,
-                                containerColor = DigicastLiveRed.copy(alpha = 0.05f)
-                            ),
-                            border = BorderStroke(1.dp, DigicastLiveRed.copy(alpha = 0.35f))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PowerSettingsNew,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Sign Out of Workspace",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
-                        }
+                        SecurityCard(context = context)
                     }
                 }
 
@@ -784,10 +748,14 @@ fun SettingsScreen(
         )
     }
 
-    // Duolingo Avatar Picker Dialog
+    // Avatar Picker Dialog
     if (showAvatarPicker) {
         val currentSession = (authState as? AuthState.SignedIn)?.session
         val isOwnerOrAdmin = currentSession?.role.let { it.equals("owner", true) || it.equals("admin", true) }
+        val isPaidSubscriber = currentSession != null &&
+                (currentSession.daysRemaining > 0 || currentSession.subscriptionStatus.equals("active", true)) &&
+                !currentSession.plan.equals("free", true) &&
+                !currentSession.plan.equals("free_trial", true)
 
         DuolingoAvatarPickerDialog(
             currentPhotoUrl = currentSession?.photoUrl ?: "",
@@ -795,6 +763,7 @@ fun SettingsScreen(
             avatars = avatarList,
             isLoading = isLoadingAvatars,
             isOwnerOrAdmin = isOwnerOrAdmin,
+            isPremium = isPaidSubscriber,
             onDismiss = { showAvatarPicker = false },
             onSelectAvatar = { avatar ->
                 coroutineScope.launch {
@@ -809,6 +778,10 @@ fun SettingsScreen(
             },
             onOpenAddAvatar = {
                 showAddAvatarDialog = true
+            },
+            onOpenUpgrade = {
+                showAvatarPicker = false
+                showUpgradeDialog = true
             }
         )
     }
@@ -975,11 +948,11 @@ private fun WorkspaceProfileBentoCard(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
                                 .clickable { onChangeAvatar() },
-                            color = DigicastSurfaceElevated,
-                            border = BorderStroke(1.dp, DigicastBorder)
+                            color = DigicastElectricCyan.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, DigicastElectricCyan.copy(alpha = 0.35f))
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
@@ -990,9 +963,9 @@ private fun WorkspaceProfileBentoCard(
                                     modifier = Modifier.size(11.dp)
                                 )
                                 Text(
-                                    text = "Anime Avatar",
+                                    text = "Equip Avatar",
                                     color = DigicastElectricCyan,
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -1001,55 +974,80 @@ private fun WorkspaceProfileBentoCard(
                 }
             }
 
-            // Workspace ID 1-Tap Copy Chip
+            // Workspace ID 1-Tap Copy Card (Never Truncates Awkwardly)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
                     .clickable {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val clip = ClipData.newPlainText("Workspace ID", session.workspaceId)
                         clipboard.setPrimaryClip(clip)
                         Toast.makeText(context, "Workspace ID copied to clipboard!", Toast.LENGTH_SHORT).show()
                     },
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = DigicastDeepNavy,
                 border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.6f))
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 10.dp)
                     ) {
-                        Text("WORKSPACE:", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         Text(
-                            text = if (session.workspaceName.isNotBlank()) session.workspaceName else session.workspaceId.take(12),
+                            text = "WORKSPACE",
+                            color = DigicastSlate,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = if (session.workspaceName.isNotBlank()) session.workspaceName else session.workspaceId,
                             color = DigicastWhite,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = DigicastSurfaceElevated,
+                        border = BorderStroke(1.dp, DigicastBorder)
                     ) {
-                        Text("Copy ID", color = DigicastAccentBlue, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Copy Workspace ID",
-                            tint = DigicastAccentBlue,
-                            modifier = Modifier.size(12.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "Copy Workspace ID",
+                                tint = DigicastWhite,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = "Copy ID",
+                                color = DigicastWhite,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
 
             HorizontalDivider(color = DigicastBorder.copy(alpha = 0.6f))
 
-            // Subscription & Remaining Days Status Box
+            // Subscription & Remaining Days Status Box with 2 White Buttons
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -1058,7 +1056,7 @@ private fun WorkspaceProfileBentoCard(
             ) {
                 Column(
                     modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1110,31 +1108,37 @@ private fun WorkspaceProfileBentoCard(
                         }
                     }
 
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = planTitle,
+                            color = DigicastWhite,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isGraceActive) "Instant platform access granted while admin verifies UTR proof"
+                            else "${session.daysRemaining} days remaining on this plan",
+                            color = DigicastSlate,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    // Two Properly Arranged White Buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = planTitle,
-                                color = DigicastWhite,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = if (isGraceActive) "Instant platform access granted while admin verifies UTR proof"
-                                else "${session.daysRemaining} days remaining on this plan",
-                                color = DigicastSlate,
-                                fontSize = 11.sp
-                            )
-                        }
-
                         Button(
                             onClick = onOpenUpgrade,
-                            colors = ButtonDefaults.buttonColors(containerColor = DigicastElectricCyan),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = DigicastWhite,
+                                contentColor = DigicastDeepNavy
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.QrCode,
@@ -1142,12 +1146,32 @@ private fun WorkspaceProfileBentoCard(
                                 modifier = Modifier.size(14.dp),
                                 tint = DigicastDeepNavy
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
-                                text = "Upgrade Pass",
+                                text = if (isExpired) "Renew Plan" else "Upgrade Pass",
                                 color = DigicastDeepNavy,
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 11.sp
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = onOpenUpgrade,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = DigicastWhite
+                            ),
+                            border = BorderStroke(1.dp, DigicastWhite.copy(alpha = 0.6f)),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                        ) {
+                            Text(
+                                text = "All Plans",
+                                color = DigicastWhite,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
                             )
                         }
                     }
@@ -1232,10 +1256,8 @@ private fun ConnectedYouTubeCard(youtube: com.digicast.app.data.repository.YouTu
 private fun TeamSectionHeader(
     memberCount: Int,
     isAddingMember: Boolean,
-    isLoadingTeam: Boolean,
     canAddMember: Boolean,
-    onToggleAdd: () -> Unit,
-    onRefresh: () -> Unit
+    onToggleAdd: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1274,59 +1296,30 @@ private fun TeamSectionHeader(
             }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            IconButton(
-                onClick = onRefresh,
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(DigicastSurfaceElevated)
+        if (canAddMember) {
+            Button(
+                onClick = onToggleAdd,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isAddingMember) DigicastSurfaceElevated else DigicastWhite,
+                    contentColor = if (isAddingMember) DigicastSlate else DigicastDeepNavy
+                ),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.height(34.dp)
             ) {
-                if (isLoadingTeam) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(14.dp),
-                        color = DigicastAccentBlue,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh Team",
-                        tint = DigicastSlate,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            if (canAddMember) {
-                Button(
-                    onClick = onToggleAdd,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isAddingMember) DigicastSurfaceElevated else DigicastAccentBlue
-                    ),
-                    shape = RoundedCornerShape(20.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isAddingMember) Icons.Default.Close else Icons.Default.PersonAdd,
-                        contentDescription = null,
-                        tint = if (isAddingMember) DigicastSlate else DigicastDarkText,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (isAddingMember) "Close" else "Add",
-                        color = if (isAddingMember) DigicastSlate else DigicastDarkText,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
+                Icon(
+                    imageVector = if (isAddingMember) Icons.Default.Close else Icons.Default.PersonAdd,
+                    contentDescription = null,
+                    tint = if (isAddingMember) DigicastSlate else DigicastDeepNavy,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+                Text(
+                    text = if (isAddingMember) "Close" else "+ Add Member",
+                    color = if (isAddingMember) DigicastSlate else DigicastDeepNavy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
             }
         }
     }
@@ -1851,7 +1844,7 @@ private fun ExtensionsCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "EXTENSIONS & PLUGINS (.DCAST)",
+                        text = "STUDIO EXTENSIONS",
                         color = DigicastSlate,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -1874,13 +1867,24 @@ private fun ExtensionsCard(
 
             if (extensions.isEmpty()) {
                 Text(
-                    text = "No extension packs loaded. Tap refresh above to query available plugins.",
+                    text = "No extensions available. Tap refresh above to query catalog.",
                     color = DigicastSlate,
                     fontSize = 12.sp
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     extensions.forEach { item ->
+                        val (cleanName, purpose) = when {
+                            item.id.contains("youtubedl", ignoreCase = true) || item.name.contains("youtubedl", ignoreCase = true) ->
+                                "YouTube Stream Ingest" to "Live stream audio & video packets"
+                            item.id.contains("ffmpeg", ignoreCase = true) || item.name.contains("ffmpeg", ignoreCase = true) ->
+                                "Video Hardware Slicer" to "High-speed local video trimming engine"
+                            item.id.contains("clipengine", ignoreCase = true) || item.name.contains("clipengine", ignoreCase = true) ->
+                                "Smart Clip Indexer" to "Live AI highlight markers & chat spikes"
+                            else ->
+                                item.name.replace("com.digicast.ext.", "").replaceFirstChar { it.uppercase() } to "Studio video processing module"
+                        }
+
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
@@ -1896,30 +1900,61 @@ private fun ExtensionsCard(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(end = 10.dp)
+                                    ) {
                                         Text(
-                                            text = item.name,
+                                            text = cleanName,
                                             color = DigicastWhite,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                         Text(
-                                            text = "v${item.version} • ${item.id}",
+                                            text = purpose,
                                             color = DigicastSlate,
-                                            fontSize = 11.sp
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
 
+                                    // Single unified action button: Install or Uninstall
                                     if (item.isInstalled) {
-                                        Box(
-                                            modifier = Modifier
-                                                .background(DigicastEmerald.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        OutlinedButton(
+                                            onClick = { onUninstall(item) },
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastLiveRed),
+                                            border = BorderStroke(1.dp, DigicastLiveRed.copy(alpha = 0.5f)),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.height(30.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                                         ) {
                                             Text(
-                                                text = "INSTALLED",
-                                                color = DigicastEmerald,
-                                                fontSize = 9.sp,
+                                                text = "Uninstall",
+                                                color = DigicastLiveRed,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = { onInstall(item) },
+                                            enabled = !item.isInstalling,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = DigicastWhite,
+                                                contentColor = DigicastDeepNavy
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.height(30.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                        ) {
+                                            Text(
+                                                text = if (item.isInstalling) "Installing..." else "Install",
+                                                color = DigicastDeepNavy,
+                                                fontSize = 11.sp,
                                                 fontWeight = FontWeight.ExtraBold
                                             )
                                         }
@@ -1931,38 +1966,10 @@ private fun ExtensionsCard(
                                         progress = { item.downloadProgress.toFloat() / 100f },
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(4.dp),
+                                            .height(3.dp),
                                         color = DigicastAccentBlue,
                                         trackColor = DigicastSurface
                                     )
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End
-                                ) {
-                                    if (item.isInstalled) {
-                                        Text(
-                                            text = "Uninstall",
-                                            color = DigicastLiveRed,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            modifier = Modifier
-                                                .clickable { onUninstall(item) }
-                                                .padding(4.dp)
-                                        )
-                                    } else {
-                                        Button(
-                                            onClick = { onInstall(item) },
-                                            enabled = !item.isInstalling,
-                                            colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
-                                            shape = RoundedCornerShape(6.dp),
-                                            modifier = Modifier.height(30.dp),
-                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
-                                        ) {
-                                            Text("Install .dcast", color = DigicastDarkText, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -1974,123 +1981,69 @@ private fun ExtensionsCard(
 }
 
 @Composable
-private fun DiagnosticsCard() {
+private fun SecurityCard(context: Context) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable {
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://digicast-web.vercel.app/privacy")
+                )
+                context.startActivity(intent)
+            },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
         border = BorderStroke(1.dp, DigicastBorder)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Bolt,
-                    contentDescription = null,
-                    tint = DigicastNeonLime,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    text = "HARDWARE ENGINE & LOCAL DIAGNOSTICS",
-                    color = DigicastSlate,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
-                )
-            }
-
-            DiagnosticRow(title = "Hardware Trimming Engine", status = "MediaCodec H.264 Active", isGood = true)
-            DiagnosticRow(title = "Cloud Rendering Dependency", status = "0% (100% On-Device)", isGood = true)
-            DiagnosticRow(title = "Local Marker Cache", status = "SQLite Room DB Synced", isGood = true)
-        }
-    }
-}
-
-@Composable
-private fun DiagnosticRow(title: String, status: String, isGood: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(title, color = DigicastSlate, fontSize = 12.sp)
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(if (isGood) DigicastEmerald else DigicastLiveRed)
-            )
-            Text(
-                text = status,
-                color = if (isGood) DigicastWhite else DigicastLiveRed,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
-}
-
-@Composable
-private fun SecurityCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-        border = BorderStroke(1.dp, DigicastBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Security,
-                    contentDescription = null,
-                    tint = DigicastAccentBlue,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    text = "SECURITY & PRIVACY ARCHITECTURE",
-                    color = DigicastSlate,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
-                )
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(DigicastAccentBlue.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        tint = DigicastAccentBlue,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Security & Privacy Policy",
+                        color = DigicastWhite,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "View workspace encryption and data policies",
+                        color = DigicastSlate,
+                        fontSize = 11.sp
+                    )
+                }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                SecurityBullet(text = "Chat messages are parsed in-memory and cached exclusively on-device.")
-                SecurityBullet(text = "Zero cross-account data leakage: Workspaces are bounded by verified UID.")
-                SecurityBullet(text = "Server tokens and webhook dispatches are isolated in Cloud Run.")
-            }
+            Text(
+                text = "Open ↗",
+                color = DigicastAccentBlue,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
-    }
-}
-
-@Composable
-private fun SecurityBullet(text: String) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Text("•", color = DigicastAccentBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Text(
-            text = text,
-            color = DigicastSlate,
-            fontSize = 11.sp,
-            lineHeight = 16.sp
-        )
     }
 }

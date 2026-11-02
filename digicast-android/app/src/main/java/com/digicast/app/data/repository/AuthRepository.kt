@@ -1395,6 +1395,56 @@ class AuthRepository @Inject constructor(
                 url = "https://digicast-web.vercel.app/avatars/naruto_sage.svg",
                 description = "Hero of the Hidden Leaf with senjutsu orange pigments and toad sage eyes.",
                 isDefault = true
+            ),
+            GamerAvatarDto(
+                id = "zoro-wano",
+                name = "Roronoa Zoro",
+                series = "One Piece",
+                badge = "King of Hell",
+                color = "#10B981",
+                url = "https://digicast-web.vercel.app/avatars/zoro_wano.svg",
+                description = "Master of Three-Sword Style channeling Enma conqueror dragon flames.",
+                isDefault = true
+            ),
+            GamerAvatarDto(
+                id = "levi-ackerman",
+                name = "Levi Ackerman",
+                series = "Attack on Titan",
+                badge = "Humanity's Strongest",
+                color = "#64748B",
+                url = "https://digicast-web.vercel.app/avatars/levi_ackerman.svg",
+                description = "Captain of the Special Operations Squad with deadly dual-blade precision.",
+                isDefault = true
+            ),
+            GamerAvatarDto(
+                id = "tanjiro-sun",
+                name = "Tanjiro Kamado",
+                series = "Demon Slayer",
+                badge = "Sun Breathing",
+                color = "#EF4444",
+                url = "https://digicast-web.vercel.app/avatars/tanjiro_sun.svg",
+                description = "Demon Slayer Corps warrior wielding Hinokami Kagura solar flame dances.",
+                isDefault = true
+            ),
+            GamerAvatarDto(
+                id = "sukuna-domain",
+                name = "Ryomen Sukuna",
+                series = "Jujutsu Kaisen",
+                badge = "King of Curses",
+                color = "#DC2626",
+                url = "https://digicast-web.vercel.app/avatars/sukuna_domain.svg",
+                description = "Malevolent Shrine sovereign unleashing Dismantle and Cleave domain strikes.",
+                isDefault = true
+            ),
+            GamerAvatarDto(
+                id = "eren-founder",
+                name = "Eren Yeager",
+                series = "Attack on Titan",
+                badge = "Founding Titan",
+                color = "#22C55E",
+                url = "https://digicast-web.vercel.app/avatars/eren_founder.svg",
+                description = "Unstoppable titan shifter marching forward in pursuit of ultimate freedom.",
+                isDefault = true
             )
         )
 

@@ -24,8 +24,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -87,15 +89,22 @@ fun parseHexColor(hex: String, defaultColor: Color = DigicastElectricCyan): Colo
 /**
  * Bento Card showcasing the Duolingo-style Gamer Avatar Studio on the main Settings screen.
  */
+/**
+ * Bento Card showcasing the Gamer Avatar Studio with horizontal scroll on the main Settings screen.
+ */
 @Composable
 fun DuolingoAvatarStudioBentoCard(
     session: UserSession,
-    onOpenPicker: () -> Unit
+    isPremium: Boolean = true,
+    onOpenPicker: () -> Unit,
+    onOpenUpgrade: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onOpenPicker() },
+            .clickable {
+                if (isPremium) onOpenPicker() else onOpenUpgrade()
+            },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
         border = BorderStroke(1.dp, DigicastBorder)
@@ -111,6 +120,7 @@ fun DuolingoAvatarStudioBentoCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -129,7 +139,7 @@ fun DuolingoAvatarStudioBentoCard(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -138,72 +148,102 @@ fun DuolingoAvatarStudioBentoCard(
                                 text = "Gamer Avatar Studio",
                                 color = DigicastWhite,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
+                                fontSize = 15.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
-                            Box(
-                                modifier = Modifier
-                                    .background(DigicastEmerald.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 5.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "DUOLINGO STYLE",
-                                    color = DigicastEmerald,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
+                            if (!isPremium) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(DigicastAmber.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = null,
+                                            tint = DigicastAmber,
+                                            modifier = Modifier.size(9.dp)
+                                        )
+                                        Text(
+                                            text = "PRO",
+                                            color = DigicastAmber,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                    }
+                                }
                             }
                         }
                         Text(
-                            text = "Gojo, Goku, Luffy, Sung Jin-woo & Naruto",
+                            text = "Swipe right to preview anime champions",
                             color = DigicastSlate,
-                            fontSize = 11.sp
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = DigicastElectricCyan.copy(alpha = 0.15f),
-                    border = BorderStroke(1.dp, DigicastElectricCyan.copy(alpha = 0.3f))
+                    color = if (isPremium) DigicastElectricCyan.copy(alpha = 0.15f) else DigicastAmber.copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, if (isPremium) DigicastElectricCyan.copy(alpha = 0.3f) else DigicastAmber.copy(alpha = 0.4f)),
+                    modifier = Modifier.clickable {
+                        if (isPremium) onOpenPicker() else onOpenUpgrade()
+                    }
                 ) {
                     Text(
-                        text = "Customize",
-                        color = DigicastElectricCyan,
+                        text = if (isPremium) "Customize" else "Unlock Pro",
+                        color = if (isPremium) DigicastElectricCyan else DigicastAmber,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
             }
 
-            // Quick preview circles row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                val previewAvatars = listOf(
-                    "Gojo" to "https://digicast-web.vercel.app/avatars/gojo_satoru.svg",
-                    "Goku" to "https://digicast-web.vercel.app/avatars/goku_super_saiyan.svg",
-                    "Luffy" to "https://digicast-web.vercel.app/avatars/luffy_gear5.svg",
-                    "Jin-woo" to "https://digicast-web.vercel.app/avatars/sung_jinwoo.svg",
-                    "Naruto" to "https://digicast-web.vercel.app/avatars/naruto_sage.svg"
-                )
+            // Horizontally swipeable 10 preview avatars
+            val previewAvatars = listOf(
+                Triple("Gojo", "https://digicast-web.vercel.app/avatars/gojo_satoru.svg", "#8B5CF6"),
+                Triple("Goku", "https://digicast-web.vercel.app/avatars/goku_super_saiyan.svg", "#F59E0B"),
+                Triple("Luffy", "https://digicast-web.vercel.app/avatars/luffy_gear5.svg", "#EC4899"),
+                Triple("Jin-woo", "https://digicast-web.vercel.app/avatars/sung_jinwoo.svg", "#06B6D4"),
+                Triple("Naruto", "https://digicast-web.vercel.app/avatars/naruto_sage.svg", "#F97316"),
+                Triple("Zoro", "https://digicast-web.vercel.app/avatars/zoro_wano.svg", "#10B981"),
+                Triple("Levi", "https://digicast-web.vercel.app/avatars/levi_ackerman.svg", "#64748B"),
+                Triple("Tanjiro", "https://digicast-web.vercel.app/avatars/tanjiro_sun.svg", "#EF4444"),
+                Triple("Sukuna", "https://digicast-web.vercel.app/avatars/sukuna_domain.svg", "#DC2626"),
+                Triple("Eren", "https://digicast-web.vercel.app/avatars/eren_founder.svg", "#22C55E")
+            )
 
-                previewAvatars.forEach { (name, url) ->
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp)
+            ) {
+                items(previewAvatars, key = { it.first }) { (name, url, colorHex) ->
                     val isCurrent = session.photoUrl == url
+                    val heroColor = parseHexColor(colorHex)
+
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                        modifier = Modifier.clickable {
+                            if (isPremium) onOpenPicker() else onOpenUpgrade()
+                        }
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(50.dp)
                                 .clip(CircleShape)
                                 .background(DigicastSurfaceElevated)
                                 .border(
                                     width = if (isCurrent) 2.dp else 1.dp,
-                                    color = if (isCurrent) DigicastEmerald else DigicastBorder,
+                                    color = if (isCurrent) DigicastEmerald else if (!isPremium) DigicastBorder.copy(alpha = 0.6f) else heroColor.copy(alpha = 0.5f),
                                     shape = CircleShape
                                 ),
                             contentAlignment = Alignment.Center
@@ -216,12 +256,31 @@ fun DuolingoAvatarStudioBentoCard(
                                     .fillMaxSize()
                                     .clip(CircleShape)
                             )
+
+                            if (!isPremium) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .size(17.dp)
+                                        .clip(CircleShape)
+                                        .background(DigicastCardSurface)
+                                        .border(1.dp, DigicastAmber, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "Locked",
+                                        tint = DigicastAmber,
+                                        modifier = Modifier.size(9.dp)
+                                    )
+                                }
+                            }
                         }
                         Text(
                             text = name,
                             color = if (isCurrent) DigicastEmerald else DigicastSlate,
-                            fontSize = 10.sp,
-                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                            fontSize = 11.sp,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium
                         )
                     }
                 }
@@ -240,9 +299,11 @@ fun DuolingoAvatarPickerDialog(
     avatars: List<GamerAvatarDto>,
     isLoading: Boolean,
     isOwnerOrAdmin: Boolean,
+    isPremium: Boolean = true,
     onDismiss: () -> Unit,
     onSelectAvatar: (GamerAvatarDto) -> Unit,
-    onOpenAddAvatar: () -> Unit
+    onOpenAddAvatar: () -> Unit,
+    onOpenUpgrade: () -> Unit = {}
 ) {
     val activeAvatar = avatars.find { it.url == currentPhotoUrl }
 
@@ -425,12 +486,19 @@ fun DuolingoAvatarPickerDialog(
                                 modifier = Modifier
                                     .width(115.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .clickable { onSelectAvatar(avatar) },
+                                    .clickable {
+                                        if (isPremium) {
+                                            onSelectAvatar(avatar)
+                                        } else {
+                                            onDismiss()
+                                            onOpenUpgrade()
+                                        }
+                                    },
                                 shape = RoundedCornerShape(14.dp),
                                 color = if (isEquipped) DigicastEmerald.copy(alpha = 0.15f) else DigicastNavy,
                                 border = BorderStroke(
                                     width = if (isEquipped) 2.dp else 1.dp,
-                                    color = if (isEquipped) DigicastEmerald else DigicastBorder
+                                    color = if (isEquipped) DigicastEmerald else if (!isPremium) DigicastBorder else color.copy(alpha = 0.5f)
                                 )
                             ) {
                                 Column(
@@ -444,7 +512,7 @@ fun DuolingoAvatarPickerDialog(
                                             .size(52.dp)
                                             .clip(CircleShape)
                                             .background(DigicastSurfaceElevated)
-                                            .border(1.5.dp, color, CircleShape),
+                                            .border(1.5.dp, if (!isPremium) DigicastBorder else color, CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         AsyncImage(
@@ -455,6 +523,25 @@ fun DuolingoAvatarPickerDialog(
                                                 .fillMaxSize()
                                                 .clip(CircleShape)
                                         )
+
+                                        if (!isPremium) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomEnd)
+                                                    .size(17.dp)
+                                                    .clip(CircleShape)
+                                                    .background(DigicastCardSurface)
+                                                    .border(1.dp, DigicastAmber, CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Lock,
+                                                    contentDescription = "Locked",
+                                                    tint = DigicastAmber,
+                                                    modifier = Modifier.size(9.dp)
+                                                )
+                                            }
+                                        }
                                     }
 
                                     // Name
@@ -483,13 +570,21 @@ fun DuolingoAvatarPickerDialog(
                                         )
                                     }
 
-                                    // Equip Button
+                                    // Equip / Unlock Button
                                     Surface(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clip(RoundedCornerShape(6.dp)),
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .clickable {
+                                                if (isPremium) {
+                                                    onSelectAvatar(avatar)
+                                                } else {
+                                                    onDismiss()
+                                                    onOpenUpgrade()
+                                                }
+                                            },
                                         shape = RoundedCornerShape(6.dp),
-                                        color = if (isEquipped) DigicastEmerald else DigicastSurfaceElevated
+                                        color = if (isEquipped) DigicastEmerald else if (!isPremium) DigicastAmber.copy(alpha = 0.2f) else DigicastSurfaceElevated
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(vertical = 4.dp),
@@ -504,10 +599,18 @@ fun DuolingoAvatarPickerDialog(
                                                     modifier = Modifier.size(10.dp)
                                                 )
                                                 Spacer(modifier = Modifier.width(3.dp))
+                                            } else if (!isPremium) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Lock,
+                                                    contentDescription = null,
+                                                    tint = DigicastAmber,
+                                                    modifier = Modifier.size(10.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
                                             }
                                             Text(
-                                                text = if (isEquipped) "ACTIVE" else "EQUIP",
-                                                color = DigicastWhite,
+                                                text = if (isEquipped) "ACTIVE" else if (!isPremium) "UNLOCK" else "EQUIP",
+                                                color = if (!isPremium) DigicastAmber else DigicastWhite,
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.ExtraBold
                                             )

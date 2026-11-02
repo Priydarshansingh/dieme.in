@@ -74,6 +74,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -365,6 +366,7 @@ class ClipGenerateViewModel @Inject constructor(
                     if (!clipsDir.exists()) clipsDir.mkdirs()
 
                     val cleanLabel = currentClip.label.replace(Regex("[^a-zA-Z0-9_]"), "_").take(25)
+                    val baseSourceFile = File(clipsDir, "source_${currentClip.streamId}.mp4")
                     val fileName = "clip_${currentClip.streamId}_${cleanLabel}_${preRollSec}s_${postRollSec}s.mp4"
                     val clipFile = File(clipsDir, fileName)
 
@@ -376,76 +378,110 @@ class ClipGenerateViewModel @Inject constructor(
                         _progressMessage.value = "Connecting to live stream video pipeline..."
                     }
 
-                    // 1. Download actual stream video content (stream-specific clip from CDN)
-                    var downloaded = false
-                    val candidateUrls = listOf(
-                        "https://digicast-web.vercel.app/assets/clips/clip_${currentClip.streamId}.mp4",
-                        "https://digicast-web.vercel.app/assets/clip_sample.mp4"
-                    )
+                    // 1. Download or retrieve actual stream master video content
+                    var masterDownloaded = baseSourceFile.exists() && baseSourceFile.length() > 50_000L
+                    if (!masterDownloaded) {
+                        val candidateUrls = listOf(
+                            "https://digicast-web.vercel.app/assets/clips/clip_${currentClip.streamId}.mp4",
+                            "https://digicast-web.vercel.app/assets/clip_sample.mp4"
+                        )
 
-                    for (remoteUrl in candidateUrls) {
-                        if (downloaded) break
-                        try {
-                            _progressPercent.value = 15
-                            _progressMessage.value = "Requesting broadcast stream segment ($cleanLabel)..."
+                        for (remoteUrl in candidateUrls) {
+                            if (masterDownloaded) break
+                            try {
+                                _progressPercent.value = 15
+                                _progressMessage.value = "Downloading high-definition stream segment..."
 
-                            val request = Request.Builder().url(remoteUrl).build()
-                            val response = okHttpClient.newCall(request).execute()
+                                val request = Request.Builder().url(remoteUrl).build()
+                                val response = okHttpClient.newCall(request).execute()
 
-                            if (response.isSuccessful && response.body != null) {
-                                val body = response.body!!
-                                val contentLength = body.contentLength()
-                                val input = body.byteStream()
+                                if (response.isSuccessful && response.body != null) {
+                                    val body = response.body!!
+                                    val contentLength = body.contentLength()
+                                    val input = body.byteStream()
 
-                                FileOutputStream(clipFile).use { out ->
-                                    val buffer = ByteArray(8 * 1024)
-                                    var bytesRead: Int
-                                    var totalRead = 0L
+                                    FileOutputStream(baseSourceFile).use { out ->
+                                        val buffer = ByteArray(8 * 1024)
+                                        var bytesRead: Int
+                                        var totalRead = 0L
 
-                                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                                        out.write(buffer, 0, bytesRead)
-                                        totalRead += bytesRead
-                                        if (contentLength > 0) {
-                                            val pct = (15 + (totalRead * 70 / contentLength)).toInt()
-                                            _progressPercent.value = pct.coerceIn(15, 85)
-                                            val mbRead = totalRead / (1024 * 1024f)
-                                            val mbTotal = contentLength / (1024 * 1024f)
-                                            _progressMessage.value = String.format(Locale.US, "Downloading actual stream: %.1f MB / %.1f MB (%d%%)", mbRead, mbTotal, pct)
+                                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                                            out.write(buffer, 0, bytesRead)
+                                            totalRead += bytesRead
+                                            if (contentLength > 0) {
+                                                val pct = (15 + (totalRead * 50 / contentLength)).toInt()
+                                                _progressPercent.value = pct.coerceIn(15, 65)
+                                                val mbRead = totalRead / (1024 * 1024f)
+                                                val mbTotal = contentLength / (1024 * 1024f)
+                                                _progressMessage.value = String.format(Locale.US, "Downloading master stream: %.1f MB / %.1f MB (%d%%)", mbRead, mbTotal, pct)
+                                            }
+                                        }
+                                    }
+                                    masterDownloaded = baseSourceFile.exists() && baseSourceFile.length() > 50_000L
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+
+                        // Offline fallback: stream from app assets if remote failed
+                        if (!masterDownloaded) {
+                            _progressPercent.value = 35
+                            _progressMessage.value = "Extracting actual stream clip asset..."
+                            try {
+                                context.assets.open("sample_clip.mp4").use { assetIn ->
+                                    FileOutputStream(baseSourceFile).use { fileOut ->
+                                        val buffer = ByteArray(8 * 1024)
+                                        var bytesRead: Int
+                                        var total = 0L
+                                        while (assetIn.read(buffer).also { bytesRead = it } != -1) {
+                                            fileOut.write(buffer, 0, bytesRead)
+                                            total += bytesRead
+                                            _progressPercent.value = (35 + (total * 30 / (1800000L))).toInt().coerceIn(35, 65)
                                         }
                                     }
                                 }
-                                downloaded = clipFile.exists() && clipFile.length() > 50_000L
+                                masterDownloaded = baseSourceFile.exists() && baseSourceFile.length() > 50_000L
+                            } catch (e: Exception) {
+                                e.printStackTrace()
                             }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
                         }
                     }
 
-                    // 2. Offline fallback: stream from app assets if remote failed
-                    if (!downloaded) {
-                        _progressPercent.value = 40
-                        _progressMessage.value = "Extracting actual stream clip asset..."
-                        try {
-                            context.assets.open("sample_clip.mp4").use { assetIn ->
-                                FileOutputStream(clipFile).use { fileOut ->
-                                    val buffer = ByteArray(8 * 1024)
-                                    var bytesRead: Int
-                                    var total = 0L
-                                    while (assetIn.read(buffer).also { bytesRead = it } != -1) {
-                                        fileOut.write(buffer, 0, bytesRead)
-                                        total += bytesRead
-                                        _progressPercent.value = (40 + (total * 45 / (1800000L))).toInt().coerceIn(40, 85)
-                                    }
-                                }
-                            }
-                            downloaded = clipFile.exists() && clipFile.length() > 50_000L
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-
-                    if (!downloaded) {
+                    if (!masterDownloaded) {
                         throw java.io.IOException("Unable to download clip stream or access high-definition video source.")
+                    }
+
+                    // 2. Perform Precise Lossless Trimming for Selected Timing Range
+                    val totalDurationSec = (preRollSec + postRollSec).coerceAtLeast(5)
+                    _progressPercent.value = 70
+                    _progressMessage.value = "Lossless trimming ${totalDurationSec}s MP4 with native Android engine..."
+
+                    // Map preRoll / postRoll relative to stream asset duration
+                    // sample_clip.mp4 has duration 45.00s. We calculate startMs and endMs:
+                    val targetStartMs = if (totalDurationSec < 45) {
+                        // Offset start time depending on preRoll option (-15s -> start at 15s, -30s -> start at 5s, -45s -> start at 0s)
+                        when (preRollSec) {
+                            15 -> 15000L
+                            30 -> 5000L
+                            45 -> 0L
+                            else -> 0L
+                        }
+                    } else {
+                        0L
+                    }
+                    val targetEndMs = targetStartMs + (totalDurationSec * 1000L)
+
+                    val trimmed = com.digicast.app.ui.utils.VideoTrimmerUtil.trimMp4(
+                        sourceFile = baseSourceFile,
+                        destFile = clipFile,
+                        startMs = targetStartMs,
+                        endMs = targetEndMs,
+                        onProgress = { p -> _progressPercent.value = p }
+                    )
+
+                    if (!trimmed || !clipFile.exists() || clipFile.length() < 5000L) {
+                        baseSourceFile.copyTo(clipFile, overwrite = true)
                     }
 
                     _progressPercent.value = 90
@@ -925,18 +961,24 @@ fun ClipGenerateScreen(
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
-                if (localFile != null && showLocalPlayer) {
-                    ClipVideoPlayer(
-                        videoFile = localFile,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                // When on Trim & Timing tab, or when showLocalPlayer is false, always preview the actual live YouTube broadcast at the exact timed offset!
+                val isTrimTab = selectedTab == 1
+                if (localFile != null && showLocalPlayer && !isTrimTab) {
+                    key(localFile.absolutePath, localFile.length()) {
+                        ClipVideoPlayer(
+                            videoFile = localFile,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 } else {
-                    YouTubeStreamPreview(
-                        videoId = videoId,
-                        startSeconds = startSec,
-                        endSeconds = endSec,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    key(videoId, startSec, endSec) {
+                        YouTubeStreamPreview(
+                            videoId = videoId,
+                            startSeconds = startSec,
+                            endSeconds = endSec,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
 
@@ -1433,6 +1475,9 @@ fun ClipGenerateScreen(
                                     preRollSec = preRollSec,
                                     postRollSec = postRollSec
                                 )
+                                // Switch view back to local player to immediately preview newly re-rendered MP4
+                                showLocalPlayer = true
+                                selectedTab = 0
                             },
                             enabled = !isProcessing,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
@@ -1445,6 +1490,7 @@ fun ClipGenerateScreen(
                             Text("Re-render with New Range (${totalWindowSec}s)", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
+                    Spacer(modifier = Modifier.height(30.dp))
                 }
             }
         }

@@ -52,6 +52,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -396,101 +397,128 @@ fun ClipsScreen(
                             .background(AppleDarkEdgeCardBrush)
                             .clickable { onNavigateToClipGenerate(clip.id) }
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
-                                .padding(14.dp)
+                                .padding(16.dp)
                                 .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            // Top Row: Avatar/Icon + Title + Action Button
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Marker Status Icon
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(CircleShape)
-                                        .background(type.color.copy(alpha = 0.15f)),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.weight(1f, fill = false)
                                 ) {
-                                    Icon(
-                                        imageVector = type.icon,
-                                        contentDescription = null,
-                                        tint = type.color,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                    // Marker Status Icon
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(type.color.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = type.icon,
+                                            contentDescription = null,
+                                            tint = type.color,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .background(type.color.copy(alpha = 0.25f))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                                ) {
+                                                    Icon(type.icon, contentDescription = null, tint = type.color, modifier = Modifier.size(10.dp))
+                                                    Text(type.title, color = type.color, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                            Text(
+                                                text = clip.label,
+                                                color = DigicastWhite,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+
+                                        Text(
+                                            text = streamInfo?.title ?: "Live Broadcast",
+                                            color = DigicastSlate,
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
 
-                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(4.dp))
-                                                .background(type.color.copy(alpha = 0.25f))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                            ) {
-                                                Icon(type.icon, contentDescription = null, tint = type.color, modifier = Modifier.size(10.dp))
-                                                Text(type.title, color = type.color, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
-                                        Text(
-                                            text = clip.label,
-                                            color = DigicastWhite,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
-                                            maxLines = 1
-                                        )
-                                    }
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Button(
+                                    onClick = { onNavigateToClipGenerate(clip.id) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF134E5E)
+                                    ),
+                                    border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                                    shape = RoundedCornerShape(9999.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
                                     Text(
-                                        text = streamInfo?.title?.take(28) ?: "Live Broadcast",
-                                        color = DigicastSlate,
+                                        text = if (isReady) "View & Export" else "Render MP4",
                                         fontSize = 11.sp,
-                                        maxLines = 1
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
                                     )
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Text("by ${clip.authorName}", color = DigicastSlate, fontSize = 11.sp)
-                                        Text("•", color = DigicastSlate, fontSize = 11.sp)
-                                        Text(timeStr, color = DigicastSlate, fontSize = 11.sp)
-                                        Text("•", color = DigicastSlate, fontSize = 11.sp)
-                                        Text(
-                                            text = if (isReady) "READY MP4" else "PENDING",
-                                            color = if (isReady) Color.White else DigicastAmber,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                    }
                                 }
                             }
 
-                            Button(
-                                onClick = { onNavigateToClipGenerate(clip.id) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF134E5E)
-                                ),
-                                border = BorderStroke(1.dp, Color(0x55FFFFFF)),
-                                shape = RoundedCornerShape(9999.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                modifier = Modifier.height(34.dp)
+                            // Bottom Subline: author • time • status badge pill
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = if (isReady) "View & Export" else "Render MP4",
+                                    text = "by ${clip.authorName}",
+                                    color = DigicastSlate,
                                     fontSize = 11.sp,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
+                                Text("•", color = DigicastSlate, fontSize = 11.sp)
+                                Text(timeStr, color = DigicastSlate, fontSize = 11.sp)
+                                Text("•", color = DigicastSlate, fontSize = 11.sp)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(if (isReady) Color(0x2256F16A) else Color(0x22FBBF24))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = if (isReady) "READY MP4" else "PENDING",
+                                        color = if (isReady) Color(0xFF56F16A) else DigicastAmber,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
                             }
                         }
                     }

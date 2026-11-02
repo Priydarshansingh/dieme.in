@@ -1212,7 +1212,8 @@ private fun HighlightMarkerCard(
                         text = "By ${clip.authorName} • ${clip.status}",
                         color = DigicastSlate,
                         fontSize = 11.sp,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

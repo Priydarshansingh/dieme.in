@@ -190,15 +190,15 @@ fun DuolingoAvatarStudioBentoCard(
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isPremium) DigicastElectricCyan.copy(alpha = 0.15f) else DigicastAmber.copy(alpha = 0.15f),
-                    border = BorderStroke(1.dp, if (isPremium) DigicastElectricCyan.copy(alpha = 0.3f) else DigicastAmber.copy(alpha = 0.4f)),
+                    color = DigicastSurfaceElevated,
+                    border = BorderStroke(1.dp, if (isPremium) DigicastElectricCyan.copy(alpha = 0.6f) else DigicastAmber.copy(alpha = 0.6f)),
                     modifier = Modifier.clickable {
                         if (isPremium) onOpenPicker() else onOpenUpgrade()
                     }
                 ) {
                     Text(
                         text = if (isPremium) "Customize" else "Unlock Pro",
-                        color = if (isPremium) DigicastElectricCyan else DigicastAmber,
+                        color = DigicastWhite,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)

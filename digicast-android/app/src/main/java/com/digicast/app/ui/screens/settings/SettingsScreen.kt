@@ -948,23 +948,23 @@ private fun WorkspaceProfileBentoCard(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
                                 .clickable { onChangeAvatar() },
-                            color = DigicastElectricCyan.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, DigicastElectricCyan.copy(alpha = 0.35f))
+                            color = DigicastSurfaceElevated,
+                            border = BorderStroke(1.dp, DigicastElectricCyan.copy(alpha = 0.6f))
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Palette,
                                     contentDescription = null,
                                     tint = DigicastElectricCyan,
-                                    modifier = Modifier.size(11.dp)
+                                    modifier = Modifier.size(12.dp)
                                 )
                                 Text(
                                     text = "Equip Avatar",
-                                    color = DigicastElectricCyan,
+                                    color = DigicastWhite,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )

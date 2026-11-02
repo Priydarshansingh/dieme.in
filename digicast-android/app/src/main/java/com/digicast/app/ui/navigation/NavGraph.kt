@@ -159,7 +159,10 @@ fun DigicastNavGraph(
                 )
             }
             composable(Screen.Team.route) { TeamScreen() }
-            composable(Screen.Settings.route) {
+            composable(
+                route = Screen.Settings.route,
+                deepLinks = listOf(navDeepLink { uriPattern = "digicast://settings" })
+            ) {
                 SettingsScreen(
                     onSignOut = {
                         navController.navigate(Screen.Onboarding.route) {

@@ -63,3 +63,4 @@ export const PRESET_ANIME_AVATARS: GamerAvatar[] = [
     isDefault: true,
   },
 ];
+

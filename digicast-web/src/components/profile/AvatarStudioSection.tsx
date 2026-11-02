@@ -519,3 +519,4 @@ export default function AvatarStudioSection({
     </div>
   );
 }
+

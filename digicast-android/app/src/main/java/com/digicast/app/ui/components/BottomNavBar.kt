@@ -9,6 +9,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -80,12 +81,12 @@ fun BottomNavBar(
         lastValidIndex
     }
 
-    // Animated notch horizontal fraction across the bar (0.0 .. 1.0) with fluid, critically-damped spring
+    // Animated notch horizontal fraction across the bar (0.0 .. 1.0) with fluid Apple spring physics
     val animatedFraction by animateFloatAsState(
         targetValue = (selectedIndex + 0.5f) / items.size.toFloat(),
         animationSpec = spring(
-            dampingRatio = 0.85f,
-            stiffness = Spring.StiffnessMedium
+            dampingRatio = 0.82f,
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "notch_fraction"
     )
@@ -168,12 +169,24 @@ fun BottomNavBar(
                     val iconAlpha = (distance * 1.5f).coerceIn(0f, 1f) * 0.9f
                     val iconScale = 0.85f + 0.15f * iconAlpha
 
+                    val tabInteractionSource = remember { MutableInteractionSource() }
+                    val isTabPressed by tabInteractionSource.collectIsPressedAsState()
+                    val pressScale by animateFloatAsState(
+                        targetValue = if (isTabPressed) 0.88f else 1.0f,
+                        animationSpec = spring(
+                            dampingRatio = 0.72f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        label = "tab_press_$index"
+                    )
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxSize()
+                            .scale(pressScale)
                             .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
+                                interactionSource = tabInteractionSource,
                                 indication = null
                             ) {
                                 onNavigate(item.route)

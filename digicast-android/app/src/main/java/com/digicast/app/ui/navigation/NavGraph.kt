@@ -1,10 +1,16 @@
 package com.digicast.app.ui.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -49,12 +55,13 @@ fun DigicastNavGraph(
         Screen.Onboarding.route
     }
 
-    // Only 3 primary tabs in bottom navigation bar: Home, Clips, Streams
-    val bottomBarRoutes = setOf(
+    // 3 primary tabs in bottom navigation bar: Home, Clips, Streams
+    val tabOrder = listOf(
         Screen.Home.route,
         Screen.Clips.route,
         Screen.Streams.route
     )
+    val bottomBarRoutes = tabOrder.toSet()
 
     Scaffold(
         containerColor = DigicastDeepNavy,
@@ -82,55 +89,157 @@ fun DigicastNavGraph(
             startDestination = startDestination,
             modifier = Modifier.padding(paddingValues),
             enterTransition = {
-                val isTabSwitch = initialState.destination.route in bottomBarRoutes &&
-                        targetState.destination.route in bottomBarRoutes
-                if (isTabSwitch) {
-                    fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                val initialIdx = tabOrder.indexOf(initialState.destination.route)
+                val targetIdx = tabOrder.indexOf(targetState.destination.route)
+                if (initialIdx != -1 && targetIdx != -1) {
+                    val isMovingForward = targetIdx >= initialIdx
+                    val direction = if (isMovingForward) {
+                        AnimatedContentTransitionScope.SlideDirection.Start
+                    } else {
+                        AnimatedContentTransitionScope.SlideDirection.End
+                    }
+                    slideIntoContainer(
+                        towards = direction,
+                        animationSpec = spring(
+                            dampingRatio = 0.88f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        initialOffset = { fullWidth -> (fullWidth * 0.28f).toInt() }
+                    ) + fadeIn(
+                        animationSpec = tween(280, easing = LinearOutSlowInEasing)
+                    ) + scaleIn(
+                        initialScale = 0.96f,
+                        animationSpec = spring(
+                            dampingRatio = 0.88f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
                 } else {
-                    fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                            slideIntoContainer(
-                                towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                                animationSpec = tween(220, easing = FastOutSlowInEasing)
-                            )
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = spring(
+                            dampingRatio = 0.90f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeIn(
+                        animationSpec = tween(250, easing = LinearOutSlowInEasing)
+                    )
                 }
             },
             exitTransition = {
-                val isTabSwitch = initialState.destination.route in bottomBarRoutes &&
-                        targetState.destination.route in bottomBarRoutes
-                if (isTabSwitch) {
-                    fadeOut(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                val initialIdx = tabOrder.indexOf(initialState.destination.route)
+                val targetIdx = tabOrder.indexOf(targetState.destination.route)
+                if (initialIdx != -1 && targetIdx != -1) {
+                    val isMovingForward = targetIdx >= initialIdx
+                    val direction = if (isMovingForward) {
+                        AnimatedContentTransitionScope.SlideDirection.Start
+                    } else {
+                        AnimatedContentTransitionScope.SlideDirection.End
+                    }
+                    slideOutOfContainer(
+                        towards = direction,
+                        animationSpec = spring(
+                            dampingRatio = 0.88f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        targetOffset = { fullWidth -> (fullWidth * 0.22f).toInt() }
+                    ) + fadeOut(
+                        animationSpec = tween(220, easing = FastOutLinearInEasing)
+                    ) + scaleOut(
+                        targetScale = 0.96f,
+                        animationSpec = spring(
+                            dampingRatio = 0.88f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
                 } else {
-                    fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                            slideOutOfContainer(
-                                towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                                animationSpec = tween(180, easing = FastOutSlowInEasing)
-                            )
+                    slideOutOfContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = spring(
+                            dampingRatio = 0.90f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        targetOffset = { fullWidth -> (fullWidth * 0.25f).toInt() }
+                    ) + fadeOut(
+                        animationSpec = tween(220, easing = FastOutLinearInEasing)
+                    )
                 }
             },
             popEnterTransition = {
-                val isTabSwitch = initialState.destination.route in bottomBarRoutes &&
-                        targetState.destination.route in bottomBarRoutes
-                if (isTabSwitch) {
-                    fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                val initialIdx = tabOrder.indexOf(initialState.destination.route)
+                val targetIdx = tabOrder.indexOf(targetState.destination.route)
+                if (initialIdx != -1 && targetIdx != -1) {
+                    val isMovingForward = targetIdx >= initialIdx
+                    val direction = if (isMovingForward) {
+                        AnimatedContentTransitionScope.SlideDirection.Start
+                    } else {
+                        AnimatedContentTransitionScope.SlideDirection.End
+                    }
+                    slideIntoContainer(
+                        towards = direction,
+                        animationSpec = spring(
+                            dampingRatio = 0.88f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        initialOffset = { fullWidth -> (fullWidth * 0.28f).toInt() }
+                    ) + fadeIn(
+                        animationSpec = tween(280, easing = LinearOutSlowInEasing)
+                    ) + scaleIn(
+                        initialScale = 0.96f,
+                        animationSpec = spring(
+                            dampingRatio = 0.88f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
                 } else {
-                    fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                            slideIntoContainer(
-                                towards = AnimatedContentTransitionScope.SlideDirection.End,
-                                animationSpec = tween(220, easing = FastOutSlowInEasing)
-                            )
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = spring(
+                            dampingRatio = 0.90f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        initialOffset = { fullWidth -> (fullWidth * 0.25f).toInt() }
+                    ) + fadeIn(
+                        animationSpec = tween(250, easing = LinearOutSlowInEasing)
+                    )
                 }
             },
             popExitTransition = {
-                val isTabSwitch = initialState.destination.route in bottomBarRoutes &&
-                        targetState.destination.route in bottomBarRoutes
-                if (isTabSwitch) {
-                    fadeOut(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                val initialIdx = tabOrder.indexOf(initialState.destination.route)
+                val targetIdx = tabOrder.indexOf(targetState.destination.route)
+                if (initialIdx != -1 && targetIdx != -1) {
+                    val isMovingForward = targetIdx >= initialIdx
+                    val direction = if (isMovingForward) {
+                        AnimatedContentTransitionScope.SlideDirection.Start
+                    } else {
+                        AnimatedContentTransitionScope.SlideDirection.End
+                    }
+                    slideOutOfContainer(
+                        towards = direction,
+                        animationSpec = spring(
+                            dampingRatio = 0.88f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
+                        targetOffset = { fullWidth -> (fullWidth * 0.22f).toInt() }
+                    ) + fadeOut(
+                        animationSpec = tween(220, easing = FastOutLinearInEasing)
+                    ) + scaleOut(
+                        targetScale = 0.96f,
+                        animationSpec = spring(
+                            dampingRatio = 0.88f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
                 } else {
-                    fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                            slideOutOfContainer(
-                                towards = AnimatedContentTransitionScope.SlideDirection.End,
-                                animationSpec = tween(180, easing = FastOutSlowInEasing)
-                            )
+                    slideOutOfContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = spring(
+                            dampingRatio = 0.90f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeOut(
+                        animationSpec = tween(220, easing = FastOutLinearInEasing)
+                    )
                 }
             }
         ) {

@@ -134,11 +134,6 @@ class ClipsViewModel @Inject constructor(
             withContext(Dispatchers.IO) {
                 dao.clearDemoClips()
                 dao.clearDemoStreams()
-                if (!isDemo) {
-                    dao.deleteStream("g_4KXSxPzGo")
-                    dao.deleteClipMarker("CLP-2U6JKN")
-                    dao.clearOrphanClips()
-                }
             }
             authRepository.syncWorkspaceData()
         }

@@ -692,10 +692,7 @@ class AuthRepository @Inject constructor(
                     dao.clearDemoStreams()
                     dao.clearDemoClips()
                     dao.clearDummyChatMessages()
-                    dao.deleteStream("g_4KXSxPzGo")
-                    dao.deleteClipMarker("CLP-2U6JKN")
                     dao.clearStreamsExceptWorkspace(session.workspaceId)
-                    dao.clearOrphanClips()
                     syncWorkspaceData()
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -834,17 +831,12 @@ class AuthRepository @Inject constructor(
 
             // Cleanly isolate local database from foreign workspace records
             dao.clearStreamsExceptWorkspace(session.workspaceId)
-            dao.clearOrphanClips()
 
             val isDemo = session.uid == DEMO_SESSION.uid || prefs.getBoolean(KEY_IS_DEMO, false)
 
             // 1. Streams
             val streamsArr = json.optJSONArray("streams")
             if (streamsArr != null && streamsArr.length() > 0) {
-                if (!isDemo) {
-                    dao.deleteStream("g_4KXSxPzGo")
-                    dao.deleteClipMarker("CLP-2U6JKN")
-                }
                 val incomingStreamIds = mutableSetOf<String>()
                 var hasLive = false
                 for (i in 0 until streamsArr.length()) {
@@ -914,11 +906,8 @@ class AuthRepository @Inject constructor(
                         )
                     }
                 } else {
-                    // Authenticated real user has 0 streams: purge any fake demo streams and clear workspace streams
-                    dao.deleteStream("g_4KXSxPzGo")
-                    dao.deleteClipMarker("CLP-2U6JKN")
+                    // Authenticated real user has 0 streams
                     dao.clearStreamsForWorkspace(session.workspaceId)
-                    dao.clearOrphanClips()
                 }
             }
 
@@ -972,11 +961,6 @@ class AuthRepository @Inject constructor(
                         )
                     )
                 }
-            }
-
-            if (!isDemo) {
-                dao.deleteClipMarker("CLP-2U6JKN")
-                dao.clearOrphanClips()
             }
 
             _isSyncing.value = false

@@ -197,9 +197,6 @@ class HomeViewModel @Inject constructor(
                 dao.clearDummyChatMessages()
                 if (isDemo) {
                     seedRealChatIfEmpty()
-                } else {
-                    dao.deleteStream("g_4KXSxPzGo")
-                    dao.deleteClipMarker("CLP-2U6JKN")
                 }
             }
             authRepository.syncWorkspaceData()

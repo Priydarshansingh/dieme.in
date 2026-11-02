@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -64,10 +65,11 @@ fun DigicastNavGraph(
                     onNavigate = { route ->
                         if (route != currentRoute) {
                             navController.navigate(route) {
-                                popUpTo(Screen.Home.route) {
-                                    saveState = false
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
                                 }
                                 launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     }
@@ -80,32 +82,56 @@ fun DigicastNavGraph(
             startDestination = startDestination,
             modifier = Modifier.padding(paddingValues),
             enterTransition = {
-                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                        slideIntoContainer(
-                            towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                            animationSpec = tween(220, easing = FastOutSlowInEasing)
-                        )
+                val isTabSwitch = initialState.destination.route in bottomBarRoutes &&
+                        targetState.destination.route in bottomBarRoutes
+                if (isTabSwitch) {
+                    fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                } else {
+                    fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                            slideIntoContainer(
+                                towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                                animationSpec = tween(220, easing = FastOutSlowInEasing)
+                            )
+                }
             },
             exitTransition = {
-                fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                        slideOutOfContainer(
-                            towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                            animationSpec = tween(180, easing = FastOutSlowInEasing)
-                        )
+                val isTabSwitch = initialState.destination.route in bottomBarRoutes &&
+                        targetState.destination.route in bottomBarRoutes
+                if (isTabSwitch) {
+                    fadeOut(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                } else {
+                    fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                            slideOutOfContainer(
+                                towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                                animationSpec = tween(180, easing = FastOutSlowInEasing)
+                            )
+                }
             },
             popEnterTransition = {
-                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                        slideIntoContainer(
-                            towards = AnimatedContentTransitionScope.SlideDirection.End,
-                            animationSpec = tween(220, easing = FastOutSlowInEasing)
-                        )
+                val isTabSwitch = initialState.destination.route in bottomBarRoutes &&
+                        targetState.destination.route in bottomBarRoutes
+                if (isTabSwitch) {
+                    fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                } else {
+                    fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                            slideIntoContainer(
+                                towards = AnimatedContentTransitionScope.SlideDirection.End,
+                                animationSpec = tween(220, easing = FastOutSlowInEasing)
+                            )
+                }
             },
             popExitTransition = {
-                fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                        slideOutOfContainer(
-                            towards = AnimatedContentTransitionScope.SlideDirection.End,
-                            animationSpec = tween(180, easing = FastOutSlowInEasing)
-                        )
+                val isTabSwitch = initialState.destination.route in bottomBarRoutes &&
+                        targetState.destination.route in bottomBarRoutes
+                if (isTabSwitch) {
+                    fadeOut(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                } else {
+                    fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                            slideOutOfContainer(
+                                towards = AnimatedContentTransitionScope.SlideDirection.End,
+                                animationSpec = tween(180, easing = FastOutSlowInEasing)
+                            )
+                }
             }
         ) {
             composable(Screen.Onboarding.route) {

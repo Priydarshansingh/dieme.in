@@ -73,11 +73,11 @@ export default function WalletAndTasksPage() {
   // Tasks State
   const [tasks, setTasks] = useState([
     {
-      id: 'task_client_acquisition',
-      title: 'Find 1 Client for Website Development',
-      description: 'Connect our web development team with a creator, streamer, or business seeking a website.',
+      id: 'task_stream_clipping',
+      title: 'Index 5 Highlights during a Live Stream',
+      description: 'Capture at least 5 stream moments using the !clip chat command or mobile trimmer.',
       reward: '50 DP (₹50)',
-      instructions: 'Submit client email or agreement proof screenshot link.',
+      instructions: 'Submit stream URL or exported clip links.',
       completed: false,
     },
     {

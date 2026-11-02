@@ -85,9 +85,9 @@ function EmptyStreams({ onSync, isSyncing }: { onSync: () => void; isSyncing: bo
         <Youtube className="w-6 h-6" />
       </div>
       <div>
-        <p className="font-bold text-sm text-white">No streams detected yet</p>
+        <p className="font-bold text-sm text-white">No streams found</p>
         <p className="text-xs mt-1 leading-relaxed max-w-sm mx-auto text-slate-400">
-          Sync with your connected YouTube channel to pull recent streams, or start a live stream in YouTube Studio.
+          Connect your YouTube channel in Settings or start a live stream in YouTube Studio.
         </p>
       </div>
       <button
@@ -96,7 +96,7 @@ function EmptyStreams({ onSync, isSyncing }: { onSync: () => void; isSyncing: bo
         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/15 transition disabled:opacity-50 shadow-sm"
       >
         <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-        {isSyncing ? 'Syncing YouTube...' : 'Sync YouTube Streams Now'}
+        {isSyncing ? 'Syncing...' : 'Sync Streams'}
       </button>
     </div>
   );

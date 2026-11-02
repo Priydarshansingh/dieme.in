@@ -192,6 +192,7 @@ fun HomeScreen(
     val live = realActiveStreams.firstOrNull() ?: realAllStreams.firstOrNull()
     val capturing = LiveChatCaptureService.isServiceRunning
     var selectedCategory by remember { mutableStateOf("All Streams") }
+    var searchQuery by remember { mutableStateOf("") }
     val realClips = clips.filter { it.id != "demo-clip-001" && !it.authorName.contains("DemoViewer", ignoreCase = true) }
 
     val signedInSession = (authState as? AuthState.SignedIn)?.session
@@ -284,34 +285,55 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ── 1. Greeting Row ────────────────────────────────────────────────
+            // ── 1. Honest Studio Telemetry Header (taste-skill §2 & humanizer) ──
             item {
                 val session = (authState as? AuthState.SignedIn)?.session
-                val firstName = session?.displayName?.split(" ")?.firstOrNull() ?: "Creator"
+                val channelTitle = MetricFormatter.cleanText(live?.channelTitle).ifBlank { session?.workspaceName ?: "Creator Studio" }
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 4.dp, bottom = 2.dp)
                 ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(if (capturing) DigicastLiveRed else DigicastElectricCyan)
+                        )
+                        Text(
+                            text = if (capturing) "BROADCAST ACTIVE" else "STUDIO ONLINE",
+                            color = if (capturing) DigicastLiveRed else DigicastElectricCyan,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Hello $firstName",
+                        text = channelTitle,
                         color = DigicastWhite,
-                        fontSize = 26.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-0.5).sp
+                        letterSpacing = (-0.5).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Welcome back!",
+                        text = if (capturing) "Live chat indexing active • Detecting !clip markers" else "Ready to capture live moments and chat triggers",
                         color = DigicastSlate,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Normal
                     )
                 }
             }
 
-            // ── 2. Apple Dark-Edge Search Pill ───────────────────────
+            // ── 2. Interactive Search & Filter Pill ───────────────────────
             item {
                 Row(
                     modifier = Modifier
@@ -319,27 +341,36 @@ fun HomeScreen(
                         .clip(RoundedCornerShape(9999.dp))
                         .background(AppleDarkEdgePillBrush)
                         .border(1.dp, AppleSpecularBorder, RoundedCornerShape(9999.dp))
-                        .clickable { /* Search action */ }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "Search streams, clips, markers...",
-                            color = Color.White.copy(alpha = 0.75f),
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = Color.White,
                             fontSize = 13.sp
-                        )
-                    }
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search streams, clips, markers...",
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontSize = 13.sp
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
                 }
             }
 

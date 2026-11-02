@@ -41,10 +41,10 @@ export default function PricingAndSubscriptionsPage() {
       id: 'free_trial' as const,
       isTrial: true,
       name: '14-Day Free Evaluation',
-      badge: 'RISK-FREE TRIAL',
+      badge: 'EVALUATION',
       price: '₹0',
       period: '14 days',
-      description: 'Test all features on your live streams with zero payment details required.',
+      description: 'Full live stream clipping and chat capture with no payment method required.',
       features: [
         'Full live chat capture & indexing',
         '!clip automatic moment detection',

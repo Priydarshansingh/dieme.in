@@ -341,7 +341,14 @@ fun OnboardingScreen(
                                     onComplete()
                                 }
                                 result.onFailure { err ->
-                                    errorMessage = err.message ?: "Sign-in failed. Check your credentials and connection."
+                                    val raw = err.message ?: ""
+                                    errorMessage = when {
+                                        raw.contains("No account found", ignoreCase = true) || raw.contains("user-not-found", ignoreCase = true) ->
+                                            "We couldn't find an account for this email. Check the spelling or ask your studio owner to add your email under Team Access."
+                                        raw.contains("password", ignoreCase = true) || raw.contains("wrong-password", ignoreCase = true) ->
+                                            "Incorrect password. Please verify your password or ask your studio admin to reset it."
+                                        else -> "Sign-in failed. Please verify your credentials and network connection."
+                                    }
                                 }
                             }
                         },
@@ -372,7 +379,7 @@ fun OnboardingScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (isSignInUnlocked) "Sign In" else "Sign In (Watch Ad to Unlock)",
+                                text = if (isSignInUnlocked) "Sign In to Studio" else "Sign In (Unlock Below)",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isSignInUnlocked) DigicastWhite else DigicastSlate
@@ -427,7 +434,7 @@ fun OnboardingScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (hasRegisteredAccount) "Watch Ad to Renew 24h Pass" else "Watch Ad to Unlock Access (+24h Pass)",
+                                text = if (hasRegisteredAccount) "Renew 24h Studio Access" else "Unlock 24h Studio Access (15s Ad)",
                                 color = DigicastWhite,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp

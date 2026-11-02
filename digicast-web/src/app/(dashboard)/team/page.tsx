@@ -1011,7 +1011,7 @@ export default function TeamPage() {
       <div
         className="glass-subcard rounded-xl p-4 text-xs leading-relaxed text-slate-400 border border-white/10"
       >
-        <span className="font-semibold text-white">App Security & Permissions:</span> Credentials stored in this dashboard can be viewed anytime by Owners and Admins using the eye toggle button. In the Android mobile app, Owners and Admins can also create new Editors and Moderators and view credentials directly inside the app settings.
+        <span className="font-semibold text-white">Team Access &amp; Security:</span> Workspace owners and admins can reveal passwords, change member roles, or revoke access at any time. Credentials synchronize live with the Android mobile app.
       </div>
     </div>
   );

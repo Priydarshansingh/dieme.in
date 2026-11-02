@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -83,6 +84,7 @@ import com.digicast.app.ui.theme.DigicastEmerald
 import com.digicast.app.ui.theme.DigicastNeonLime
 import com.digicast.app.ui.theme.DigicastSlate
 import com.digicast.app.ui.theme.DigicastWhite
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 
@@ -114,11 +116,66 @@ fun Access24hGateDialog(
     var isDeductingCoins by remember { mutableStateOf(false) }
     var showScannerView by remember { mutableStateOf(initialShowScanner) }
 
-    // UPI submission state
+    // UPI submission & Gateway state
     var selectedPlanId by remember { mutableStateOf("intro_29") }
     var utrInput by remember { mutableStateOf("") }
     var isSubmittingPayment by remember { mutableStateOf(false) }
     var paymentMessage by remember { mutableStateOf<String?>(null) }
+
+    // Authoritative Sovereign Gateway Session state
+    var activePaymentId by remember { mutableStateOf<String?>(null) }
+    var activeOrderId by remember { mutableStateOf<String?>(null) }
+    var gatewayUpiString by remember { mutableStateOf<String?>(null) }
+    var isCreatingGatewaySession by remember { mutableStateOf(false) }
+    var secondsRemaining by remember { mutableStateOf(300) } // 5-minute active gateway window
+    var isObserverVerified by remember { mutableStateOf(false) }
+
+    // Live Gateway Session Initializer: Registers orderId with the self-hosted UPI Gateway
+    LaunchedEffect(showScannerView, selectedPlanId) {
+        if (!showScannerView) return@LaunchedEffect
+        isCreatingGatewaySession = true
+        secondsRemaining = 300
+        val targetWid = session.workspaceId.ifEmpty { session.uid }
+        val res = authRepository.createPaymentSession(targetWid, selectedPlanId, session.email)
+        res.onSuccess { json ->
+            activePaymentId = json.optString("paymentId").ifBlank { null }
+            activeOrderId = json.optString("orderId").ifBlank { null }
+            gatewayUpiString = json.optString("upiDeepLink").ifBlank { null }
+        }
+        isCreatingGatewaySession = false
+    }
+
+    // 5-Minute Gateway Countdown Timer
+    LaunchedEffect(showScannerView, selectedPlanId) {
+        if (!showScannerView) return@LaunchedEffect
+        secondsRemaining = 300
+        while (secondsRemaining > 0) {
+            delay(1000)
+            secondsRemaining--
+        }
+    }
+
+    // Live SMS & Bank Observer Polling: Instantly detects when money hits the receiving bank
+    LaunchedEffect(showScannerView, activePaymentId) {
+        if (!showScannerView) return@LaunchedEffect
+        val targetWid = session.workspaceId.ifEmpty { session.uid }
+        while (true) {
+            delay(3500)
+            val checkRes = authRepository.checkUpiPaymentStatus(
+                workspaceId = targetWid,
+                paymentId = activePaymentId,
+                orderId = activeOrderId
+            )
+            checkRes.onSuccess { json ->
+                if (json.optBoolean("isPaid", false) || json.optString("status") == "approved") {
+                    isObserverVerified = true
+                    Toast.makeText(context, "🎉 Bank payment verified! Studio access unlocked.", Toast.LENGTH_LONG).show()
+                    onUnlocked()
+                    return@LaunchedEffect
+                }
+            }
+        }
+    }
 
     val plans = remember {
         listOf(
@@ -554,12 +611,154 @@ fun Access24hGateDialog(
                                 }
                             }
 
-                            // UPI QR Code Image
+                            // Authoritative Sovereign Gateway UPI Link & Deep Links
                             val upiAmountFormatted = String.format(java.util.Locale.US, "%.2f", selectedPlan.priceINR.toDouble())
-                            val cleanNote = URLEncoder.encode("Digicast ${selectedPlan.name}", "UTF-8")
-                            val upiString = "upi://pay?pa=$upiVpa&pn=Digicast&am=$upiAmountFormatted&cu=INR&tn=$cleanNote"
-                            val qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${URLEncoder.encode(upiString, "UTF-8")}"
+                            val cleanNote = URLEncoder.encode("Digicast ${selectedPlan.name} ${activeOrderId ?: ""}".trim(), "UTF-8")
+                            val fallbackUpiString = "upi://pay?pa=$upiVpa&pn=Digicast&am=$upiAmountFormatted&cu=INR&tn=$cleanNote"
+                            val effectiveUpiString = gatewayUpiString ?: fallbackUpiString
 
+                            val phonepeIntentUri = effectiveUpiString.replace("upi://pay", "phonepe://pay")
+                            val gpayIntentUri = effectiveUpiString.replace("upi://pay", "gpay://upi/pay")
+                            val paytmIntentUri = effectiveUpiString.replace("upi://pay", "paytmmp://pay")
+
+                            val timerM = secondsRemaining / 60
+                            val timerS = secondsRemaining % 60
+                            val timerStr = String.format(java.util.Locale.US, "%02d:%02d", timerM, timerS)
+
+                            fun openUpiApp(targetUri: String, packageName: String? = null) {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUri)).apply {
+                                        if (!packageName.isNullOrBlank()) {
+                                            setPackage(packageName)
+                                        }
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    try {
+                                        val genericIntent = Intent(Intent.ACTION_VIEW, Uri.parse(effectiveUpiString))
+                                        context.startActivity(genericIntent)
+                                    } catch (e2: Exception) {
+                                        clipboardManager.setText(AnnotatedString(upiVpa))
+                                        Toast.makeText(context, "UPI ID copied: $upiVpa. Open your UPI app and paste.", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+
+                            // 1. Live Gateway Status Bar with Active Timer
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0x18000000), RoundedCornerShape(10.dp))
+                                    .border(1.dp, Color(0x20FFFFFF), RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(DigicastEmerald))
+                                    Text(
+                                        text = if (isCreatingGatewaySession) "Connecting Gateway..." else "Sovereign Gateway Active",
+                                        color = DigicastWhite,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = "⏱ $timerStr",
+                                    color = if (secondsRemaining < 60) Color(0xFFF87171) else DigicastEmerald,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+
+                            // 2. 1-Tap Direct UPI Buttons (Avoids PhonePe Gallery Scan restriction!)
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, DigicastBorder),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(Icons.Default.Bolt, contentDescription = null, tint = DigicastEmerald, modifier = Modifier.size(18.dp))
+                                        Text("1-Tap Direct Payment (No Screenshot Needed)", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                    Text(
+                                        text = "Tap your app below to pay directly on this phone. Avoids PhonePe screenshot & gallery scan limits.",
+                                        color = DigicastSlate,
+                                        fontSize = 11.sp
+                                    )
+
+                                    // Direct App Launchers: PhonePe, GPay, Paytm
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(
+                                            onClick = { openUpiApp(phonepeIntentUri, "com.phonepe.app") },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5F259F)),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.weight(1f).height(42.dp),
+                                            contentPadding = PaddingValues(horizontal = 4.dp)
+                                        ) {
+                                            Text("PhonePe", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        Button(
+                                            onClick = { openUpiApp(gpayIntentUri, "com.google.android.apps.nbu.paisa.user") },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F1F1F)),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.weight(1f).height(42.dp),
+                                            contentPadding = PaddingValues(horizontal = 4.dp)
+                                        ) {
+                                            Text("GPay", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        Button(
+                                            onClick = { openUpiApp(paytmIntentUri, "net.one97.paytm") },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF002970)),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.weight(1f).height(42.dp),
+                                            contentPadding = PaddingValues(horizontal = 4.dp)
+                                        ) {
+                                            Text("Paytm", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    // Other Apps & Copy VPA
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(
+                                            onClick = { openUpiApp(effectiveUpiString) },
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastElectricCyan.copy(alpha = 0.5f)),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.weight(1f).height(38.dp)
+                                        ) {
+                                            Icon(Icons.Default.CreditCard, contentDescription = null, modifier = Modifier.size(14.dp), tint = DigicastElectricCyan)
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Other Apps", color = DigicastElectricCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                clipboardManager.setText(AnnotatedString(upiVpa))
+                                                Toast.makeText(context, "UPI ID copied: $upiVpa", Toast.LENGTH_SHORT).show()
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = DigicastDeepNavy),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastBorder),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.weight(0.9f).height(38.dp)
+                                        ) {
+                                            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp), tint = DigicastWhite)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Copy VPA", color = DigicastWhite, fontSize = 11.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 3. Dynamic Gateway QR Code Image (for PC / other phone scanning)
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -568,10 +767,11 @@ fun Access24hGateDialog(
                                     .padding(14.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
+                                val qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${URLEncoder.encode(effectiveUpiString, "UTF-8")}"
                                 AsyncImage(
                                     model = qrUrl,
                                     contentDescription = "UPI QR Code",
-                                    modifier = Modifier.size(180.dp)
+                                    modifier = Modifier.size(170.dp)
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
@@ -586,6 +786,45 @@ fun Access24hGateDialog(
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
+                                if (!activeOrderId.isNullOrBlank()) {
+                                    Text(
+                                        text = "Session Order: $activeOrderId",
+                                        color = Color(0xFF0B63E5),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+
+                            // 4. Live Instant SMS / Bank Credit Observer Indicator
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(DigicastEmerald.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+                                    .border(1.dp, DigicastEmerald.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = DigicastEmerald
+                                )
+                                Column {
+                                    Text(
+                                        text = "Auto-Verification Listening",
+                                        color = DigicastEmerald,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "System app & bank credit observer will unlock automatically once payment is received.",
+                                        color = DigicastSlate,
+                                        fontSize = 10.sp
+                                    )
+                                }
                             }
 
                             // Open Web Gateway with 8-Minute Live Timer
@@ -607,46 +846,7 @@ fun Access24hGateDialog(
                             ) {
                                 Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp), tint = DigicastElectricCyan)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Open Web Gateway (8-Min Live Timer)", color = DigicastElectricCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            // Quick Action Buttons (Copy VPA & 1-Tap Mobile Apps)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Button(
-                                    onClick = {
-                                        clipboardManager.setText(AnnotatedString(upiVpa))
-                                        Toast.makeText(context, "UPI ID copied: $upiVpa", Toast.LENGTH_SHORT).show()
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = DigicastDeepNavy),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, DigicastBorder),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp), tint = DigicastWhite)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Copy UPI", color = DigicastWhite, fontSize = 11.sp)
-                                }
-
-                                Button(
-                                    onClick = {
-                                        try {
-                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(upiString))
-                                            context.startActivity(intent)
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "No UPI app found on device.", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = selectedPlan.color),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(Icons.Default.CreditCard, contentDescription = null, modifier = Modifier.size(14.dp), tint = DigicastWhite)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Pay ₹${selectedPlan.priceINR}", color = DigicastWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
+                                Text("Open Web Gateway (Live Checkout)", color = DigicastElectricCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
 
                             // UTR Input & Submission Box

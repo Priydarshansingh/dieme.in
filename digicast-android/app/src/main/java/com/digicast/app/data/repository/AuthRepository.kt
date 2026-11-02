@@ -469,14 +469,59 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * Instantly checks whether amount was received by the UPI Gateway
+     * Initializes a tracked payment session on the self-hosted UPI Gateway via digicast-web.
+     * Connects orderId, dynamic QR and UPI intent for instant banking SMS/Observer auto-detection.
+     */
+    suspend fun createPaymentSession(
+        workspaceId: String,
+        planId: String,
+        email: String
+    ): Result<JSONObject> = withContext(Dispatchers.IO) {
+        try {
+            val session = (_authState.value as? AuthState.SignedIn)?.session
+            val body = JSONObject().apply {
+                put("workspaceId", workspaceId)
+                put("planId", planId)
+                put("clientEmail", email)
+            }.toString().toRequestBody("application/json".toMediaType())
+
+            val reqBuilder = Request.Builder()
+                .url("$BACKEND_URL/api/payments/session")
+                .post(body)
+
+            if (session?.token != null) {
+                reqBuilder.addHeader("Authorization", "Bearer ${session.token}")
+            }
+
+            val response = okHttpClient.newCall(reqBuilder.build()).execute()
+            val raw = response.body?.string() ?: "{}"
+            if (response.isSuccessful) {
+                Result.success(JSONObject(raw))
+            } else {
+                Result.failure(Exception("Gateway session error: ${response.code} $raw"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Instantly checks whether amount was received by the UPI Gateway or SMS observer
      */
     suspend fun checkUpiPaymentStatus(
         workspaceId: String,
+        paymentId: String? = null,
+        orderId: String? = null,
         utrNumber: String? = null
     ): Result<JSONObject> = withContext(Dispatchers.IO) {
         try {
             val urlBuilder = StringBuilder("$BACKEND_URL/api/payments/check?workspaceId=$workspaceId")
+            if (!paymentId.isNullOrBlank()) {
+                urlBuilder.append("&paymentId=$paymentId")
+            }
+            if (!orderId.isNullOrBlank()) {
+                urlBuilder.append("&orderId=$orderId")
+            }
             if (!utrNumber.isNullOrBlank()) {
                 urlBuilder.append("&utrNumber=$utrNumber")
             }

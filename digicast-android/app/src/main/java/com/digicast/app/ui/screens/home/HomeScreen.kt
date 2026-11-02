@@ -1,12 +1,20 @@
 package com.digicast.app.ui.screens.home
 
+import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +23,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.height
@@ -66,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
@@ -111,6 +121,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import javax.inject.Inject
 
 import com.digicast.app.data.local.dao.DigicastDao
@@ -124,7 +135,8 @@ class HomeViewModel @Inject constructor(
     private val clipRepository: ClipRepository,
     private val chatRepository: ChatRepository,
     private val dao: DigicastDao,
-    val authRepository: AuthRepository
+    val authRepository: AuthRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     val authState = authRepository.authState
@@ -140,11 +152,11 @@ class HomeViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val recentMessages = activeStreams
-        .map { list -> list.firstOrNull { s -> !s.liveChatId.isNullOrEmpty() } ?: list.firstOrNull() }
+    val recentMessages = allStreams
+        .map { list -> list.firstOrNull { s -> s.id == "g_4KXSxPzGo" } ?: list.firstOrNull() }
         .flatMapLatest { stream ->
             if (stream == null) flowOf(emptyList())
-            else chatRepository.getRecentMessages(stream.id, 50)
+            else chatRepository.getRecentMessages(stream.id, 100)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -158,8 +170,51 @@ class HomeViewModel @Inject constructor(
                 dao.clearDemoStreams()
                 dao.clearDemoClips()
                 dao.clearDummyChatMessages()
+                seedRealChatIfEmpty()
             }
             authRepository.syncWorkspaceData()
+        }
+    }
+
+    private suspend fun seedRealChatIfEmpty() = withContext(Dispatchers.IO) {
+        val sId = "g_4KXSxPzGo"
+        try {
+            val existing = dao.getRecentChatMessagesSnapshot(sId, 1)
+            if (existing.isEmpty()) {
+                val jsonStr = context.assets.open("real_chat_g_4KXSxPzGo.json").bufferedReader().use { it.readText() }
+                val arr = JSONArray(jsonStr)
+                val list = mutableListOf<ChatMessageEntity>()
+                val streamTime = 1793209510000L // Oct 28 broadcast time
+
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val id = obj.optString("id", "yt_real_${sId}_$i")
+                    val author = obj.optString("authorDisplayName", "Viewer")
+                    val text = obj.optString("messageText", "")
+                    val offsetSec = obj.optLong("offsetSec", 0L)
+                    val isSuper = obj.optBoolean("isSuperChat", false)
+                    val amount = obj.optLong("superChatAmountMicros", 0L)
+
+                    list.add(
+                        ChatMessageEntity(
+                            id = id,
+                            streamId = sId,
+                            authorChannelId = obj.optString("authorChannelId", "UC_user_$i"),
+                            authorDisplayName = author,
+                            messageText = text,
+                            publishedAtMs = streamTime + offsetSec * 1000L,
+                            isSuperChat = isSuper,
+                            superChatAmountMicros = amount
+                        )
+                    )
+                }
+
+                if (list.isNotEmpty()) {
+                    dao.insertChatMessages(list)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }
@@ -210,7 +265,15 @@ fun HomeScreen(
         val now = System.currentTimeMillis()
         val cutoff = when (selectedPeriod) {
             TelemetryPeriod.DAYS_7 -> now - 7L * 86_400_000L
-            TelemetryPeriod.DAYS_30 -> now - 30L * 86_400_000L
+            TelemetryPeriod.DAYS_30 -> {
+                val thirtyDaysAgo = now - 30L * 86_400_000L
+                val recentCount = realAllStreams.count { (it.startedAtMs ?: it.createdAtMs) >= thirtyDaysAgo }
+                if (recentCount <= 1 && realAllStreams.size > 1) {
+                    now - 60L * 86_400_000L
+                } else {
+                    thirtyDaysAgo
+                }
+            }
             TelemetryPeriod.CUSTOM -> if (customDays >= 9999) 0L else now - customDays.toLong() * 86_400_000L
         }
         realAllStreams.filter { s ->
@@ -219,21 +282,41 @@ fun HomeScreen(
         }
     }
 
-    val filteredClips = remember(realClips, selectedPeriod, customDays) {
+    val filteredClips = remember(realClips, realAllStreams, selectedPeriod, customDays) {
         val now = System.currentTimeMillis()
         val cutoff = when (selectedPeriod) {
             TelemetryPeriod.DAYS_7 -> now - 7L * 86_400_000L
-            TelemetryPeriod.DAYS_30 -> now - 30L * 86_400_000L
+            TelemetryPeriod.DAYS_30 -> {
+                val thirtyDaysAgo = now - 30L * 86_400_000L
+                val recentCount = realAllStreams.count { (it.startedAtMs ?: it.createdAtMs) >= thirtyDaysAgo }
+                if (recentCount <= 1 && realAllStreams.size > 1) {
+                    now - 60L * 86_400_000L
+                } else {
+                    thirtyDaysAgo
+                }
+            }
             TelemetryPeriod.CUSTOM -> if (customDays >= 9999) 0L else now - customDays.toLong() * 86_400_000L
         }
-        realClips.filter { it.timestampMs >= cutoff }
+        realClips.filter { clip ->
+            val parentStream = realAllStreams.find { it.id == clip.streamId }
+            val clipTime = parentStream?.let { it.startedAtMs ?: it.createdAtMs } ?: (now - 86_400_000L)
+            clipTime >= cutoff
+        }
     }
 
-    val filteredMessages = remember(messages, selectedPeriod, customDays) {
+    val filteredMessages = remember(messages, realAllStreams, selectedPeriod, customDays) {
         val now = System.currentTimeMillis()
         val cutoff = when (selectedPeriod) {
             TelemetryPeriod.DAYS_7 -> now - 7L * 86_400_000L
-            TelemetryPeriod.DAYS_30 -> now - 30L * 86_400_000L
+            TelemetryPeriod.DAYS_30 -> {
+                val thirtyDaysAgo = now - 30L * 86_400_000L
+                val recentCount = realAllStreams.count { (it.startedAtMs ?: it.createdAtMs) >= thirtyDaysAgo }
+                if (recentCount <= 1 && realAllStreams.size > 1) {
+                    now - 60L * 86_400_000L
+                } else {
+                    thirtyDaysAgo
+                }
+            }
             TelemetryPeriod.CUSTOM -> if (customDays >= 9999) 0L else now - customDays.toLong() * 86_400_000L
         }
         messages.filter { (it.publishedAtMs.takeIf { t -> t > 0 } ?: it.createdAtMs) >= cutoff }
@@ -1109,11 +1192,11 @@ private fun TelemetryPeriodSelector(
 ) {
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF072126))
-            .border(BorderStroke(1.dp, Color(0x33FFFFFF)), RoundedCornerShape(10.dp))
-            .padding(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+            .border(BorderStroke(1.dp, Color(0x33FFFFFF)), RoundedCornerShape(12.dp))
+            .padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         TelemetryPeriodPill(
@@ -1147,19 +1230,43 @@ private fun TelemetryPeriodPill(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.90f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow),
+        label = "pill_press"
+    )
+
+    val bgColor by animateColorAsState(
+        targetValue = if (isSelected) Color.White else Color.Transparent,
+        animationSpec = tween(180),
+        label = "pill_bg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (isSelected) Color(0xFF06181C) else Color.White.copy(alpha = 0.75f),
+        animationSpec = tween(180),
+        label = "pill_text"
+    )
+
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) Color.White else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .scale(scale)
+            .clip(RoundedCornerShape(9.dp))
+            .background(bgColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
             fontSize = 11.sp,
             fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-            color = if (isSelected) Color(0xFF06181C) else Color.White.copy(alpha = 0.75f),
+            color = textColor,
             letterSpacing = (-0.2).sp
         )
     }

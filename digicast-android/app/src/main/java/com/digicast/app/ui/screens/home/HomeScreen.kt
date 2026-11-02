@@ -28,12 +28,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.ui.text.font.FontFamily
+import com.digicast.app.ui.theme.BorderHairline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -191,8 +194,7 @@ fun HomeScreen(
     }
     val live = realActiveStreams.firstOrNull() ?: realAllStreams.firstOrNull()
     val capturing = LiveChatCaptureService.isServiceRunning
-    var selectedCategory by remember { mutableStateOf("All Streams") }
-    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("Overview") }
     val realClips = clips.filter { it.id != "demo-clip-001" && !it.authorName.contains("DemoViewer", ignoreCase = true) }
 
     val signedInSession = (authState as? AuthState.SignedIn)?.session
@@ -333,48 +335,7 @@ fun HomeScreen(
                 }
             }
 
-            // ── 2. Interactive Search & Filter Pill ───────────────────────
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(9999.dp))
-                        .background(AppleDarkEdgePillBrush)
-                        .border(1.dp, AppleSpecularBorder, RoundedCornerShape(9999.dp))
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(
-                            color = Color.White,
-                            fontSize = 13.sp
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                        decorationBox = { innerTextField ->
-                            if (searchQuery.isEmpty()) {
-                                Text(
-                                    text = "Search streams, clips, markers...",
-                                    color = Color.White.copy(alpha = 0.6f),
-                                    fontSize = 13.sp
-                                )
-                            }
-                            innerTextField()
-                        }
-                    )
-                }
-            }
-
-            // ── 3. The 4 Iconic Folder-Tab Cards (100% Real Live Metrics) ──────
+            // ── 2. The 4 Iconic Folder-Tab Cards (100% Real Live Metrics) ──────
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Top Row: Neon Lime & Spring Green
@@ -412,7 +373,7 @@ fun HomeScreen(
                             icon = Icons.Default.Group,
                             backgroundColor = DigicastSpringGreen,
                             modifier = Modifier.weight(1f),
-                            onClick = { selectedCategory = "Chat Intelligence" }
+                            onClick = { selectedCategory = "Highlights" }
                         )
                     }
 
@@ -455,9 +416,9 @@ fun HomeScreen(
                 }
             }
 
-            // ── 4. Category Filter Pills (From Reference Image 2) ─────────────
+            // ── 3. Category Filter Pills ─────────────────────────────────────
             item {
-                val categories = listOf("All Streams", "Live Broadcast", "Clips Studio", "Chat Intelligence")
+                val categories = listOf("Overview", "Live Broadcast", "Highlights", "Clips Studio")
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -489,7 +450,7 @@ fun HomeScreen(
                 }
             }
 
-            // ── 5. Complete Activity Sparkline Wave (Bound to Real Broadcast) ──
+            // ── 4. Complete Activity Sparkline Wave (Bound to Real Broadcast) ──
             item {
                 val sparklineTitle = if (live != null) "${MetricFormatter.cleanText(live.channelTitle)} Stream Activity" else "Studio Stream Activity"
                 val sparklineSub = if (live != null) MetricFormatter.cleanText(live.title) else "No broadcast currently streaming"
@@ -511,8 +472,8 @@ fun HomeScreen(
                 )
             }
 
-            // ── 6. Live Broadcast Hero Card (When Active Stream Exists) ────────
-            if (live != null && (selectedCategory == "All Streams" || selectedCategory == "Live Broadcast")) {
+            // ── 5. Live Broadcast Hero Card (When Active Stream Exists) ────────
+            if (live != null && (selectedCategory == "Overview" || selectedCategory == "Live Broadcast")) {
                 item {
                     val thumbUrl = live.thumbnailUrl ?: if (live.id.isNotBlank()) "https://i.ytimg.com/vi/${live.id}/hqdefault.jpg" else null
                     Card(
@@ -649,8 +610,8 @@ fun HomeScreen(
                 }
             }
 
-            // ── 6.5 Clips Studio Section ─────────────────────────────────────
-            if (selectedCategory == "All Streams" || selectedCategory == "Clips Studio") {
+            // ── 6. Clips Studio Section ─────────────────────────────────────
+            if (selectedCategory == "Overview" || selectedCategory == "Clips Studio") {
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -740,7 +701,7 @@ fun HomeScreen(
             }
 
             // ── 7. Connected YouTube Channel Card ─────────────────────────────
-            if (ytAccount != null && selectedCategory == "All Streams") {
+            if (ytAccount != null && (selectedCategory == "Overview" || selectedCategory == "Live Broadcast")) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -801,51 +762,139 @@ fun HomeScreen(
                 }
             }
 
-            // ── 8. Chat Intelligence Section ──────────────────────────────────
-            if (selectedCategory == "All Streams" || selectedCategory == "Chat Intelligence") {
+            // ── 8. Highlight Markers & Quick Studio Actions ────────────────────
+            if (selectedCategory == "Overview" || selectedCategory == "Highlights") {
+                // Quick Studio Action Bar
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, AppleSpecularBorder),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(AppleDarkEdgeCardBrush)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF134E5E)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Bolt,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Quick Highlight Marker",
+                                        color = DigicastWhite,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = if (capturing) "Live chat indexing active" else "Ready to capture key moments",
+                                        color = DigicastSlate,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = onNavigateToClips,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                                border = BorderStroke(1.dp, Color(0x66FFFFFF)),
+                                shape = RoundedCornerShape(9999.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Mark Now", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                // Section Header
                 item {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "LIVE CHAT FEED",
+                            text = "INDEXED HIGHLIGHT MARKERS",
                             color = DigicastSlate,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = "${messages.size} Messages",
-                            color = DigicastAccentBlue,
+                            text = if (realClips.isNotEmpty()) "${realClips.size} Markers" else "0 Markers",
+                            color = DigicastSunsetCoral,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable { onNavigateToClips() }
                         )
                     }
                 }
 
-                if (messages.isEmpty()) {
+                if (realClips.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(16.dp))
                                 .background(DigicastSurface)
-                                .padding(16.dp),
+                                .border(1.dp, BorderHairline, RoundedCornerShape(16.dp))
+                                .padding(20.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "Live chat messages captured during streams appear here in real time.",
-                                color = DigicastSlate,
-                                fontSize = 13.sp
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCut,
+                                    contentDescription = null,
+                                    tint = DigicastSlate,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = "No highlight markers yet in this stream",
+                                    color = DigicastWhite,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "When viewers or editors type !clip in chat, or when you tap Mark Now, keyframe timestamps are indexed here.",
+                                    color = DigicastSlate,
+                                    fontSize = 11.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }
 
-                items(messages, key = { it.id }) { msg ->
-                    ChatRow(msg)
+                items(realClips, key = { "marker_${it.id}" }) { clip ->
+                    HighlightMarkerCard(
+                        clip = clip,
+                        onOpen = onNavigateToClips
+                    )
                 }
             }
         }
@@ -864,31 +913,79 @@ fun HomeScreen(
 }
 
 @Composable
-private fun ChatRow(msg: ChatMessageEntity) {
+private fun HighlightMarkerCard(
+    clip: com.digicast.app.data.local.entity.ClipMarkerEntity,
+    onOpen: () -> Unit
+) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
-        shape = RoundedCornerShape(10.dp),
-        modifier = Modifier.fillMaxWidth()
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(1.dp, AppleSpecularBorder),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(AppleDarkEdgeCardBrush)
+            .clickable { onOpen() }
     ) {
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Row(
+            modifier = Modifier.padding(14.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
             ) {
-                Text(msg.authorDisplayName, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                if (msg.messageText.contains("!clip", ignoreCase = true)) {
-                    Box(
-                        modifier = Modifier
-                            .background(DigicastSunsetCoral.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text("!CLIP MARKER", color = DigicastSunsetCoral, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    }
+                // Monospace Time Chip
+                Box(
+                    modifier = Modifier
+                        .background(Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    val sec = clip.timestampMs / 1000
+                    val m = (sec % 3600) / 60
+                    val s = sec % 60
+                    val h = sec / 3600
+                    val timeStr = if (h > 0) String.format("%02d:%02d:%02d", h, m, s) else String.format("%02d:%02d", m, s)
+                    Text(
+                        text = timeStr,
+                        color = DigicastWhite,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = clip.label.ifBlank { "!clip marker" },
+                        color = DigicastWhite,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "By ${clip.authorName} • ${clip.status}",
+                        color = DigicastSlate,
+                        fontSize = 11.sp,
+                        maxLines = 1
+                    )
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Text(msg.messageText, color = DigicastSlate, fontSize = 13.sp)
+
+            Button(
+                onClick = onOpen,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                border = BorderStroke(1.dp, Color(0x55FFFFFF)),
+                shape = RoundedCornerShape(9999.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier.height(28.dp)
+            ) {
+                Text("Trim", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

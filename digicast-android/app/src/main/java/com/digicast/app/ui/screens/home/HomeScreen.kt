@@ -255,13 +255,11 @@ fun HomeScreen(
     var selectedCategory by remember { mutableStateOf("Overview") }
     val realClips = clips.filter { it.id != "demo-clip-001" && !it.authorName.contains("DemoViewer", ignoreCase = true) }
 
-    // ── Telemetry Period State (7D, 30D, Custom) ──
+    // ── Telemetry Period State (7D vs 30D) ──
     var selectedPeriod by remember { mutableStateOf(TelemetryPeriod.DAYS_7) }
-    var customDays by remember { mutableIntStateOf(60) }
-    var showCustomDialog by remember { mutableStateOf(false) }
 
     // Actual Channel Data filtered by period
-    val filteredStreams = remember(realAllStreams, selectedPeriod, customDays) {
+    val filteredStreams = remember(realAllStreams, selectedPeriod) {
         val now = System.currentTimeMillis()
         val cutoff = when (selectedPeriod) {
             TelemetryPeriod.DAYS_7 -> now - 7L * 86_400_000L
@@ -274,7 +272,6 @@ fun HomeScreen(
                     thirtyDaysAgo
                 }
             }
-            TelemetryPeriod.CUSTOM -> if (customDays >= 9999) 0L else now - customDays.toLong() * 86_400_000L
         }
         realAllStreams.filter { s ->
             val t = s.startedAtMs ?: s.createdAtMs
@@ -282,7 +279,7 @@ fun HomeScreen(
         }
     }
 
-    val filteredClips = remember(realClips, realAllStreams, selectedPeriod, customDays) {
+    val filteredClips = remember(realClips, realAllStreams, selectedPeriod) {
         val now = System.currentTimeMillis()
         val cutoff = when (selectedPeriod) {
             TelemetryPeriod.DAYS_7 -> now - 7L * 86_400_000L
@@ -295,7 +292,6 @@ fun HomeScreen(
                     thirtyDaysAgo
                 }
             }
-            TelemetryPeriod.CUSTOM -> if (customDays >= 9999) 0L else now - customDays.toLong() * 86_400_000L
         }
         realClips.filter { clip ->
             val parentStream = realAllStreams.find { it.id == clip.streamId }
@@ -304,7 +300,7 @@ fun HomeScreen(
         }
     }
 
-    val filteredMessages = remember(messages, realAllStreams, selectedPeriod, customDays) {
+    val filteredMessages = remember(messages, realAllStreams, selectedPeriod) {
         val now = System.currentTimeMillis()
         val cutoff = when (selectedPeriod) {
             TelemetryPeriod.DAYS_7 -> now - 7L * 86_400_000L
@@ -317,7 +313,6 @@ fun HomeScreen(
                     thirtyDaysAgo
                 }
             }
-            TelemetryPeriod.CUSTOM -> if (customDays >= 9999) 0L else now - customDays.toLong() * 86_400_000L
         }
         messages.filter { (it.publishedAtMs.takeIf { t -> t > 0 } ?: it.createdAtMs) >= cutoff }
     }
@@ -447,17 +442,10 @@ fun HomeScreen(
                             )
                         }
 
-                        // Top-Right 3 Buttons: 7 Days | 30 Days | Custom (small type)
+                        // Top-Right Filter: 7 Days | 30 Days (Tactile Pill Switcher)
                         TelemetryPeriodSelector(
                             selectedPeriod = selectedPeriod,
-                            customDays = customDays,
-                            onSelect = { period ->
-                                selectedPeriod = period
-                                if (period == TelemetryPeriod.CUSTOM) {
-                                    showCustomDialog = true
-                                }
-                            },
-                            onOpenCustom = { showCustomDialog = true }
+                            onSelect = { period -> selectedPeriod = period }
                         )
                     }
 
@@ -496,7 +484,6 @@ fun HomeScreen(
                 val viewsSublabel = when (selectedPeriod) {
                     TelemetryPeriod.DAYS_7 -> if (periodStreamCount > 0) "Last 7 days • $periodStreamCount streams" else "No streams in 7D"
                     TelemetryPeriod.DAYS_30 -> if (periodStreamCount > 0) "Last 30 days • $periodStreamCount streams" else "No streams in 30D"
-                    TelemetryPeriod.CUSTOM -> if (customDays >= 9999) "All-time • $periodStreamCount streams" else "Last ${customDays}D • $periodStreamCount streams"
                 }
 
                 val distinctChatters = filteredMessages.map { it.authorDisplayName }.distinct().size
@@ -530,7 +517,6 @@ fun HomeScreen(
                 val likesSublabel = when (selectedPeriod) {
                     TelemetryPeriod.DAYS_7 -> "Last 7 days"
                     TelemetryPeriod.DAYS_30 -> "Last 30 days"
-                    TelemetryPeriod.CUSTOM -> if (customDays >= 9999) "All-time support" else "Last ${customDays}D"
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1082,112 +1068,19 @@ fun HomeScreen(
             }
         )
     }
-
-    if (showCustomDialog) {
-        Dialog(onDismissRequest = { showCustomDialog = false }) {
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF09282F)),
-                border = BorderStroke(1.dp, Color(0x33FFFFFF)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Text(
-                        text = "Custom Timeframe",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Select a period to filter actual channel telemetry:",
-                        color = DigicastSlate,
-                        fontSize = 12.sp
-                    )
-
-                    val customOptions = listOf(
-                        14 to "Last 14 Days",
-                        60 to "Last 60 Days",
-                        90 to "Last 90 Days",
-                        9999 to "All-Time (Lifetime)"
-                    )
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        customOptions.forEach { (days, label) ->
-                            val isSelected = customDays == days
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) Color(0xFF134E5E) else Color(0xFF0D373F))
-                                    .border(
-                                        BorderStroke(
-                                            1.dp,
-                                            if (isSelected) Color.White.copy(alpha = 0.5f) else Color(0x1AFFFFFF)
-                                        ),
-                                        RoundedCornerShape(12.dp)
-                                    )
-                                    .clickable {
-                                        customDays = days
-                                        selectedPeriod = TelemetryPeriod.CUSTOM
-                                        showCustomDialog = false
-                                    }
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.85f),
-                                    fontSize = 14.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Button(
-                        onClick = { showCustomDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Done", color = Color(0xFF06181C), fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
 }
 
 // ── Telemetry Period Types & Selector ───────────────────────────
 
 enum class TelemetryPeriod(val label: String, val shortLabel: String) {
     DAYS_7("7 Days", "7D"),
-    DAYS_30("30 Days", "30D"),
-    CUSTOM("Custom", "Custom")
+    DAYS_30("30 Days", "30D")
 }
 
 @Composable
 private fun TelemetryPeriodSelector(
     selectedPeriod: TelemetryPeriod,
-    customDays: Int,
     onSelect: (TelemetryPeriod) -> Unit,
-    onOpenCustom: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -1208,18 +1101,6 @@ private fun TelemetryPeriodSelector(
             label = "30 Days",
             isSelected = selectedPeriod == TelemetryPeriod.DAYS_30,
             onClick = { onSelect(TelemetryPeriod.DAYS_30) }
-        )
-        TelemetryPeriodPill(
-            label = if (selectedPeriod == TelemetryPeriod.CUSTOM) {
-                if (customDays >= 9999) "All Time" else "${customDays}D"
-            } else {
-                "Custom"
-            },
-            isSelected = selectedPeriod == TelemetryPeriod.CUSTOM,
-            onClick = {
-                onSelect(TelemetryPeriod.CUSTOM)
-                onOpenCustom()
-            }
         )
     }
 }

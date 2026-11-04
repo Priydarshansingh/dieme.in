@@ -218,8 +218,7 @@ fun SettingsScreen(
         topBar = {
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding(),
+                    .fillMaxWidth(),
                 color = DigicastDeepNavy,
                 border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f))
             ) {

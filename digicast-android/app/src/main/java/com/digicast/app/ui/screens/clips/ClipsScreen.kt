@@ -201,7 +201,6 @@ fun ClipsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(DigicastNavy)
-                    .statusBarsPadding()
                     .padding(horizontal = 18.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

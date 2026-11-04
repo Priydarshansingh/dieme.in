@@ -801,7 +801,6 @@ fun ClipGenerateScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFF0B3037))
-                    .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

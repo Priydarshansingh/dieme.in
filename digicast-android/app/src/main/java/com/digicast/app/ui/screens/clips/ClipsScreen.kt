@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -200,6 +201,7 @@ fun ClipsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(DigicastNavy)
+                    .statusBarsPadding()
                     .padding(horizontal = 18.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -521,7 +523,8 @@ fun ClipsScreen(
                                     color = DigicastSlate,
                                     fontSize = 11.sp,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
                                 Text("•", color = DigicastSlate, fontSize = 11.sp)
                                 Text(timeStr, color = DigicastSlate, fontSize = 11.sp)
@@ -536,7 +539,9 @@ fun ClipsScreen(
                                         text = if (isReady) "READY MP4" else "PENDING",
                                         color = if (isReady) Color(0xFF56F16A) else DigicastAmber,
                                         fontSize = 9.sp,
-                                        fontWeight = FontWeight.ExtraBold
+                                        fontWeight = FontWeight.ExtraBold,
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
                             }

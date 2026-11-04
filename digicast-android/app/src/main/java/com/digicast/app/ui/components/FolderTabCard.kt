@@ -93,7 +93,7 @@ fun FolderTabCard(
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = label,
+                    contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )

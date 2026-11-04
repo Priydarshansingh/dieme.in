@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -267,6 +268,7 @@ fun StreamDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(DigicastNavy)
+                    .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -870,7 +872,7 @@ fun StreamDetailScreen(
                                 }
 
                                 Text(
-                                    text = msg.messageText,
+                                    text = com.digicast.app.ui.util.EmojiParser.parse(msg.messageText),
                                     color = DigicastWhite,
                                     fontSize = 13.sp,
                                     lineHeight = 17.sp

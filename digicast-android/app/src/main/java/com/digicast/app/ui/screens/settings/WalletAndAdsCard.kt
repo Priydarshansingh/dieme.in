@@ -250,7 +250,7 @@ fun WalletAndAdsCard(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "${walletInfo?.dpBalance ?: 45} DP",
-                            color = DigicastElectricCyan,
+                            color = Color.White,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold
                         )

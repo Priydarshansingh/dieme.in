@@ -1013,8 +1013,8 @@ private fun WorkspaceProfileBentoCard(
                             color = DigicastWhite,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            maxLines = 2,
+                            lineHeight = 16.sp
                         )
                     }
 

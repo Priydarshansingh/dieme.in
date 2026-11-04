@@ -75,22 +75,22 @@ val BrandTealDark = Color(0xFF0B3037)
 val BrandTealGlow = Color(0xFF2DD4BF)        // Radiant Mint-Teal
 val BrandWhite = Color(0xFFFFFFFF)
 
-val DigicastAccentBlue = Color(0xFF134E5E)   // Deep Teal Silk Surface
-val DigicastSunsetCoral = Color(0xFF134E5E)  // Deep Teal Action
+val DigicastAccentBlue = Color(0xFF38BDF8)   // Radiant Sky Accent
+val DigicastSunsetCoral = Color(0xFFFF7A59)  // Vibrant Coral Accent
 val DigicastNeonLime = Color(0xFF2DD4BF)
 val DigicastEmerald = Color(0xFF2DD4BF)
-val DigicastElectricCyan = Color(0xFF134E5E)
-val DigicastElectricViolet = Color(0xFF1A5868)
-val DigicastSpringGreen = Color(0xFF2DD4BF)
-val DigicastMintGlow = Color(0xFF134E5E)
+val DigicastElectricCyan = Color(0xFF2DD4BF) // Radiant Teal-Cyan
+val DigicastElectricViolet = Color(0xFFA78BFA)
+val DigicastSpringGreen = Color(0xFF4ADE80)
+val DigicastMintGlow = Color(0xFF34D399)      // Radiant Mint Glow
 val DigicastLiveRed = Color(0xFFE05260)       // Subtle Broadcast Red
 val DigicastAmber = Color(0xFFFBBF24)
 
-val BrandCyan = Color(0xFF134E5E)
-val BrandCoral = Color(0xFF134E5E)
+val BrandCyan = Color(0xFF2DD4BF)
+val BrandCoral = Color(0xFFFF7A59)
 val BrandLime = Color(0xFF2DD4BF)
 val BrandEmerald = Color(0xFF2DD4BF)
-val BrandViolet = Color(0xFF1A5868)
+val BrandViolet = Color(0xFFA78BFA)
 val BrandAmber = Color(0xFFFBBF24)
 val LiveRed = Color(0xFFE05260)
 

@@ -103,6 +103,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -127,6 +128,7 @@ import com.digicast.app.ui.theme.DigicastDeepNavy
 import com.digicast.app.ui.theme.DigicastElectricCyan
 import com.digicast.app.ui.theme.DigicastEmerald
 import com.digicast.app.ui.theme.DigicastLiveRed
+import com.digicast.app.ui.theme.DigicastNavy
 import com.digicast.app.ui.theme.DigicastNeonLime
 import com.digicast.app.ui.theme.DigicastSlate
 import com.digicast.app.ui.theme.DigicastSurface
@@ -216,85 +218,89 @@ fun SettingsScreen(
     Scaffold(
         containerColor = DigicastDeepNavy,
         topBar = {
-            Surface(
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth(),
-                color = DigicastDeepNavy,
-                border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f))
+                    .fillMaxWidth()
+                    .background(DigicastNavy)
+                    .drawBehind {
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.08f),
+                            start = androidx.compose.ui.geometry.Offset(0f, size.height),
+                            end = androidx.compose.ui.geometry.Offset(size.width, size.height),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                            .clickable(onClick = onNavigateBack),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Studio Settings",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Account, Subscriptions & Team Access",
+                            color = DigicastSlate,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Sign Out Action Button: Sleek subtle red pill conforming to theme
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(DigicastLiveRed.copy(alpha = 0.12f))
+                        .border(1.dp, DigicastLiveRed.copy(alpha = 0.35f), RoundedCornerShape(9999.dp))
+                        .clickable { showSignOutDialog = true }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Row(
-                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        IconButton(
-                            onClick = onNavigateBack,
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(DigicastSurfaceElevated)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = DigicastWhite,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Studio Settings",
-                                color = DigicastWhite,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "Account, Subscriptions & Team Access",
-                                color = DigicastSlate,
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Sign Out Action Button in Top Right
-                    Surface(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { showSignOutDialog = true },
-                        color = DigicastLiveRed.copy(alpha = 0.12f),
-                        border = BorderStroke(1.dp, DigicastLiveRed.copy(alpha = 0.4f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PowerSettingsNew,
-                                contentDescription = "Sign Out",
-                                tint = DigicastLiveRed,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = "Sign Out",
-                                color = DigicastLiveRed,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.PowerSettingsNew,
+                            contentDescription = "Sign Out",
+                            tint = DigicastLiveRed,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "Sign Out",
+                            color = DigicastLiveRed,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }

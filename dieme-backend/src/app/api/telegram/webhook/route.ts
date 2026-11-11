@@ -77,7 +77,7 @@ async function logBotResponse(adminDb: any, chatId: string | number, text: strin
       chatId: String(chatId),
       text,
       sender: 'bot',
-      senderName: 'Digicast AI Assistant',
+      senderName: 'Dieme AI Assistant',
       timestamp: now,
     });
     await adminDb.collection('telegram_chats').doc(String(chatId)).set({
@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
 • <b>Status:</b> 🟡 <b>Pending Admin Verification</b>
 
 🛡️ <b>Privacy Guarantee:</b>
-Your payment receipt is stored privately and has been forwarded directly to the Digicast Administrator for immediate verification.
+Your payment receipt is stored privately and has been forwarded directly to the Dieme Administrator for immediate verification.
 
 Our team will verify the payment and activate your subscription shortly!
         `.trim();
@@ -301,7 +301,7 @@ Our team will verify the payment and activate your subscription shortly!
           }, { merge: true });
 
           const msg = `
-💳 <b>Digicast Subscription Activation</b>
+💳 <b>Dieme Subscription Activation</b>
 
 • <b>Plan:</b> <b>${targetPlan.name}</b> (₹${targetPlan.priceINR} ${targetPlan.periodLabel})
 • <b>Workspace ID:</b> <code>${wsId || 'Pending'}</code>
@@ -346,7 +346,7 @@ Our team will verify the payment and activate your subscription shortly!
 
               await sendTelegramMessage(
                 chatId,
-                `🎉 <b>Digicast Connected!</b>\n\nThis chat is now linked. Clip markers from your YouTube streams will be delivered here automatically.`,
+                `🎉 <b>Dieme Connected!</b>\n\nThis chat is now linked. Clip markers from your YouTube streams will be delivered here automatically.`,
                 messageId
               );
               return NextResponse.json({ ok: true });

@@ -602,7 +602,7 @@ export default function GodPanelDashboard() {
           </form>
 
           <p className="mt-6 text-center text-[10px] text-slate-600">
-            Digicast Architecture &bull; Cryptographic Signatures Enforced
+            Dieme Architecture &bull; Cryptographic Signatures Enforced
           </p>
         </div>
       </div>
@@ -683,7 +683,7 @@ export default function GodPanelDashboard() {
               <ShieldAlert className="h-4 w-4 text-white" />
             </div>
             <div>
-              <span className="font-extrabold text-sm text-white tracking-tight">Digicast</span>
+              <span className="font-extrabold text-sm text-white tracking-tight">Dieme</span>
               <span className="text-[10px] text-slate-500 font-mono ml-1.5 font-bold">ROOT</span>
             </div>
           </div>

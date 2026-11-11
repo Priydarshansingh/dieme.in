@@ -23,6 +23,6 @@ export async function GET() {
       targetPayingUsers: 50,
       targetMonthlyRevenueINR: 7500,
     },
-    message: 'Digicast Core Backend & Security Gateway running cleanly.',
+    message: 'Dieme Core Backend Digicast Core Backend & Security Gateway running cleanly Security Gateway running cleanly.',
   });
 }

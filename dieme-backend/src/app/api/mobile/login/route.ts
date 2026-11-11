@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
     const authData = await authRes.json();
     const uid = authData.localId;
-    const displayName = authData.displayName || email.split("@")[0] || "Digicast User";
+    const displayName = authData.displayName || email.split("@")[0] || "Dieme User";
 
     // 2. We now have a verified UID. Upsert in Firestore users.
     await adminDb.doc(col.user(uid)).set({

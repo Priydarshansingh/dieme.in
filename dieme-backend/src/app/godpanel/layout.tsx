@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'God Panel — Digicast Root Control Center',
-  description: 'Isolated Master Admin Portal for Digicast Backend',
+  title: 'God Panel — Dieme Root Control Center',
+  description: 'Isolated Master Admin Portal for Dieme Backend',
   robots: {
     index: false,
     follow: false,

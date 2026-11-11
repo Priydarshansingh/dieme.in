@@ -1,8 +1,8 @@
 {
-  "name": "digicast-backend",
+  "name": "dieme-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "Digicast Core API, Relocated God Panel Admin Portal, Dual Currency Ledger & Security Gateway",
+  "description": "Dieme Core API, Relocated God Panel Admin Portal, Dual Currency Ledger & Security Gateway",
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",

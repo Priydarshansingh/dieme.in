@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Digicast"
+rootProject.name = "Dieme"
 include(":app")

@@ -15,13 +15,9 @@ export function SiteHeader({ onSelectProgram }: SiteHeaderProps) {
   return (
     <header className="sticky top-0 inset-x-0 z-50 bg-[#06080D]/85 backdrop-blur-xl border-b border-white/5 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-        {/* Official Digicast Brand Logo */}
+        {/* Official Dieme Brand Logo */}
         <Link href="/" className="flex items-center gap-3 group">
           <DigicastBrandLogo size="md" />
-          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono font-bold text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-            LIVE
-          </span>
         </Link>
 
         {/* Center Desktop Navigation */}

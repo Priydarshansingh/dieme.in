@@ -36,11 +36,5 @@ GoogleService-Info.plist
 *.pem
 typeui-extracted/
 typeui-main.zip
-# Legacy folder aliases
-digicast-android
-digicast-web
-digicast-backend
-digicast-extensions
-digicast-public-extensions
 
 Upi Open Source/

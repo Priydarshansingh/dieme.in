@@ -73,7 +73,7 @@ export default function Sidebar() {
       {/* Download Mobile App Link */}
       <div className="px-3 pb-3">
         <a
-          href="https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/download/digicast-app-latest.apk"
+          href="https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/digicast-app-latest.apk"
           target="_blank"
           rel="noopener noreferrer"
           download="digicast-app-latest.apk"

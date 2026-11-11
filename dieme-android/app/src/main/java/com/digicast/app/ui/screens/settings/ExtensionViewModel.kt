@@ -58,8 +58,8 @@ class ExtensionViewModel @Inject constructor(
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 
     companion object {
-        private const val GITHUB_REPO_URL = "https://github.com/Priydarshansingh/Digicast/releases"
-        private const val GITHUB_API_RELEASES = "https://api.github.com/repos/Priydarshansingh/Digicast/releases"
+        private const val GITHUB_REPO_URL = "https://github.com/Priydarshansingh/dieme.in/releases"
+        private const val GITHUB_API_RELEASES = "https://api.github.com/repos/Priydarshansingh/dieme.in/releases"
     }
 
     init {

@@ -1,9 +1,9 @@
-# Digicast Web Portal — Creator, Streamer & Editor Dashboard 🚀
+# Dieme Web Portal — Creator, Streamer & Editor Dashboard 🚀
 
-Frontend web application for the **Digicast** live stream intelligence and clip delivery platform.
+Frontend web application for the **Dieme** live stream intelligence and clip delivery platform.
 
-🔗 **Backend & God Panel Service:** [https://github.com/Priydarshansingh/digicast-backend](https://github.com/Priydarshansingh/digicast-backend)  
-📦 **Extensions & Assets Repo:** [https://github.com/Priydarshansingh/Digicast](https://github.com/Priydarshansingh/Digicast)
+🔗 **Backend & God Panel Service:** [https://github.com/Priydarshansingh/dieme-backend](https://github.com/Priydarshansingh/dieme-backend)  
+📦 **Extensions & Assets Repo:** [https://github.com/Priydarshansingh/dieme.in](https://github.com/Priydarshansingh/dieme.in)
 
 ---
 

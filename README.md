@@ -1,15 +1,15 @@
-# Digicast — YouTube Creators Platform & Stream Intelligence 🎬⚡
+# Dieme — YouTube Creators Platform & Stream Intelligence 🎬⚡
 
-Official repository for the **Digicast Web Portal** (`digicast-web`) and **Digicast Native Android App** (`digicast-android`).
+Official repository for the **Dieme Web Portal** (`dieme-web`) and **Dieme Native Android App** (`dieme-android`).
 
-🔗 **Decoupled Backend & God Panel Repo:** [https://github.com/Priydarshansingh/digicast-backend](https://github.com/Priydarshansingh/digicast-backend)  
-📦 **Official Extensions & Assets Repo:** [https://github.com/Priydarshansingh/Digicast](https://github.com/Priydarshansingh/Digicast)
+🔗 **Decoupled Backend & God Panel Repo:** [https://github.com/Priydarshansingh/dieme-backend](https://github.com/Priydarshansingh/dieme-backend)  
+📦 **Official Extensions & Assets Repo:** [https://github.com/Priydarshansingh/dieme.in](https://github.com/Priydarshansingh/dieme.in)
 
 ---
 
-## 🌟 What is Digicast?
+## 🌟 What is Dieme?
 
-**Digicast** is an all-in-one highlight capture, stream intelligence, and creator monetization ecosystem designed for YouTube livestreamers, video creators, and professional editors.
+**Dieme** is an all-in-one highlight capture, stream intelligence, and creator monetization ecosystem designed for YouTube livestreamers, video creators, and professional editors.
 
 It combines a local-first **Android App** (for on-device live chat analysis and lossless video trimming) with a high-performance **Web Dashboard** (for editor matchmaking, asset downloads, public leaderboards, in-app currency, and subscription management).
 
@@ -50,7 +50,7 @@ It combines a local-first **Android App** (for on-device live chat analysis and 
 - **Conversion Formula:**
   $$\mathbf{10\text{ D Coins} = 1\text{ DP} = ₹1\text{ INR}}$$
 - **D-Coins:** Micro-currency earned by watching sponsored ads (+5 D-Coins) or completing social growth tasks.
-- **DP (Digicast Points):** Main purchasing currency. 1 DP = ₹1 INR.
+- **DP (Dieme Points):** Main purchasing currency. 1 DP = ₹1 INR.
 - **In-App Feature Unlocks:** Users can spend DP balance directly to unlock **Permanent Watermark Removal** (29 DP) or subscribe to plans without credit cards.
 - **Withdrawal Restriction:** Enforced by code and policy — balances cannot be withdrawn to external bank accounts.
 
@@ -81,7 +81,7 @@ It combines a local-first **Android App** (for on-device live chat analysis and 
 
 ---
 
-## 📱 Digicast Android App (`digicast-android`)
+## 📱 Dieme Android App (`dieme-android`)
 
 Native Android mobile application built with **Kotlin, Jetpack Compose, Room (SQLite), and WorkManager**:
 - **Foreground Service Live Chat Capture:** Continuous local YouTube chat capture with persistent notification.
@@ -110,7 +110,7 @@ node scripts/test-all-phases.js
 ## 🛠️ Building the Android App
 
 ```bash
-cd digicast-android
+cd dieme-android
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ./gradlew assembleDebug copyDebugApkToBuildOutput
 ```
@@ -118,4 +118,4 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ---
 
 ## 📄 License
-Open Creator License &copy; 2026 Digicast Ecosystem. All rights reserved.
+Open Creator License &copy; 2026 Dieme Ecosystem. All rights reserved.

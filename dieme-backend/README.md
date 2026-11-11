@@ -1,12 +1,12 @@
-# Digicast Backend — Core API Engine & Relocated God Panel 🛡️⚡
+# Dieme Backend — Core API Engine & Relocated God Panel 🛡️⚡
 
-A decoupled, zero-trust backend microservice and administrative control center for the **Digicast** creator ecosystem. Deployed independently on a dedicated Vercel account.
+A decoupled, zero-trust backend microservice and administrative control center for the **Dieme** creator ecosystem. Deployed independently on a dedicated Vercel account.
 
 ---
 
 ## 🌟 Architectural Role & Responsibilities
 
-`digicast-backend` serves as the authoritative, tamper-proof backend hub powering the Digicast ecosystem across web and mobile clients:
+`dieme-backend` serves as the authoritative, tamper-proof backend hub powering the Dieme ecosystem across web and mobile clients:
 
 1. **Relocated God Panel (Admin Portal):** Master superadmin control center moved completely out of the public web frontend to prevent client-side credential exposure.
 2. **Double-Entry Virtual Currency Ledger:** Manages "D" Coins and "DP" balances. Balance cannot be directly mutated by clients; all changes are append-only verified ledger transactions.
@@ -23,7 +23,7 @@ A decoupled, zero-trust backend microservice and administrative control center f
 $$\mathbf{10\text{ D Coins} = 1\text{ DP} = ₹1\text{ INR}}$$
 
 - **D-Coins:** Earned as micro-rewards (e.g. +5 D-Coins per sponsored ad view, social sharing).
-- **DP (Digicast Points):** Main in-app purchasing currency. 1 DP = ₹1 INR.
+- **DP (Dieme Points):** Main in-app purchasing currency. 1 DP = ₹1 INR.
 - **Conversion:** Users can convert accumulated D-Coins into DP in multiples of 10.
 - **Withdrawal Restriction:** Earned balances **cannot** be withdrawn to external bank accounts. Balances are strictly utility tokens spent inside the platform on subscriptions, watermark removal (29 DP), and premium live stream assets.
 
@@ -111,7 +111,7 @@ NODE_ENV=development
 # Security & Master Admin Keys
 DIGICAST_HMAC_SECRET=your_super_secure_hmac_secret_key
 ADMIN_MASTER_API_KEY=godpanel_master_secret_key_superadmin_auth_9988
-ROOT_ADMIN_PASSWORD=DigicastGod2026!#
+ROOT_ADMIN_PASSWORD=DiemeGod2026!#
 CLIENT_WEB_URL=http://localhost:3000
 
 # AI Matchmaking
@@ -143,7 +143,7 @@ npm run build
 
 ## ☁️ Deployment on Vercel (Dedicated Account B)
 
-1. Push this repository to GitHub: `https://github.com/Priydarshansingh/digicast-backend.git`
+1. Push this repository to GitHub: `https://github.com/Priydarshansingh/dieme-backend.git`
 2. Connect the repository to your dedicated **Vercel Account B**.
 3. Configure the environment variables (`DIGICAST_HMAC_SECRET`, `ADMIN_MASTER_API_KEY`).
 4. Deploy! The God Panel will be immediately accessible at `https://your-backend.vercel.app/godpanel`.

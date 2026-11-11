@@ -19,10 +19,10 @@ export interface ExtensionCatalogItem {
 const DEFAULT_EXTENSIONS: ExtensionCatalogItem[] = [
   {
     id: "com.digicast.ext.clipengine",
-    name: "Digicast Clip Engine",
+    name: "Dieme Clip Engine",
     version: "1.0.0",
     description: "Core high-performance video trimming & yt-dlp downloader engine for local clip extraction.",
-    downloadUrl: "https://github.com/Priydarshansingh/Digicast/releases/download/v1.0.0/clip-engine.dcast",
+    downloadUrl: "https://github.com/Priydarshansingh/dieme.in/releases/download/v1.0.0/clip-engine.dcast",
     entryClass: "com.digicast.ext.clipengine.ClipEngineExtension",
     type: "CLIP_PROCESSOR",
     fileSizeBytes: 24500000,
@@ -34,7 +34,7 @@ const DEFAULT_EXTENSIONS: ExtensionCatalogItem[] = [
     name: "AI Chat Sentiment & Hype Tracker",
     version: "1.0.0",
     description: "Real-time engagement spike detection and live reaction clustering extension.",
-    downloadUrl: "https://github.com/Priydarshansingh/Digicast/releases/download/v1.0.0/chat-analyzer.dcast",
+    downloadUrl: "https://github.com/Priydarshansingh/dieme.in/releases/download/v1.0.0/chat-analyzer.dcast",
     entryClass: "com.digicast.ext.chatanalyzer.ChatAnalyzerExtension",
     type: "CHAT_ANALYZER",
     fileSizeBytes: 4200000,
@@ -46,10 +46,10 @@ const DEFAULT_EXTENSIONS: ExtensionCatalogItem[] = [
 export async function GET(req: NextRequest) {
   try {
     // Attempt to query GitHub Releases API for dynamic catalog
-    const ghRes = await fetch("https://api.github.com/repos/Priydarshansingh/Digicast/releases", {
+    const ghRes = await fetch("https://api.github.com/repos/Priydarshansingh/dieme.in/releases", {
       headers: {
         "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "Digicast-Catalog-Service",
+        "User-Agent": "Dieme-Catalog-Service",
       },
       next: { revalidate: 300 } // Cache for 5 minutes
     });
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({
             extensions: dynamicItems,
             source: "github_releases",
-            repository: "https://github.com/Priydarshansingh/Digicast",
+            repository: "https://github.com/Priydarshansingh/dieme.in",
           });
         }
       }
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       extensions: DEFAULT_EXTENSIONS,
       source: "official_manifest",
-      repository: "https://github.com/Priydarshansingh/Digicast",
+      repository: "https://github.com/Priydarshansingh/dieme.in",
     });
 
   } catch (err: any) {
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       extensions: DEFAULT_EXTENSIONS,
       source: "fallback_manifest",
-      repository: "https://github.com/Priydarshansingh/Digicast",
+      repository: "https://github.com/Priydarshansingh/dieme.in",
     });
   }
 }

@@ -1,19 +1,19 @@
-# Digicast Official Extensions & Creator Assets 🎬📦
+# Dieme Official Extensions & Creator Assets 🎬📦
 
-Official extension packages, facecam overlays, and companion stream tools for the **Digicast** creator ecosystem.
+Official extension packages, facecam overlays, and companion stream tools for the **Dieme** creator ecosystem.
 
-🔗 **Official Web Platform:** [https://digicast-web.vercel.app](https://digicast-web.vercel.app)  
-📱 **Latest Android App (APK):** [Download digicast-app-latest.apk (v1.0.0)](https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/download/digicast-app-latest.apk)
+🔗 **Official Web Platform:** [https://www.dieme.in](https://www.dieme.in)  
+📱 **Latest Android App (APK):** [Download digicast-app-latest.apk (v1.0.0)](https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/digicast-app-latest.apk)
 
 ---
 
 ## 📲 Official Android App Download
 
-Download the latest version of the official **Digicast Studio Android App**:
+Download the latest version of the official **Dieme Studio Android App**:
 
 | Package | Version | Direct Download Link | Format |
 |---|---|---|---|
-| **Digicast Studio Mobile** | `v1.0.0 (Latest)` | [📥 **Download APK**](https://raw.githubusercontent.com/Priydarshansingh/Digicast/main/download/digicast-app-latest.apk) | `.apk` (~30 MB) |
+| **Dieme Studio Mobile** | `v1.0.0 (Latest)` | [📥 **Download APK**](https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/digicast-app-latest.apk) | `.apk` (~30 MB) |
 
 - **Direct GitHub Repository Path:** [`download/digicast-app-latest.apk`](download/digicast-app-latest.apk)
 - **Included Features:**
@@ -23,9 +23,9 @@ Download the latest version of the official **Digicast Studio Android App**:
   - 24-Hour Stream Pass via sponsored ad view
   - Verified Editors discovery & rate cards
 
-## 🌟 What is Digicast?
+## 🌟 What is Dieme?
 
-**Digicast** is an instant highlight capture, stream intelligence, and clip delivery ecosystem built for YouTube livestreamers, content creators, and professional video editing teams.
+**Dieme** is an instant highlight capture, stream intelligence, and clip delivery ecosystem built for YouTube livestreamers, content creators, and professional video editing teams.
 
 It allows creators to capture clutch gaming moments, podcast discussions, and live reactions in real-time, process high-resolution video directly on-device with zero cloud privacy exposure, and deliver ready-to-edit clips to video editors instantly.
 
@@ -36,7 +36,7 @@ It allows creators to capture clutch gaming moments, podcast discussions, and li
 ### 1. Modular Mobile Extensions (`.dcast`)
 - ⚡ **YouTube Stream Video Downloader:** High-speed on-device stream video & audio extraction supporting 1080p60 and 4K.
 - ✂️ **FFmpeg Precision Video Trimmer:** Lossless precision stream cutter and high-efficiency MP4 encoder.
-- 🎬 **Digicast Clip Engine (Full Suite):** All-in-one automated pipeline uniting detection, download, and trimming.
+- 🎬 **Dieme Clip Engine (Full Suite):** All-in-one automated pipeline uniting detection, download, and trimming.
 
 ### 2. Live Stream Assets
 - 🖼️ **Facecam Overlays:** Neon Cyberpunk animated webcam borders, Minimal Titanium audio visualizer borders.
@@ -52,13 +52,13 @@ It allows creators to capture clutch gaming moments, podcast discussions, and li
 |---|---|---|---|
 | **YouTube Video Downloader** | `v1.0.0` | Android 8.0+ | Direct on-device stream video & audio downloader. |
 | **FFmpeg Video Trimmer** | `v1.0.0` | Android 8.0+ | Lossless stream cutter & MP4 encoder. |
-| **Digicast Clip Engine (Full Suite)** | `v1.0.0` | Android 8.0+ | Integrated auto-clip pipeline. |
+| **Dieme Clip Engine (Full Suite)** | `v1.0.0` | Android 8.0+ | Integrated auto-clip pipeline. |
 
 ---
 
 ## 📲 How to Install & Use
 
-1. Launch the **Digicast Mobile App** on your Android device.
+1. Launch the **Dieme Mobile App** on your Android device.
 2. Navigate to **Settings → Extensions Catalog**.
 3. Select any extension package to install with one click.
 4. For live stream overlays, import downloaded `.webm` or `.png` assets directly into OBS Studio or Streamlabs as a Media Source.
@@ -66,5 +66,5 @@ It allows creators to capture clutch gaming moments, podcast discussions, and li
 ---
 
 ## 🌐 Official Links
-- **Platform Web Portal:** [https://digicast-web.vercel.app](https://digicast-web.vercel.app)
+- **Platform Web Portal:** [https://www.dieme.in](https://www.dieme.in)
 - **License:** Open Creator Community License

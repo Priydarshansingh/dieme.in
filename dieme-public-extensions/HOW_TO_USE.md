@@ -1,6 +1,6 @@
-# Digicast Extensions Guide
+# Dieme Extensions Guide
 
-This guide explains how to install and use official `.dcast` extensions in the Digicast mobile ecosystem.
+This guide explains how to install and use official `.dcast` extensions in the Dieme mobile ecosystem.
 
 ---
 
@@ -14,7 +14,7 @@ This guide explains how to install and use official `.dcast` extensions in the D
    - Lossless precision trimming without re-encoding quality loss.
    - Fast frame-accurate cuts for highlight clips.
 
-3. **Digicast Clip Engine - Full Suite (`com.digicast.ext.clipengine`)**
+3. **Dieme Clip Engine - Full Suite (`com.digicast.ext.clipengine`)**
    - All-in-one automated pipeline combining downloader and trimmer.
 
 ---
@@ -22,15 +22,15 @@ This guide explains how to install and use official `.dcast` extensions in the D
 ### 📲 How to Install Extensions
 
 #### Method 1: In-App Extensions Catalog (Recommended)
-1. Open the **Digicast App** on your device.
+1. Open the **Dieme App** on your device.
 2. Navigate to **Settings → Extensions Catalog**.
 3. Tap **Install** next to any extension.
 4. The extension will automatically download and activate.
 
 #### Method 2: Direct 1-Tap Installation (`.dcast` file)
-1. Download any `.dcast` package from the [Releases](https://github.com/Priydarshansingh/Digicast/releases) or the [`extensions/`](extensions/) folder.
+1. Download any `.dcast` package from the [Releases](https://github.com/Priydarshansingh/dieme.in/releases) or the [`extensions/`](extensions/) folder.
 2. Tap the downloaded `.dcast` file in your device's file manager or browser.
-3. The Digicast App will open and register the extension instantly.
+3. The Dieme App will open and register the extension instantly.
 
 ---
 

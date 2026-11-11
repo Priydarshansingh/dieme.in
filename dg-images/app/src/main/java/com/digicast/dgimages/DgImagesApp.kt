@@ -44,3 +44,4 @@ class DgImagesApp : Application() {
         }
     }
 }
+

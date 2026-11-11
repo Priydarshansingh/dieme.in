@@ -107,11 +107,23 @@ class DgImagesHttpDaemon(
                         val maskPoints = json.optString("maskPoints", "[]")
                         val prompt = json.optString("prompt", "Enhanced clutch gaming thumbnail")
 
-                        val result = ImageInpaintEngine.processInpaintTask(
+                        val refList = mutableListOf<String>()
+                        val refArray = json.optJSONArray("referenceImages")
+                        if (refArray != null) {
+                            for (i in 0 until refArray.length()) {
+                                refList.add(refArray.getString(i))
+                            }
+                        }
+
+                        val preferNewChat: Boolean? = if (json.has("preferNewChat")) json.optBoolean("preferNewChat") else null
+
+                        val result = com.digicast.dgimages.browser.ChatGptSessionManager.executeGeneration(
                             context = context,
+                            prompt = prompt,
                             baseImageUrl = baseImageUrl,
                             maskPointsJson = maskPoints,
-                            prompt = prompt
+                            referenceImageUrls = refList,
+                            forceNewChat = preferNewChat
                         )
 
                         val responseJson = JSONObject().apply {
@@ -150,3 +162,4 @@ class DgImagesHttpDaemon(
         writer.flush()
     }
 }
+

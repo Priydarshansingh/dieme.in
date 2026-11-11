@@ -83,12 +83,34 @@ class DgImagesExtension : ImageStudioExtension {
 
             val payload = JSONObject().apply {
                 put("baseImageUrl", baseImageUrl)
-                put("maskPoints", maskPointsJson ?: "[]")
                 put("prompt", prompt)
                 put("aspectRatio", "16:9")
                 put("resolution", "1080p")
                 put("client", "Digicast-Core")
                 put("timestamp", System.currentTimeMillis())
+
+                if (maskPointsJson != null && maskPointsJson.trim().startsWith("{")) {
+                    try {
+                        val maskObj = JSONObject(maskPointsJson)
+                        if (maskObj.has("maskPoints")) {
+                            put("maskPoints", maskObj.get("maskPoints"))
+                        } else if (maskObj.has("pins")) {
+                            put("maskPoints", maskObj.get("pins"))
+                        } else {
+                            put("maskPoints", "[]")
+                        }
+                        if (maskObj.has("referenceImages")) {
+                            put("referenceImages", maskObj.getJSONArray("referenceImages"))
+                        }
+                        if (maskObj.has("preferNewChat")) {
+                            put("preferNewChat", maskObj.getBoolean("preferNewChat"))
+                        }
+                    } catch (_: Exception) {
+                        put("maskPoints", maskPointsJson)
+                    }
+                } else {
+                    put("maskPoints", maskPointsJson ?: "[]")
+                }
             }
 
             onProgress(40, "Sending inpaint task to Dg-Images...")
@@ -153,3 +175,4 @@ class DgImagesExtension : ImageStudioExtension {
         }
     }
 }
+

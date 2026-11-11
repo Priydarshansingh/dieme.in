@@ -32,3 +32,4 @@ interface ImageStudioExtension : DigicastExtension {
         onProgress: (progressPercent: Int, statusMessage: String) -> Unit
     ): Result<String>
 }
+

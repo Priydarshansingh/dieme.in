@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "dg-images"
 include(":app")
+

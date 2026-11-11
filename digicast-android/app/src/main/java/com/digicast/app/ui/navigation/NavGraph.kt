@@ -37,6 +37,7 @@ import com.digicast.app.ui.screens.settings.SettingsAuthWrapperViewModel
 import com.digicast.app.ui.screens.settings.SettingsScreen
 import com.digicast.app.ui.screens.streams.StreamDetailScreen
 import com.digicast.app.ui.screens.streams.StreamsScreen
+import com.digicast.app.ui.screens.studio.ThumbnailStudioScreen
 import com.digicast.app.ui.screens.team.TeamScreen
 import com.digicast.app.ui.theme.DigicastDeepNavy
 
@@ -256,7 +257,13 @@ fun DigicastNavGraph(
                 HomeScreen(
                     onNavigateToStreamDetail = { navController.navigate(Screen.StreamDetail.createRoute(it)) },
                     onNavigateToClips = { navController.navigate(Screen.Clips.route) },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToThumbnailStudio = { navController.navigate(Screen.ThumbnailStudio.route) }
+                )
+            }
+            composable(Screen.ThumbnailStudio.route) {
+                ThumbnailStudioScreen(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.Streams.route) {

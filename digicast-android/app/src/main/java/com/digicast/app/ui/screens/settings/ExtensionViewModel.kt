@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.digicast.app.api.extension.ClipProcessorExtension
 import com.digicast.app.api.extension.DigicastExtension
 import com.digicast.app.api.extension.ExtensionLoader
+import com.digicast.app.api.extension.ImageStudioExtension
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +51,9 @@ class ExtensionViewModel @Inject constructor(
     private val _loadedProcessor = MutableStateFlow<ClipProcessorExtension?>(null)
     val loadedProcessor: StateFlow<ClipProcessorExtension?> = _loadedProcessor.asStateFlow()
 
+    private val _loadedImageStudio = MutableStateFlow<ImageStudioExtension?>(null)
+    val loadedImageStudio: StateFlow<ImageStudioExtension?> = _loadedImageStudio.asStateFlow()
+
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 
@@ -63,15 +67,34 @@ class ExtensionViewModel @Inject constructor(
         val clipEngineFile = File(context.filesDir, "com.digicast.ext.clipengine.dcast")
         if (!clipEngineFile.exists() || clipEngineFile.length() < 1000L) {
             try {
+                if (clipEngineFile.exists()) clipEngineFile.setWritable(true)
                 context.assets.open("extensions/com.digicast.ext.clipengine.dcast").use { input ->
                     FileOutputStream(clipEngineFile).use { output ->
                         input.copyTo(output)
                     }
                 }
+                clipEngineFile.setReadOnly()
             } catch (e: Exception) {
                 // Ignore if asset missing
             }
         }
+
+        // Auto-provision official Dg-Images AI bridge extension from bundled assets
+        val dgImagesFile = File(context.filesDir, "com.digicast.ext.dgimages.dcast")
+        if (!dgImagesFile.exists() || dgImagesFile.length() < 1000L) {
+            try {
+                if (dgImagesFile.exists()) dgImagesFile.setWritable(true)
+                context.assets.open("extensions/com.digicast.ext.dgimages.dcast").use { input ->
+                    FileOutputStream(dgImagesFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                dgImagesFile.setReadOnly()
+            } catch (e: Exception) {
+                // Ignore if asset missing
+            }
+        }
+
         loadCatalog()
     }
 
@@ -103,6 +126,15 @@ class ExtensionViewModel @Inject constructor(
                 downloadUrl = "https://digicast-web.vercel.app/extensions/youtube-downloader.dcast",
                 entryClass = "com.digicast.ext.clipengine.ClipEngineExtension",
                 isInstalled = checkIsInstalled("com.digicast.ext.youtubedl")
+            ),
+            ExtensionRegistryItem(
+                id = "com.digicast.ext.dgimages",
+                name = "Dg-Images AI Bridge",
+                version = "1.0.0",
+                description = "High-fidelity thumbnail generation & object inpainting bridge for Dg-Images companion app.",
+                downloadUrl = "https://digicast-web.vercel.app/extensions/dgimages-bridge.dcast",
+                entryClass = "com.digicast.ext.dgimages.DgImagesExtension",
+                isInstalled = checkIsInstalled("com.digicast.ext.dgimages")
             )
         )
         _extensions.value = defaultList
@@ -229,6 +261,13 @@ class ExtensionViewModel @Inject constructor(
                             throw java.io.IOException("Failed to download extension (.dcast). HTTP ${response.code}")
                         }
                     }
+
+                    // Android 14+ requires dynamically loaded dex files to be read-only
+                    try {
+                        targetFile.setReadOnly()
+                    } catch (e: Exception) {
+                        // Ignored
+                    }
                 }
 
                 _extensions.value = _extensions.value.map {
@@ -259,6 +298,9 @@ class ExtensionViewModel @Inject constructor(
             if (_loadedProcessor.value?.extensionId == item.id) {
                 _loadedProcessor.value = null
             }
+            if (_loadedImageStudio.value?.extensionId == item.id) {
+                _loadedImageStudio.value = null
+            }
             _statusMessage.value = "${item.name} removed."
         }
     }
@@ -269,7 +311,22 @@ class ExtensionViewModel @Inject constructor(
             val extension = extensionLoader.loadExtension(file.absolutePath, item.entryClass)
             if (extension is ClipProcessorExtension) {
                 _loadedProcessor.value = extension
+            } else if (extension is ImageStudioExtension) {
+                _loadedImageStudio.value = extension
             }
         }
+    }
+
+    fun getImageStudio(): ImageStudioExtension? {
+        if (_loadedImageStudio.value != null) return _loadedImageStudio.value
+        val file = File(context.filesDir, "com.digicast.ext.dgimages.dcast")
+        if (file.exists()) {
+            val extension = extensionLoader.loadExtension(file.absolutePath, "com.digicast.ext.dgimages.DgImagesExtension")
+            if (extension is ImageStudioExtension) {
+                _loadedImageStudio.value = extension
+                return extension
+            }
+        }
+        return null
     }
 }

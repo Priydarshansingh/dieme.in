@@ -1,285 +1,213 @@
-# Digicast AI Features — Master Plan (v0.1 DRAFT)
+# Digicast AI Features — Master Plan (v1.0 FINAL)
 
-**Status:** PROPOSED — for discussion. No code until SPEC is finalized.
-**Scope:** Two new AI features — (A) Thumbnail Studio, (B) Voice Vault (voice cloning).
+**Status:** PROPOSED — implementation-ready. Per `PROJECT_RULES.md`, still requires `.gsd/SPEC.md` to be marked `FINALIZED` before code.
+**Supersedes:** v0.1 and the user's v0.4 two-app architecture draft.
 **Date:** 2026-11-03
 
 ---
 
-## 0. TL;DR — the shape of this
+## PART 0 — Verdict on your v0.4 plan
 
-You are describing **two new products**, not two screens:
+Your plan is a **big improvement** over v0.1. Three things you got genuinely right and I've kept:
 
-1. **Digicast Companion APK** (`com.digicast.companion`) — a *separate, install-once* app that does the heavy local work: downloads video/audio from a link, extracts frames, runs local AI, and talks to the Digicast app **peer-to-peer over the local network**. Digicast itself stays a thin client.
-2. **Voice Vault** — voice cloning that lives **inside Digicast as a first-class home-screen feature** (not a separate app), built on the **exact same `.dcast` extension mechanism** you already ship (DexClassLoader) so the heavy model runs as an installed module.
+1. **The two-app split is correct.** Main app stays light, companion carries the heavy models, streaming is never interrupted. That's the right architecture and my v0.1 was wrong to imply the companion should only be a download worker.
+2. **The `maxresdefault.jpg` CDN grab is the best idea in the whole document.** You do *not* need to download a video to get a thumbnail — YouTube serves the existing thumbnail at a predictable URL. That turns "download a VOD" (expensive, slow, legally grey) into "fetch one JPEG" (instant, trivial). This single change is worth more than everything else combined.
+3. **Phase ordering** is sensible and dependency-correct.
 
-Both are gated by your existing **DP / D-Coins ledger** and **subscription plans**. Free users get a hard daily cap; paid users get a monthly quota.
+Now the problems. I'm not going to soften these, because they're the difference between a plan that ships and one that stalls.
 
-The single most important architectural decision in this whole plan is **#2 — the Local Bridge**. Everything else is standard app work. Get that wrong and nothing connects. So read §3 carefully.
+### 🔴 Blocker 1 — "ChatGPT image engine" is not a thing you can just call
+You cannot POST an image to "ChatGPT" and get an edited image back with a prompt. What actually exists:
+
+| Provider | Endpoint | Edits an input image? | Masks/inpainting? | Text rendering |
+|---|---|---|---|---|
+| **OpenAI** | `gpt-image-1` (Images API) | ✅ `POST /v1/images/edits` | ✅ mask param | Good |
+| **Google** | Imagen / Gemini image | ✅ (Gemini) | Partial | Good |
+| **Replicate / fal.ai** | Flux family | ✅ (Flux Fill / Kontext) | ✅ Flux Fill | Fair |
+
+For an **injection / replace-a-region** workflow, the correct primitive is an **image-edit call with a mask**, on **`gpt-image-1`** (or **Flux Kontext** on Replicate/fal if you want cheaper/faster). The plan must name a concrete provider and model, and build a **provider adapter** so it isn't welded to one. "Dispatch to Vision/ChatGPT model" is a placeholder, not a design.
+
+### 🔴 Blocker 2 — the Android foreground service type will crash
+Your plan has the companion running "background foreground service" with a local HTTP daemon. Two concrete problems:
+
+- **`FOREGROUND_SERVICE_TYPE` is mandatory and must match the work.** A localhost server while a user waits is **not** `dataSync` in the eyes of future Android. Model inference while the user is *watching the screen* is best served by a **bound service** or a **short-lived FGS**, not a permanently-always-on daemon.
+- **Always-on localhost port = battery + security liability.** Binding `127.0.0.1:5477` unconditionally means (a) it's on when it doesn't need to be, (b) *any* app on the device can probe it. A fixed port is guessable.
+
+**Fix:** the daemon starts **on demand** (when Digicast commissions a job) and stops after an idle timeout. Port is **dynamic**; Digicast discovers it via the health probe range or a shared preference written by the companion. Keep the pairing token regardless.
+
+### 🟠 Blocker 3 — `debpalash/VoiceStudio` is unverified, and I could not check it
+This environment blocks GitHub, so **I could not confirm this repository exists, or that its license permits commercial use, or that it contains OmniVoice/Sherpa-ONNX pipelines, or that any of it compiles for Android.** You've named it as the entire foundation of Phase 3. Before you write a line of Phase 3 code, verify:
+
+- Does the repo exist and is it actively maintained?
+- **What is its license?** (MIT/Apache = fine. GPL/AGPL = viral, and a *closed-source commercial app shipping it* is a legal problem. "No license" = legally unusable.)
+- Does it actually ship Android/ONNX mobile artifacts, or is it Python desktop code you'd have to port?
+- What's the real model size and inference time on a mid-range phone?
+
+**Fallback if it doesn't pan out:** **Piper** (fast, per-voice models, ONNX, Android-friendly) or **sherpa-onnx** directly for TTS. Neither does true zero-shot cloning, so cloning may need a **cloud worker** (Coqui XTTS / OpenVoice / ElevenLabs / PlayHT) as Phase 3A with on-device as 3B. Don't put a single unverified repo on the critical path.
+
+### 🟠 Blocker 4 — the plan dropped the safety layer I flagged
+v0.4 says nothing about **consent, watermarking, or public-figure limits** for voice cloning. That's not optional garnish; shipping voice cloning without it is the kind of thing that gets an app pulled and, in India, invites legal exposure. It also dropped the **quota model**, which was your actual stated requirement ("premium gets limits, free gets 1–2/day"). Both are reinstated below as first-class phases.
+
+### 🟡 Smaller corrections
+- **BYOK broke silently.** v0.4 keeps "BYOK" but then routes generation *through the companion*, which implies Digicast-side or companion-side keys. Decide: does the user bring a key (and where does it live), or does Digicast hold the key? The hybrid ticket model from v0.1 still stands.
+- **"Zero-config" is contradicted by the pairing token.** You can have *zero-config discovery* or you can have *a shared secret*, but the secret has to come from somewhere. Resolve it via the backend (both apps paired to the same `ANDROID_ID` — mechanism you already have).
+- **Main APK "~35MB"** — verify against your real build. It's plausible but don't put a number in the SPEC you haven't measured.
+- **`Downloads/Digicast/`** — on Android 10+ (you're `targetSdk 35`) you cannot write arbitrary paths. Use **MediaStore** + `RELATIVE_PATH=Download/Digicast/...`. You already do this in `ClipGenerateScreen.kt`, so copy that pattern.
+
+**Verdict: the architecture is right, the specifics need fixing. Proceed — with this version.**
 
 ---
 
-## 1. What I found in the repo (grounding)
+## PART 1 — Architecture (locked)
 
-I inspected the actual codebase before writing this. Key facts that shape the plan:
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        DIGICAST MAIN APP (Client)                      │
+│   • Home Screen Bento UI — Thumbnail Studio (cyan), Voice Studio (violet)
+│   • 16:9 Thumbnail Canvas + Object Injection / Mask Selector           │
+│   • Script & Dialogue Box (multi-speaker)                              │
+│   • MediaStore save → Download/Digicast/{Thumbnails,Voice}/            │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │ Local Bridge — 127.0.0.1 (dynamic port)
+                                   │ + HMAC pairing token (backend-issued)
+                                   ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│              DIGICAST SUPPORT APP (install once)                       │
+│                       com.digicast.companion                           │
+│   ├── 🎨 Thumbnail Engine                                              │
+│   │   • CDN grabber (maxresdefault → hq → mq fallback)                 │
+│   │   • Composite: base + user mask + prompt                           │
+│   │   • Provider adapter → image-edit call (gpt-image-1 / Flux Kontext)│
+│   │                                                                    │
+│   └── 🎙️ Voice Studio Engine                                          │
+│       • Phase 3A: cloud worker (XTTS / OpenVoice / hosted)             │
+│       • Phase 3B: on-device ONNX (sherpa-onnx / Piper) behind same API │
+│       • Consent gate + AI watermark + public-figure block              │
+└────────────────────────────────────────────────────────────────────────┘
+```
 
-| Thing | Reality in repo | Consequence for this feature |
-|---|---|---|
-| **Extension system** | `ExtensionLoader.kt` uses `DexClassLoader` to load `.dcast` files (which are APKs renamed). Interface `DigicastExtension` has `type = COMPANION_TOOL` **already defined but unused**. | Voice cloning is *natively* a `.dcast` extension. The `COMPANION_TOOL` enum is literally waiting for this. |
-| **`ClipProcessorExtension`** | `processClip(videoId, start, end, outputDir, onProgress)` — the download+trim contract already exists. | Thumbnail frame-extraction reuses this shape (download a segment → grab frame). |
-| **Existing clip UI** | `ClipGenerateScreen.kt` already embeds a YouTube iframe player and does on-device trimming via yt-dlp + FFmpeg locally. | The "give it a link → get a frame" flow is 70% built already. |
-| **Ledger** | `digicast-backend/src/lib/ledger.ts` — append-only, **idempotency keys already implemented**, `LedgerSource` union. | Quota/metering plugs straight in. Just add two new `LedgerSource` values. |
-| **Currency** | `10 D-Coins = 1 DP = ₹1`. `INR_PER_DP = 1`. | Pricing math is trivial: 1 generation = N DP. |
-| **Plans** | `plans.ts`: Free 14-day trial, ₹29 intro, ₹149/mo, ₹449/qtr, ₹999/yr. | "Premium users get limits" = attach quotas to these plan IDs. |
-| **Backend auth** | Firebase Admin (`adminAuth`, `adminDb`), `PlatformUser.role` = streamer/editor/admin/owner. | Quota checks server-side, keyed on `uid`. |
-| **Existing AI** | `groqClient.ts` calls Groq Cloud. `adStore`, `assetStore`, `telegram` all server-side. | You already have a "call a cloud AI provider" pattern to copy. |
-| **Android app** | `com.digicast.app`, minSdk 26, targetSdk 35. Room DB, Hilt, WorkManager, foreground service. | Companion app will share the same stack + design system. |
-| **App links** | Digicast registers `scheme="digicast"` + `.dcast` MIME handler in the manifest. | Deep-link mechanism for "open in Digicast" already exists. |
-
-**Bottom line:** you've already built the plumbing for both features. This plan mostly wires existing parts together.
+**Why this wins (your three points, kept verbatim in spirit):** main app stays light and policy-clean; heavy models live in the companion; heavy jobs never touch Digicast's stream viewer, chat overlay, or clip trimmer.
 
 ---
 
-## 2. The two features, in one paragraph each
+## PART 2 — Workflows
 
 ### A. Thumbnail Studio
-User pastes a stream/VOD YouTube link + a prompt ("make a dramatic gaming thumbnail, shocked face, red arrows"). Digicast asks the **Companion APK** (over local network) to fetch the video, extract a set of candidate frames (the "image"), and hand them back. Digicast then sends those frames + the prompt to the user's chosen image model using **BYOK** (bring your own key — the user logs into their own provider account inside Digicast and their own quota is consumed). Result: a thumbnail. Quality tiers differ by "proper quality and work" — draft (fast/cheap) vs final (upscaled, high-res).
 
-### B. Voice Vault
-Anyone can clone a voice by uploading a **5–10 minute audio sample**. The clone is saved to their Vault. **Premium users get a monthly generation quota; free users get 1–2 generations per day on their phone.** Cloning runs **locally as a `.dcast` extension** (the "extension method" you described), but its entry point and gallery are **surfaced on the main Home screen**, not buried in Settings.
+```
+[1] Home tile → Thumbnail Studio
+[2] Paste livestream / video link (or video ID)
+[3] CDN grab: maxresdefault.jpg → fallback hqdefault → mqdefault
+    (NO video download. ~1s, ~100KB.)
+[4] 16:9 canvas opens with the base image
+[5] Object Injection:
+      • draw a mask over the region to replace, OR add an overlay asset
+      • prompt: "anime gamer face, red glowing arrows, text 'CLUTCH!'"
+[6] Dispatch → Support App:
+      POST /v1/thumbnail/generate { baseImage, mask, prompt, quality }
+[7] Support App → provider adapter → image-edit with mask
+[8] Live preview returned to Digicast
+[9] Download → MediaStore → Download/Digicast/Thumbnails/
+```
+
+### B. Voice Studio
+
+```
+[1] Home tile → Voice Studio
+[2] Choose operation:
+      (A) Clone Voice   — record / upload 3–15s clean sample  [+ CONSENT GATE]
+      (B) Design Voice  — prompt: "energetic 20s Hindi esports caster"
+      (C) Script / Dialogue — multi-speaker dialogue box
+[3] Dispatch → Support App:
+      POST /v1/voice/synthesize { mode, voiceProfileId, script, lang }
+[4] Engine runs (cloud worker in 3A, on-device ONNX in 3B)
+[5] Audio preview in Digicast
+[6] Download → MediaStore → Download/Digicast/Voice/
+```
 
 ---
 
-## 3. ⭐ The Local Bridge — how the Companion APK connects to Digicast
+## PART 3 — The Local Bridge (corrected)
 
-This is the part you kept circling back to ("goes through a local connection to the app"). Here is the honest engineering picture.
+1. **Discovery.** Companion serves `GET /v1/health` on `127.0.0.1` at a **dynamically chosen port**; it publishes the port + a readiness flag via a shared preference both apps can read (same signing identity) or by scanning a small port range. Digicast probes on app start.
+2. **Lifecycle.** Daemon starts when the companion is commissioned and **stops after an idle timeout** (no always-on port). Foreground service type chosen to match actual work; prefer a bound service or short FGS over a permanent daemon.
+3. **First-time UX.** If no companion detected, Digicast shows a 1-tap dialog: *"Install Digicast Studio Companion (install once) to activate Thumbnail AI and Voice Studio"* → direct APK install.
+4. **Pairing (the security that makes a localhost port safe).**
+   - Both apps register the same `ANDROID_ID` with the backend. *You already have this*: `DeviceSecureStorage.kt` → `/api/mobile/device`.
+   - Backend issues a pairing token = `HMAC(deviceId + pairId)` using `DIGICAST_HMAC_SECRET`. *Reuse `security.ts` verbatim* — it already does timing-safe HMAC.
+   - Every localhost request carries `X-Digicast-Pair`. The daemon rejects anything else. Bind `127.0.0.1` only, never `0.0.0.0`.
+5. **Payloads.** Files (frames, audio) move as **FileProvider URIs**, never base64. Progress streams back so the UI can show a bar. `POST /v1/cancel/{jobId}` cancels.
 
-### 3.1 The problem with the literal reading
-Android does **not** let two separate apps talk over `127.0.0.1` reliably out of the box, and a companion APK cannot just "be an internal service" of Digicast. There is no OS-level channel where one APK's code runs inside another APK. So "connect through a local connection" has to be built as **one of these four options**.
+---
 
-### 3.2 Option matrix
+## PART 4 — Metering, quota & keys
 
-| # | Mechanism | How it works | Pros | Cons | Verdict |
-|---|---|---|---|---|---|
-| **1** | **Embedded local HTTP server** (NanoHTTPD/Ktor) in the Companion APK; Digicast is the client | Companion runs a tiny server on `127.0.0.1:<port>`. Digicast POSTs the link, polls for frames. | True "local connection". Language-agnostic. Easy to debug with curl. | A localhost port is reachable by *any* app on device → needs a **shared secret** (token) handshake. Server must stay alive. | ✅ **Recommended** |
-| **2** | **Android Bound + AIDL Service** | Companion exposes a bound Service; Digicast binds by explicit component. | Proper Android IPC. No open port. | Both apps must share the exact AIDL interface; fragile across versions; can't be tested from desktop. | Backup option |
-| **3** | **ContentProvider + FileProvider** | Companion writes frames to a shared provider; Digicast reads. | Simple for data passing. | Not a "connection" — no live control/streaming. | For result handoff only |
-| **4** | **Broadcast / Intent chain** | Companion launched via intent, returns via `startActivityForResult`. | Trivial. | Clunky UX (app switching), no progress feedback. | Last resort |
+**New `LedgerSource` values** (append to the union in `types/index.ts`):
+`THUMBNAIL_GEN`, `VOICE_CLONE_CREATE`, `VOICE_GEN`.
 
-### 3.3 Recommended design (Option 1)
+**Quota (your numbers, made concrete):**
 
-```
-┌──────────────────────────┐        localhost:5477         ┌───────────────────────────┐
-│   DIGICAST (main app)    │  ── POST /v1/frames ───────►  │  COMPANION APK            │
-│   com.digicast.app       │                                │  com.digicast.companion   │
-│                          │  ◄── {jobId, frames[]} ─────  │  • yt-dlp download        │
-│  • URL input             │                                │  • FFmpeg frame extract   │
-│  • prompt box            │  ── GET /v1/health ─────────► │  • (opt) local AI models  │
-│  • BYOK provider UI      │                                │  • files written to       │
-│  • renders final image   │  ◄── shared FileProvider ───  │    shared external dir    │
-└──────────────────────────┘                                └───────────────────────────┘
-          │                                                              │
-          └──────────── pairing token (HMAC, from backend) ─────────────┘
-```
-
-**Handshake & security (this matters — an open localhost port is a real risk):**
-
-1. User installs the Companion APK once. Both apps register the same `ANDROID_ID` with the Digicast backend (mechanism already exists: `DeviceSecureStorage.kt` → `/api/mobile/device`).
-2. Backend issues a **pairing token** = HMAC(deviceId + appPairId) signed with `DIGICAST_HMAC_SECRET` (you already have `security.ts` with HMAC-SHA256 + timing-safe compare — reuse it verbatim).
-3. Digicast sends that token in an `X-Digicast-Pair` header on every localhost call. Companion rejects anything without it.
-4. Port is chosen dynamically and advertised to Digicast via a **paired intent** on first connect (so it isn't hardcoded and can't be guessed).
-5. All traffic is `127.0.0.1` only — never bind to `0.0.0.0`.
-
-**Why this is the right call:** it's the only option that gives you a true "local connection", is debuggable from a laptop, and matches how the *rest* of your ecosystem already authenticates (HMAC + device vault). Option 2 (AIDL) is "more correct" Android but locks you to one app version pairing and is much harder to iterate on.
-
-### 3.4 What goes over the bridge
-
-| Direction | Payload | Notes |
+| Tier | Thumbnail | Voice |
 |---|---|---|
-| Digicast → Companion | `{ url, mode: "videos"\|"audio", count, timestamps? }` | `mode:"audio"` is reused by Voice Vault to grab a clip's audio |
-| Companion → Digicast | `{ jobId, status, progress }` | Streaming progress so UI can show a bar |
-| Companion → Digicast | File URIs of frames/audio | Passed via FileProvider, **not** base64 (a 1080p frame base64'd is wasteful) |
-| Companion ↔ Digicast | `POST /v1/cancel/{jobId}` | User cancels mid-job |
+| Free | 2/day | 2 generations/day; max 1 saved clone |
+| Trial 14d | 3/day | 20 total |
+| Standard ₹149 | 30/day | 100/month |
+| Quarterly ₹449 | 30/day | 350/quarter |
+| Annual ₹999 | 30/day | 1500/year |
+
+**Quality tiers (thumbnail):** Draft (1 DP, free) · Standard (3 DP, trial+) · HD (8 DP, paid) · Studio (15 DP, paid). Daily counters live in Firestore (`users/{uid}/aiQuota`) with a day-key; no cron needed.
+
+**BYOK — hybrid ticket (kept from v0.1):**
+- Server issues a **signed single-use generation ticket** → you keep quota control without holding the user's key.
+- User's provider key (if BYOK) is stored with **Android Keystore / EncryptedSharedPreferences** — ⚠️ **not** the XOR vault in `DeviceSecureStorage.kt`, which is obfuscation, not encryption.
+- Provider adapter interface so you can swap OpenAI ↔ Replicate ↔ fal without touching UI.
+- **Decide explicitly:** BYOK (user's key + ticket) vs Digicast-held key (you pay, meter hard). v0.4 left this ambiguous.
 
 ---
 
-## 4. Thumbnail Studio — full flow
+## PART 5 — Safety & legal (REINSTATED — do not cut)
 
-### 4.1 Happy path
-
-```
-[1] User pastes YouTube link + prompt in Digicast
-        │
-[2] Digicast → Companion:  POST /v1/frames {url, count: 12}
-        │
-[3] Companion: yt-dlp download (cached if already downloaded) → FFmpeg extract
-     12 candidate frames (face-aware crop if a face detector is bundled)
-        │
-[4] Frames returned as FileProvider URIs  → shown as a thumbnail picker
-        │
-[5] User picks a frame (or auto-pick the best face)
-        │
-[6] Digicast → User's BYOK provider (their account, their quota):
-     POST image-edit  { prompt, sourceImage: frame, size, quality }
-        │
-[7] Result rendered in Digicast.  Save to gallery / DP charge if server-side quality pass
-```
-
-### 4.2 BYOK — "bring your own key" done safely (IMPORTANT)
-
-You said: *"they login in that app and they get their limit by generating image with proper quality."* Two sub-decisions here:
-
-**Where does the key live?** Three choices:
-
-| Model | Key stored | Who pays provider | Notes |
-|---|---|---|---|
-| **Pure BYOK** | Encrypted on-device, server never sees it | User's own account | Best for cost; matches "bring your own key" literally. Server can't meter usage. |
-| **Server-side key** | Backend env var | You pay | You must meter hard or you lose money. Easier UX. |
-| **Hybrid** (recommended) | User key on-device; **server issues a signed "generation ticket"** before the call | User pays the model, you meter tickets | You keep quota control (ticket per generation) without holding the key. |
-
-**Recommended = Hybrid.** The backend issues one signed, single-use ticket per generation (reusing your nonce/security util). The app makes the actual inference call with the user's key, then reports completion. This means:
-- You never store the user's provider secret (privacy win, big trust win).
-- You can still enforce "premium gets N/month, free gets 2/day" because a ticket is required.
-- If a user abuses it, tickets stop.
-
-Key storage on-device: **Android Keystore (AES-GCM)**, not your current XOR vault. Current `DeviceSecureStorage` uses XOR `0x5A` — that is *obfuscation, not encryption*. For API keys, use Keystore-backed `EncryptedSharedPreferences`. (Flagging as a security note, not fixing now.)
-
-### 4.3 Quality tiers ("proper quality")
-
-| Tier | What happens | Cost | Availability |
-|---|---|---|---|
-| **Draft** | Cheapest provider model, 512–768px, no upscale | 1 DP | Free |
-| **Standard** | Balanced model, 1024px | 3 DP | Trial+ |
-| **HD** | Best model + face-aware source frame + 2× upscale | 8 DP | Paid |
-| **Studio** | HD + retina-restore + 1280×720 export (YT spec) | 15 DP | Paid |
-
-### 4.4 Frame extraction specifics
-- Reuse yt-dlp already bundled in `clip-engine`. Cache the downloaded VOD so 3 thumbnails from the same stream don't re-download.
-- Face detection: start with **ML Kit Face Detection** (free, on-device, no model download headache) to auto-pick the best frame. Upgrade later to a local CLIP/BLIP captioner to auto-score frames against the prompt (that's the real "ChatGPT-like" feel).
-- Aspect: YouTube thumbnails are **16:9, 1280×720**. Frame extraction should respect that.
+Voice cloning, non-negotiable before Phase 3 ships:
+1. **Consent gate** — blocking screen: user affirms they have the speaker's permission; record `{acceptedAt, speakerName}` with the clone.
+2. **AI watermark** — audible tone + visible tag on every export.
+3. **Public-figure block** — refuse known public figures.
+4. **TOS clause** + abuse-report path.
+5. Raw sample **deleted after training**; only the embedding/artifact is retained.
 
 ---
 
-## 5. Voice Vault — full flow
+## PART 6 — Roadmap
 
-### 5.1 Why "extension method" is exactly right
-
-You said: *"voice cloning feature will also work like the extension method but shows on main home page."* The repo already has the transport: `ExtensionLoader` + `DigicastExtension` with a `COMPANION_TOOL` type that is **currently unused**. Voice cloning becomes the first `COMPANION_TOOL` extension.
-
-But there's a nuance worth deciding: an Android `.dcast` extension is a DexClassLoader — it can run **Kotlin/Java**, and can call into native `.so` libs. Running a **voice-clone neural model** (e.g. an ONNX/PyTorch Mobile model) inside that is possible but heavy. Two realistic shapes:
-
-| Shape | Where model runs | Pros | Cons |
-|---|---|---|---|
-| **A. On-device `.dcast`** | Phone GPU/NPU via ONNX Runtime Mobile / TFLite | Zero cloud cost, max privacy, works offline | Model size (~100–500MB), slow on mid-range phones, thermal, hard to update |
-| **B. Thin extension + cloud inference** | Extension handles UI/capture; inference on a GPU worker you run | Fast, best quality, easy to update | You pay; needs a GPU box (or Replicate/Modal); *is this still "extension method"?* — yes, the extension is the client |
-| **C. Hybrid** | Sample prep + caching on device, inference on a **self-hosted GPU node the user brings** (own server) | Aligns with BYOK philosophy | Only power users have this |
-
-**My recommendation: start with B, design the interface so A can drop in later.** Same interface, swap the backend. This gets you shipping in weeks not months, and if cost becomes an issue you introduce A for free-tier users.
-
-> ⚠️ **Legal / consent — non-negotiable.** Voice cloning is a high-risk feature. Before any code: (1) required explicit consent checkbox from the *speaker* being cloned, (2) an audible+visible "AI-generated" watermark on exports, (3) a TOS clause, (4) a refusal list for public figures. I'd put a hard block on cloning named public figures' voices. This isn't optional garnish — it's what keeps the feature alive. Worth a dedicated SPEC section.
-
-### 5.2 Flow
-
-```
-[1] Home screen tile: "Voice Vault"  → tap
-        │
-[2] Choose source:  (a) upload 5–10 min audio, or (b) paste link
-        └ (b) routes through the SAME Local Bridge → Companion pulls audio
-        │
-[3] Consent screen (speaker consent + purpose) — blocking
-        │
-[4] Preview: validate sample (length, SNR, single speaker).  Warn if noisy.
-        │
-[5] "Clone" → ticket issued → inference (cloud worker OR on-device extension)
-        │
-[6] Clone saved to Vault (encrypted at rest).  Reusable by name.
-        │
-[7] Generate speech: text + clone + language → audio out.  Metered.
-```
-
-### 5.3 Quota model (your stated numbers)
-
-| User tier | Daily | Monthly | Notes |
-|---|---|---|---|
-| **Free** | 1–2 generations/day | — | On their phone. Hard cap, resets midnight IST. |
-| **Trial (₹0, 14d)** | 2/day | ~20 | Give a taste |
-| **Standard ₹149** | — | 100 | |
-| **Quarterly ₹449** | — | 350 | |
-| **Annual ₹999** | — | 1500 | |
-| **Clone creation** | Separate cap: **3 clones max** on free, unlimited-ish on paid | | Clones are expensive to store |
-
-All metered through the **existing ledger** with two new `LedgerSource` values: `VOICE_CLONE_CREATE` and `VOICE_GEN`. Daily caps: keep a per-uid daily counter in Firestore with a TTL field (cheap, no cron needed).
-
-### 5.4 Home screen surfacing ("shows on main home page")
-Add a **bento tile** on `HomeScreen.kt` — the design system already has `surface-card` + `card` radius 16px for exactly this. Two tiles actually:
-- **Thumbnail Studio** (cyan accent — primary CTA)
-- **Voice Vault** (violet accent — "AI intelligence", semantically perfect given your token comment *"AI intelligence (trusted — Expression 9)"*)
-
-This is a nice alignment: your brand system already reserves violet for AI. Use it.
-
----
-
-## 6. Data model additions (backend + Room)
-
-```ts
-// New LedgerSource values
-| 'THUMBNAIL_GEN'       // Thumbnail generation
-| 'VOICE_CLONE_CREATE'  // Creating a voice clone
-| 'VOICE_GEN'           // Generating speech from a clone
-
-// Firestore: users/{uid}/aiQuota  (daily counters, TTL-reset)
-{
-  thumbnail: { day: "2026-11-03", draftUsed: 1, stdUsed: 0, hdUsed: 0 },
-  voice:     { day: "2026-11-03", freeUsed: 1, monthUsed: 12 }
-}
-
-// Firestore: users/{uid}/voiceClones/{cloneId}
-{
-  cloneId, name, createdAt, sampleSeconds, consent: { acceptedAt, speakerName },
-  engine: "cloud-v1" | "ondev-v1", status: "training"|"ready"|"failed",
-  artifactRef  // pointer to storage, never the raw sample after training
-}
-
-// Firestore: users/{uid}/aiKeys  (BYOK — encrypted, or just a "connected" flag if hybrid)
-{ provider: "openai"|"replicate"|"fal", label, connectedAt }  // NO plaintext keys server-side
-
-// Room (Android): CachedFrameEntity, VoiceCloneEntity, AiJobEntity (mirror of SyncQueueEntity pattern)
-```
-
----
-
-## 7. Phased roadmap (proposed)
-
-| Phase | Deliverable | Weeks (rough) |
+| Phase | Deliverable | Notes |
 |---|---|---|
-| **P0** | SPEC finalized: quota numbers, BYOK model, consent/legal, provider shortlist | 0.5 |
-| **P1** | **Local Bridge MVP** — Companion APK skeleton + health/pair endpoint + Digicast client + pairing token | 2 |
-| **P2** | **Frame extraction** — `POST /v1/frames`, yt-dlp cache, FFmpeg, face auto-pick, thumbnail picker UI | 2 |
-| **P3** | **Thumbnail generation** — BYOK key UI (Keystore), ticket issuance, provider call, quality tiers | 2 |
-| **P4** | **Voice Vault capture** — Home tile, upload/link, consent gate, sample validation | 1.5 |
-| **P5** | **Voice cloning engine** — cloud worker + `/clone` + `/generate`, Vault gallery | 3 |
-| **P6** | **Metering + quota** — ledger sources, daily counters, plan gating, God Panel view | 1.5 |
-| **P7** | **Polish** — watermarks, error states, offline behavior, analytics | 1.5 |
+| **P0** | SPEC finalized — quota numbers, BYOK model, provider shortlist, **legal sign-off** | gate |
+| **P1** | Companion shell + Local Bridge (dynamic port, on-demand daemon, pairing token, health) | keystone |
+| **P2** | Thumbnail Studio — CDN grab, canvas + mask, provider adapter, image-edit, MediaStore save | after P1 |
+| **P3A** | Voice Studio — **cloud** engine (consent gate, watermark, quota) | after P1 |
+| **P3B** | Voice Studio — **on-device** ONNX behind the same interface | optional/deferred |
+| **P4** | Home bento tiles + ledger quota wiring + God Panel usage view | cross-cutting |
+| **P5** | Polish — errors, offline, analytics, watermark QA | |
 
-Roughly **14–15 focused weeks** for a solo builder. The two features are independent after P1, so P2–P3 and P4–P5 can run in parallel if you have help.
+P2 and P3 can run in parallel once P1 lands.
 
----
-
-## 8. Open decisions (I need your calls before SPEC)
-
-1. **Local Bridge**: Option 1 (localhost + token) ✅ recommended — or do you want AIDL?
-2. **BYOK**: Pure-BYOK, server-key, or **hybrid ticket** ✅ recommended?
-3. **Voice engine**: Cloud worker first ✅ — or insist on fully on-device from day one?
-4. **Companion APK**: is it *required* for both features, or does Voice Vault work without it (upload-only)?
-5. **Free tier numbers**: confirm "1–2/day" — pick 1 or 2?
-6. **Provider shortlist**: for images — OpenAI `gpt-image-1`, Google Imagen, Replicate, fal.ai, Flux? For voice — ElevenLabs, PlayHT, or self-hosted (XTTS/OpenVoice)?
-7. **Legal**: are you OK shipping consent-gate + watermark + public-figure block? (Strongly advise yes.)
-8. **God Panel**: should admins see per-user AI usage? (I assume yes — it's cheap to add.)
+**Before P3 starts, verify the `debpalash/VoiceStudio` dependency** (existence, **license**, Android artifacts, model size/speed). If it fails: Piper/sherpa-onnx for TTS + a cloud worker for cloning.
 
 ---
 
-## 9. What I'd do first (concrete next step)
+## PART 7 — Open decisions (answer these to finalize the SPEC)
 
-Write `.gsd/SPEC.md` for **just the Local Bridge (P1)** and mark it FINALIZED. It's the keystone — every other phase depends on it. Once the bridge works, the Thumbnail feature is a few days of wiring, and Voice Vault becomes an independent track.
+1. **Image provider + model** — `gpt-image-1` (edits+mask, best text) or Flux Kontext via Replicate/fal (cheaper/faster)? Pick a primary.
+2. **BYOK vs Digicast-held key** — which? (Recommend: BYOK + ticket.)
+3. **Voice engine P3A** — hosted (ElevenLabs/PlayHT) or self-run GPU worker (XTTS/OpenVoice)? And is `debpalash/VoiceStudio` licensed for commercial closed-source use?
+4. **Free tier** — confirm 2/day for both, or 1?
+5. **Legal** — approve the P5 safety list? (Strongly advise yes.)
+6. **Companion distribution** — GitHub releases only, or also in-app? (Play Store won't accept a sideloaded-AI companion pattern easily.)
+7. **God Panel** — show per-user AI usage? (Recommend yes; cheap.)
 
-> Per `PROJECT_RULES.md`: no implementation code until SPEC.md says `Status: FINALIZED`. This document is the discussion input, not the SPEC.
+---
+
+## PART 8 — Next step
+
+Answer Part 7, then I'll write `.gsd/SPEC.md` for **P1 (Local Bridge) only** and mark it FINALIZED. Per `PROJECT_RULES.md`: **no implementation code until SPEC.md says `Status: FINALIZED`.**
+
+**Sources:** I was unable to verify `debpalash/VoiceStudio` or the current `maxresdefault.jpg` behaviour — GitHub and general web search were blocked/unavailable in this environment. Verify both manually before building. Everything in Parts 1–4 is grounded in code I read in your repo.

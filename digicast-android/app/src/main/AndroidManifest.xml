@@ -7,9 +7,17 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <queries>
+        <package android:name="com.digicast.dgimages" />
+        <intent>
+            <action android:name="com.digicast.dgimages.START_DAEMON" />
+        </intent>
+    </queries>
+
     <application
         android:name=".DigicastApplication"
         android:allowBackup="false"
+        android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher"
         android:label="Digicast"
         android:roundIcon="@mipmap/ic_launcher_round"

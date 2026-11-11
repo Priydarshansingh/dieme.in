@@ -1,6 +1,8 @@
 package com.digicast.app.ui.screens.home
 
 import android.content.Context
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -38,6 +40,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCut
@@ -103,6 +107,7 @@ import com.digicast.app.ui.theme.DigicastChipBackground
 import com.digicast.app.ui.theme.DigicastDarkText
 import com.digicast.app.ui.theme.DigicastDeepNavy
 import com.digicast.app.ui.theme.DigicastElectricCyan
+import com.digicast.app.ui.theme.DigicastElectricViolet
 import com.digicast.app.ui.theme.DigicastEmerald
 import com.digicast.app.ui.theme.DigicastLiveRed
 import com.digicast.app.ui.theme.DigicastMintGlow
@@ -255,6 +260,7 @@ fun HomeScreen(
     onNavigateToStreamDetail: (String) -> Unit,
     onNavigateToClips: () -> Unit,
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToThumbnailStudio: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val activeStreams by viewModel.activeStreams.collectAsState()
@@ -263,6 +269,7 @@ fun HomeScreen(
     val messages by viewModel.recentMessages.collectAsState()
     val authState by viewModel.authState.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val context = LocalContext.current
     val ytAccount by viewModel.authRepository.youtubeAccount.collectAsState()
 
     val realAllStreams = remember(allStreams) {
@@ -601,6 +608,132 @@ fun HomeScreen(
                             modifier = Modifier.weight(1f),
                             onClick = { if (live != null) onNavigateToStreamDetail(live.id) }
                         )
+                    }
+                }
+            }
+
+            // ── AI Studio Bento Row (Thumbnail Studio & Voice Studio) ────────
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Left Bento: Thumbnail Studio
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(AppleDarkEdgeCardBrush)
+                            .border(1.dp, AppleSpecularBorder, RoundedCornerShape(20.dp))
+                            .clickable(onClick = onNavigateToThumbnailStudio)
+                            .padding(14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(DigicastElectricCyan.copy(alpha = 0.15f))
+                                        .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = DigicastElectricCyan,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(DigicastElectricCyan.copy(alpha = 0.2f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Dg-Images", color = DigicastElectricCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = "Thumbnail Studio",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "AI Inpaint & 1080p Export",
+                                    color = DigicastSlate,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // Right Bento: Voice Studio
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(AppleDarkEdgeCardBrush)
+                            .border(1.dp, AppleSpecularBorder, RoundedCornerShape(20.dp))
+                            .clickable {
+                                Toast.makeText(context, "Voice Studio (.dcast) launching soon!", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(DigicastElectricViolet.copy(alpha = 0.15f))
+                                        .border(1.dp, DigicastElectricViolet.copy(alpha = 0.35f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.RecordVoiceOver,
+                                        contentDescription = null,
+                                        tint = DigicastElectricViolet,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(DigicastElectricViolet.copy(alpha = 0.2f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("VoiceStudio", color = DigicastElectricViolet, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = "Voice Studio",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Zero-Shot Voice Clones",
+                                    color = DigicastSlate,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
                     }
                 }
             }

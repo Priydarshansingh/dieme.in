@@ -19,7 +19,37 @@ interface DigicastExtension {
 enum class ExtensionType {
     CLIP_PROCESSOR,
     CHAT_ANALYZER,
-    COMPANION_TOOL
+    COMPANION_TOOL,
+    IMAGE_STUDIO
+}
+
+/**
+ * A specialized extension interface for AI thumbnail generation & object inpainting.
+ * Extensions implementing this will connect to companion apps like Dg-Images or cloud endpoints.
+ */
+interface ImageStudioExtension : DigicastExtension {
+    /**
+     * Checks whether the companion Dg-Images app is installed on the host device.
+     */
+    fun isDgImagesInstalled(context: android.content.Context): Boolean
+
+    /**
+     * Executes thumbnail synthesis or inpainting through the Dg-Images companion bridge.
+     *
+     * @param context Host application context
+     * @param baseImageUrl URL of the source thumbnail
+     * @param maskPointsJson Serialized coordinates or mask data for inpainting
+     * @param prompt User styling and object replacement instructions
+     * @param onProgress Status callback for UI updates
+     * @return Result containing generated image URL or local cached file path
+     */
+    suspend fun generateThumbnail(
+        context: android.content.Context,
+        baseImageUrl: String,
+        maskPointsJson: String?,
+        prompt: String,
+        onProgress: (progressPercent: Int, statusMessage: String) -> Unit
+    ): Result<String>
 }
 
 /**

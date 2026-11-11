@@ -34,6 +34,13 @@ class ExtensionLoader @Inject constructor(
             return null
         }
 
+        // Android 14+ (API 34+) enforces that dynamically loaded dex files must be read-only
+        try {
+            dcastFile.setReadOnly()
+        } catch (e: Exception) {
+            // Ignored
+        }
+
         // DexClassLoader requires a writable directory to cache optimized .dex output
         val optimizedDexOutputPath = context.getDir("dcast_cache", Context.MODE_PRIVATE)
 

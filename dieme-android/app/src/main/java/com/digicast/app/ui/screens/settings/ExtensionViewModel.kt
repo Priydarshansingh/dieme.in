@@ -81,19 +81,15 @@ class ExtensionViewModel @Inject constructor(
 
         // Auto-provision official Dg-Images AI bridge extension from bundled assets
         val dgImagesFile = File(context.filesDir, "com.digicast.ext.dgimages.dcast")
-        if (!dgImagesFile.exists() || dgImagesFile.length() < 1000L) {
-            try {
-                if (dgImagesFile.exists()) dgImagesFile.setWritable(true)
-                context.assets.open("extensions/com.digicast.ext.dgimages.dcast").use { input ->
-                    FileOutputStream(dgImagesFile).use { output ->
-                        input.copyTo(output)
-                    }
+        try {
+            if (dgImagesFile.exists()) dgImagesFile.setWritable(true)
+            context.assets.open("extensions/com.digicast.ext.dgimages.dcast").use { input ->
+                FileOutputStream(dgImagesFile).use { output ->
+                    input.copyTo(output)
                 }
-                dgImagesFile.setReadOnly()
-            } catch (e: Exception) {
-                // Ignore if asset missing
             }
-        }
+            dgImagesFile.setReadOnly()
+        } catch (_: Exception) {}
 
         loadCatalog()
     }
@@ -320,6 +316,14 @@ class ExtensionViewModel @Inject constructor(
     fun getImageStudio(): ImageStudioExtension? {
         if (_loadedImageStudio.value != null) return _loadedImageStudio.value
         val file = File(context.filesDir, "com.digicast.ext.dgimages.dcast")
+        if (!file.exists()) {
+            try {
+                context.assets.open("extensions/com.digicast.ext.dgimages.dcast").use { input ->
+                    FileOutputStream(file).use { output -> input.copyTo(output) }
+                }
+                file.setReadOnly()
+            } catch (_: Exception) {}
+        }
         if (file.exists()) {
             val extension = extensionLoader.loadExtension(file.absolutePath, "com.digicast.ext.dgimages.DgImagesExtension")
             if (extension is ImageStudioExtension) {

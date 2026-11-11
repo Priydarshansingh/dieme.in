@@ -1,6 +1,7 @@
 package com.digicast.dgimages.browser
 
 import android.content.Context
+import android.content.Intent
 import android.webkit.CookieManager
 import com.digicast.dgimages.engine.GenerationJob
 import com.digicast.dgimages.engine.ImageInpaintEngine
@@ -46,7 +47,24 @@ object ChatGptSessionManager {
         referenceImageUrls: List<String> = emptyList(),
         forceNewChat: Boolean? = null
     ): Result<String> = withContext(Dispatchers.Main) {
-        val adapter = activeAdapter
+        var adapter = activeAdapter
+        if (adapter == null) {
+            try {
+                val launchIntent = Intent(context, com.digicast.dgimages.MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                context.startActivity(launchIntent)
+            } catch (_: Exception) {}
+
+            for (i in 0 until 8) {
+                delay(500)
+                if (activeAdapter != null) {
+                    adapter = activeAdapter
+                    break
+                }
+            }
+        }
+
         if (adapter == null) {
             // Fallback to local image processor if WebView not initialized
             return@withContext ImageInpaintEngine.processInpaintTask(

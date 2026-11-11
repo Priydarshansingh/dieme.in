@@ -266,9 +266,9 @@ fun ThumbnailStudioScreen(
         isDgImagesAppInstalled = checkAppInstalled()
         coroutineScope.launch(Dispatchers.IO) {
             val daemonAlive = try {
-                val conn = URL("http://127.0.0.1:5488/v1/health").openConnection() as HttpURLConnection
-                conn.connectTimeout = 1200
-                conn.readTimeout = 1200
+                val conn = URL("http://127.0.0.1:5488/v1/health").openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection
+                conn.connectTimeout = 2000
+                conn.readTimeout = 2000
                 conn.responseCode == 200
             } catch (_: Exception) {
                 false
@@ -535,20 +535,34 @@ fun ThumbnailStudioScreen(
             }
 
             val extension = extensionViewModel.getImageStudio()
-            val result = if (extension != null) {
-                extension.generateThumbnail(
-                    context = context,
-                    baseImageUrl = baseImage,
-                    maskPointsJson = advancedWrapper.toString(),
-                    prompt = masterPrompt,
-                    onProgress = { _, message ->
-                        generationStatusMessage = message
-                    }
+            if (extension == null) {
+                isGenerating = false
+                generationStatusMessage = ""
+                val index = chatMessages.indexOfFirst { it.id == pendingMessageId }
+                val errorMsg = ThumbnailChatMessage(
+                    id = pendingMessageId,
+                    isUser = false,
+                    text = "⚠️ Extension bridge not ready. Please make sure Dg-Images companion app is installed.",
+                    isGenerating = false
                 )
-            } else {
-                delay(1500)
-                Result.success(baseImage)
+                if (index != -1) {
+                    chatMessages[index] = errorMsg
+                } else {
+                    chatMessages.add(errorMsg)
+                }
+                Toast.makeText(context, "Dg-Images bridge not ready", Toast.LENGTH_LONG).show()
+                return@launch
             }
+
+            val result = extension.generateThumbnail(
+                context = context,
+                baseImageUrl = baseImage,
+                maskPointsJson = advancedWrapper.toString(),
+                prompt = masterPrompt,
+                onProgress = { _, message ->
+                    generationStatusMessage = message
+                }
+            )
 
             val index = chatMessages.indexOfFirst { it.id == pendingMessageId }
             if (result.isSuccess) {

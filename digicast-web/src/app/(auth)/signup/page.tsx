@@ -82,9 +82,6 @@ export default function SignUpPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
             <DigicastBrandLogo size="md" />
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono tracking-widest uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-              LIVE
-            </span>
           </Link>
 
           <Link

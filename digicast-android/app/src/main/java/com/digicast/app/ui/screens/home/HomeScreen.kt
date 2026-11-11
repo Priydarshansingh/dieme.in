@@ -405,28 +405,6 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // LIVE / IDLE Indicator Pill
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier
-                            .background(DigicastDeepNavy, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .background(if (capturing) DigicastLiveRed else DigicastSlate, CircleShape)
-                        )
-                        Text(
-                            text = if (capturing) "LIVE" else "IDLE",
-                            color = if (capturing) DigicastLiveRed else DigicastSlate,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                    }
-
                     // Profile Avatar in Top-Right
                     val session = (authState as? AuthState.SignedIn)?.session
                     ProfileAvatarButton(

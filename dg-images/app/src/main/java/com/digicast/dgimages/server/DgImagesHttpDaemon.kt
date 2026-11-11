@@ -8,7 +8,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStreamReader
+import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.net.InetAddress
@@ -92,6 +94,22 @@ class DgImagesHttpDaemon(
                         sendResponse(writer, 200, "application/json", responseJson)
                     }
 
+                    method == "GET" && path.startsWith("/v1/image/") -> {
+                        val fileName = path.substringAfter("/v1/image/").substringBefore("?")
+                        val file = File(context.cacheDir, fileName)
+                        if (file.exists() && file.isFile) {
+                            val bytes = file.readBytes()
+                            val mime = if (fileName.endsWith(".png", true)) "image/png" else "image/jpeg"
+                            sendBinaryResponse(s.getOutputStream(), 200, mime, bytes)
+                        } else {
+                            val notFoundJson = JSONObject().apply {
+                                put("error", "Image not found")
+                                put("fileName", fileName)
+                            }.toString()
+                            sendResponse(writer, 404, "application/json", notFoundJson)
+                        }
+                    }
+
                     method == "POST" && (path == "/v1/thumbnail/generate" || path == "/generate") -> {
                         val body = CharArray(contentLength)
                         var read = 0
@@ -148,6 +166,17 @@ class DgImagesHttpDaemon(
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun sendBinaryResponse(outputStream: OutputStream, statusCode: Int, contentType: String, bytes: ByteArray) {
+        val header = "HTTP/1.1 $statusCode OK\r\n" +
+                "Content-Type: $contentType\r\n" +
+                "Content-Length: ${bytes.size}\r\n" +
+                "Connection: close\r\n" +
+                "Access-Control-Allow-Origin: *\r\n\r\n"
+        outputStream.write(header.toByteArray(Charsets.UTF_8))
+        outputStream.write(bytes)
+        outputStream.flush()
     }
 
     private fun sendResponse(writer: PrintWriter, statusCode: Int, contentType: String, body: String) {

@@ -112,6 +112,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -178,7 +180,21 @@ fun ThumbnailStudioScreen(
         if (uris != null && uris.isNotEmpty()) {
             val availableSlots = 2 - referenceImages.size
             if (availableSlots > 0) {
-                referenceImages.addAll(uris.take(availableSlots))
+                uris.take(availableSlots).forEachIndexed { index, uri ->
+                    try {
+                        val inputStream = context.contentResolver.openInputStream(uri)
+                        if (inputStream != null) {
+                            val cachedRefFile = File(context.cacheDir, "ref_picked_${System.currentTimeMillis()}_$index.jpg")
+                            FileOutputStream(cachedRefFile).use { out ->
+                                inputStream.copyTo(out)
+                            }
+                            inputStream.close()
+                            referenceImages.add(Uri.fromFile(cachedRefFile))
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
             } else {
                 Toast.makeText(context, "Maximum 2 reference images allowed", Toast.LENGTH_SHORT).show()
             }
@@ -316,7 +332,12 @@ fun ThumbnailStudioScreen(
     // ── Helper: Convert Uri to compressed Base64 Data URL ───────────────────
     fun uriToBase64(uri: Uri): String? {
         return try {
-            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+            val inputStream: InputStream? = if (uri.scheme == "file") {
+                val f = File(uri.path ?: "")
+                if (f.exists()) f.inputStream() else context.contentResolver.openInputStream(uri)
+            } else {
+                context.contentResolver.openInputStream(uri)
+            }
             val originalBitmap = BitmapFactory.decodeStream(inputStream)
             inputStream?.close()
             if (originalBitmap == null) return null
@@ -368,6 +389,7 @@ fun ThumbnailStudioScreen(
         }
         if (refCount > 0) {
             builder.appendLine("Reference Media: $refCount visual reference image(s) provided for character, face, object, or color alignment.")
+            builder.appendLine("- Explicitly incorporate the subject/character/features from the attached reference image(s) into the thumbnail composition.")
         }
         builder.appendLine("User Creative Request:")
         builder.appendLine(userText.trim())

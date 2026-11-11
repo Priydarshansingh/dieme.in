@@ -126,23 +126,17 @@ class ChatGptWebAdapter(
     }
 
     fun attachImages(files: List<File>, onComplete: ((Boolean) -> Unit)? = null) {
-        this.pendingFiles = files.take(2) // Max 2 images as requested
+        this.pendingFiles = files.take(3) // 1 base thumbnail + up to 2 reference images
         val js = """
             (function() {
                 try {
-                    var inputs = Array.from(document.querySelectorAll("input[type='file']"));
-                    if (inputs.length === 0) {
-                        var attachBtn = document.querySelector("button[aria-label*='Attach' i], button[aria-label*='Add attachments' i], [aria-label*='Upload' i]");
-                        if (attachBtn) attachBtn.click();
-                    }
-
-                    if (window.DgImagesJs && window.DgImagesJs.getPendingFilesCount() > 0) {
-                        var count = window.DgImagesJs.getPendingFilesCount();
+                    var count = window.DgImagesJs ? window.DgImagesJs.getPendingFilesCount() : 0;
+                    if (count > 0) {
                         var dt = new DataTransfer();
                         for (var i = 0; i < count; i++) {
                             var b64 = window.DgImagesJs.getPendingFileBase64(i);
                             var name = window.DgImagesJs.getPendingFileName(i);
-                            var mime = window.DgImagesJs.getPendingFileMime(i);
+                            var mime = window.DgImagesJs.getPendingFileMime(i) || 'image/jpeg';
                             var binary = atob(b64);
                             var bytes = new Uint8Array(binary.length);
                             for (var j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
@@ -151,14 +145,34 @@ class ChatGptWebAdapter(
                             dt.items.add(file);
                         }
 
-                        var targetInput = document.querySelector("input[type='file']");
-                        if (targetInput) {
-                            targetInput.files = dt.files;
-                            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        // 1. Target hidden file input with prototype descriptor setter
+                        var fileInput = document.querySelector("input[type='file']");
+                        if (fileInput) {
+                            try {
+                                var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files').set;
+                                setter.call(fileInput, dt.files);
+                            } catch(e) {
+                                fileInput.files = dt.files;
+                            }
+                            fileInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
                         }
+
+                        // 2. Dispatch drop & paste events to textarea
+                        var editor = document.querySelector("#prompt-textarea, div[contenteditable='true'], textarea") || document.body;
+                        if (editor) {
+                            try {
+                                var dropEvt = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt });
+                                editor.dispatchEvent(dropEvt);
+                            } catch(e) {}
+                            try {
+                                var pasteEvt = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt });
+                                editor.dispatchEvent(pasteEvt);
+                            } catch(e) {}
+                        }
+                        return true;
                     }
-                    return true;
+                    return false;
                 } catch(e) {
                     return false;
                 }
@@ -207,12 +221,36 @@ class ChatGptWebAdapter(
     fun captureGeneratedImage(callback: (String?) -> Unit) {
         val js = """
             (function() {
-                var imgs = Array.from(document.querySelectorAll("div[data-message-author-role='assistant'] img, img[alt*='Generated' i], img[src*='oaiusercontent.com']"));
-                if (imgs.length > 0) {
-                    var lastImg = imgs[imgs.length - 1];
+                try {
+                    var imgs = Array.from(document.querySelectorAll("div[data-message-author-role='assistant'] img, [data-testid*='conversation-turn'] img, img[alt*='Generated' i], img[src*='oaiusercontent.com']"));
+                    if (imgs.length === 0) {
+                        imgs = Array.from(document.querySelectorAll("img"));
+                    }
+                    var candidates = imgs.filter(function(img) {
+                        var w = img.naturalWidth || img.width || 0;
+                        var h = img.naturalHeight || img.height || 0;
+                        var src = img.src || img.currentSrc || '';
+                        return (w >= 100 && h >= 100) || src.indexOf('oaiusercontent.com') !== -1 || (img.alt && img.alt.toLowerCase().indexOf('generated') !== -1);
+                    });
+                    if (candidates.length === 0) return null;
+                    var lastImg = candidates[candidates.length - 1];
+
+                    try {
+                        var canvas = document.createElement('canvas');
+                        canvas.width = lastImg.naturalWidth || lastImg.width || 1280;
+                        canvas.height = lastImg.naturalHeight || lastImg.height || 720;
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(lastImg, 0, 0);
+                        var dUrl = canvas.toDataURL('image/jpeg', 0.95);
+                        if (dUrl && dUrl.length > 200) {
+                            return dUrl;
+                        }
+                    } catch(e) {}
+
                     return lastImg.src || lastImg.currentSrc || null;
+                } catch(e) {
+                    return null;
                 }
-                return null;
             })();
         """.trimIndent()
         webView.evaluateJavascript(js) { res ->

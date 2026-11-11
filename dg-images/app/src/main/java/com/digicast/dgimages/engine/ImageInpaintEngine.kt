@@ -35,6 +35,10 @@ object ImageInpaintEngine {
     private val _engineStatus = MutableStateFlow("Listening on 127.0.0.1:5488")
     val engineStatus: StateFlow<String> = _engineStatus.asStateFlow()
 
+    fun recordJob(job: GenerationJob) {
+        _recentJobs.value = listOf(job) + _recentJobs.value.take(15)
+    }
+
     suspend fun processInpaintTask(
         context: Context,
         baseImageUrl: String,
@@ -75,12 +79,12 @@ object ImageInpaintEngine {
             }
 
             val latency = System.currentTimeMillis() - startTime
-            val finalUrl = baseImageUrl // or local file path
+            val finalUrl = "http://127.0.0.1:5488/v1/image/${outputFile.name}"
 
             val job = GenerationJob(
                 prompt = prompt,
                 baseImageUrl = baseImageUrl,
-                resultUrl = outputFile.absolutePath,
+                resultUrl = finalUrl,
                 latencyMs = latency,
                 status = "COMPLETED (1080P)"
             )

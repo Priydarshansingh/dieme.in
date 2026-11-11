@@ -35,8 +35,8 @@ export function SiteHeader({ onSelectProgram }: SiteHeaderProps) {
           <Link href="/#pricing" className="hover:text-emerald-400 transition-colors">
             Pricing Passes
           </Link>
-          <Link href="/#why-digicast" className="hover:text-emerald-400 transition-colors">
-            Why Digicast
+          <Link href="/#why-dieme" className="hover:text-emerald-400 transition-colors">
+            Why Dieme
           </Link>
           <Link href="/#about-us" className="hover:text-emerald-400 transition-colors">
             About Us
@@ -78,8 +78,8 @@ export function SiteHeader({ onSelectProgram }: SiteHeaderProps) {
           <Link href="/#pricing" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300 hover:text-emerald-400">
             Pricing Passes
           </Link>
-          <Link href="/#why-digicast" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300 hover:text-emerald-400">
-            Why Digicast
+          <Link href="/#why-dieme" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300 hover:text-emerald-400">
+            Why Dieme
           </Link>
           <Link href="/#about-us" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300 hover:text-emerald-400">
             About Us

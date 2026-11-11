@@ -293,7 +293,7 @@ fun DgImagesDashboard() {
                         ) {
                             Icon(Icons.Default.Lock, contentDescription = null, tint = DgElectricCyan, modifier = Modifier.size(12.dp))
                             Text(
-                                text = "Sign in once with ChatGPT. All thumbnail generation requests from Digicast will automatically inject here.",
+                                text = "Sign in once with ChatGPT. All thumbnail generation requests from Dieme will automatically inject here.",
                                 color = DgSlate,
                                 fontSize = 10.sp,
                                 lineHeight = 14.sp
@@ -422,8 +422,8 @@ fun DgImagesDashboard() {
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(imageVector = Icons.Default.Layers, contentDescription = null, tint = DgMuted, modifier = Modifier.size(32.dp))
-                                    Text("Awaiting Requests from Digicast", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                    Text("Open Thumbnail Studio in Digicast and tap \"Generate with Dg-Images\"", color = DgSlate, fontSize = 11.sp)
+                                    Text("Awaiting Requests from Dieme", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("Open Thumbnail Studio in Dieme and tap \"Generate with Dg-Images\"", color = DgSlate, fontSize = 11.sp)
                                 }
                             }
                         }

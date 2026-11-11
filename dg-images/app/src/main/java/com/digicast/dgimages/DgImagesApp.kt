@@ -37,7 +37,7 @@ class DgImagesApp : Application() {
                 "Dg-Images Engine Service",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Keeps local thumbnail generation engine ready for Digicast Studio"
+                description = "Keeps local thumbnail generation engine ready for Dieme Studio"
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)

@@ -174,17 +174,16 @@ fun OnboardingScreen(
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.logo_round),
-                    contentDescription = "Digicast Studio",
+                    contentDescription = "Dieme Studio",
                     modifier = Modifier.size(76.dp)
                 )
 
-                Image(
-                    painter = painterResource(id = R.drawable.logo_text),
-                    contentDescription = "DIGICAST Live",
-                    modifier = Modifier
-                        .height(42.dp)
-                        .fillMaxWidth(0.65f),
-                    contentScale = ContentScale.Fit
+                Text(
+                    text = "Dieme",
+                    color = DigicastWhite,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 32.sp,
+                    letterSpacing = (-1).sp
                 )
             }
 
@@ -444,7 +443,7 @@ fun OnboardingScreen(
                         // Unlocked: Direct to website signup for anyone who doesn't have an account yet
                         OutlinedButton(
                             onClick = {
-                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://digicast-web.vercel.app/signup"))
+                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dieme.in/signup"))
                                 context.startActivity(browserIntent)
                             },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue),
@@ -456,7 +455,7 @@ fun OnboardingScreen(
                         ) {
                             Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastAccentBlue)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Create Account on Digicast Web", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Create Account on Dieme Web", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
 
@@ -465,7 +464,7 @@ fun OnboardingScreen(
                         text = if (!isSignInUnlocked) {
                             "🔒 Free devices: Tap \"Watch Ad to Unlock Access\" to activate the Sign-In button and your 24h pass."
                         } else {
-                            "Have an account? Sign in above. New user? Tap \"Create Account on Digicast Web\" below."
+                            "Have an account? Sign in above. New user? Tap \"Create Account on Dieme Web\" below."
                         },
                         color = DigicastSlate,
                         fontSize = 11.sp,
@@ -541,7 +540,7 @@ fun OnboardingScreen(
                                         modifier = Modifier.size(36.dp)
                                     )
                                     Text(
-                                        text = "Digicast Studio Pro Ecosystem",
+                                        text = "Dieme Studio Pro Ecosystem",
                                         color = DigicastWhite,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold

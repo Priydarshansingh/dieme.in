@@ -386,12 +386,12 @@ fun ThumbnailStudioScreen(
                 val input: InputStream = URL(imageUrl).openStream()
                 val bitmap = BitmapFactory.decodeStream(input)
 
-                val fileName = "Digicast_Thumb_${System.currentTimeMillis()}.jpg"
+                val fileName = "Dieme_Thumb_${System.currentTimeMillis()}.jpg"
                 val contentValues = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                     put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Digicast/Thumbnails")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Dieme/Thumbnails")
                         put(MediaStore.MediaColumns.IS_PENDING, 1)
                     }
                 }
@@ -417,7 +417,7 @@ fun ThumbnailStudioScreen(
                 }
 
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Saved to Downloads/Digicast/Thumbnails!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Saved to Downloads/Dieme/Thumbnails!", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

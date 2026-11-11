@@ -69,7 +69,7 @@ object NotificationHelper {
         )
 
         return NotificationCompat.Builder(context, CHANNEL_LIVE_CAPTURE)
-            .setContentTitle("Digicast — Live chat capture")
+            .setContentTitle("Dieme — Live chat capture")
             .setContentText("$streamTitle · $messageCount msgs · $clipCount clips")
             .setSmallIcon(R.drawable.ic_digicast_logo)
             .setOngoing(true)

@@ -33,7 +33,7 @@ class DgImagesService : Service() {
 
         val notification: Notification = NotificationCompat.Builder(this, DgImagesApp.CHANNEL_ID)
             .setContentTitle("Dg-Images Engine Active")
-            .setContentText("127.0.0.1:5488 • Ready for Digicast Studio")
+            .setContentText("127.0.0.1:5488 • Ready for Dieme Studio")
             .setSmallIcon(android.R.drawable.ic_menu_gallery)
             .setContentIntent(pendingIntent)
             .setOngoing(true)

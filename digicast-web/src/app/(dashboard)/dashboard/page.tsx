@@ -290,7 +290,7 @@ function DashboardContent() {
             rel="noopener noreferrer"
             download="digicast-app-latest.apk"
             className="flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl border transition shadow-sm bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/20"
-            title="Download latest Digicast Studio Android APK"
+            title="Download latest Dieme Studio Android APK"
           >
             <Smartphone className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             <span>Download Android App</span>
@@ -325,7 +325,7 @@ function DashboardContent() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-white">Digicast Studio Companion App (v1.0.0)</h3>
+              <h3 className="text-sm font-bold text-white">Dieme Studio Companion App (v1.0.0)</h3>
               <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">LATEST APK</span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">

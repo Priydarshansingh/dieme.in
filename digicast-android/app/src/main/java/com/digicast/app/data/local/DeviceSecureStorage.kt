@@ -22,7 +22,7 @@ object DeviceSecureStorage {
 
     private const val HIDDEN_FILE_NAME = ".digicast_device_vault.bin"
     private const val XOR_KEY: Byte = 0x5A
-    private const val CLOUD_ENDPOINT = "https://digicast-web.vercel.app/api/mobile/device"
+    private const val CLOUD_ENDPOINT = "https://www.dieme.in/api/mobile/device"
 
     fun getDeviceId(context: Context): String {
         return try {

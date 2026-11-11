@@ -7,19 +7,19 @@ import {
   Mail, Sparkles, ChevronDown
 } from 'lucide-react';
 
-import { DigicastBrandLogo } from '@/components/brand/DigicastLogo';
+import { DiemeBrandLogo } from '@/components/brand/DigicastLogo';
 import { SiteHeader } from '@/components/common/SiteHeader';
 import { SiteFooter } from '@/components/common/SiteFooter';
 
 export const metadata: Metadata = {
-  title: 'Contact Support & Helpdesk — Digicast',
+  title: 'Contact Support & Helpdesk — Dieme',
   description:
     'Need help with your workspace, livestream sync, or subscription pass? Contact our official Telegram support bot @YT_digicast for instant resolution.',
 };
 
 const supportFaqs = [
   {
-    q: 'How do I reach the official Digicast Support team?',
+    q: 'How do I reach the official Dieme Support team?',
     a: 'All official creator support, account lookups, payment verifications, and technical inquiries are handled directly via our verified Telegram Bot @YT_digicast. You can start a private chat at https://t.me/YT_digicast?start=help.'
   },
   {

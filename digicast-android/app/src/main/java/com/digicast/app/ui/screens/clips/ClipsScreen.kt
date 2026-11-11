@@ -212,15 +212,15 @@ fun ClipsScreen(
                 ) {
                     Image(
                         painter = painterResource(id = com.digicast.app.R.drawable.logo_round),
-                        contentDescription = "Digicast Logo",
+                        contentDescription = "Dieme Logo",
                         modifier = Modifier.size(28.dp)
                     )
-                    Image(
-                        painter = painterResource(id = com.digicast.app.R.drawable.logo_text),
-                        contentDescription = "Digicast",
-                        modifier = Modifier.height(18.dp),
-                        contentScale = ContentScale.Fit,
-                        colorFilter = ColorFilter.tint(Color.White)
+                    Text(
+                        text = "Dieme",
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp,
+                        letterSpacing = (-0.5).sp
                     )
                 }
 

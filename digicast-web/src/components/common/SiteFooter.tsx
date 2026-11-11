@@ -130,7 +130,7 @@ export function SiteFooter({ onSelectProgram, className = '' }: SiteFooterProps)
 
       {/* Operational Status Bar */}
       <div className="border-t border-white/5 pt-6 pb-12 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-3">
-        <p>&copy; 2026 Digicast Live Technologies. All rights reserved.</p>
+        <p>&copy; 2026 Dieme Live Technologies. All rights reserved.</p>
         <div className="flex flex-wrap items-center gap-2.5 font-mono text-slate-400">
           <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse inline-block shadow-[0_0_8px_#10B981]" />

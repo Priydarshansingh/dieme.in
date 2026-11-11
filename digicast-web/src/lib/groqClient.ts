@@ -38,7 +38,7 @@ export async function askGroqAI(params: {
 
   if (!apiKey) {
     console.warn('[groqClient] GROQ_API_KEY not configured.');
-    return "I am currently undergoing scheduled maintenance. Please visit https://digicast-web.vercel.app or reach out to our team at @livehellboy for assistance!";
+    return "I am currently undergoing scheduled maintenance. Please visit https://www.dieme.in or reach out to our team at @livehellboy for assistance!";
   }
 
   // 1. Build knowledge base string
@@ -53,7 +53,7 @@ ${params.knowledgeBase
   }
 
   // 2. Build user status context string
-  let userSection = 'User is currently a Guest / Not logged into Digicast.';
+  let userSection = 'User is currently a Guest / Not logged into Dieme.';
   if (params.userContext?.email) {
     userSection = `
 === LOGGED IN CREATOR ACCOUNT DETAILS ===
@@ -70,7 +70,7 @@ ${params.knowledgeBase
 
   // 3. Compose Master System Directive
   const systemPrompt = `
-You are the Official AI Support Assistant for **Digicast** (https://digicast-web.vercel.app), the real-time YouTube live stream automation and AI clip production suite for creators and video editors.
+You are the Official AI Support Assistant for **Dieme** (https://www.dieme.in), the real-time YouTube live stream automation and AI clip production suite for creators and video editors.
 
 KEY PLATFORM FACTS:
 1. **Free Usage & 24h Unlock Gate**:
@@ -92,7 +92,7 @@ KEY PLATFORM FACTS:
 4. **Live Chat & Clipping**:
    - Viewers type \`!clip\` or \`!highlight\` in the YouTube stream chat to automatically bookmark video clips for editors.
 5. **Account Linking**:
-   - If the user has not shared their email yet and asks an account-specific question (subscription, wallet, streams), politely ask them to send their registered Digicast email address.
+   - If the user has not shared their email yet and asks an account-specific question (subscription, wallet, streams), politely ask them to send their registered Dieme email address.
 
 ${userSection}
 ${kbSection}
@@ -158,21 +158,21 @@ RESPONSE GUIDELINES:
         });
         if (fallbackRes.ok) {
           const fallbackData = await fallbackRes.json();
-          return fallbackData.choices?.[0]?.message?.content?.trim() || "How else can I assist you with Digicast?";
+          return fallbackData.choices?.[0]?.message?.content?.trim() || "How else can I assist you with Dieme?";
         }
       }
 
       const errText = await res.text();
       console.error('[groqClient] API Error:', res.status, errText);
-      return "I'm having a brief issue retrieving that information right now. Please type <code>/help</code> or check your dashboard at https://digicast-web.vercel.app";
+      return "I'm having a brief issue retrieving that information right now. Please type <code>/help</code> or check your dashboard at https://www.dieme.in";
     }
 
     const data = await res.json();
     const reply = data.choices?.[0]?.message?.content?.trim();
 
-    return reply || "How else can I assist you with your Digicast account?";
+    return reply || "How else can I assist you with your Dieme account?";
   } catch (err: any) {
     console.error('[groqClient] Network or inference failure:', err);
-    return "I had trouble connecting to the support server. Please visit https://digicast-web.vercel.app or type <code>/help</code> for available commands!";
+    return "I had trouble connecting to the support server. Please visit https://www.dieme.in or type <code>/help</code> for available commands!";
   }
 }

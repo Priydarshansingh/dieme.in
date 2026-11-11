@@ -382,22 +382,22 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Official Digicast Logo Mark + Logo Text Graphic (White Tinted)
+                // Official Dieme Logo Mark + Brand Wordmark
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Image(
                         painter = painterResource(id = com.digicast.app.R.drawable.logo_round),
-                        contentDescription = "Digicast Logo",
+                        contentDescription = "Dieme Logo",
                         modifier = Modifier.size(30.dp)
                     )
-                    Image(
-                        painter = painterResource(id = com.digicast.app.R.drawable.logo_text),
-                        contentDescription = "Digicast",
-                        modifier = Modifier.height(20.dp),
-                        contentScale = ContentScale.Fit,
-                        colorFilter = ColorFilter.tint(Color.White)
+                    Text(
+                        text = "Dieme",
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp,
+                        letterSpacing = (-0.5).sp
                     )
                 }
 

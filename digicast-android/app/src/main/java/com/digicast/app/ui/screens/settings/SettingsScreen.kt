@@ -1994,7 +1994,7 @@ private fun SecurityCard(context: Context) {
             .clickable {
                 val intent = android.content.Intent(
                     android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse("https://digicast-web.vercel.app/privacy")
+                    android.net.Uri.parse("https://www.dieme.in/privacy")
                 )
                 context.startActivity(intent)
             },

@@ -28,7 +28,7 @@ export interface PricingPlan {
 
 export const UPI_CONFIG = {
   upiId: 'dkigicast@ptyes',
-  payeeName: 'Digicast',
+  payeeName: 'Dieme',
   telegramSupportUrl: 'https://t.me/YT_digicast?start=help',
   telegramBotUsername: 'YT_digicast',
   discordSupportUrl: 'https://discord.gg/digicast',
@@ -149,7 +149,7 @@ export function buildUpiDeepLink(params: {
   const upiId = UPI_CONFIG.upiId;
   const payeeName = UPI_CONFIG.payeeName;
   const formattedAmount = Number(amount).toFixed(2);
-  const cleanNote = planName ? `Digicast ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20) : 'Digicast';
+  const cleanNote = planName ? `Dieme ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20) : 'Dieme';
 
   return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${formattedAmount}&cu=INR&tn=${encodeURIComponent(cleanNote)}`;
 }
@@ -161,7 +161,7 @@ export function buildMobileAppUpiLinks(amount: number, planName: string) {
   const upiId = encodeURIComponent(UPI_CONFIG.upiId);
   const payeeName = encodeURIComponent(UPI_CONFIG.payeeName);
   const amtStr = Number(amount).toFixed(2);
-  const note = encodeURIComponent(`Digicast ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20));
+  const note = encodeURIComponent(`Dieme ${planName.replace(/[^a-zA-Z0-9 ]/g, '')}`.slice(0, 20));
 
   return {
     standard: `upi://pay?pa=${upiId}&pn=${payeeName}&am=${amtStr}&cu=INR&tn=${note}`,
@@ -179,12 +179,12 @@ export function buildVerificationTelegramUrl(params: {
   amount: number;
   utrNumber: string;
 }): string {
-  const message = `🎉 *Digicast Payment Confirmation Request*\n\n` +
+  const message = `🎉 *Dieme Payment Confirmation Request*\n\n` +
     `• *Plan:* ${params.planName} (₹${params.amount})\n` +
     `• *UTR / Ref ID:* \`${params.utrNumber}\`\n` +
     `• *User Email:* ${params.userEmail}\n` +
     `• *Workspace:* ${params.workspaceName} (\`${params.workspaceId}\`)\n\n` +
     `Please verify and activate my subscription!`;
 
-  return `https://t.me/share/url?url=${encodeURIComponent('https://digicast-web.vercel.app')}&text=${encodeURIComponent(message)}`;
+  return `https://t.me/share/url?url=${encodeURIComponent('https://www.dieme.in')}&text=${encodeURIComponent(message)}`;
 }

@@ -645,7 +645,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                 Built for Live Creators Who Move Fast.
               </h2>
               <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                From marathon gaming streams to live podcast broadcasts, Digicast delivers zero-delay clip markers directly to your editors&apos; Telegram with zero quota burn.
+                From marathon gaming streams to live podcast broadcasts, Dieme delivers zero-delay clip markers directly to your editors&apos; Telegram with zero quota burn.
               </p>
             </div>
           </ScrollReveal>
@@ -717,7 +717,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           <ScrollReveal direction="right" delay={250}>
             <div className="space-y-4">
               <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 font-mono">
-                What is Digicast?
+                What is Dieme?
               </span>
               <h3 className="text-3xl font-extrabold text-white">
                 Broadcast on YouTube and other platforms with up to 4K 60FPS!
@@ -1036,7 +1036,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                     </h3>
 
                     <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                      While you stream, Digicast maintains a continuous 45s to 90s hardware lookback buffer. When an epic moment occurs, you or your viewers drop a marker using Nightbot chat triggers or hotkeys.
+                      While you stream, Dieme maintains a continuous 45s to 90s hardware lookback buffer. When an epic moment occurs, you or your viewers drop a marker using Nightbot chat triggers or hotkeys.
                     </p>
 
                     <div className="space-y-2.5 pt-1">
@@ -1141,7 +1141,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                     </h3>
 
                     <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                      No more downloading 50GB stream archives or waiting hours for VOD processing. Digicast immediately delivers direct one-tap YouTube jump links (?t=...) straight to your editor&apos;s Telegram.
+                      No more downloading 50GB stream archives or waiting hours for VOD processing. Dieme immediately delivers direct one-tap YouTube jump links (?t=...) straight to your editor&apos;s Telegram.
                     </p>
 
                     <div className="space-y-2.5 pt-1">
@@ -1674,7 +1674,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
       </section>
 
       {/* ── 11. "WHY CHOOSE DIGICAST?" 4 BENTO CARDS (VIDEO 00:49-00:56) ─────── */}
-      <section id="why-digicast" className="py-24 border-t border-white/5 bg-[#080B12] relative z-10">
+      <section id="why-dieme" className="py-24 border-t border-white/5 bg-[#080B12] relative z-10">
         <div className="max-w-6xl mx-auto px-6">
           <ScrollReveal direction="up" delay={100}>
             <div className="text-center max-w-xl mx-auto mb-16">
@@ -1737,7 +1737,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                 Our clients have the potential to produce viral shorts in a relatively short time.
               </h2>
               <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                We started developing live streaming capture tools after seeing hundreds of top streamers lose their best highlight moments without automated editor relay. Today, Digicast powers multi-channel broadcasting teams across 150+ countries.
+                We started developing live streaming capture tools after seeing hundreds of top streamers lose their best highlight moments without automated editor relay. Today, Dieme powers multi-channel broadcasting teams across 150+ countries.
               </p>
               <div className="flex items-center gap-4 pt-2">
                 <Link
@@ -1819,7 +1819,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           <ScrollReveal direction="up" delay={100}>
             <div>
               <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest">
-                Digicast Studio Console
+                Dieme Studio Console
               </span>
               <h2 className="text-3xl sm:text-5xl font-black text-white mt-2">
                 All in one place

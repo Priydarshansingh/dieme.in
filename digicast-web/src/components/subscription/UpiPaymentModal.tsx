@@ -401,7 +401,7 @@ export default function UpiPaymentModal({
                 <span>Session: {timeLeft === 0 ? 'Expired' : formatTimer(timeLeft)}</span>
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white">Choose Your Digicast Plan</h2>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white">Choose Your Dieme Plan</h2>
             <p className="text-slate-300 text-xs sm:text-sm mt-1">
               Direct-to-bank instant settlement. Scan QR code or tap to pay directly with any UPI app.
             </p>
@@ -490,7 +490,7 @@ export default function UpiPaymentModal({
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={qrDataUrl}
-                          alt="Digicast UPI Payment QR Code"
+                          alt="Dieme UPI Payment QR Code"
                           className={`w-56 h-56 sm:w-64 sm:h-64 rounded-xl transition duration-300 ${timeLeft === 0 ? 'filter blur-[3px] opacity-40' : ''}`}
                         />
                       ) : (
@@ -833,7 +833,7 @@ export default function UpiPaymentModal({
                   {submittedPayment.status === 'approved' ? '✓ Payment Verified & Approved' : '✓ Proof Received'}
                 </span>
                 <h3 className="text-xl sm:text-2xl font-black text-white mt-2">
-                  Thank You for Subscribing to Digicast!
+                  Thank You for Subscribing to Dieme!
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 mt-1">
                   Payment for the <span className="font-bold text-white">{selectedPlan.name} (₹{selectedPlan.priceINR})</span> is confirmed.

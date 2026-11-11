@@ -102,10 +102,10 @@ class ExtensionViewModel @Inject constructor(
         val defaultList = listOf(
             ExtensionRegistryItem(
                 id = "com.digicast.ext.clipengine",
-                name = "Digicast Clip Engine",
+                name = "Dieme Clip Engine",
                 version = "1.0.0",
                 description = "Core video download & trimming extension. Bundles yt-dlp & FFmpeg for on-device processing.",
-                downloadUrl = "https://digicast-web.vercel.app/extensions/clip-engine.dcast",
+                downloadUrl = "https://www.dieme.in/extensions/clip-engine.dcast",
                 entryClass = "com.digicast.ext.clipengine.ClipEngineExtension",
                 isInstalled = checkIsInstalled("com.digicast.ext.clipengine")
             ),
@@ -114,7 +114,7 @@ class ExtensionViewModel @Inject constructor(
                 name = "FFmpeg Lossless Trimmer",
                 version = "1.0.0",
                 description = "High-precision on-device stream cutting and keyframe-accurate MP4 encoder.",
-                downloadUrl = "https://digicast-web.vercel.app/extensions/ffmpeg-trimmer.dcast",
+                downloadUrl = "https://www.dieme.in/extensions/ffmpeg-trimmer.dcast",
                 entryClass = "com.digicast.ext.clipengine.ClipEngineExtension",
                 isInstalled = checkIsInstalled("com.digicast.ext.ffmpeg")
             ),
@@ -123,7 +123,7 @@ class ExtensionViewModel @Inject constructor(
                 name = "YouTube Stream Extractor",
                 version = "1.0.0",
                 description = "Live stream buffer capture and multi-resolution DASH/HLS segment grabber.",
-                downloadUrl = "https://digicast-web.vercel.app/extensions/youtube-downloader.dcast",
+                downloadUrl = "https://www.dieme.in/extensions/youtube-downloader.dcast",
                 entryClass = "com.digicast.ext.clipengine.ClipEngineExtension",
                 isInstalled = checkIsInstalled("com.digicast.ext.youtubedl")
             ),
@@ -132,7 +132,7 @@ class ExtensionViewModel @Inject constructor(
                 name = "Dg-Images AI Bridge",
                 version = "1.0.0",
                 description = "High-fidelity thumbnail generation & object inpainting bridge for Dg-Images companion app.",
-                downloadUrl = "https://digicast-web.vercel.app/extensions/dgimages-bridge.dcast",
+                downloadUrl = "https://www.dieme.in/extensions/dgimages-bridge.dcast",
                 entryClass = "com.digicast.ext.dgimages.DgImagesExtension",
                 isInstalled = checkIsInstalled("com.digicast.ext.dgimages")
             )
@@ -152,7 +152,7 @@ class ExtensionViewModel @Inject constructor(
                 val request = Request.Builder()
                     .url(GITHUB_API_RELEASES)
                     .addHeader("Accept", "application/vnd.github.v3+json")
-                    .addHeader("User-Agent", "Digicast-Android-App")
+                    .addHeader("User-Agent", "Dieme-Android-App")
                     .build()
 
                 val response = okHttpClient.newCall(request).execute()
@@ -178,7 +178,7 @@ class ExtensionViewModel @Inject constructor(
                                         id = cleanId,
                                         name = cleanName,
                                         version = rel.optString("tag_name", "1.0.0"),
-                                        description = rel.optString("body", "Official Digicast modular processor extension from GitHub."),
+                                        description = rel.optString("body", "Official Dieme modular processor extension from GitHub."),
                                         downloadUrl = asset.optString("browser_download_url"),
                                         entryClass = "$cleanId.MainExtension",
                                         sizeBytes = asset.optLong("size", 0),

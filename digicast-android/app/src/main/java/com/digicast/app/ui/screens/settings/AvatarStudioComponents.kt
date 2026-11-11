@@ -208,16 +208,16 @@ fun DuolingoAvatarStudioBentoCard(
 
             // Horizontally swipeable 10 preview avatars
             val previewAvatars = listOf(
-                Triple("Gojo", "https://digicast-web.vercel.app/avatars/gojo_satoru.svg", "#8B5CF6"),
-                Triple("Goku", "https://digicast-web.vercel.app/avatars/goku_super_saiyan.svg", "#F59E0B"),
-                Triple("Luffy", "https://digicast-web.vercel.app/avatars/luffy_gear5.svg", "#EC4899"),
-                Triple("Jin-woo", "https://digicast-web.vercel.app/avatars/sung_jinwoo.svg", "#06B6D4"),
-                Triple("Naruto", "https://digicast-web.vercel.app/avatars/naruto_sage.svg", "#F97316"),
-                Triple("Zoro", "https://digicast-web.vercel.app/avatars/zoro_wano.svg", "#10B981"),
-                Triple("Levi", "https://digicast-web.vercel.app/avatars/levi_ackerman.svg", "#64748B"),
-                Triple("Tanjiro", "https://digicast-web.vercel.app/avatars/tanjiro_sun.svg", "#EF4444"),
-                Triple("Sukuna", "https://digicast-web.vercel.app/avatars/sukuna_domain.svg", "#DC2626"),
-                Triple("Eren", "https://digicast-web.vercel.app/avatars/eren_founder.svg", "#22C55E")
+                Triple("Gojo", "https://www.dieme.in/avatars/gojo_satoru.svg", "#8B5CF6"),
+                Triple("Goku", "https://www.dieme.in/avatars/goku_super_saiyan.svg", "#F59E0B"),
+                Triple("Luffy", "https://www.dieme.in/avatars/luffy_gear5.svg", "#EC4899"),
+                Triple("Jin-woo", "https://www.dieme.in/avatars/sung_jinwoo.svg", "#06B6D4"),
+                Triple("Naruto", "https://www.dieme.in/avatars/naruto_sage.svg", "#F97316"),
+                Triple("Zoro", "https://www.dieme.in/avatars/zoro_wano.svg", "#10B981"),
+                Triple("Levi", "https://www.dieme.in/avatars/levi_ackerman.svg", "#64748B"),
+                Triple("Tanjiro", "https://www.dieme.in/avatars/tanjiro_sun.svg", "#EF4444"),
+                Triple("Sukuna", "https://www.dieme.in/avatars/sukuna_domain.svg", "#DC2626"),
+                Triple("Eren", "https://www.dieme.in/avatars/eren_founder.svg", "#22C55E")
             )
 
             LazyRow(

@@ -78,7 +78,7 @@ export default function Sidebar() {
           rel="noopener noreferrer"
           download="digicast-app-latest.apk"
           className="group block p-3 rounded-xl bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-indigo-500/10 border border-cyan-500/25 hover:border-cyan-400/50 transition-all duration-200 shadow-sm"
-          title="Download the latest Digicast Studio Android App (APK)"
+          title="Download the latest Dieme Studio Android App (APK)"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-300">

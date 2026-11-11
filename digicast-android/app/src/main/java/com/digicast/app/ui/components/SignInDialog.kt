@@ -87,7 +87,7 @@ fun SignInDialog(
                 )
                 Column {
                     Text(
-                        text = "Sign in to Digicast",
+                        text = "Sign in to Dieme",
                         color = DigicastWhite,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
@@ -171,7 +171,7 @@ fun SignInDialog(
                 }
 
                 Text(
-                    text = "Sign-in connects directly to your Digicast cloud workspace.",
+                    text = "Sign-in connects directly to your Dieme cloud workspace.",
                     color = DigicastSlate,
                     fontSize = 11.sp,
                     lineHeight = 15.sp

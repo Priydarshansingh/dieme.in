@@ -613,8 +613,8 @@ fun Access24hGateDialog(
 
                             // Authoritative Sovereign Gateway UPI Link & Deep Links
                             val upiAmountFormatted = String.format(java.util.Locale.US, "%.2f", selectedPlan.priceINR.toDouble())
-                            val cleanNote = URLEncoder.encode("Digicast ${selectedPlan.name} ${activeOrderId ?: ""}".trim(), "UTF-8")
-                            val fallbackUpiString = "upi://pay?pa=$upiVpa&pn=Digicast&am=$upiAmountFormatted&cu=INR&tn=$cleanNote"
+                            val cleanNote = URLEncoder.encode("Dieme ${selectedPlan.name} ${activeOrderId ?: ""}".trim(), "UTF-8")
+                            val fallbackUpiString = "upi://pay?pa=$upiVpa&pn=Dieme&am=$upiAmountFormatted&cu=INR&tn=$cleanNote"
                             val effectiveUpiString = gatewayUpiString ?: fallbackUpiString
 
                             val phonepeIntentUri = effectiveUpiString.replace("upi://pay", "phonepe://pay")
@@ -831,7 +831,7 @@ fun Access24hGateDialog(
                             OutlinedButton(
                                 onClick = {
                                     try {
-                                        val webGatewayUrl = "https://digicast-web.vercel.app/pricing"
+                                        val webGatewayUrl = "https://www.dieme.in/pricing"
                                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(webGatewayUrl))
                                         context.startActivity(intent)
                                     } catch (e: Exception) {

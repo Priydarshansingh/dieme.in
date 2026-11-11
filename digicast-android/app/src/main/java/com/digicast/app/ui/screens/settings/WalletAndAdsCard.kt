@@ -246,7 +246,7 @@ fun WalletAndAdsCard(
                         .padding(12.dp)
                 ) {
                     Column {
-                        Text("DIGICAST POINTS", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("DIEME POINTS", color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "${walletInfo?.dpBalance ?: 45} DP",
@@ -494,7 +494,7 @@ fun WalletAndAdsCard(
                                 modifier = Modifier.size(36.dp)
                             )
                             Text(
-                                text = "Digicast Studio Pro Ecosystem",
+                                text = "Dieme Studio Pro Ecosystem",
                                 color = DigicastWhite,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold

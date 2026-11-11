@@ -5,8 +5,8 @@ import { SiteHeader } from '@/components/common/SiteHeader';
 import { SiteFooter } from '@/components/common/SiteFooter';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Digicast (Kiziee Media)',
-  description: 'Privacy Policy and Google API Services User Data Policy disclosures for Digicast by Kiziee Media.',
+  title: 'Privacy Policy — Dieme (Kiziee Media)',
+  description: 'Privacy Policy and Google API Services User Data Policy disclosures for Dieme by Kiziee Media.',
 };
 
 export default function PrivacyPage() {
@@ -26,7 +26,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm font-mono">
-            Operating Entity: Kiziee Media (&quot;Digicast&quot;) &bull; Last Updated: October 2026 &bull; Version 3.0
+            Operating Entity: Kiziee Media (&quot;Dieme&quot;) &bull; Last Updated: October 2026 &bull; Version 3.0
           </p>
         </div>
 
@@ -38,13 +38,13 @@ export default function PrivacyPage() {
               1. Overview &amp; Introduction
             </h2>
             <p>
-              This Privacy Policy explains how <b>Kiziee Media</b> (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses, and safeguards information through our streaming companion application <b>Digicast</b> (accessible at{' '}
+              This Privacy Policy explains how <b>Kiziee Media</b> (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses, and safeguards information through our streaming companion application <b>Dieme</b> (accessible at{' '}
               <a href="https://kizieemedia.com" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
                 https://kizieemedia.com
               </a>{' '}
               and{' '}
-              <a href="https://digicast-web.vercel.app" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
-                https://digicast-web.vercel.app
+              <a href="https://www.dieme.in" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
+                https://www.dieme.in
               </a>).
             </p>
             <p>
@@ -59,10 +59,10 @@ export default function PrivacyPage() {
               2. YouTube API Services &amp; Google User Data Disclosures
             </h2>
             <p>
-              Digicast uses <b>YouTube API Services</b> (YouTube Data API v3) to enable live stream detection, real-time broadcast marker tagging, and creator workspace synchronization.
+              Dieme uses <b>YouTube API Services</b> (YouTube Data API v3) to enable live stream detection, real-time broadcast marker tagging, and creator workspace synchronization.
             </p>
             <div className="space-y-2 text-xs bg-white/[0.03] p-4 rounded-xl border border-white/10 font-mono text-slate-300">
-              <p className="font-bold text-white">By using Digicast, you explicitly acknowledge and agree that:</p>
+              <p className="font-bold text-white">By using Dieme, you explicitly acknowledge and agree that:</p>
               <ul className="list-disc list-inside space-y-1.5 pl-2 text-slate-300">
                 <li>
                   Our application accesses YouTube API Services. You are agreeing to be bound by the{' '}
@@ -77,7 +77,7 @@ export default function PrivacyPage() {
                   </a>.
                 </li>
                 <li>
-                  <b>Revocation of Access:</b> You can revoke Digicast&apos;s access to your Google/YouTube account data at any time via the official Google Security Settings at{' '}
+                  <b>Revocation of Access:</b> You can revoke Dieme&apos;s access to your Google/YouTube account data at any time via the official Google Security Settings at{' '}
                   <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline font-bold inline-flex items-center gap-0.5">
                     https://myaccount.google.com/permissions <ExternalLink className="w-3 h-3 inline" />
                   </a>.
@@ -90,7 +90,7 @@ export default function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="text-lg font-bold text-white">3. Google API Services Limited Use Policy Compliance</h2>
             <p>
-              Digicast&apos;s use and transfer to any other app of information received from Google APIs will strictly adhere to the{' '}
+              Dieme&apos;s use and transfer to any other app of information received from Google APIs will strictly adhere to the{' '}
               <a
                 href="https://developers.google.com/terms/api-services-user-data-policy#additional_requirements_for_specific_api_scopes"
                 target="_blank"
@@ -124,7 +124,7 @@ export default function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="text-lg font-bold text-white">5. Local-First Processing Architecture</h2>
             <p>
-              Digicast processes stream clip markers and audio/video trims locally on your device via hardware acceleration. Raw video streams are never stored on our central servers, guaranteeing creator data ownership and zero cross-account data leakage.
+              Dieme processes stream clip markers and audio/video trims locally on your device via hardware acceleration. Raw video streams are never stored on our central servers, guaranteeing creator data ownership and zero cross-account data leakage.
             </p>
           </section>
 
@@ -154,7 +154,7 @@ export default function PrivacyPage() {
               For legal, privacy, or compliance inquiries, contact:
             </p>
             <p className="text-slate-400 font-mono text-xs">
-              <b>Kiziee Media</b> &bull; Digicast Creator Studio<br />
+              <b>Kiziee Media</b> &bull; Dieme Creator Studio<br />
               Authorized Domains: kizieemedia.com &bull; digicast-web.vercel.app<br />
               Support: support@kizieemedia.com
             </p>

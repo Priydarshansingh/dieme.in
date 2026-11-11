@@ -378,7 +378,7 @@ class ClipGenerateViewModel @Inject constructor(
                     // Check on-device .dcast extensions
                     val extFile = File(context.filesDir, "com.digicast.ext.clipengine.dcast")
                     if (extFile.exists() && extFile.length() > 1000L) {
-                        _progressMessage.value = "Executing Digicast Clip Engine (.dcast) & lossless trimmer..."
+                        _progressMessage.value = "Executing Dieme Clip Engine (.dcast) & lossless trimmer..."
                     } else {
                         _progressMessage.value = "Connecting to live stream video pipeline..."
                     }
@@ -387,8 +387,8 @@ class ClipGenerateViewModel @Inject constructor(
                     var masterDownloaded = baseSourceFile.exists() && baseSourceFile.length() > 50_000L
                     if (!masterDownloaded) {
                         val candidateUrls = listOf(
-                            "https://digicast-web.vercel.app/assets/clips/clip_${currentClip.streamId}.mp4",
-                            "https://digicast-web.vercel.app/assets/clip_sample.mp4"
+                            "https://www.dieme.in/assets/clips/clip_${currentClip.streamId}.mp4",
+                            "https://www.dieme.in/assets/clip_sample.mp4"
                         )
 
                         for (remoteUrl in candidateUrls) {
@@ -535,7 +535,7 @@ class ClipGenerateViewModel @Inject constructor(
                     put(MediaStore.MediaColumns.DISPLAY_NAME, cleanName)
                     put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Digicast")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Dieme")
                         put(MediaStore.MediaColumns.IS_PENDING, 1)
                     }
                 }
@@ -564,8 +564,8 @@ class ClipGenerateViewModel @Inject constructor(
                         MediaScannerConnection.scanFile(context, arrayOf(sourceFile.absolutePath), arrayOf("video/mp4"), null)
                     }
 
-                    _saveStatusMessage.value = "Saved to Downloads/Digicast/$cleanName"
-                    Toast.makeText(context, "Saved to Downloads/Digicast. Ready in Gallery.", Toast.LENGTH_LONG).show()
+                    _saveStatusMessage.value = "Saved to Downloads/Dieme/$cleanName"
+                    Toast.makeText(context, "Saved to Downloads/Dieme. Ready in Gallery.", Toast.LENGTH_LONG).show()
                 } else {
                     _saveStatusMessage.value = "Could not create file in Downloads"
                 }
@@ -1455,7 +1455,7 @@ fun ClipGenerateScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("Destination Folder", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
-                                Text("Downloads/Digicast/", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Downloads/Dieme/", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
 
                             // Format
@@ -1568,7 +1568,7 @@ fun YouTubeStreamPreview(
     val timingParam = if (endSeconds != null && endSeconds > startSeconds) "&start=$startSeconds&end=$endSeconds" else if (startSeconds > 0) "&start=$startSeconds" else ""
     val targetTag = "$cleanVideoId-$startSeconds-$endSeconds"
 
-    val targetUrl = if (cleanVideoId.isNotEmpty()) "https://digicast-web.vercel.app/embed?videoId=$cleanVideoId$timingParam" else "about:blank"
+    val targetUrl = if (cleanVideoId.isNotEmpty()) "https://www.dieme.in/embed?videoId=$cleanVideoId$timingParam" else "about:blank"
 
     val mainHandler = remember { android.os.Handler(android.os.Looper.getMainLooper()) }
     val bridge = remember {
@@ -1708,7 +1708,7 @@ fun sendClipViaTelegram(
             "${context.packageName}.fileprovider",
             videoFile
         )
-        val caption = "Clip: $label\nBroadcast: $streamTitle\nTimestamp: $timestamp\nGenerated via Digicast Studio"
+        val caption = "Clip: $label\nBroadcast: $streamTitle\nTimestamp: $timestamp\nGenerated via Dieme Studio"
 
         val telegramIntent = Intent(Intent.ACTION_SEND).apply {
             type = "video/mp4"

@@ -115,8 +115,8 @@ class AuthRepository @Inject constructor(
         private const val KEY_SAVED_LOGIN_PASSWORD = "auth_saved_login_password"
         private const val KEY_HAS_WATCHED_AD = "auth_has_watched_ad"
 
-        // All API calls go to Vercel-hosted digicast-web backend
-        const val BACKEND_URL = "https://digicast-web.vercel.app"
+        // All API calls go to Dieme production backend
+        const val BACKEND_URL = "https://www.dieme.in"
 
         // Default creator session — used when user explores studio without sign-in
         val DEMO_SESSION = UserSession(
@@ -1387,7 +1387,7 @@ class AuthRepository @Inject constructor(
                 series = "Jujutsu Kaisen",
                 badge = "Six Eyes",
                 color = "#8B5CF6",
-                url = "https://digicast-web.vercel.app/avatars/gojo_satoru.svg",
+                url = "https://www.dieme.in/avatars/gojo_satoru.svg",
                 description = "The Honored One wielding limitless cursed energy and Hollow Purple.",
                 isDefault = true
             ),
@@ -1397,7 +1397,7 @@ class AuthRepository @Inject constructor(
                 series = "Dragon Ball Z",
                 badge = "Super Saiyan",
                 color = "#F59E0B",
-                url = "https://digicast-web.vercel.app/avatars/goku_super_saiyan.svg",
+                url = "https://www.dieme.in/avatars/goku_super_saiyan.svg",
                 description = "Legendary Saiyan warrior burning with golden Super Saiyan ki.",
                 isDefault = true
             ),
@@ -1407,7 +1407,7 @@ class AuthRepository @Inject constructor(
                 series = "One Piece",
                 badge = "Sun God Nika",
                 color = "#EC4899",
-                url = "https://digicast-web.vercel.app/avatars/luffy_gear5.svg",
+                url = "https://www.dieme.in/avatars/luffy_gear5.svg",
                 description = "Warrior of Liberation powered by the Drums of Liberation.",
                 isDefault = true
             ),
@@ -1417,7 +1417,7 @@ class AuthRepository @Inject constructor(
                 series = "Solo Leveling",
                 badge = "Shadow Monarch",
                 color = "#06B6D4",
-                url = "https://digicast-web.vercel.app/avatars/sung_jinwoo.svg",
+                url = "https://www.dieme.in/avatars/sung_jinwoo.svg",
                 description = "Shadow Monarch commanding legions of risen shadow extraction soldiers.",
                 isDefault = true
             ),
@@ -1427,7 +1427,7 @@ class AuthRepository @Inject constructor(
                 series = "Naruto Shippuden",
                 badge = "Toad Sage Mode",
                 color = "#F97316",
-                url = "https://digicast-web.vercel.app/avatars/naruto_sage.svg",
+                url = "https://www.dieme.in/avatars/naruto_sage.svg",
                 description = "Hero of the Hidden Leaf with senjutsu orange pigments and toad sage eyes.",
                 isDefault = true
             ),
@@ -1437,7 +1437,7 @@ class AuthRepository @Inject constructor(
                 series = "One Piece",
                 badge = "King of Hell",
                 color = "#10B981",
-                url = "https://digicast-web.vercel.app/avatars/zoro_wano.svg",
+                url = "https://www.dieme.in/avatars/zoro_wano.svg",
                 description = "Master of Three-Sword Style channeling Enma conqueror dragon flames.",
                 isDefault = true
             ),
@@ -1447,7 +1447,7 @@ class AuthRepository @Inject constructor(
                 series = "Attack on Titan",
                 badge = "Humanity's Strongest",
                 color = "#64748B",
-                url = "https://digicast-web.vercel.app/avatars/levi_ackerman.svg",
+                url = "https://www.dieme.in/avatars/levi_ackerman.svg",
                 description = "Captain of the Special Operations Squad with deadly dual-blade precision.",
                 isDefault = true
             ),
@@ -1457,7 +1457,7 @@ class AuthRepository @Inject constructor(
                 series = "Demon Slayer",
                 badge = "Sun Breathing",
                 color = "#EF4444",
-                url = "https://digicast-web.vercel.app/avatars/tanjiro_sun.svg",
+                url = "https://www.dieme.in/avatars/tanjiro_sun.svg",
                 description = "Demon Slayer Corps warrior wielding Hinokami Kagura solar flame dances.",
                 isDefault = true
             ),
@@ -1467,7 +1467,7 @@ class AuthRepository @Inject constructor(
                 series = "Jujutsu Kaisen",
                 badge = "King of Curses",
                 color = "#DC2626",
-                url = "https://digicast-web.vercel.app/avatars/sukuna_domain.svg",
+                url = "https://www.dieme.in/avatars/sukuna_domain.svg",
                 description = "Malevolent Shrine sovereign unleashing Dismantle and Cleave domain strikes.",
                 isDefault = true
             ),
@@ -1477,7 +1477,7 @@ class AuthRepository @Inject constructor(
                 series = "Attack on Titan",
                 badge = "Founding Titan",
                 color = "#22C55E",
-                url = "https://digicast-web.vercel.app/avatars/eren_founder.svg",
+                url = "https://www.dieme.in/avatars/eren_founder.svg",
                 description = "Unstoppable titan shifter marching forward in pursuit of ultimate freedom.",
                 isDefault = true
             )
@@ -1500,7 +1500,7 @@ class AuthRepository @Inject constructor(
                         val item = array.getJSONObject(i)
                         var url = item.optString("url", "")
                         if (url.startsWith("/")) {
-                            url = "https://digicast-web.vercel.app$url"
+                            url = "https://www.dieme.in$url"
                         }
                         list.add(
                             GamerAvatarDto(

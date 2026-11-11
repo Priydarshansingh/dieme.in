@@ -55,10 +55,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -88,6 +88,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -151,21 +152,21 @@ fun ThumbnailStudioScreen(
     val clipboardManager = LocalClipboardManager.current
     val coroutineScope = rememberCoroutineScope()
 
-    // ── Collapsible Left Chat Drawer State (ChatGPT Style) ──────────────────
-    var isChatDrawerOpen by remember { mutableStateOf(false) }
+    // ── Collapsible Left History Drawer State ───────────────────────────────
+    var isHistoryDrawerOpen by remember { mutableStateOf(false) }
 
-    // Intercept back button to close drawer first if open
-    BackHandler(enabled = isChatDrawerOpen) {
-        isChatDrawerOpen = false
+    // Intercept hardware back button to close drawer first if open
+    BackHandler(enabled = isHistoryDrawerOpen) {
+        isHistoryDrawerOpen = false
     }
 
-    // ── Link & Source State ─────────────────────────────────────────────────
+    // ── Link & Source State (Empty by default, NO demo data) ────────────────
     var urlInput by remember { mutableStateOf("") }
-    var currentThumbnailUrl by remember { mutableStateOf<String?>("https://img.youtube.com/vi/g_4KXSxPzGo/maxresdefault.jpg") }
-    var videoId by remember { mutableStateOf("g_4KXSxPzGo") }
+    var currentThumbnailUrl by remember { mutableStateOf<String?>(null) }
+    var videoId by remember { mutableStateOf("") }
     var isFetchingUrl by remember { mutableStateOf(false) }
 
-    // ── Canvas Mark Points (ChatGPT Vision Style) ───────────────────────────
+    // ── Canvas Mark Points ──────────────────────────────────────────────────
     val markedPins = remember { mutableStateListOf<MarkedPin>() }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
@@ -184,18 +185,10 @@ fun ThumbnailStudioScreen(
         }
     }
 
-    // ── Chat & Prompt State ─────────────────────────────────────────────────
+    // ── History & Prompt State (Empty by default) ───────────────────────────
     var promptInput by remember { mutableStateOf("") }
-    var preferNewChat by remember { mutableStateOf(false) } // Controlled also by (+) button
-    val chatMessages = remember {
-        mutableStateListOf(
-            ThumbnailChatMessage(
-                isUser = false,
-                text = "Welcome to Thumbnail Studio. Tap on the 16:9 canvas to drop target pins (📍), attach up to 2 reference photos, and describe desired character, color, or text revisions.",
-                previewImageUrl = "https://img.youtube.com/vi/g_4KXSxPzGo/maxresdefault.jpg"
-            )
-        )
-    }
+    var preferNewChat by remember { mutableStateOf(false) }
+    val chatMessages = remember { mutableStateListOf<ThumbnailChatMessage>() }
 
     val quickPresets = listOf(
         "🔥 Neon Glow",
@@ -227,8 +220,8 @@ fun ThumbnailStudioScreen(
         label = "pinPulseAlpha"
     )
 
-    // ── Helper: Start New Chat Session ──────────────────────────────────────
-    fun startNewChat() {
+    // ── Helper: Start New Session ───────────────────────────────────────────
+    fun startNewSession() {
         preferNewChat = true
         promptInput = ""
         markedPins.clear()
@@ -236,11 +229,11 @@ fun ThumbnailStudioScreen(
         chatMessages.add(
             ThumbnailChatMessage(
                 isUser = false,
-                text = "✨ Started a new chat thread. Previous revisions are preserved in history. Drop new pins to begin.",
+                text = "✨ Started a new revision session. Drop target pins on the canvas to describe edits.",
                 previewImageUrl = currentThumbnailUrl
             )
         )
-        Toast.makeText(context, "✨ Started New Chat Session", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "✨ Started New Session", Toast.LENGTH_SHORT).show()
     }
 
     // ── Helper: Check Dg-Images installation ────────────────────────────────
@@ -379,10 +372,10 @@ fun ThumbnailStudioScreen(
         builder.appendLine("User Creative Request:")
         builder.appendLine(userText.trim())
         builder.appendLine("Synthesis Directives:")
-        builder.appendLine("- If character or facial change is specified, align seamlessly with marked target pins while retaining photorealistic depth.")
-        builder.appendLine("- If color, lighting, or theme change is requested, apply high-contrast, specular highlights designed for maximum YouTube mobile CTR.")
-        builder.appendLine("- If text/graphics are requested, render sharp, crisp typography with subtle specular or neon rim lighting.")
-        builder.appendLine("- Preserve seamless 16:9 composition cohesion.")
+        builder.appendLine("- Seamlessly blend changes at marked target pins while retaining photorealistic depth.")
+        builder.appendLine("- Apply high-contrast, specular highlights designed for maximum mobile CTR.")
+        builder.appendLine("- Render crisp, readable typography with subtle specular or rim lighting.")
+        builder.appendLine("- Maintain seamless 16:9 composition cohesion.")
         return builder.toString().trim()
     }
 
@@ -473,7 +466,7 @@ fun ThumbnailStudioScreen(
             )
         )
 
-        // Clear active inputs
+        // Clear active inputs as requested
         promptInput = ""
         urlInput = ""
 
@@ -482,9 +475,9 @@ fun ThumbnailStudioScreen(
             ThumbnailChatMessage(
                 id = pendingMessageId,
                 isUser = false,
-                text = "Dg-Images is processing your revision...",
+                text = "Processing revision...",
                 isGenerating = true,
-                status = "Synthesizing with ChatGPT..."
+                status = "Generating revision with AI engine..."
             )
         )
 
@@ -596,7 +589,7 @@ fun ThumbnailStudioScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // ── LEFT SIDE: Back Button + Collapsible Chat Drawer Toggle ───
+                    // ── LEFT SIDE: Back Button + History Drawer Toggle ────────
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -619,17 +612,17 @@ fun ThumbnailStudioScreen(
                             )
                         }
 
-                        // Collapsible Chat Drawer Trigger Button (ChatGPT Style on Left)
+                        // Collapsible History Drawer Button (Named History as requested)
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (isChatDrawerOpen) DigicastElectricCyan.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f))
+                                .background(if (isHistoryDrawerOpen) DigicastElectricCyan.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f))
                                 .border(
                                     1.dp,
-                                    if (isChatDrawerOpen) DigicastElectricCyan else Color.White.copy(alpha = 0.15f),
+                                    if (isHistoryDrawerOpen) DigicastElectricCyan else Color.White.copy(alpha = 0.15f),
                                     RoundedCornerShape(10.dp)
                                 )
-                                .clickable { isChatDrawerOpen = !isChatDrawerOpen }
+                                .clickable { isHistoryDrawerOpen = !isHistoryDrawerOpen }
                                 .padding(horizontal = 10.dp, vertical = 7.dp)
                         ) {
                             Row(
@@ -637,14 +630,14 @@ fun ThumbnailStudioScreen(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Forum,
-                                    contentDescription = "Chat",
-                                    tint = if (isChatDrawerOpen) DigicastElectricCyan else Color.White,
+                                    imageVector = Icons.Default.Layers,
+                                    contentDescription = "History",
+                                    tint = if (isHistoryDrawerOpen) DigicastElectricCyan else Color.White,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "Chat (${chatMessages.size})",
-                                    color = if (isChatDrawerOpen) DigicastElectricCyan else Color.White,
+                                    text = if (chatMessages.isNotEmpty()) "History (${chatMessages.size})" else "History",
+                                    color = if (isHistoryDrawerOpen) DigicastElectricCyan else Color.White,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -652,30 +645,30 @@ fun ThumbnailStudioScreen(
                         }
                     }
 
-                    // ── RIGHT SIDE: (+) New Chat Button & Status Pill ────────
+                    // ── RIGHT SIDE: (+) New Chat / Session Button & Status Pill ───
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // (+) Plus New Chat Button (as requested by user)
+                        // (+) Plus New Session Button
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFF134E5E))
                                 .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), CircleShape)
-                                .clickable { startNewChat() },
+                                .clickable { startNewSession() },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "New Chat",
+                                contentDescription = "New Session",
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
 
-                        // Dg-Images Companion Bridge Status Pill
+                        // Dg-Images Companion Status Pill
                         val isBridgeReady = isDgImagesAppInstalled && (loadedExtension != null || extensionViewModel.getImageStudio() != null)
                         val statusLabel = when {
                             isBridgeReady -> "Dg-Images Active"
@@ -724,7 +717,7 @@ fun ThumbnailStudioScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // ── 1. YouTube Link Input Capsule (Cleanable & Resets after Generation)
+                // ── 1. YouTube Link Input Capsule (Cleanable & Empty by Default)
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
@@ -825,7 +818,7 @@ fun ThumbnailStudioScreen(
                     }
                 }
 
-                // ── 2. 16:9 Thumbnail Canvas Viewport with Tap-to-Pin ───────────
+                // ── 2. 16:9 Thumbnail Canvas Viewport with Clean Empty Placeholder
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(
@@ -890,7 +883,7 @@ fun ThumbnailStudioScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
 
-                                // Render Glowing ChatGPT-Style Mark Points on Canvas
+                                // Render Glowing Mark Points on Canvas
                                 Canvas(modifier = Modifier.fillMaxSize()) {
                                     markedPins.forEach { pin ->
                                         val px = (pin.xPercent / 100f) * size.width
@@ -956,10 +949,10 @@ fun ThumbnailStudioScreen(
                                     modifier = Modifier
                                         .align(Alignment.TopStart)
                                         .padding(12.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Color.Black.copy(alpha = 0.65f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.Black.copy(alpha = 0.65f))
+                                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
                                         text = if (generatedImageUrl != null) "✨ AI GENERATED (1080P)" else "1280×720 • HD SOURCE",
@@ -987,19 +980,44 @@ fun ThumbnailStudioScreen(
                                     }
                                 }
                             } else {
+                                // ── CLEAN EMPTY CANVAS PLACEHOLDER ─────────────────
                                 Column(
-                                    modifier = Modifier.fillMaxSize(),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(24.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Layers,
-                                        contentDescription = null,
-                                        tint = DigicastSlate,
-                                        modifier = Modifier.size(32.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(52.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF0F323A))
+                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.4f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.SmartDisplay,
+                                            contentDescription = null,
+                                            tint = DigicastElectricCyan,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = "16:9 Canvas Ready",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text("No thumbnail loaded", color = DigicastSlate, fontSize = 12.sp)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Paste a YouTube link above & tap Fetch, or prompt to generate from scratch",
+                                        color = DigicastSlate,
+                                        fontSize = 11.sp,
+                                        textAlign = TextAlign.Center,
+                                        lineHeight = 16.sp
+                                    )
                                 }
                             }
                         }
@@ -1148,7 +1166,7 @@ fun ThumbnailStudioScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF041217))
                                 .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                            .padding(12.dp)
+                                .padding(12.dp)
                         ) {
                             androidx.compose.foundation.text.BasicTextField(
                                 value = promptInput,
@@ -1248,17 +1266,17 @@ fun ThumbnailStudioScreen(
                     }
                 }
 
-                // ── 5. Quick Actions: Open Chat Drawer & Save 1080p ──────────
+                // ── 5. Quick Actions: Open History Drawer & Save 1080p ──────────
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // Open Chat Drawer Pill
+                        // Open History Drawer Pill
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(Color(0xFF0B262E))
                                 .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-                                .clickable { isChatDrawerOpen = true }
+                                .clickable { isHistoryDrawerOpen = true }
                                 .padding(horizontal = 14.dp, vertical = 12.dp)
                         ) {
                             Row(
@@ -1270,9 +1288,9 @@ fun ThumbnailStudioScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Icon(Icons.Default.Forum, contentDescription = null, tint = DigicastElectricCyan, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Layers, contentDescription = null, tint = DigicastElectricCyan, modifier = Modifier.size(18.dp))
                                     Text(
-                                        text = "Open Revisions & Chat Drawer (${chatMessages.size} messages)",
+                                        text = if (chatMessages.isNotEmpty()) "View History (${chatMessages.size} revisions)" else "View History",
                                         color = Color.White,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
@@ -1310,22 +1328,22 @@ fun ThumbnailStudioScreen(
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        // ── COLLAPSIBLE CHAT DRAWER (ChatGPT Style, Slides In From Left) ──────
+        // ── COLLAPSIBLE HISTORY DRAWER (Slides In From Left) ───────────────────
         // ═══════════════════════════════════════════════════════════════════════
 
         // Dimmed Scrim Overlay when Drawer is Open
-        if (isChatDrawerOpen) {
+        if (isHistoryDrawerOpen) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.65f))
-                    .clickable { isChatDrawerOpen = false }
+                    .clickable { isHistoryDrawerOpen = false }
             )
         }
 
         // Slide-in Drawer from Left
         AnimatedVisibility(
-            visible = isChatDrawerOpen,
+            visible = isHistoryDrawerOpen,
             enter = slideInHorizontally(initialOffsetX = { -it }) + fadeIn(),
             exit = slideOutHorizontally(targetOffsetX = { -it }) + fadeOut(),
             modifier = Modifier.align(Alignment.CenterStart)
@@ -1366,11 +1384,11 @@ fun ThumbnailStudioScreen(
                                     .background(DigicastElectricCyan.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Forum, contentDescription = null, tint = DigicastElectricCyan, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Layers, contentDescription = null, tint = DigicastElectricCyan, modifier = Modifier.size(16.dp))
                             }
                             Column {
-                                Text("REVISION CHAT", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
-                                Text("ChatGPT Thread History", color = DigicastSlate, fontSize = 10.sp)
+                                Text("HISTORY", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("Revisions & Sessions", color = DigicastSlate, fontSize = 10.sp)
                             }
                         }
 
@@ -1380,14 +1398,14 @@ fun ThumbnailStudioScreen(
                                 .size(32.dp)
                                 .clip(CircleShape)
                                 .background(Color.White.copy(alpha = 0.08f))
-                                .clickable { isChatDrawerOpen = false },
+                                .clickable { isHistoryDrawerOpen = false },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(16.dp))
                         }
                     }
 
-                    // Large (+ New Chat) Action Button at Top of Drawer
+                    // Large (+ New Session) Action Button at Top of Drawer
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1395,8 +1413,8 @@ fun ThumbnailStudioScreen(
                             .background(Color(0xFF134E5E))
                             .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                             .clickable {
-                                startNewChat()
-                                isChatDrawerOpen = false
+                                startNewSession()
+                                isHistoryDrawerOpen = false
                             }
                             .padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
@@ -1405,164 +1423,193 @@ fun ThumbnailStudioScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                            Text("Start New Chat Thread", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("Start New Session", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
-                    // Scrollable Chat Stream inside Left Drawer
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(chatMessages, key = { it.id }) { message ->
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
-                            ) {
-                                val cardModifier = if (message.isUser) {
-                                    Modifier
-                                        .fillMaxWidth(0.92f)
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(Color(0xFF0F323A))
-                                        .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-                                } else {
-                                    Modifier
-                                        .fillMaxWidth(0.96f)
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(AppleDarkEdgeCardBrush)
-                                        .border(1.dp, AppleSpecularBorder, RoundedCornerShape(14.dp))
-                                }
+                    // Content: Empty State OR Stream inside Left Drawer
+                    if (chatMessages.isEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Layers,
+                                contentDescription = null,
+                                tint = DigicastSlate.copy(alpha = 0.5f),
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "No History Yet",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Load a video link or drop target pins on the canvas to start generating.",
+                                color = DigicastSlate,
+                                fontSize = 11.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(chatMessages, key = { it.id }) { message ->
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
+                                ) {
+                                    val cardModifier = if (message.isUser) {
+                                        Modifier
+                                            .fillMaxWidth(0.92f)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(Color(0xFF0F323A))
+                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                                    } else {
+                                        Modifier
+                                            .fillMaxWidth(0.96f)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(AppleDarkEdgeCardBrush)
+                                            .border(1.dp, AppleSpecularBorder, RoundedCornerShape(14.dp))
+                                    }
 
-                                Box(modifier = cardModifier.padding(10.dp)) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        // Header
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = if (message.isUser) "YOU" else "DG-IMAGES AI",
-                                                color = if (message.isUser) DigicastElectricCyan else DigicastEmerald,
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.ExtraBold
-                                            )
-                                            Text(
-                                                text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
-                                                color = DigicastSlate,
-                                                fontSize = 9.sp
-                                            )
-                                        }
-
-                                        // Prompt Text
-                                        Text(
-                                            text = message.text,
-                                            color = Color.White,
-                                            fontSize = 12.sp,
-                                            lineHeight = 16.sp
-                                        )
-
-                                        // Pins
-                                        if (message.pins.isNotEmpty()) {
+                                    Box(modifier = cardModifier.padding(10.dp)) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            // Header
                                             Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .horizontalScroll(rememberScrollState()),
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                message.pins.forEach { pin ->
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(4.dp))
-                                                            .background(Color.Black.copy(alpha = 0.4f))
-                                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                                                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = "📍 #${pin.id} (${"%.0f".format(Locale.US, pin.xPercent)}%, ${"%.0f".format(Locale.US, pin.yPercent)}%)",
-                                                            color = DigicastElectricCyan,
-                                                            fontSize = 9.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-                                                }
+                                                Text(
+                                                    text = if (message.isUser) "YOU" else "AI ASSISTANT",
+                                                    color = if (message.isUser) DigicastElectricCyan else DigicastEmerald,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.ExtraBold
+                                                )
+                                                Text(
+                                                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
+                                                    color = DigicastSlate,
+                                                    fontSize = 9.sp
+                                                )
                                             }
-                                        }
 
-                                        // Loading
-                                        if (message.isGenerating) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                CircularProgressIndicator(color = DigicastElectricCyan, modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp)
-                                                Text(message.status ?: generationStatusMessage, color = DigicastSlate, fontSize = 11.sp)
-                                            }
-                                        }
+                                            // Text Message
+                                            Text(
+                                                text = message.text,
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                lineHeight = 16.sp
+                                            )
 
-                                        // Preview Image
-                                        if (message.previewImageUrl != null && !message.isGenerating) {
-                                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                Box(
+                                            // Pins Chips
+                                            if (message.pins.isNotEmpty()) {
+                                                Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .aspectRatio(16f / 9f)
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .border(1.dp, AppleSpecularBorder, RoundedCornerShape(8.dp))
+                                                        .horizontalScroll(rememberScrollState()),
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                                 ) {
-                                                    AsyncImage(
-                                                        model = ImageRequest.Builder(context).data(message.previewImageUrl).crossfade(true).build(),
-                                                        contentDescription = null,
-                                                        contentScale = ContentScale.Crop,
-                                                        modifier = Modifier.fillMaxSize()
-                                                    )
-                                                }
-
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .clip(RoundedCornerShape(6.dp))
-                                                            .background(Color(0xFF134E5E))
-                                                            .clickable { saveImageToDownloads(message.previewImageUrl) }
-                                                            .padding(vertical = 5.dp),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Row(
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                                    message.pins.forEach { pin ->
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(4.dp))
+                                                                .background(Color.Black.copy(alpha = 0.4f))
+                                                                .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                                                .padding(horizontal = 4.dp, vertical = 2.dp)
                                                         ) {
-                                                            Icon(Icons.Default.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
-                                                            Text("Download", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                            Text(
+                                                                text = "📍 #${pin.id} (${"%.0f".format(Locale.US, pin.xPercent)}%, ${"%.0f".format(Locale.US, pin.yPercent)}%)",
+                                                                color = DigicastElectricCyan,
+                                                                fontSize = 9.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
                                                         }
                                                     }
+                                                }
+                                            }
 
+                                            // Loading Status
+                                            if (message.isGenerating) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    CircularProgressIndicator(color = DigicastElectricCyan, modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp)
+                                                    Text(message.status ?: generationStatusMessage, color = DigicastSlate, fontSize = 11.sp)
+                                                }
+                                            }
+
+                                            // Compact ChatGPT-Style Result Card (Clean & Compact, NOT full giant 16:9 thumbnail)
+                                            if (message.previewImageUrl != null && !message.isGenerating) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(Color.Black.copy(alpha = 0.35f))
+                                                        .border(1.dp, AppleSpecularBorder, RoundedCornerShape(8.dp))
+                                                        .padding(6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    // Compact square preview thumbnail
                                                     Box(
                                                         modifier = Modifier
-                                                            .weight(1f)
+                                                            .size(46.dp)
                                                             .clip(RoundedCornerShape(6.dp))
-                                                            .background(Color.White.copy(alpha = 0.08f))
-                                                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                                                            .clickable {
-                                                                currentThumbnailUrl = message.previewImageUrl
-                                                                markedPins.clear()
-                                                                isChatDrawerOpen = false
-                                                                Toast.makeText(context, "Loaded on Canvas", Toast.LENGTH_SHORT).show()
-                                                            }
-                                                            .padding(vertical = 5.dp),
-                                                        contentAlignment = Alignment.Center
+                                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
                                                     ) {
-                                                        Row(
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                                        ) {
-                                                            Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
-                                                            Text("Use As Base", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                        AsyncImage(
+                                                            model = ImageRequest.Builder(context).data(message.previewImageUrl).crossfade(true).build(),
+                                                            contentDescription = null,
+                                                            contentScale = ContentScale.Crop,
+                                                            modifier = Modifier.fillMaxSize()
+                                                        )
+                                                    }
+
+                                                    // Compact actions
+                                                    Column(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        Text("✨ Revision Ready", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(6.dp))
+                                                                    .background(Color(0xFF134E5E))
+                                                                    .clickable { saveImageToDownloads(message.previewImageUrl) }
+                                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                                            ) {
+                                                                Text("Download", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                            }
+
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(6.dp))
+                                                                    .background(Color.White.copy(alpha = 0.08f))
+                                                                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                                                    .clickable {
+                                                                        currentThumbnailUrl = message.previewImageUrl
+                                                                        markedPins.clear()
+                                                                        isHistoryDrawerOpen = false
+                                                                        Toast.makeText(context, "Loaded on Canvas", Toast.LENGTH_SHORT).show()
+                                                                    }
+                                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                                            ) {
+                                                                Text("Load on Canvas", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                            }
                                                         }
                                                     }
                                                 }

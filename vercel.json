@@ -1,8 +1,0 @@
-{
-  "buildCommand": "cd dieme-web && npm run build",
-  "outputDirectory": "dieme-web/.next",
-  "installCommand": "cd dieme-web && npm install",
-  "framework": "nextjs",
-  "rewrites": [],
-  "headers": []
-}

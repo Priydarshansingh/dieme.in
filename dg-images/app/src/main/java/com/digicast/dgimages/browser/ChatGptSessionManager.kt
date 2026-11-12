@@ -189,6 +189,14 @@ object ChatGptSessionManager {
                 }
             }
 
+            // Record existing assistant images before prompt submission
+            val existingUrls = suspendCancellableCoroutine<List<String>> { cont ->
+                adapter.getExistingAssistantImageUrls { urls ->
+                    if (cont.isActive) cont.resume(urls)
+                }
+            }
+            Log.i(TAG, "🔍 Recorded ${existingUrls.size} existing assistant image(s) prior to generation")
+
             // 3. Inject prompt & submit
             _sessionStatus.value = "Submitting prompt: \"${prompt.take(30)}...\""
             suspendCancellableCoroutine<Boolean> { cont ->
@@ -197,9 +205,9 @@ object ChatGptSessionManager {
                 }
             }
 
-            // 4. Poll for generated image from ChatGPT
+            // 4. Poll for generated image from ChatGPT (excluding prior images)
             _sessionStatus.value = "Generating thumbnail with ChatGPT..."
-            val capturedRaw = pollForGeneratedImage(adapter)
+            val capturedRaw = pollForGeneratedImage(adapter, existingUrls)
 
             if (!capturedRaw.isNullOrBlank()) {
                 val savedUrl = saveGeneratedResultToCache(context, capturedRaw)
@@ -238,18 +246,18 @@ object ChatGptSessionManager {
         }
     }
 
-    private suspend fun pollForGeneratedImage(adapter: ChatGptWebAdapter): String? {
-        // Poll for up to 50 seconds (25 attempts x 2000ms)
-        for (i in 0 until 25) {
-            delay(2000)
-            _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 2}s)"
+    private suspend fun pollForGeneratedImage(adapter: ChatGptWebAdapter, excludeUrls: List<String>): String? {
+        // Poll for up to 90 seconds (30 attempts x 3000ms)
+        for (i in 0 until 30) {
+            delay(3000)
+            _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
             val result = suspendCancellableCoroutine<String?> { cont ->
-                adapter.captureGeneratedImage { imgResult ->
+                adapter.captureGeneratedImage(excludeUrls) { imgResult ->
                     if (cont.isActive) cont.resume(imgResult)
                 }
             }
             if (!result.isNullOrBlank()) {
-                Log.i(TAG, "🎯 Captured generated image on attempt #${i + 1}!")
+                Log.i(TAG, "🎯 Captured newly generated image on attempt #${i + 1}!")
                 return result
             }
         }

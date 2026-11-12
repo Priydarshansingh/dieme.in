@@ -280,10 +280,69 @@ class ChatGptWebAdapter(
         }
     }
 
-    fun captureGeneratedImage(callback: (String?) -> Unit) {
+    fun getExistingAssistantImageUrls(callback: (List<String>) -> Unit) {
         val js = """
             (function() {
                 try {
+                    var userContainers = document.querySelectorAll("div[data-message-author-role='user'], #prompt-textarea, [data-testid*='attachment']");
+                    var userImgs = new Set();
+                    userContainers.forEach(function(c) {
+                        c.querySelectorAll("img").forEach(function(i) { userImgs.add(i); });
+                    });
+
+                    var assistantImgs = Array.from(document.querySelectorAll(
+                        "div[data-message-author-role='assistant'] img, " +
+                        "[data-testid*='conversation-turn']:not(:has([data-message-author-role='user'])) img, " +
+                        "img[alt*='Generated' i], " +
+                        "img[src*='oaiusercontent.com']"
+                    )).filter(function(img) {
+                        return !userImgs.has(img);
+                    });
+
+                    var urls = assistantImgs.map(function(img) {
+                        return img.currentSrc || img.src || '';
+                    }).filter(Boolean);
+
+                    return JSON.stringify(urls);
+                } catch(e) {
+                    return "[]";
+                }
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js) { res ->
+            try {
+                val clean = res?.trim('"', ' ', '\n') ?: "[]"
+                val unescaped = if (clean.startsWith("[") && clean.endsWith("]")) {
+                    org.json.JSONArray(clean)
+                } else {
+                    val raw = org.json.JSONTokener(res ?: "[]").nextValue()
+                    if (raw is String) org.json.JSONArray(raw) else raw as org.json.JSONArray
+                }
+                val list = mutableListOf<String>()
+                for (i in 0 until unescaped.length()) {
+                    list.add(unescaped.getString(i))
+                }
+                callback(list)
+            } catch (e: Exception) {
+                callback(emptyList())
+            }
+        }
+    }
+
+    fun captureGeneratedImage(excludeUrls: List<String> = emptyList(), callback: (String?) -> Unit) {
+        val excludeJson = org.json.JSONArray(excludeUrls).toString()
+        val js = """
+            (function() {
+                try {
+                    // Check if generation is still active (Stop button visible)
+                    var stopBtn = document.querySelector("button[data-testid='stop-button'], button[aria-label*='Stop' i]");
+                    if (stopBtn) {
+                        return "GENERATING";
+                    }
+
+                    var excludeList = $excludeJson;
+                    var excludeSet = new Set(excludeList);
+
                     // Exclude images from user message containers or editor attachment thumbnails
                     var userContainers = document.querySelectorAll("div[data-message-author-role='user'], #prompt-textarea, [data-testid*='attachment']");
                     var userImgs = new Set();
@@ -298,11 +357,20 @@ class ChatGptWebAdapter(
                         "img[alt*='Generated' i], " +
                         "img[src*='oaiusercontent.com']"
                     )).filter(function(img) {
-                        return !userImgs.has(img);
+                        if (userImgs.has(img)) return false;
+                        var src = img.currentSrc || img.src || '';
+                        if (!src) return false;
+                        if (excludeSet.has(src)) return false;
+                        return true;
                     });
 
                     if (assistantImgs.length === 0) return null;
                     var lastImg = assistantImgs[assistantImgs.length - 1];
+
+                    // Verify image has loaded
+                    if (!lastImg.complete || (lastImg.naturalWidth && lastImg.naturalWidth < 100)) {
+                        return "LOADING";
+                    }
 
                     try {
                         var canvas = document.createElement('canvas');
@@ -316,7 +384,7 @@ class ChatGptWebAdapter(
                         }
                     } catch(e) {}
 
-                    return lastImg.src || lastImg.currentSrc || null;
+                    return lastImg.currentSrc || lastImg.src || null;
                 } catch(e) {
                     return null;
                 }
@@ -324,7 +392,7 @@ class ChatGptWebAdapter(
         """.trimIndent()
         webView.evaluateJavascript(js) { res ->
             val clean = res?.trim('"', ' ', '\n')
-            if (!clean.isNullOrEmpty() && clean != "null") {
+            if (!clean.isNullOrEmpty() && clean != "null" && clean != "GENERATING" && clean != "LOADING") {
                 callback(clean)
             } else {
                 callback(null)

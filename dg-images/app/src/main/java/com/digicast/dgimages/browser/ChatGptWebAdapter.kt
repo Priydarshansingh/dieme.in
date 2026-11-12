@@ -154,10 +154,9 @@ class ChatGptWebAdapter(
                         }
                     }
 
-                    // 1. Target hidden file input and ensure 'multiple' attribute is explicitly enabled
+                    // 1. Locate file inputs or trigger upload button
                     var fileInputs = Array.from(document.querySelectorAll("input[type='file']"));
                     if (fileInputs.length === 0) {
-                        // If file input not rendered yet, trigger attach button to create it
                         var attachBtn = document.querySelector("button[aria-label*='Attach' i], button[data-testid='attach-button'], button[aria-label*='Add files' i], button[aria-label*='Upload' i]");
                         if (attachBtn) {
                             try { attachBtn.click(); } catch(e) {}
@@ -165,22 +164,25 @@ class ChatGptWebAdapter(
                         fileInputs = Array.from(document.querySelectorAll("input[type='file']"));
                     }
 
-                    if (fileInputs.length > 0) {
-                        fileInputs.forEach(function(fileInput) {
-                            fileInput.setAttribute('multiple', '');
-                            fileInput.multiple = true;
-                            try {
-                                var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files').set;
-                                setter.call(fileInput, dt.files);
-                            } catch(e) {
-                                fileInput.files = dt.files;
-                            }
-                            fileInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        });
+                    // 2. Set files on composer file input
+                    var targetInput = fileInputs.find(function(inp) {
+                        return inp.closest('form') || inp.id.includes('file') || !inp.disabled;
+                    }) || fileInputs[fileInputs.length - 1];
+
+                    if (targetInput) {
+                        targetInput.setAttribute('multiple', '');
+                        targetInput.multiple = true;
+                        try {
+                            var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files').set;
+                            setter.call(targetInput, dt.files);
+                        } catch(e) {
+                            targetInput.files = dt.files;
+                        }
+                        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
                     }
 
-                    // 2. Dispatch drop & paste events directly to the prompt textarea
+                    // 3. Dispatch drop and paste events directly to prompt textarea
                     var editor = document.querySelector("#prompt-textarea, div[contenteditable='true'], textarea") || document.body;
                     if (editor) {
                         try {
@@ -201,7 +203,7 @@ class ChatGptWebAdapter(
         webView.evaluateJavascript(js) { res ->
             Handler(Looper.getMainLooper()).postDelayed({
                 onComplete?.invoke(res?.trim() == "true")
-            }, 1500)
+            }, 1200)
         }
     }
 

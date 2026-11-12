@@ -571,6 +571,18 @@ fun ThumbnailStudioScreen(
         generationStatusMessage = "Connecting to Dg-Images..."
 
         coroutineScope.launch {
+            val resolvedBaseImage = withContext(Dispatchers.IO) {
+                if (baseImage.startsWith("content://") || baseImage.startsWith("file://")) {
+                    try {
+                        uriToBase64(Uri.parse(baseImage)) ?: baseImage
+                    } catch (_: Throwable) {
+                        baseImage
+                    }
+                } else {
+                    baseImage
+                }
+            }
+
             val base64RefList = withContext(Dispatchers.IO) {
                 currentRefsSnapshot.mapNotNull { uriToBase64(it) }
             }
@@ -620,7 +632,7 @@ fun ThumbnailStudioScreen(
 
             val result = extension.generateThumbnail(
                 context = context,
-                baseImageUrl = baseImage,
+                baseImageUrl = resolvedBaseImage,
                 maskPointsJson = advancedWrapper.toString(),
                 prompt = masterPrompt,
                 onProgress = { _, message ->

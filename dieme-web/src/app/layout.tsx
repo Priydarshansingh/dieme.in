@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
+import { Nunito } from 'next/font/google';
 import './globals.css';
 import { CookieConsent } from '@/components/common/CookieConsent';
+
+const nunito = Nunito({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  display: 'swap',
+  variable: '--font-nunito',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.dieme.in'),
@@ -68,17 +76,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body style={{ fontFamily: "'Nunito', sans-serif" }}>
-        {children}
+    <html lang="en" className={nunito.variable}>
+      <head />
+      <body className={`${nunito.className} bg-[#06080D] text-slate-100 antialiased selection:bg-emerald-500 selection:text-slate-950`}>
+        <main id="main-content" role="main" className="min-h-screen">
+          {children}
+        </main>
         <CookieConsent />
       </body>
     </html>

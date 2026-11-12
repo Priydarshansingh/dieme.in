@@ -437,7 +437,6 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [activeStep, setActiveStep] = useState<number>(1);
   const [showPricingDetails, setShowPricingDetails] = useState(false);
-  const [cookieConsent, setCookieConsent] = useState(true);
 
   // Smoothly scroll to #pricing section if someone arrives with deep link or hash
   useEffect(() => {
@@ -870,6 +869,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                   <button
                     key={s.id}
                     onClick={() => setActiveStep(s.id)}
+                    aria-label={`Select step ${s.id}: ${s.title}`}
                     className={`p-4 rounded-2xl border text-left transition-all duration-300 relative overflow-hidden group cursor-pointer ${
                       isActive
                         ? 'bg-[#0E1524] border-emerald-400/80 shadow-xl shadow-emerald-500/15 scale-[1.02] z-10'
@@ -1452,6 +1452,8 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           <div className="mt-12 text-center">
             <button
               onClick={() => setShowPricingDetails(!showPricingDetails)}
+              aria-expanded={showPricingDetails}
+              aria-label={showPricingDetails ? 'Hide feature comparison details' : 'Show all feature comparison details'}
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-mono font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/30 transition-all backdrop-blur-md"
             >
               <span>{showPricingDetails ? 'Hide comparison details' : 'See all feature comparisons'}</span>
@@ -1929,14 +1931,16 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                 <div className="py-5">
                   <button
                     onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+                    aria-expanded={activeFaq === idx}
+                    aria-controls={`faq-answer-${idx}`}
                     className="w-full flex items-center justify-between text-left text-sm font-bold text-white hover:text-emerald-400 transition"
                   >
                     <span>{faq.q}</span>
-                    <span className="text-slate-500 text-lg font-mono">{activeFaq === idx ? '−' : '+'}</span>
+                    <span className="text-slate-400 text-lg font-mono">{activeFaq === idx ? '−' : '+'}</span>
                   </button>
 
                   {activeFaq === idx && (
-                    <p className="mt-3 text-xs text-slate-400 leading-relaxed pr-8 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <p id={`faq-answer-${idx}`} className="mt-3 text-xs text-slate-300 leading-relaxed pr-8 animate-in fade-in slide-in-from-top-2 duration-200">
                       {faq.a}
                     </p>
                   )}
@@ -1986,28 +1990,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </ScrollReveal>
       </section>
 
-      {/* ── Cookie Consent Floating Bar ──────────────────────────────────────── */}
-      {cookieConsent && (
-        <div className="fixed bottom-6 inset-x-6 max-w-2xl mx-auto z-50 rounded-2xl bg-[#0D121D]/95 border border-white/10 p-4 shadow-2xl backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-4 text-xs animate-in slide-in-from-bottom-4 duration-300">
-          <p className="text-slate-300 text-[11px] leading-relaxed">
-            We use cookies and telemetry technologies to optimize your livestream sync performance and analytics.
-          </p>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setCookieConsent(false)}
-              className="px-3.5 py-1.5 rounded-full text-slate-400 hover:text-white bg-white/5 text-[11px] font-bold transition"
-            >
-              Decline
-            </button>
-            <button
-              onClick={() => setCookieConsent(false)}
-              className="px-4 py-1.5 rounded-full text-black bg-white hover:bg-slate-200 text-[11px] font-bold transition shadow-md"
-            >
-              Accept
-            </button>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

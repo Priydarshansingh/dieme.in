@@ -10,6 +10,11 @@ export const metadata: Metadata = {
     shortcut: '/logo-mark.png',
     apple: '/logo-mark.png',
   },
+  verification: {
+    // Google Search Console — domain ownership for OAuth homepage verification
+    // Replace this placeholder with your actual code from search.google.com/search-console
+    google: 'REPLACE_WITH_YOUR_GOOGLE_SITE_VERIFICATION_CODE',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

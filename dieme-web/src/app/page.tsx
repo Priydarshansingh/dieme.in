@@ -57,7 +57,7 @@ const faqs = [
   },
   {
     q: 'How do video editors receive instant highlight alerts?',
-    a: 'Whenever a clip is marked, Dieme immediately pings your private Telegram channel or group via @YT_digicast. The alert includes the clipper name, note, exact timestamp, and a direct one-tap YouTube replay jump link (?t=...) so editors can review the moment in seconds.'
+    a: 'Whenever a clip is marked, Dieme immediately pings your private Telegram channel or group via @YT_dieme. The alert includes the clipper name, note, exact timestamp, and a direct one-tap YouTube replay jump link (?t=...) so editors can review the moment in seconds.'
   },
   {
     q: 'How quickly does access activate after subscribing?',
@@ -77,7 +77,7 @@ export default function LandingPage() {
         url: 'https://www.dieme.in',
         logo: 'https://www.dieme.in/logo-mark.png',
         description: 'Real-time live stream companion and clip highlight capture platform for YouTube creators.',
-        sameAs: ['https://t.me/YT_digicast']
+        sameAs: ['https://t.me/YT_dieme']
       },
       {
         '@type': 'SoftwareApplication',

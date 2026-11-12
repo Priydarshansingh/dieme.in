@@ -5,8 +5,8 @@ import { SiteHeader } from '@/components/common/SiteHeader';
 import { SiteFooter } from '@/components/common/SiteFooter';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — Dieme (Kiziee Media)',
-  description: 'Terms of Service, acceptable use policy, and YouTube API Services compliance agreements for Dieme Creator Studio by Kiziee Media.',
+  title: 'Terms of Service — Dieme',
+  description: 'Terms of Service, acceptable use policy, and YouTube API Services compliance agreements for Dieme Creator Studio.',
 };
 
 export default function TermsPage() {
@@ -20,13 +20,13 @@ export default function TermsPage() {
         <div className="mb-12 border-b border-white/[0.08] pb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono text-emerald-400 mb-4">
             <FileText className="w-3.5 h-3.5" />
-            LEGAL AGREEMENT &bull; KIZIEE MEDIA
+            LEGAL AGREEMENT &bull; DIEME
           </div>
           <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-3">
             Terms of Service
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm font-mono">
-            Operating Entity: Kiziee Media (&quot;Dieme&quot;) &bull; Last Updated: October 2026 &bull; Version 3.0
+            Operating Entity: Dieme (&quot;Dieme Creator Studio&quot;) &bull; Last Updated: November 2026 &bull; Version 3.1
           </p>
         </div>
 
@@ -34,7 +34,7 @@ export default function TermsPage() {
           <section className="space-y-3">
             <h2 className="text-lg font-bold text-white">1. Acceptance of Terms</h2>
             <p>
-              By accessing or using the Dieme Web Dashboard, mobile companion applications, or associated APIs (collectively, the &quot;Service&quot;) operated by <b>Kiziee Media</b> (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;), you agree to be bound by these Terms of Service and our{' '}
+              By accessing or using the Dieme Web Dashboard, mobile companion applications, or associated APIs (collectively, the &quot;Service&quot;) operated by <b>Dieme</b> (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;), you agree to be bound by these Terms of Service and our{' '}
               <Link href="/privacy" className="text-emerald-400 hover:underline">
                 Privacy Policy
               </Link>
@@ -133,13 +133,13 @@ export default function TermsPage() {
           <section className="space-y-3">
             <h2 className="text-lg font-bold text-white">7. Governing Entity &amp; Inquiries</h2>
             <p>
-              Dieme is owned and operated by <b>Kiziee Media</b>. For legal notices, licensing inquiries, or support requests, contact:
+              For legal notices, licensing inquiries, or support requests, contact:
             </p>
             <div className="bg-black/40 p-4 rounded-xl border border-white/10 font-mono text-xs space-y-1 text-slate-300">
-              <p><b className="text-slate-400">Company:</b> Kiziee Media (&quot;Dieme&quot;)</p>
-              <p><b className="text-slate-400">Authorized Domains:</b> kizieemedia.com &bull; digicast-web.vercel.app</p>
-              <p><b className="text-slate-400">Compliance &amp; Support:</b> <a href="mailto:support@kizieemedia.com" className="text-emerald-400 hover:underline">support@kizieemedia.com</a></p>
-              <p><b className="text-slate-400">Website:</b> <a href="https://kizieemedia.com" className="text-cyan-400 hover:underline">https://kizieemedia.com</a></p>
+              <p><b className="text-slate-400">Entity:</b> Dieme Creator Studio</p>
+              <p><b className="text-slate-400">Authorized Domains:</b> dieme.in &bull; www.dieme.in</p>
+              <p><b className="text-slate-400">Compliance &amp; Support:</b> <a href="mailto:support@dieme.in" className="text-emerald-400 hover:underline">support@dieme.in</a></p>
+              <p><b className="text-slate-400">Website:</b> <a href="https://www.dieme.in" className="text-cyan-400 hover:underline">https://www.dieme.in</a></p>
             </div>
           </section>
         </div>

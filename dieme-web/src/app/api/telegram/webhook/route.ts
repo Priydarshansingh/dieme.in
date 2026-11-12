@@ -400,9 +400,9 @@ Digicast is the real-time Live Intelligence & Instant Clip Delivery Platform for
 • <code>/help</code> — Show this help menu.
 
 🌐 <b>Official Links & Support:</b>
-• Support & Community: https://digicast-web.vercel.app/contact
-• Pricing Passes: https://digicast-web.vercel.app/pricing
-• Terms & Privacy: https://digicast-web.vercel.app/terms
+• Pricing Passes: https://www.dieme.in/pricing
+• Terms & Privacy: https://www.dieme.in/terms
+• Privacy Policy: https://www.dieme.in/privacy
 
 👨‍💻 <b>Official Telegram Bot:</b> @${process.env.TELEGRAM_BOT_USERNAME || 'YT_digicast'}
       `.trim();
@@ -629,7 +629,7 @@ Thank you <b>${senderName}</b>! Your concern has been recorded and dispatched to
             await logBotResponse(adminDb, chatId, infoCard);
             return NextResponse.json({ ok: true });
           } else {
-            const notFoundMsg = `🔍 Could not find an active Digicast account for <code>${targetEmail || targetWsId}</code>.\n\nPlease double check the email address or sign in at https://digicast-web.vercel.app`;
+            const notFoundMsg = `🔍 Could not find an active Dieme account for <code>${targetEmail || targetWsId}</code>.\n\nPlease double check the email address or sign in at https://www.dieme.in`;
             await sendTelegramMessage(chatId, notFoundMsg, messageId);
             await logBotResponse(adminDb, chatId, notFoundMsg);
             return NextResponse.json({ ok: true });
@@ -766,7 +766,7 @@ export async function GET(req: NextRequest) {
 
   if (register === 'true') {
     const proto = req.headers.get('x-forwarded-proto') || 'https';
-    const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'digicast-web.vercel.app';
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'www.dieme.in';
     const webhookUrl = `${proto}://${host}/api/telegram/webhook`;
 
     try {

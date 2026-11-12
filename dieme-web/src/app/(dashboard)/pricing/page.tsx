@@ -34,7 +34,7 @@ export default function PricingAndSubscriptionsPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>('pro');
 
   const referralCode = `REF_${uid.slice(0, 6).toUpperCase()}`;
-  const referralLink = typeof window !== 'undefined' ? `${window.location.origin}/login?ref=${referralCode}` : `https://digicast-web.vercel.app/login?ref=${referralCode}`;
+  const referralLink = typeof window !== 'undefined' ? `${window.location.origin}/login?ref=${referralCode}` : `https://www.dieme.in/login?ref=${referralCode}`;
 
   const allCards = [
     {

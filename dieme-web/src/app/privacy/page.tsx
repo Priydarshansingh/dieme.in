@@ -5,8 +5,8 @@ import { SiteHeader } from '@/components/common/SiteHeader';
 import { SiteFooter } from '@/components/common/SiteFooter';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Dieme (Kiziee Media)',
-  description: 'Privacy Policy and Google API Services User Data Policy disclosures for Dieme by Kiziee Media.',
+  title: 'Privacy Policy — Dieme',
+  description: 'Privacy Policy and Google API Services User Data Policy disclosures for Dieme Creator Studio.',
 };
 
 export default function PrivacyPage() {
@@ -20,13 +20,13 @@ export default function PrivacyPage() {
         <div className="mb-12 border-b border-white/[0.08] pb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono text-emerald-400 mb-4">
             <Lock className="w-3.5 h-3.5" />
-            OFFICIAL PRIVACY POLICY &bull; KIZIEE MEDIA
+            OFFICIAL PRIVACY POLICY &bull; DIEME
           </div>
           <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-3">
             Privacy Policy
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm font-mono">
-            Operating Entity: Kiziee Media (&quot;Dieme&quot;) &bull; Last Updated: October 2026 &bull; Version 3.0
+            Operating Entity: Dieme (&quot;Dieme Creator Studio&quot;) &bull; Last Updated: November 2026 &bull; Version 3.1
           </p>
         </div>
 
@@ -38,11 +38,7 @@ export default function PrivacyPage() {
               1. Overview &amp; Introduction
             </h2>
             <p>
-              This Privacy Policy explains how <b>Kiziee Media</b> (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses, and safeguards information through our streaming companion application <b>Dieme</b> (accessible at{' '}
-              <a href="https://kizieemedia.com" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
-                https://kizieemedia.com
-              </a>{' '}
-              and{' '}
+              This Privacy Policy explains how <b>Dieme</b> (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses, and safeguards information through our streaming companion application <b>Dieme</b> (accessible at{' '}
               <a href="https://www.dieme.in" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
                 https://www.dieme.in
               </a>).
@@ -141,8 +137,8 @@ export default function PrivacyPage() {
               To request complete deletion of your account and all associated data, submit a request to our compliance desk:
             </p>
             <div className="bg-black/40 p-3.5 rounded-xl border border-white/10 font-mono text-xs space-y-1">
-              <p><b className="text-slate-400">Email:</b> <a href="mailto:support@kizieemedia.com" className="text-emerald-400 hover:underline">support@kizieemedia.com</a> / <a href="mailto:support@digicast.in" className="text-emerald-400 hover:underline">support@digicast.in</a></p>
-              <p><b className="text-slate-400">Website:</b> <a href="https://kizieemedia.com/contact" className="text-cyan-400 hover:underline">https://kizieemedia.com/contact</a></p>
+              <p><b className="text-slate-400">Email:</b> <a href="mailto:support@dieme.in" className="text-emerald-400 hover:underline">support@dieme.in</a></p>
+              <p><b className="text-slate-400">Website:</b> <a href="https://www.dieme.in" className="text-cyan-400 hover:underline">https://www.dieme.in</a></p>
               <p><b className="text-slate-400">Response SLA:</b> Account deletion requests are processed within 24–48 hours.</p>
             </div>
           </section>
@@ -153,11 +149,12 @@ export default function PrivacyPage() {
             <p>
               For legal, privacy, or compliance inquiries, contact:
             </p>
-            <p className="text-slate-400 font-mono text-xs">
-              <b>Kiziee Media</b> &bull; Dieme Creator Studio<br />
-              Authorized Domains: kizieemedia.com &bull; digicast-web.vercel.app<br />
-              Support: support@kizieemedia.com
-            </p>
+            <div className="bg-black/40 p-4 rounded-xl border border-white/10 font-mono text-xs space-y-1 text-slate-300">
+              <p><b className="text-slate-400">Entity:</b> Dieme Creator Studio</p>
+              <p><b className="text-slate-400">Authorized Domains:</b> dieme.in &bull; www.dieme.in</p>
+              <p><b className="text-slate-400">Support &amp; Compliance:</b> <a href="mailto:support@dieme.in" className="text-emerald-400 hover:underline">support@dieme.in</a></p>
+              <p><b className="text-slate-400">Website:</b> <a href="https://www.dieme.in" className="text-cyan-400 hover:underline">https://www.dieme.in</a></p>
+            </div>
           </section>
         </div>
       </main>

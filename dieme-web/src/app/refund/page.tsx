@@ -5,8 +5,8 @@ import { SiteHeader } from '@/components/common/SiteHeader';
 import { SiteFooter } from '@/components/common/SiteFooter';
 
 export const metadata: Metadata = {
-  title: 'Refund Policy & Dispute Resolution — Digicast',
-  description: 'Refund policy, payment dispute handling, and grace period guidelines for Digicast Creator Studio.',
+  title: 'Refund Policy & Dispute Resolution — Dieme',
+  description: 'Refund policy, payment dispute handling, and grace period guidelines for Dieme Creator Studio.',
 };
 
 export default function RefundPage() {
@@ -34,7 +34,7 @@ export default function RefundPage() {
           <section className="space-y-3">
             <h2 className="text-lg font-bold text-white">1. Duration Pass Nature &amp; Instant Access</h2>
             <p>
-              Digicast access passes (such as the ₹29 First Month VIP Pass, ₹149 1 Month Unlimited Pass, ₹499 3 Month Quarter Pass, and ₹999 1 Year Annual Studio Pass) provide immediate digital activation and instant 24-hour grace periods upon proof submission.
+              Dieme access passes (such as the ₹29 First Month VIP Pass, ₹149 1 Month Unlimited Pass, ₹499 3 Month Quarter Pass, and ₹999 1 Year Annual Studio Pass) provide immediate digital activation and instant 24-hour grace periods upon proof submission.
             </p>
             <p>
               Due to the immediate provisioning of digital studio resources and stream synchronization capacity, passes are generally non-refundable once activated and utilized.
@@ -49,7 +49,7 @@ export default function RefundPage() {
             <ul className="list-disc list-inside space-y-1.5 text-slate-400 pl-2">
               <li><b>Duplicate Transactions:</b> If you were charged multiple times for the same duration pass due to a UPI banking delay.</li>
               <li><b>System Verification Failure:</b> If payment was deducted but your workspace was not provisioned within 24 hours and could not be resolved by support.</li>
-              <li><b>Technical Incompatibility:</b> If Digicast is fundamentally unable to synchronize with your verified YouTube broadcast due to a core platform outage.</li>
+              <li><b>Technical Incompatibility:</b> If Dieme is fundamentally unable to synchronize with your verified YouTube broadcast due to a core platform outage.</li>
             </ul>
           </section>
 

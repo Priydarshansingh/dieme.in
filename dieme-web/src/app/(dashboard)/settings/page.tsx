@@ -388,8 +388,8 @@ function SettingsContent() {
   };
 
   const nightbotMessage = workspaceId
-    ? `$(urlfetch https://digicast-web.vercel.app/api/webhooks/nightbot?workspaceId=${workspaceId}&user=$(user)&query=$(querystring))`
-    : '$(urlfetch https://digicast-web.vercel.app/api/webhooks/nightbot?workspaceId=YOUR_WORKSPACE_ID&user=$(user)&query=$(querystring))';
+    ? `$(urlfetch https://www.dieme.in/api/webhooks/nightbot?workspaceId=${workspaceId}&user=$(user)&query=$(querystring))`
+    : '$(urlfetch https://www.dieme.in/api/webhooks/nightbot?workspaceId=YOUR_WORKSPACE_ID&user=$(user)&query=$(querystring))';
 
   const handleCopyNightbot = () => {
     navigator.clipboard.writeText(nightbotMessage);

@@ -539,6 +539,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
       {/* ── 1. NAVBAR (UNIVERSAL SITE HEADER) ───────────────────────────────── */}
       <SiteHeader />
 
+      <main id="main-content">
       {/* ── 2. HERO SECTION WITH 3D TELEMETRY & AMBIENT AURA ─────────────────── */}
       <section id="hero" className="relative min-h-[85dvh] pt-20 sm:pt-36 pb-16 sm:pb-20 flex flex-col items-center justify-center text-center overflow-hidden">
         {/* Floating Telemetry Badges — desktop only, hidden on mobile to avoid viewport bleed */}
@@ -615,6 +616,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             <div className="pt-4 flex items-center justify-center">
               <Link
                 href="/login"
+                prefetch={false}
                 className="px-9 py-4 rounded-full text-xs font-bold text-black bg-white hover:bg-slate-200 hover:scale-105 shadow-xl shadow-white/10 transition-all duration-200 flex items-center gap-2 group"
               >
                 <span>Start Studio Pass</span>
@@ -782,6 +784,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
               <div className="pt-2">
                 <Link
                   href="/login"
+                  prefetch={false}
                   className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full text-xs sm:text-sm font-bold text-slate-950 bg-white hover:bg-slate-100 hover:scale-105 active:scale-[0.98] transition-all duration-200 shadow-[0_4px_24px_rgba(255,255,255,0.12)] hover:shadow-[0_0_30px_rgba(16,185,129,0.35)] group"
                 >
                   <span>Start Studio Pass</span>
@@ -869,7 +872,6 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                   <button
                     key={s.id}
                     onClick={() => setActiveStep(s.id)}
-                    aria-label={`Select step ${s.id}: ${s.title}`}
                     className={`p-4 rounded-2xl border text-left transition-all duration-300 relative overflow-hidden group cursor-pointer ${
                       isActive
                         ? 'bg-[#0E1524] border-emerald-400/80 shadow-xl shadow-emerald-500/15 scale-[1.02] z-10'
@@ -962,6 +964,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                     <div className="pt-3 flex flex-wrap items-center gap-3">
                       <Link
                         href="/login"
+                        prefetch={false}
                         className="px-6 py-3 rounded-full text-xs font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-300 hover:brightness-110 transition shadow-lg shadow-emerald-400/20 flex items-center gap-2"
                       >
                         <span>Activate VIP Pass (₹29)</span>
@@ -1161,6 +1164,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                     <div className="pt-3 flex flex-wrap items-center gap-3">
                       <Link
                         href="/login"
+                        prefetch={false}
                         className="px-6 py-3 rounded-full text-xs font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-cyan-400 hover:brightness-110 transition shadow-lg shadow-emerald-400/20 flex items-center gap-2"
                       >
                         <span>Start Studio Pass Now</span>
@@ -1452,8 +1456,6 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           <div className="mt-12 text-center">
             <button
               onClick={() => setShowPricingDetails(!showPricingDetails)}
-              aria-expanded={showPricingDetails}
-              aria-label={showPricingDetails ? 'Hide feature comparison details' : 'Show all feature comparison details'}
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-mono font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/30 transition-all backdrop-blur-md"
             >
               <span>{showPricingDetails ? 'Hide comparison details' : 'See all feature comparisons'}</span>
@@ -1665,6 +1667,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             <div className="pt-4 flex items-center justify-center">
               <Link
                 href="/login"
+                prefetch={false}
                 className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full text-xs sm:text-sm font-bold text-slate-950 bg-white hover:bg-slate-100 hover:scale-105 active:scale-[0.98] transition-all duration-200 shadow-[0_4px_24px_rgba(255,255,255,0.12)] hover:shadow-[0_0_30px_rgba(16,185,129,0.35)] group"
               >
                 <span>Start Studio Pass</span>
@@ -1744,6 +1747,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
               <div className="flex items-center gap-4 pt-2">
                 <Link
                   href="/login"
+                  prefetch={false}
                   className="px-6 py-2.5 rounded-full text-xs font-bold text-black bg-emerald-400 hover:bg-emerald-300 transition shadow-lg shadow-emerald-400/20"
                 >
                   More about us
@@ -1866,6 +1870,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
               <div className="mt-6 flex justify-center">
                 <Link
                   href="/login"
+                  prefetch={false}
                   className="px-8 py-2.5 rounded-full text-xs font-bold text-black bg-white hover:bg-slate-200 hover:scale-105 transition"
                 >
                   Register &amp; Open Studio
@@ -1931,16 +1936,14 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                 <div className="py-5">
                   <button
                     onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-                    aria-expanded={activeFaq === idx}
-                    aria-controls={`faq-answer-${idx}`}
                     className="w-full flex items-center justify-between text-left text-sm font-bold text-white hover:text-emerald-400 transition"
                   >
                     <span>{faq.q}</span>
-                    <span className="text-slate-400 text-lg font-mono">{activeFaq === idx ? '−' : '+'}</span>
+                    <span className="text-slate-500 text-lg font-mono">{activeFaq === idx ? '−' : '+'}</span>
                   </button>
 
                   {activeFaq === idx && (
-                    <p id={`faq-answer-${idx}`} className="mt-3 text-xs text-slate-300 leading-relaxed pr-8 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <p className="mt-3 text-xs text-slate-400 leading-relaxed pr-8 animate-in fade-in slide-in-from-top-2 duration-200">
                       {faq.a}
                     </p>
                   )}
@@ -1983,14 +1986,11 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             </div>
           </ScrollReveal>
         </div>
-
-        {/* Global Multi-Column Universal Site Footer */}
-        <ScrollReveal direction="up" delay={200}>
-          <SiteFooter />
-        </ScrollReveal>
       </section>
+      </main>
 
-
+      {/* Global Multi-Column Universal Site Footer (Standalone Footer Landmark) */}
+      <SiteFooter />
     </div>
   );
 }

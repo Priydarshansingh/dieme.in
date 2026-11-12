@@ -77,11 +77,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={nunito.variable}>
-      <head />
-      <body className={`${nunito.className} bg-[#06080D] text-slate-100 antialiased selection:bg-emerald-500 selection:text-slate-950`}>
-        <main id="main-content" role="main" className="min-h-screen">
-          {children}
-        </main>
+      <body className={nunito.className}>
+        {children}
         <CookieConsent />
       </body>
     </html>

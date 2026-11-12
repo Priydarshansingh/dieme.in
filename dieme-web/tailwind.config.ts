@@ -101,7 +101,7 @@ const config: Config = {
         pill: "9999px",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        sans: ["var(--font-nunito)", "Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
         mono: ["JetBrains Mono", "Fira Code", "monospace"],
       },
       fontSize: {

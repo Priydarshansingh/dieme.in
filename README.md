@@ -1,4 +1,4 @@
-# Dieme — YouTube Creators Platform & Stream Intelligence 🎬⚡
+ # Dieme — YouTube Creators Platform & Stream Intelligence 🎬⚡
 
 Official repository for the **Dieme Web Portal** (`dieme-web`) and **Dieme Native Android App** (`dieme-android`).
 

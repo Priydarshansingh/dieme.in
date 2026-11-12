@@ -331,12 +331,22 @@ private fun queryDeviceMedia(context: Context): List<MediaGalleryItem> {
     // 1. Query Images (MediaStore)
     try {
         val imgUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-        val imgProj = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.DATE_ADDED,
-            MediaStore.Images.Media.BUCKET_DISPLAY_NAME
-        )
+        val imgProj = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
+                MediaStore.Images.Media.RELATIVE_PATH
+            )
+        } else {
+            arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME
+            )
+        }
         val imgSort = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
         context.contentResolver.query(imgUri, imgProj, null, null, imgSort)?.use { cursor ->
@@ -344,13 +354,23 @@ private fun queryDeviceMedia(context: Context): List<MediaGalleryItem> {
             val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
             val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
             val bucketCol = cursor.getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+            val relPathCol = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
+            } else -1
 
             var count = 0
-            while (cursor.moveToNext() && count < 60) {
+            while (cursor.moveToNext() && count < 500) {
                 val id = cursor.getLong(idCol)
                 val name = cursor.getString(nameCol) ?: "Image"
                 val dateAdded = cursor.getLong(dateCol)
-                val bucket = if (bucketCol != -1) cursor.getString(bucketCol) ?: "Images" else "Images"
+                var bucket = if (bucketCol != -1) cursor.getString(bucketCol) else null
+                if (bucket.isNullOrBlank() && relPathCol != -1) {
+                    val rel = cursor.getString(relPathCol)
+                    if (!rel.isNullOrBlank()) {
+                        bucket = rel.trim('/').split('/').lastOrNull()
+                    }
+                }
+                if (bucket.isNullOrBlank()) bucket = "Images"
                 val contentUri = ContentUris.withAppendedId(imgUri, id)
 
                 results.add(
@@ -370,13 +390,24 @@ private fun queryDeviceMedia(context: Context): List<MediaGalleryItem> {
     // 2. Query Videos (MediaStore)
     try {
         val vidUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        val vidProj = arrayOf(
-            MediaStore.Video.Media._ID,
-            MediaStore.Video.Media.DISPLAY_NAME,
-            MediaStore.Video.Media.DATE_ADDED,
-            MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
-            MediaStore.Video.Media.DURATION
-        )
+        val vidProj = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            arrayOf(
+                MediaStore.Video.Media._ID,
+                MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.DATE_ADDED,
+                MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
+                MediaStore.Video.Media.DURATION,
+                MediaStore.Video.Media.RELATIVE_PATH
+            )
+        } else {
+            arrayOf(
+                MediaStore.Video.Media._ID,
+                MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.DATE_ADDED,
+                MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
+                MediaStore.Video.Media.DURATION
+            )
+        }
         val vidSort = "${MediaStore.Video.Media.DATE_ADDED} DESC"
 
         context.contentResolver.query(vidUri, vidProj, null, null, vidSort)?.use { cursor ->
@@ -385,13 +416,23 @@ private fun queryDeviceMedia(context: Context): List<MediaGalleryItem> {
             val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
             val bucketCol = cursor.getColumnIndex(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
             val durCol = cursor.getColumnIndex(MediaStore.Video.Media.DURATION)
+            val relPathCol = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                cursor.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
+            } else -1
 
             var count = 0
-            while (cursor.moveToNext() && count < 30) {
+            while (cursor.moveToNext() && count < 200) {
                 val id = cursor.getLong(idCol)
                 val name = cursor.getString(nameCol) ?: "Video"
                 val dateAdded = cursor.getLong(dateCol)
-                val bucket = if (bucketCol != -1) cursor.getString(bucketCol) ?: "Videos" else "Videos"
+                var bucket = if (bucketCol != -1) cursor.getString(bucketCol) else null
+                if (bucket.isNullOrBlank() && relPathCol != -1) {
+                    val rel = cursor.getString(relPathCol)
+                    if (!rel.isNullOrBlank()) {
+                        bucket = rel.trim('/').split('/').lastOrNull()
+                    }
+                }
+                if (bucket.isNullOrBlank()) bucket = "Videos"
                 val duration = if (durCol != -1) cursor.getLong(durCol) else 0L
                 val contentUri = ContentUris.withAppendedId(vidUri, id)
 

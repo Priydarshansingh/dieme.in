@@ -164,22 +164,24 @@ class ChatGptWebAdapter(
                         fileInputs = Array.from(document.querySelectorAll("input[type='file']"));
                     }
 
-                    // 2. Set files on composer file input
-                    var targetInput = fileInputs.find(function(inp) {
-                        return inp.closest('form') || inp.id.includes('file') || !inp.disabled;
-                    }) || fileInputs[fileInputs.length - 1];
-
-                    if (targetInput) {
-                        targetInput.setAttribute('multiple', '');
-                        targetInput.multiple = true;
+                    // 2. Set files on all relevant file inputs to ensure React picks up all files (Base + References)
+                    var applied = false;
+                    for (var k = 0; k < fileInputs.length; k++) {
+                        var inp = fileInputs[k];
                         try {
-                            var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files').set;
-                            setter.call(targetInput, dt.files);
-                        } catch(e) {
-                            targetInput.files = dt.files;
-                        }
-                        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            inp.removeAttribute('disabled');
+                            inp.setAttribute('multiple', '');
+                            inp.multiple = true;
+                            try {
+                                var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files').set;
+                                setter.call(inp, dt.files);
+                            } catch(e) {
+                                inp.files = dt.files;
+                            }
+                            inp.dispatchEvent(new Event('input', { bubbles: true }));
+                            inp.dispatchEvent(new Event('change', { bubbles: true }));
+                            applied = true;
+                        } catch(e) {}
                     }
 
                     // 3. Dispatch drop and paste events directly to prompt textarea

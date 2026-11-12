@@ -337,7 +337,11 @@ fun ThumbnailStudioScreen(
     fun extractFrameFromVideo(uri: Uri): Bitmap? {
         return try {
             val retriever = android.media.MediaMetadataRetriever()
-            retriever.setDataSource(context, uri)
+            if (uri.scheme == "file") {
+                retriever.setDataSource(uri.path)
+            } else {
+                retriever.setDataSource(context, uri)
+            }
             // Retrieve keyframe at 1 second
             val timeUs = 1_000_000L
             val frame = retriever.getFrameAtTime(timeUs, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
@@ -353,7 +357,14 @@ fun ThumbnailStudioScreen(
     fun uriToBase64(uri: Uri): String? {
         return try {
             val mimeType = try { context.contentResolver.getType(uri) ?: "" } catch (_: Throwable) { "" }
-            if (mimeType.startsWith("video/")) {
+            val path = uri.path ?: ""
+            val isVideo = mimeType.startsWith("video/") ||
+                    path.endsWith(".mp4", true) ||
+                    path.endsWith(".mov", true) ||
+                    path.endsWith(".mkv", true) ||
+                    path.endsWith(".webm", true)
+
+            if (isVideo) {
                 val videoFrame = extractFrameFromVideo(uri) ?: return null
                 val maxDim = 1024
                 val width = videoFrame.width
@@ -369,12 +380,13 @@ fun ThumbnailStudioScreen(
                 val stream = ByteArrayOutputStream()
                 scaled.compress(Bitmap.CompressFormat.JPEG, 85, stream)
                 val bytes = stream.toByteArray()
+                Log.i("ThumbnailStudio", "Extracted and encoded video frame from $uri (${bytes.size} bytes)")
                 return "data:image/jpeg;base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
             }
 
             val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             var stream = if (uri.scheme == "file") {
-                val f = File(uri.path ?: "")
+                val f = File(path)
                 if (f.exists()) f.inputStream() else context.contentResolver.openInputStream(uri)
             } else {
                 context.contentResolver.openInputStream(uri)
@@ -397,14 +409,17 @@ fun ThumbnailStudioScreen(
                 inPreferredConfig = Bitmap.Config.RGB_565
             }
             stream = if (uri.scheme == "file") {
-                val f = File(uri.path ?: "")
+                val f = File(path)
                 if (f.exists()) f.inputStream() else context.contentResolver.openInputStream(uri)
             } else {
                 context.contentResolver.openInputStream(uri)
             }
             val originalBitmap = BitmapFactory.decodeStream(stream, null, decodeOptions)
             stream?.close()
-            if (originalBitmap == null) return null
+            if (originalBitmap == null) {
+                Log.w("ThumbnailStudio", "Could not decode bitmap from uri: $uri")
+                return null
+            }
 
             val width = originalBitmap.width
             val height = originalBitmap.height
@@ -428,7 +443,7 @@ fun ThumbnailStudioScreen(
             scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
             val bytes = outputStream.toByteArray()
             val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-            Log.i("ThumbnailStudio", "Decoded reference image $uri (${width}x${height}) -> ${bytes.size} bytes base64")
+            Log.i("ThumbnailStudio", "Decoded reference media $uri (${width}x${height}) -> ${bytes.size} bytes base64")
             "data:image/jpeg;base64,$base64"
         } catch (t: Throwable) {
             Log.e("ThumbnailStudio", "Error decoding uri to base64: $uri", t)

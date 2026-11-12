@@ -90,45 +90,65 @@ object ChatGptSessionManager {
 
             // Download base image and reference images to local cache
             val filesToAttach = withContext(Dispatchers.IO) {
-                val list = mutableListOf<File>()
-                if (baseImageUrl.isNotBlank()) {
-                    try {
-                        val baseFile = File(context.cacheDir, "base_thumb_${System.currentTimeMillis()}.jpg")
-                        if (baseImageUrl.startsWith("http://") || baseImageUrl.startsWith("https://")) {
-                            URL(baseImageUrl).openStream().use { input ->
-                                FileOutputStream(baseFile).use { output -> input.copyTo(output) }
+                fun resolveMediaToFile(mediaStr: String, prefix: String, index: Int): File? {
+                    if (mediaStr.isBlank()) return null
+                    val outFile = File(context.cacheDir, "${prefix}_${System.currentTimeMillis()}_$index.jpg")
+                    return try {
+                        when {
+                            mediaStr.startsWith("http://") || mediaStr.startsWith("https://") -> {
+                                URL(mediaStr).openStream().use { input ->
+                                    FileOutputStream(outFile).use { output -> input.copyTo(output) }
+                                }
+                                Log.i(TAG, "✅ Downloaded HTTP asset $prefix #$index -> ${outFile.name}")
+                                outFile
                             }
-                            list.add(baseFile)
-                        } else if (baseImageUrl.startsWith("data:") || baseImageUrl.length > 500) {
-                            val base64Data = if (baseImageUrl.contains(",")) baseImageUrl.substringAfter(",") else baseImageUrl
-                            val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
-                            FileOutputStream(baseFile).use { it.write(bytes) }
-                            list.add(baseFile)
+                            mediaStr.startsWith("data:") || (mediaStr.length > 500 && !mediaStr.startsWith("content:") && !mediaStr.startsWith("file:") && !mediaStr.startsWith("/")) -> {
+                                val base64Data = if (mediaStr.contains(",")) mediaStr.substringAfter(",") else mediaStr
+                                val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+                                FileOutputStream(outFile).use { it.write(bytes) }
+                                Log.i(TAG, "✅ Decoded Base64 asset $prefix #$index -> ${outFile.name} (${bytes.size} bytes)")
+                                outFile
+                            }
+                            mediaStr.startsWith("file://") || mediaStr.startsWith("/") -> {
+                                val cleanPath = if (mediaStr.startsWith("file://")) mediaStr.substring(7) else mediaStr
+                                val srcFile = File(cleanPath)
+                                if (srcFile.exists()) {
+                                    srcFile.inputStream().use { input ->
+                                        FileOutputStream(outFile).use { output -> input.copyTo(output) }
+                                    }
+                                    Log.i(TAG, "✅ Copied local file asset $prefix #$index -> ${outFile.name}")
+                                    outFile
+                                } else {
+                                    Log.w(TAG, "⚠️ Local file not found: $cleanPath")
+                                    null
+                                }
+                            }
+                            mediaStr.startsWith("content://") -> {
+                                context.contentResolver.openInputStream(android.net.Uri.parse(mediaStr))?.use { input ->
+                                    FileOutputStream(outFile).use { output -> input.copyTo(output) }
+                                }
+                                Log.i(TAG, "✅ Read content:// asset $prefix #$index -> ${outFile.name}")
+                                outFile
+                            }
+                            else -> {
+                                Log.w(TAG, "⚠️ Unknown media format for $prefix #$index (len=${mediaStr.length})")
+                                null
+                            }
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error saving base image to cache", e)
+                        Log.e(TAG, "Error resolving $prefix #$index to file", e)
+                        null
                     }
                 }
 
+                val list = mutableListOf<File>()
+                resolveMediaToFile(baseImageUrl, "base", 0)?.let { list.add(it) }
+
                 // Attach all reference images provided
                 for ((idx, ref) in referenceImageUrls.withIndex()) {
-                    try {
-                        val refFile = File(context.cacheDir, "ref_${System.currentTimeMillis()}_$idx.jpg")
-                        if (ref.startsWith("data:") || (ref.length > 500 && !ref.startsWith("http"))) {
-                            val base64Data = if (ref.contains(",")) ref.substringAfter(",") else ref
-                            val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
-                            FileOutputStream(refFile).use { it.write(bytes) }
-                            list.add(refFile)
-                            Log.i(TAG, "✅ Decoded base64 reference image #$idx -> ${refFile.name} (${refFile.length()} bytes)")
-                        } else if (ref.startsWith("http://") || ref.startsWith("https://")) {
-                            URL(ref).openStream().use { input ->
-                                FileOutputStream(refFile).use { output -> input.copyTo(output) }
-                            }
-                            list.add(refFile)
-                            Log.i(TAG, "✅ Downloaded URL reference image #$idx -> ${refFile.name} (${refFile.length()} bytes)")
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error caching reference image #$idx", e)
+                    resolveMediaToFile(ref, "ref", idx)?.let {
+                        list.add(it)
+                        Log.i(TAG, "📎 Attached reference image #$idx -> ${it.name} (${it.length()} bytes)")
                     }
                 }
                 list

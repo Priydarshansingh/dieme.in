@@ -541,9 +541,9 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
       <SiteHeader />
 
       {/* ── 2. HERO SECTION WITH 3D TELEMETRY & AMBIENT AURA ─────────────────── */}
-      <section id="hero" className="relative min-h-[92vh] pt-36 pb-20 flex flex-col items-center justify-center text-center overflow-hidden">
-        {/* Floating Telemetry Badges with Kinetic Scroll Parallax */}
-        <div className="absolute inset-0 pointer-events-none z-0">
+      <section id="hero" className="relative min-h-[85dvh] pt-20 sm:pt-36 pb-16 sm:pb-20 flex flex-col items-center justify-center text-center overflow-hidden">
+        {/* Floating Telemetry Badges — desktop only, hidden on mobile to avoid viewport bleed */}
+        <div className="hidden sm:block absolute inset-0 pointer-events-none z-0">
           <div
             className="absolute top-[28%] left-[12%] text-xs font-mono font-bold text-emerald-400/40 animate-pulse transition-transform duration-300 ease-out"
             style={{ transform: `translateY(${scrollY * -0.18}px)` }}
@@ -730,7 +730,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         </div>
 
         {/* Live Stream Ticker (Continuous Left-Scrolling Infinite Marquee) */}
-        <div className="mt-16 border-y border-white/5 bg-[#080B12] py-3.5 overflow-hidden select-none">
+        <div className="mt-16 border-y border-white/5 bg-[#080B12] py-3.5 overflow-hidden select-none w-full max-w-[100vw]">
           <div className="animate-marquee-infinite flex items-center gap-8">
             {/* First sequence */}
             {tickers.map((t, idx) => (

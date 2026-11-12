@@ -1,15 +1,15 @@
 package com.digicast.dgimages.server
 
 import android.content.Context
+import android.util.Log
 import com.digicast.dgimages.engine.ImageInpaintEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.io.BufferedReader
+import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.InputStreamReader
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
@@ -21,6 +21,10 @@ class DgImagesHttpDaemon(
     private val context: Context,
     private val port: Int = 5488
 ) {
+    companion object {
+        private const val TAG = "DgImagesDaemon"
+    }
+
     private var serverSocket: ServerSocket? = null
     private var isRunning = false
     private var serverJob: Job? = null
@@ -34,6 +38,7 @@ class DgImagesHttpDaemon(
             try {
                 // Bind exclusively to 127.0.0.1 for local device security
                 serverSocket = ServerSocket(port, 50, InetAddress.getByName("127.0.0.1"))
+                Log.i(TAG, "🟢 Daemon listening on 127.0.0.1:$port")
                 while (isRunning) {
                     val clientSocket = try {
                         serverSocket?.accept()
@@ -45,7 +50,7 @@ class DgImagesHttpDaemon(
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Server socket error", e)
             }
         }
     }
@@ -54,19 +59,37 @@ class DgImagesHttpDaemon(
         isRunning = false
         try {
             serverSocket?.close()
-        } catch (e: Exception) {
-            // Ignored
-        }
+        } catch (_: Exception) {}
         serverJob?.cancel()
     }
 
     private suspend fun handleClient(socket: Socket) {
         try {
             socket.use { s ->
-                val reader = BufferedReader(InputStreamReader(s.getInputStream()))
-                val writer = PrintWriter(OutputStreamWriter(s.getOutputStream()), true)
+                val rawInput = s.getInputStream()
+                val rawOutput = s.getOutputStream()
+                val writer = PrintWriter(OutputStreamWriter(rawOutput, Charsets.UTF_8), true)
 
-                val requestLine = reader.readLine() ?: return
+                // 1. Read HTTP headers byte-by-byte until \r\n\r\n delimiter
+                val headerStream = ByteArrayOutputStream()
+                var p3 = -1
+                var p2 = -1
+                var p1 = -1
+                while (true) {
+                    val b = rawInput.read()
+                    if (b == -1) break
+                    headerStream.write(b)
+                    if (p3 == '\r'.code && p2 == '\n'.code && p1 == '\r'.code && b == '\n'.code) {
+                        break
+                    }
+                    p3 = p2
+                    p2 = p1
+                    p1 = b
+                }
+
+                val headerStr = headerStream.toString("ISO-8859-1")
+                val lines = headerStr.split("\r\n")
+                val requestLine = lines.firstOrNull() ?: return
                 val parts = requestLine.split(" ")
                 if (parts.size < 2) return
 
@@ -74,12 +97,10 @@ class DgImagesHttpDaemon(
                 val path = parts[1]
 
                 var contentLength = 0
-                var line: String? = reader.readLine()
-                while (!line.isNullOrEmpty()) {
+                for (line in lines) {
                     if (line.lowercase().startsWith("content-length:")) {
                         contentLength = line.substringAfter(":").trim().toIntOrNull() ?: 0
                     }
-                    line = reader.readLine()
                 }
 
                 when {
@@ -87,7 +108,7 @@ class DgImagesHttpDaemon(
                         val responseJson = JSONObject().apply {
                             put("status", "ok")
                             put("app", "Dg-Images")
-                            put("version", "1.0.0")
+                            put("version", "1.1.0")
                             put("ready", true)
                             put("port", port)
                         }.toString()
@@ -100,7 +121,7 @@ class DgImagesHttpDaemon(
                         if (file.exists() && file.isFile) {
                             val bytes = file.readBytes()
                             val mime = if (fileName.endsWith(".png", true)) "image/png" else "image/jpeg"
-                            sendBinaryResponse(s.getOutputStream(), 200, mime, bytes)
+                            sendBinaryResponse(rawOutput, 200, mime, bytes)
                         } else {
                             val notFoundJson = JSONObject().apply {
                                 put("error", "Image not found")
@@ -111,15 +132,22 @@ class DgImagesHttpDaemon(
                     }
 
                     method == "POST" && (path == "/v1/thumbnail/generate" || path == "/generate") -> {
-                        val body = CharArray(contentLength)
-                        var read = 0
-                        while (read < contentLength) {
-                            val r = reader.read(body, read, contentLength - read)
-                            if (r == -1) break
-                            read += r
+                        // Read exactly contentLength bytes directly from rawInput without buffer corruption
+                        val bodyBytes = ByteArray(contentLength)
+                        var bytesRead = 0
+                        while (bytesRead < contentLength) {
+                            val count = rawInput.read(bodyBytes, bytesRead, contentLength - bytesRead)
+                            if (count == -1) break
+                            bytesRead += count
                         }
-                        val bodyString = String(body, 0, read)
-                        val json = try { JSONObject(bodyString) } catch (e: Exception) { JSONObject() }
+
+                        val bodyString = String(bodyBytes, 0, bytesRead, Charsets.UTF_8)
+                        val json = try {
+                            JSONObject(bodyString)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to parse JSON body (length=$bytesRead): ${e.message}")
+                            JSONObject()
+                        }
 
                         val baseImageUrl = json.optString("baseImageUrl", "")
                         val maskPoints = json.optString("maskPoints", "[]")
@@ -129,9 +157,14 @@ class DgImagesHttpDaemon(
                         val refArray = json.optJSONArray("referenceImages")
                         if (refArray != null) {
                             for (i in 0 until refArray.length()) {
-                                refList.add(refArray.getString(i))
+                                val item = refArray.optString(i)
+                                if (item.isNotBlank()) {
+                                    refList.add(item)
+                                }
                             }
                         }
+
+                        Log.i(TAG, "📥 Received POST /generate: prompt=\"${prompt.take(30)}...\", baseImageUrl=${baseImageUrl.take(30)}, refs=${refList.size}")
 
                         val preferNewChat: Boolean? = if (json.has("preferNewChat")) json.optBoolean("preferNewChat") else null
 
@@ -148,6 +181,7 @@ class DgImagesHttpDaemon(
                             put("status", if (result.isSuccess) "success" else "error")
                             put("resultUrl", result.getOrDefault(baseImageUrl))
                             put("prompt", prompt)
+                            put("referenceCount", refList.size)
                             put("timestamp", System.currentTimeMillis())
                         }.toString()
 
@@ -164,7 +198,7 @@ class DgImagesHttpDaemon(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Error handling client connection", e)
         }
     }
 
@@ -180,15 +214,12 @@ class DgImagesHttpDaemon(
     }
 
     private fun sendResponse(writer: PrintWriter, statusCode: Int, contentType: String, body: String) {
-        val statusText = if (statusCode == 200) "OK" else "Not Found"
-        writer.print("HTTP/1.1 $statusCode $statusText\r\n")
+        writer.print("HTTP/1.1 $statusCode OK\r\n")
         writer.print("Content-Type: $contentType\r\n")
-        writer.print("Content-Length: ${body.toByteArray().size}\r\n")
+        writer.print("Content-Length: ${body.toByteArray(Charsets.UTF_8).size}\r\n")
         writer.print("Connection: close\r\n")
-        writer.print("Access-Control-Allow-Origin: *\r\n")
-        writer.print("\r\n")
+        writer.print("Access-Control-Allow-Origin: *\r\n\r\n")
         writer.print(body)
         writer.flush()
     }
 }
-

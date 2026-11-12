@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Lock, Shield, CheckCircle, ExternalLink, Globe } from 'lucide-react';
+import { Lock, Shield, CheckCircle, ExternalLink, Globe, Cookie, Scale } from 'lucide-react';
 import { SiteHeader } from '@/components/common/SiteHeader';
 import { SiteFooter } from '@/components/common/SiteFooter';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy — Dieme',
-  description: 'Privacy Policy and Google API Services User Data Policy disclosures for Dieme Creator Studio.',
+  description: 'Privacy Policy, DPDP Act compliance, cookie disclosures, and Google API Services User Data Policy for Dieme Creator Studio.',
 };
 
 export default function PrivacyPage() {
@@ -26,7 +26,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p className="text-slate-400 text-xs sm:text-sm font-mono">
-            Operating Entity: Dieme (&quot;Dieme Creator Studio&quot;) &bull; Last Updated: November 2026 &bull; Version 3.1
+            Operating Entity: Dieme (&quot;Dieme Creator Studio&quot;) &bull; Last Updated: November 2026 &bull; Version 3.2
           </p>
         </div>
 
@@ -38,13 +38,13 @@ export default function PrivacyPage() {
               1. Overview &amp; Introduction
             </h2>
             <p>
-              This Privacy Policy explains how <b>Dieme</b> (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses, and safeguards information through our streaming companion application <b>Dieme</b> (accessible at{' '}
+              This Privacy Policy explains how <b>Dieme</b> (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses, and safeguards information through our creator studio application <b>Dieme</b> (accessible at{' '}
               <a href="https://www.dieme.in" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
                 https://www.dieme.in
               </a>).
             </p>
             <p>
-              We are committed to full transparency and protecting creator privacy, adhering strictly to the Google API Services User Data Policy and applicable data protection regulations.
+              We are committed to full transparency and protecting creator privacy, adhering strictly to the Google API Services User Data Policy, the Digital Personal Data Protection (DPDP) Act 2023, and applicable data protection regulations.
             </p>
           </section>
 
@@ -113,26 +113,81 @@ export default function PrivacyPage() {
               <li><b>YouTube Metadata:</b> Channel title, active live stream status, broadcast titles, and video IDs required for marker synchronization.</li>
               <li><b>Workspace Data:</b> Creator clip timestamps, labels, and authorized editor team logins.</li>
               <li><b>Payment Records:</b> UPI transaction reference numbers (UTR) and pass durations for subscription ledger verification.</li>
+              <li><b>Device Information:</b> Device type, operating system version, and app version for crash reporting and compatibility.</li>
             </ul>
           </section>
 
-          {/* Section 5: Local-First Privacy Architecture */}
+          {/* Section 5: Cookies & Tracking */}
+          <section className="space-y-3 p-5 rounded-2xl bg-white/[0.02] border border-white/10">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Cookie className="w-4 h-4 text-amber-400" />
+              5. Cookies &amp; Tracking Technologies
+            </h2>
+            <p>
+              Dieme uses strictly essential cookies for the following purposes:
+            </p>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-400 pl-2">
+              <li><b>Authentication Cookies:</b> Firebase session tokens to maintain your signed-in state.</li>
+              <li><b>Preference Cookies:</b> Workspace layout, theme, and dashboard configuration stored in <code className="text-xs bg-white/[0.06] px-1.5 py-0.5 rounded">localStorage</code>.</li>
+              <li><b>Security Cookies:</b> CSRF protection tokens for API route authentication.</li>
+            </ul>
+            <p className="text-slate-400">
+              We do <b>not</b> use advertising cookies, third-party tracking pixels, behavioral analytics, or fingerprinting technologies. No data is shared with ad networks or data brokers.
+            </p>
+            <div className="bg-black/40 p-3.5 rounded-xl border border-white/10 font-mono text-xs space-y-1">
+              <p><b className="text-amber-400">Cookie Retention:</b> Session cookies expire when you close the browser. Authentication tokens are valid for up to 30 days or until you sign out.</p>
+              <p><b className="text-amber-400">Opt-Out:</b> You can clear cookies at any time via your browser settings. Disabling essential cookies may prevent sign-in functionality.</p>
+            </div>
+          </section>
+
+          {/* Section 6: Local-First Privacy Architecture */}
           <section className="space-y-3">
-            <h2 className="text-lg font-bold text-white">5. Local-First Processing Architecture</h2>
+            <h2 className="text-lg font-bold text-white">6. Local-First Processing Architecture</h2>
             <p>
               Dieme processes stream clip markers and audio/video trims locally on your device via hardware acceleration. Raw video streams are never stored on our central servers, guaranteeing creator data ownership and zero cross-account data leakage.
             </p>
           </section>
 
-          {/* Section 6: Data Retention & Deletion */}
+          {/* Section 7: DPDP Act 2023 Compliance */}
+          <section className="space-y-4 p-5 rounded-2xl bg-white/[0.02] border border-white/10">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Scale className="w-4 h-4 text-cyan-400" />
+              7. Digital Personal Data Protection (DPDP) Act 2023 Compliance
+            </h2>
+            <p>
+              Dieme is committed to compliance with India&apos;s <b>Digital Personal Data Protection Act, 2023</b>. As a Data Fiduciary, we uphold the following obligations:
+            </p>
+            <ul className="list-disc list-inside space-y-2 text-slate-400 pl-2">
+              <li><b>Lawful Purpose:</b> Personal data is collected and processed only for providing the Dieme creator studio service, subscription management, and YouTube API integration. No data is processed beyond these stated purposes.</li>
+              <li><b>Informed Consent:</b> We obtain verifiable consent before collecting personal data. You may withdraw consent at any time by deleting your account or revoking Google permissions.</li>
+              <li><b>Data Principal Rights:</b> You have the right to access, correct, and erase your personal data. Submit requests to <a href="mailto:support@dieme.in" className="text-emerald-400 hover:underline">support@dieme.in</a> for processing within 72 hours.</li>
+              <li><b>Data Minimization:</b> We collect only the minimum data necessary for service delivery. No surplus personal data is stored or retained.</li>
+              <li><b>Security Safeguards:</b> All data in transit is encrypted via TLS 1.3. Data at rest in Firestore is encrypted using Google Cloud&apos;s default encryption. Access controls follow the principle of least privilege.</li>
+              <li><b>Breach Notification:</b> In the event of a personal data breach, we will notify affected users and the Data Protection Board of India within 72 hours as required under Section 8 of the DPDP Act.</li>
+              <li><b>Children&apos;s Data:</b> Dieme does not knowingly collect personal data from individuals under the age of 18 without verifiable parental consent. If we become aware of such collection, the data will be deleted immediately.</li>
+              <li><b>Cross-Border Transfer:</b> Personal data may be processed by Google Cloud (Firebase) infrastructure located outside India. Such transfers comply with DPDP Act provisions and Google&apos;s data processing agreements.</li>
+            </ul>
+            <div className="bg-black/40 p-3.5 rounded-xl border border-white/10 font-mono text-xs space-y-1">
+              <p><b className="text-cyan-400">Grievance Officer:</b> For DPDP-related grievances or data subject requests, contact our designated officer at <a href="mailto:support@dieme.in" className="text-emerald-400 hover:underline">support@dieme.in</a>.</p>
+              <p><b className="text-cyan-400">Response Timeline:</b> All data principal requests are acknowledged within 48 hours and resolved within 30 days.</p>
+            </div>
+          </section>
+
+          {/* Section 8: Data Retention & Deletion */}
           <section className="space-y-3 p-5 rounded-2xl bg-white/[0.02] border border-white/10">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-emerald-400" />
-              6. Data Retention, User Rights &amp; Deletion Requests
+              8. Data Retention, User Rights &amp; Deletion Requests
             </h2>
             <p>
               You maintain total ownership of your data. You may request immediate deletion of your entire workspace and cached YouTube tokens at any time.
             </p>
+            <ul className="list-disc list-inside space-y-1.5 text-slate-400 pl-2">
+              <li>Active workspace data is retained for the duration of your subscription.</li>
+              <li>Upon account deletion, all personal data, clip markers, and workspace records are permanently erased within 30 days.</li>
+              <li>YouTube OAuth tokens are revoked and purged immediately upon disconnection.</li>
+              <li>Payment UTR records are retained for 180 days for dispute resolution, then permanently deleted.</li>
+            </ul>
             <p>
               To request complete deletion of your account and all associated data, submit a request to our compliance desk:
             </p>
@@ -143,16 +198,16 @@ export default function PrivacyPage() {
             </div>
           </section>
 
-          {/* Section 7: Contact */}
+          {/* Section 9: Contact */}
           <section className="space-y-3">
-            <h2 className="text-lg font-bold text-white">7. Contact Information</h2>
+            <h2 className="text-lg font-bold text-white">9. Contact Information</h2>
             <p>
-              For legal, privacy, or compliance inquiries, contact:
+              For legal, privacy, DPDP compliance, or data protection inquiries, contact:
             </p>
             <div className="bg-black/40 p-4 rounded-xl border border-white/10 font-mono text-xs space-y-1 text-slate-300">
               <p><b className="text-slate-400">Entity:</b> Dieme Creator Studio</p>
               <p><b className="text-slate-400">Authorized Domains:</b> dieme.in &bull; www.dieme.in</p>
-              <p><b className="text-slate-400">Support &amp; Compliance:</b> <a href="mailto:support@dieme.in" className="text-emerald-400 hover:underline">support@dieme.in</a></p>
+              <p><b className="text-slate-400">Grievance / Compliance Officer:</b> <a href="mailto:support@dieme.in" className="text-emerald-400 hover:underline">support@dieme.in</a></p>
               <p><b className="text-slate-400">Website:</b> <a href="https://www.dieme.in" className="text-cyan-400 hover:underline">https://www.dieme.in</a></p>
             </div>
           </section>

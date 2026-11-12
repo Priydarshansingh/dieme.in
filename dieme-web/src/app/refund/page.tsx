@@ -57,8 +57,8 @@ export default function RefundPage() {
             <h2 className="text-lg font-bold text-white">3. How to Request a Refund or Plan Correction</h2>
             <p>
               To request a review or plan correction, send a message to our official Telegram support bot at{' '}
-              <a href="https://t.me/YT_digicast?start=help" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline font-mono">
-                @YT_digicast
+              <a href="https://t.me/YT_dieme?start=help" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline font-mono">
+                @YT_dieme
               </a>{' '}
               or use the command <code>/support &lt;details&gt;</code> with your:
             </p>

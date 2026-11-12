@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     const profile = await userProfileRes.json();
 
     const email = (profile.email || "").toLowerCase().trim();
-    const displayName = profile.name || email.split("@")[0] || "Digicast User";
+    const displayName = profile.name || email.split("@")[0] || "Dieme User";
     const photoURL = profile.picture || "";
 
     if (!email) {
@@ -193,7 +193,7 @@ export async function GET(req: NextRequest) {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Digicast Authentication</title>
+          <title>Dieme Authentication</title>
           <style>
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -266,7 +266,7 @@ export async function GET(req: NextRequest) {
             <div class="badge">${role} Verified</div>
             <h1>Welcome, ${displayName}!</h1>
             <p>Signed in as <b>${email}</b>.<br>Connected to workspace <b>${activeWorkspaceName}</b>.</p>
-            <a href="${deepLinkUrl}" class="btn">Return to Digicast App</a>
+            <a href="${deepLinkUrl}" class="btn">Return to Dieme App</a>
           </div>
         </body>
       </html>

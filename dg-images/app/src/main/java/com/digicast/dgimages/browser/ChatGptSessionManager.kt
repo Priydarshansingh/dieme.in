@@ -2,6 +2,7 @@ package com.digicast.dgimages.browser
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.webkit.CookieManager
 import com.digicast.dgimages.engine.GenerationJob
 import com.digicast.dgimages.engine.ImageInpaintEngine
@@ -21,6 +22,8 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
 object ChatGptSessionManager {
+
+    private const val TAG = "ChatGptSessionManager"
 
     var activeAdapter: ChatGptWebAdapter? = null
 
@@ -47,16 +50,23 @@ object ChatGptSessionManager {
         referenceImageUrls: List<String> = emptyList(),
         forceNewChat: Boolean? = null
     ): Result<String> = withContext(Dispatchers.Main) {
+        Log.i(TAG, "🚀 executeGeneration invoked: prompt=\"${prompt.take(40)}...\", baseImageUrl=${baseImageUrl.take(40)}, refs=${referenceImageUrls.size}")
+
         var adapter = activeAdapter
         if (adapter == null) {
+            // Wake up background service if not active
             try {
-                val launchIntent = Intent(context, com.digicast.dgimages.MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                val serviceIntent = Intent(context, com.digicast.dgimages.service.DgImagesService::class.java)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    context.startForegroundService(serviceIntent)
+                } else {
+                    context.startService(serviceIntent)
                 }
-                context.startActivity(launchIntent)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not start service: ${e.message}")
+            }
 
-            for (i in 0 until 8) {
+            for (i in 0 until 10) {
                 delay(500)
                 if (activeAdapter != null) {
                     adapter = activeAdapter
@@ -66,7 +76,7 @@ object ChatGptSessionManager {
         }
 
         if (adapter == null) {
-            // Fallback to local image processor if WebView not initialized
+            Log.w(TAG, "⚠️ activeAdapter still null; falling back to local ImageInpaintEngine")
             return@withContext ImageInpaintEngine.processInpaintTask(
                 context = context,
                 baseImageUrl = baseImageUrl,
@@ -78,7 +88,7 @@ object ChatGptSessionManager {
         try {
             _sessionStatus.value = "Preparing media assets..."
 
-            // Download base image and up to 2 reference images to local cache (up to 3 files total)
+            // Download base image and reference images to local cache
             val filesToAttach = withContext(Dispatchers.IO) {
                 val list = mutableListOf<File>()
                 if (baseImageUrl.isNotBlank()) {
@@ -96,12 +106,12 @@ object ChatGptSessionManager {
                             list.add(baseFile)
                         }
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        Log.e(TAG, "Error saving base image to cache", e)
                     }
                 }
 
-                // Reference images (up to 2 reference images)
-                for ((idx, ref) in referenceImageUrls.take(2).withIndex()) {
+                // Attach all reference images provided
+                for ((idx, ref) in referenceImageUrls.withIndex()) {
                     try {
                         val refFile = File(context.cacheDir, "ref_${System.currentTimeMillis()}_$idx.jpg")
                         if (ref.startsWith("data:") || (ref.length > 500 && !ref.startsWith("http"))) {
@@ -109,14 +119,16 @@ object ChatGptSessionManager {
                             val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
                             FileOutputStream(refFile).use { it.write(bytes) }
                             list.add(refFile)
+                            Log.i(TAG, "✅ Decoded base64 reference image #$idx -> ${refFile.name} (${refFile.length()} bytes)")
                         } else if (ref.startsWith("http://") || ref.startsWith("https://")) {
                             URL(ref).openStream().use { input ->
                                 FileOutputStream(refFile).use { output -> input.copyTo(output) }
                             }
                             list.add(refFile)
+                            Log.i(TAG, "✅ Downloaded URL reference image #$idx -> ${refFile.name} (${refFile.length()} bytes)")
                         }
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        Log.e(TAG, "Error caching reference image #$idx", e)
                     }
                 }
                 list
@@ -132,16 +144,38 @@ object ChatGptSessionManager {
                 _sessionStatus.value = "Appending to ongoing ChatGPT conversation..."
             }
 
-            // 2. Attach base thumbnail + reference assets (up to 3 files)
+            // 2. Attach base thumbnail + reference assets
             if (filesToAttach.isNotEmpty()) {
                 _sessionStatus.value = "Attaching ${filesToAttach.size} image assets to ChatGPT..."
-                adapter.attachImages(filesToAttach)
-                delay(2000)
+                Log.i(TAG, "📎 Attaching ${filesToAttach.size} image assets to ChatGPT (Base + Refs)")
+                suspendCancellableCoroutine<Boolean> { cont ->
+                    adapter.attachImages(filesToAttach) { success ->
+                        if (cont.isActive) cont.resume(success)
+                    }
+                }
+
+                // Poll for attachments readiness up to 10 seconds
+                for (attempt in 0 until 10) {
+                    delay(1000)
+                    val ready = suspendCancellableCoroutine<Boolean> { cont ->
+                        adapter.checkAttachmentsReady { isReady ->
+                            if (cont.isActive) cont.resume(isReady)
+                        }
+                    }
+                    if (ready) {
+                        Log.i(TAG, "✅ Attachments confirmed ready in ChatGPT DOM at attempt #${attempt + 1}")
+                        break
+                    }
+                }
             }
 
             // 3. Inject prompt & submit
             _sessionStatus.value = "Submitting prompt: \"${prompt.take(30)}...\""
-            adapter.injectPromptAndSubmit(prompt)
+            suspendCancellableCoroutine<Boolean> { cont ->
+                adapter.injectPromptAndSubmit(prompt) { success ->
+                    if (cont.isActive) cont.resume(success)
+                }
+            }
 
             // 4. Poll for generated image from ChatGPT
             _sessionStatus.value = "Generating thumbnail with ChatGPT..."
@@ -164,6 +198,7 @@ object ChatGptSessionManager {
             }
 
             // 5. If ChatGPT didn't return an image, fall back to Dg-Images Neural Engine
+            Log.w(TAG, "ChatGPT did not produce a valid image in time; using local engine fallback")
             _sessionStatus.value = "Refining with Dg-Images Neural Canvas..."
             ImageInpaintEngine.processInpaintTask(
                 context = context,
@@ -172,6 +207,7 @@ object ChatGptSessionManager {
                 prompt = prompt
             )
         } catch (e: Exception) {
+            Log.e(TAG, "Exception during executeGeneration", e)
             _sessionStatus.value = "Error: ${e.message}"
             ImageInpaintEngine.processInpaintTask(
                 context = context,
@@ -183,15 +219,17 @@ object ChatGptSessionManager {
     }
 
     private suspend fun pollForGeneratedImage(adapter: ChatGptWebAdapter): String? {
-        // Poll for up to 30 seconds
-        for (i in 0 until 15) {
+        // Poll for up to 50 seconds (25 attempts x 2000ms)
+        for (i in 0 until 25) {
             delay(2000)
+            _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 2}s)"
             val result = suspendCancellableCoroutine<String?> { cont ->
                 adapter.captureGeneratedImage { imgResult ->
                     if (cont.isActive) cont.resume(imgResult)
                 }
             }
             if (!result.isNullOrBlank()) {
+                Log.i(TAG, "🎯 Captured generated image on attempt #${i + 1}!")
                 return result
             }
         }
@@ -210,25 +248,24 @@ object ChatGptSessionManager {
                 FileOutputStream(outputFile).use { it.write(bytes) }
                 "http://127.0.0.1:5488/v1/image/${outputFile.name}"
             } else if (captured.startsWith("http://") || captured.startsWith("https://")) {
-                val cookie = CookieManager.getInstance().getCookie(captured) ?: ""
-                val requestBuilder = Request.Builder().url(captured)
-                if (cookie.isNotBlank()) {
-                    requestBuilder.header("Cookie", cookie)
-                }
-                val response = httpClient.newCall(requestBuilder.build()).execute()
+                val request = Request.Builder().url(captured).build()
+                val response = httpClient.newCall(request).execute()
                 if (response.isSuccessful) {
-                    response.body?.byteStream()?.use { input ->
-                        FileOutputStream(outputFile).use { output -> input.copyTo(output) }
+                    val bytes = response.body?.bytes()
+                    if (bytes != null && bytes.isNotEmpty()) {
+                        FileOutputStream(outputFile).use { it.write(bytes) }
+                        "http://127.0.0.1:5488/v1/image/${outputFile.name}"
+                    } else {
+                        captured
                     }
-                    "http://127.0.0.1:5488/v1/image/${outputFile.name}"
                 } else {
-                    null
+                    captured
                 }
             } else {
                 null
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Error saving generated result to cache", e)
             null
         }
     }

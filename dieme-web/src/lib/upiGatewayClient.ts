@@ -67,7 +67,7 @@ export async function createGatewayPaymentSession(params: {
         autoActivate: true,
         customer: {
           email: params.userEmail || "",
-          name: params.customerName || "Digicast Creator",
+          name: params.customerName || "Dieme Creator",
         },
         metadata: {
           workspaceId: params.workspaceId,

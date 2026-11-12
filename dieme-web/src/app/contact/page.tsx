@@ -14,25 +14,25 @@ import { SiteFooter } from '@/components/common/SiteFooter';
 export const metadata: Metadata = {
   title: 'Contact Support & Helpdesk — Dieme',
   description:
-    'Need help with your workspace, livestream sync, or subscription pass? Contact our official Telegram support bot @YT_digicast for instant resolution.',
+    'Need help with your workspace, livestream sync, or subscription pass? Contact our official Telegram support bot @YT_dieme for instant resolution.',
 };
 
 const supportFaqs = [
   {
     q: 'How do I reach the official Dieme Support team?',
-    a: 'All official creator support, account lookups, payment verifications, and technical inquiries are handled directly via our verified Telegram Bot @YT_digicast. You can start a private chat at https://t.me/YT_digicast?start=help.'
+    a: 'All official creator support, account lookups, payment verifications, and technical inquiries are handled directly via our verified Telegram Bot @YT_dieme. You can start a private chat at https://t.me/YT_dieme?start=help.'
   },
   {
     q: 'How do I look up my active subscription or workspace validity?',
-    a: 'Simply send your registered Gmail address or Workspace ID directly to @YT_digicast in a private message. The bot will automatically verify your Firestore record and display your active plan, expiration date, and connected YouTube channel.'
+    a: 'Simply send your registered Gmail address or Workspace ID directly to @YT_dieme in a private message. The bot will automatically verify your Firestore record and display your active plan, expiration date, and connected YouTube channel.'
   },
   {
     q: 'How do I submit payment proof or UTR numbers?',
-    a: 'You can submit your screenshot and 12-digit UPI UTR directly via the Web Dashboard payment modal, or send the screenshot directly in a private DM to @YT_digicast. You receive instant 24-hour grace access immediately upon submission.'
+    a: 'You can submit your screenshot and 12-digit UPI UTR directly via the Web Dashboard payment modal, or send the screenshot directly in a private DM to @YT_dieme. You receive instant 24-hour grace access immediately upon submission.'
   },
   {
     q: 'How do I report a bug or suggest a feature?',
-    a: 'Send "/support <your message>" to @YT_digicast. Our engineering team logs every concern into our active monitoring queue and provides prompt updates.'
+    a: 'Send "/support <your message>" to @YT_dieme. Our engineering team logs every concern into our active monitoring queue and provides prompt updates.'
   }
 ];
 
@@ -53,7 +53,7 @@ export default function ContactPage() {
           <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-tight mb-6">
             Instant Support &amp; Ticket Routing via{' '}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400">
-              @YT_digicast
+              @YT_dieme
             </span>
           </h1>
 
@@ -73,7 +73,7 @@ export default function ContactPage() {
               </div>
 
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">
-                Open Chat with @YT_digicast
+                Open Chat with @YT_dieme
               </h2>
               <p className="text-slate-400 text-sm max-w-lg mx-auto mb-8 leading-relaxed">
                 Connect with our automated bot in Telegram to check account validity, report an issue, or verify payment proof.
@@ -81,13 +81,13 @@ export default function ContactPage() {
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <a
-                  href="https://t.me/YT_digicast?start=help"
+                  href="https://t.me/YT_dieme?start=help"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl font-mono font-bold text-sm bg-gradient-to-r from-cyan-400 to-blue-500 text-[#07080C] shadow-2xl shadow-cyan-500/40 hover:shadow-cyan-500/60 hover:scale-[1.02] active:scale-[0.98] transition"
                 >
                   <Send className="w-4 h-4" />
-                  <span>LAUNCH TELEGRAM BOT (@YT_digicast)</span>
+                  <span>LAUNCH TELEGRAM BOT (@YT_dieme)</span>
                   <ExternalLink className="w-3.5 h-3.5 opacity-80" />
                 </a>
               </div>

@@ -315,22 +315,9 @@ class ExtensionViewModel @Inject constructor(
 
     fun getImageStudio(): ImageStudioExtension? {
         if (_loadedImageStudio.value != null) return _loadedImageStudio.value
-        val file = File(context.filesDir, "com.digicast.ext.dgimages.dcast")
-        if (!file.exists()) {
-            try {
-                context.assets.open("extensions/com.digicast.ext.dgimages.dcast").use { input ->
-                    FileOutputStream(file).use { output -> input.copyTo(output) }
-                }
-                file.setReadOnly()
-            } catch (_: Exception) {}
-        }
-        if (file.exists()) {
-            val extension = extensionLoader.loadExtension(file.absolutePath, "com.digicast.ext.dgimages.DgImagesExtension")
-            if (extension is ImageStudioExtension) {
-                _loadedImageStudio.value = extension
-                return extension
-            }
-        }
-        return null
+        // Provide built-in, direct IPC bridge to Dg-Images without dex-caching delay
+        val builtIn = com.digicast.app.api.extension.DefaultImageStudioExtension()
+        _loadedImageStudio.value = builtIn
+        return builtIn
     }
 }

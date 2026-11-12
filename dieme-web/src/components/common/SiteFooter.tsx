@@ -117,7 +117,7 @@ export function SiteFooter({ onSelectProgram, className = '' }: SiteFooterProps)
         <div className="space-y-3">
           <p className="font-bold text-white tracking-wide">Support</p>
           <a
-            href="https://t.me/YT_digicast?start=help"
+            href="https://t.me/YT_dieme?start=help"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition shadow-md shadow-emerald-400/20"

@@ -73,10 +73,10 @@ export default function Sidebar() {
       {/* Download Mobile App Link */}
       <div className="px-3 pb-3">
         <a
-          href="https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/digicast-app-latest.apk"
+          href="https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk"
           target="_blank"
           rel="noopener noreferrer"
-          download="digicast-app-latest.apk"
+          download="dieme-app-latest.apk"
           className="group block p-3 rounded-xl bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-indigo-500/10 border border-cyan-500/25 hover:border-cyan-400/50 transition-all duration-200 shadow-sm"
           title="Download the latest Dieme Studio Android App (APK)"
         >

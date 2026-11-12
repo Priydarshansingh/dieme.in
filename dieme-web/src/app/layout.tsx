@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { CookieConsent } from '@/components/common/CookieConsent';
 
 export const metadata: Metadata = {
   title: 'Dieme — Creator Live Intelligence Platform',
@@ -22,7 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body style={{ fontFamily: "'Nunito', sans-serif" }}>{children}</body>
+      <body style={{ fontFamily: "'Nunito', sans-serif" }}>
+        {children}
+        <CookieConsent />
+      </body>
     </html>
   );
 }

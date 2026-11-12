@@ -28,6 +28,7 @@ class ChatGptWebAdapter(
     var pendingFiles: List<File> = emptyList()
 
     companion object {
+        private const val TAG = "ChatGptWebAdapter"
         const val CHATGPT_URL = "https://chatgpt.com"
         const val USER_AGENT =
             "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
@@ -84,13 +85,16 @@ class ChatGptWebAdapter(
                 filePathCallback: ValueCallback<Array<Uri>>?,
                 fileChooserParams: FileChooserParams?
             ): Boolean {
+                Log.i(TAG, "📂 onShowFileChooser called! pendingFiles count: ${pendingFiles.size}")
                 this@ChatGptWebAdapter.filePathCallback = filePathCallback
                 if (pendingFiles.isNotEmpty()) {
                     val uris = pendingFiles.map { FileProviderUtils.getContentUri(context, it) }.toTypedArray()
+                    Log.i(TAG, "📂 Passing ${uris.size} URIs to file chooser: ${uris.joinToString()}")
                     filePathCallback?.onReceiveValue(uris)
                     this@ChatGptWebAdapter.filePathCallback = null
                     return true
                 }
+                Log.w(TAG, "⚠️ onShowFileChooser called but pendingFiles is empty!")
                 return false
             }
         }
@@ -126,17 +130,21 @@ class ChatGptWebAdapter(
     }
 
     fun attachImages(files: List<File>, onComplete: ((Boolean) -> Unit)? = null) {
-        this.pendingFiles = files.take(3) // 1 base thumbnail + up to 2 reference images
+        this.pendingFiles = files
+        Log.i(TAG, "📎 attachImages: Queueing ${files.size} media file(s) for ChatGPT")
+
         val js = """
             (function() {
                 try {
                     var count = window.DgImagesJs ? window.DgImagesJs.getPendingFilesCount() : 0;
-                    if (count > 0) {
-                        var dt = new DataTransfer();
-                        for (var i = 0; i < count; i++) {
-                            var b64 = window.DgImagesJs.getPendingFileBase64(i);
-                            var name = window.DgImagesJs.getPendingFileName(i);
-                            var mime = window.DgImagesJs.getPendingFileMime(i) || 'image/jpeg';
+                    if (count <= 0) return false;
+
+                    var dt = new DataTransfer();
+                    for (var i = 0; i < count; i++) {
+                        var b64 = window.DgImagesJs.getPendingFileBase64(i);
+                        var name = window.DgImagesJs.getPendingFileName(i);
+                        var mime = window.DgImagesJs.getPendingFileMime(i) || 'image/jpeg';
+                        if (b64 && b64.length > 0) {
                             var binary = atob(b64);
                             var bytes = new Uint8Array(binary.length);
                             for (var j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
@@ -144,10 +152,23 @@ class ChatGptWebAdapter(
                             var file = new File([blob], name, { type: mime });
                             dt.items.add(file);
                         }
+                    }
 
-                        // 1. Target hidden file input with prototype descriptor setter
-                        var fileInput = document.querySelector("input[type='file']");
-                        if (fileInput) {
+                    // 1. Target hidden file input and ensure 'multiple' attribute is explicitly enabled
+                    var fileInputs = Array.from(document.querySelectorAll("input[type='file']"));
+                    if (fileInputs.length === 0) {
+                        // If file input not rendered yet, trigger attach button to create it
+                        var attachBtn = document.querySelector("button[aria-label*='Attach' i], button[data-testid='attach-button'], button[aria-label*='Add files' i], button[aria-label*='Upload' i]");
+                        if (attachBtn) {
+                            try { attachBtn.click(); } catch(e) {}
+                        }
+                        fileInputs = Array.from(document.querySelectorAll("input[type='file']"));
+                    }
+
+                    if (fileInputs.length > 0) {
+                        fileInputs.forEach(function(fileInput) {
+                            fileInput.setAttribute('multiple', '');
+                            fileInput.multiple = true;
                             try {
                                 var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files').set;
                                 setter.call(fileInput, dt.files);
@@ -156,30 +177,67 @@ class ChatGptWebAdapter(
                             }
                             fileInput.dispatchEvent(new Event('input', { bubbles: true }));
                             fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-
-                        // 2. Dispatch drop & paste events to textarea
-                        var editor = document.querySelector("#prompt-textarea, div[contenteditable='true'], textarea") || document.body;
-                        if (editor) {
-                            try {
-                                var dropEvt = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt });
-                                editor.dispatchEvent(dropEvt);
-                            } catch(e) {}
-                            try {
-                                var pasteEvt = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt });
-                                editor.dispatchEvent(pasteEvt);
-                            } catch(e) {}
-                        }
-                        return true;
+                        });
                     }
-                    return false;
+
+                    // 2. Dispatch drop & paste events directly to the prompt textarea
+                    var editor = document.querySelector("#prompt-textarea, div[contenteditable='true'], textarea") || document.body;
+                    if (editor) {
+                        try {
+                            var dropEvt = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt });
+                            editor.dispatchEvent(dropEvt);
+                        } catch(e) {}
+                        try {
+                            var pasteEvt = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt });
+                            editor.dispatchEvent(pasteEvt);
+                        } catch(e) {}
+                    }
+                    return true;
                 } catch(e) {
                     return false;
                 }
             })();
         """.trimIndent()
         webView.evaluateJavascript(js) { res ->
-            onComplete?.invoke(res?.trim() == "true")
+            Handler(Looper.getMainLooper()).postDelayed({
+                onComplete?.invoke(res?.trim() == "true")
+            }, 1500)
+        }
+    }
+
+    fun checkAttachmentsReady(callback: (Boolean) -> Unit) {
+        val js = """
+            (function() {
+                try {
+                    // Check for attachments inside the composer form
+                    var attachments = document.querySelectorAll(
+                        "[data-testid*='attachment'], " +
+                        "[class*='attachment'], " +
+                        "[data-testid*='file-thumbnail'], " +
+                        "form img[src*='blob:'], " +
+                        "#prompt-textarea ~ div img, " +
+                        "[data-testid*='composer'] img"
+                    );
+
+                    if (attachments.length === 0) {
+                        return false;
+                    }
+
+                    // Ensure none of the attachments are currently uploading or spinning
+                    var uploading = document.querySelectorAll(
+                        "[role='progressbar'], " +
+                        ".animate-spin, " +
+                        "[aria-label*='Uploading' i], " +
+                        "[aria-label*='Processing' i]"
+                    );
+                    return uploading.length === 0;
+                } catch(e) {
+                    return false;
+                }
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js) { res ->
+            callback(res?.trim() == "true")
         }
     }
 
@@ -205,7 +263,7 @@ class ChatGptWebAdapter(
                         if (sendBtn && !sendBtn.disabled) {
                             sendBtn.click();
                         }
-                    }, 500);
+                    }, 600);
 
                     return true;
                 } catch(e) {
@@ -222,18 +280,25 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    var imgs = Array.from(document.querySelectorAll("div[data-message-author-role='assistant'] img, [data-testid*='conversation-turn'] img, img[alt*='Generated' i], img[src*='oaiusercontent.com']"));
-                    if (imgs.length === 0) {
-                        imgs = Array.from(document.querySelectorAll("img"));
-                    }
-                    var candidates = imgs.filter(function(img) {
-                        var w = img.naturalWidth || img.width || 0;
-                        var h = img.naturalHeight || img.height || 0;
-                        var src = img.src || img.currentSrc || '';
-                        return (w >= 100 && h >= 100) || src.indexOf('oaiusercontent.com') !== -1 || (img.alt && img.alt.toLowerCase().indexOf('generated') !== -1);
+                    // Exclude images from user message containers or editor attachment thumbnails
+                    var userContainers = document.querySelectorAll("div[data-message-author-role='user'], #prompt-textarea, [data-testid*='attachment']");
+                    var userImgs = new Set();
+                    userContainers.forEach(function(c) {
+                        c.querySelectorAll("img").forEach(function(i) { userImgs.add(i); });
                     });
-                    if (candidates.length === 0) return null;
-                    var lastImg = candidates[candidates.length - 1];
+
+                    // Target assistant generated image candidates
+                    var assistantImgs = Array.from(document.querySelectorAll(
+                        "div[data-message-author-role='assistant'] img, " +
+                        "[data-testid*='conversation-turn']:not(:has([data-message-author-role='user'])) img, " +
+                        "img[alt*='Generated' i], " +
+                        "img[src*='oaiusercontent.com']"
+                    )).filter(function(img) {
+                        return !userImgs.has(img);
+                    });
+
+                    if (assistantImgs.length === 0) return null;
+                    var lastImg = assistantImgs[assistantImgs.length - 1];
 
                     try {
                         var canvas = document.createElement('canvas');
@@ -263,4 +328,3 @@ class ChatGptWebAdapter(
         }
     }
 }
-

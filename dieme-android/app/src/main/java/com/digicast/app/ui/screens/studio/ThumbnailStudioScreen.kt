@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -55,6 +56,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Refresh
@@ -205,6 +207,8 @@ fun ThumbnailStudioScreen(
     var promptInput by remember { mutableStateOf("") }
     var preferNewChat by remember { mutableStateOf(false) }
     val chatMessages = remember { mutableStateListOf<ThumbnailChatMessage>() }
+    var showGalleryPicker by remember { mutableStateOf(false) }
+    var galleryPickerTargetIsBase by remember { mutableStateOf(false) }
 
     val quickPresets = listOf(
         "🔥 Neon Glow",
@@ -330,19 +334,78 @@ fun ThumbnailStudioScreen(
     }
 
     // ── Helper: Convert Uri to compressed Base64 Data URL ───────────────────
+    fun extractFrameFromVideo(uri: Uri): Bitmap? {
+        return try {
+            val retriever = android.media.MediaMetadataRetriever()
+            retriever.setDataSource(context, uri)
+            // Retrieve keyframe at 1 second
+            val timeUs = 1_000_000L
+            val frame = retriever.getFrameAtTime(timeUs, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: retriever.frameAtTime
+            retriever.release()
+            frame
+        } catch (e: Throwable) {
+            Log.e("ThumbnailStudio", "Error extracting video frame: ${e.message}", e)
+            null
+        }
+    }
+
     fun uriToBase64(uri: Uri): String? {
         return try {
-            val inputStream: InputStream? = if (uri.scheme == "file") {
+            val mimeType = try { context.contentResolver.getType(uri) ?: "" } catch (_: Throwable) { "" }
+            if (mimeType.startsWith("video/")) {
+                val videoFrame = extractFrameFromVideo(uri) ?: return null
+                val maxDim = 1024
+                val width = videoFrame.width
+                val height = videoFrame.height
+                val scaled = if (width > maxDim || height > maxDim) {
+                    val ratio = width.toFloat() / height.toFloat()
+                    val newWidth = if (width > height) maxDim else (maxDim * ratio).toInt()
+                    val newHeight = if (height > width) maxDim else (maxDim / ratio).toInt()
+                    Bitmap.createScaledBitmap(videoFrame, newWidth.coerceAtLeast(1), newHeight.coerceAtLeast(1), true)
+                } else {
+                    videoFrame
+                }
+                val stream = ByteArrayOutputStream()
+                scaled.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                val bytes = stream.toByteArray()
+                return "data:image/jpeg;base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            }
+
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            var stream = if (uri.scheme == "file") {
                 val f = File(uri.path ?: "")
                 if (f.exists()) f.inputStream() else context.contentResolver.openInputStream(uri)
             } else {
                 context.contentResolver.openInputStream(uri)
             }
-            val originalBitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-            if (originalBitmap == null) return null
+            BitmapFactory.decodeStream(stream, null, options)
+            stream?.close()
 
             val maxDim = 1024
+            var inSampleSize = 1
+            if (options.outHeight > maxDim || options.outWidth > maxDim) {
+                val halfHeight = options.outHeight / 2
+                val halfWidth = options.outWidth / 2
+                while ((halfHeight / inSampleSize) >= maxDim && (halfWidth / inSampleSize) >= maxDim) {
+                    inSampleSize *= 2
+                }
+            }
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                this.inSampleSize = inSampleSize
+                inPreferredConfig = Bitmap.Config.RGB_565
+            }
+            stream = if (uri.scheme == "file") {
+                val f = File(uri.path ?: "")
+                if (f.exists()) f.inputStream() else context.contentResolver.openInputStream(uri)
+            } else {
+                context.contentResolver.openInputStream(uri)
+            }
+            val originalBitmap = BitmapFactory.decodeStream(stream, null, decodeOptions)
+            stream?.close()
+            if (originalBitmap == null) return null
+
             val width = originalBitmap.width
             val height = originalBitmap.height
             val scaledBitmap = if (width > maxDim || height > maxDim) {
@@ -365,9 +428,10 @@ fun ThumbnailStudioScreen(
             scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
             val bytes = outputStream.toByteArray()
             val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+            Log.i("ThumbnailStudio", "Decoded reference image $uri (${width}x${height}) -> ${bytes.size} bytes base64")
             "data:image/jpeg;base64,$base64"
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (t: Throwable) {
+            Log.e("ThumbnailStudio", "Error decoding uri to base64: $uri", t)
             null
         }
     }
@@ -850,6 +914,27 @@ fun ThumbnailStudioScreen(
                                     Text("Fetch", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
+
+                            // Gallery Folder Picker Button
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(9999.dp))
+                                    .background(Color(0xFF161D2E))
+                                    .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(9999.dp))
+                                    .clickable {
+                                        galleryPickerTargetIsBase = true
+                                        showGalleryPicker = true
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Folder, contentDescription = null, tint = Color(0xFF00F0FF), modifier = Modifier.size(12.dp))
+                                    Text("Gallery", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
                         }
                     }
                 }
@@ -1243,7 +1328,8 @@ fun ThumbnailStudioScreen(
                                     .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                                     .clickable {
                                         if (referenceImages.size < 2) {
-                                            imagePickerLauncher.launch("image/*")
+                                            galleryPickerTargetIsBase = false
+                                            showGalleryPicker = true
                                         } else {
                                             Toast.makeText(context, "Maximum 2 reference images allowed", Toast.LENGTH_SHORT).show()
                                         }
@@ -1659,5 +1745,77 @@ fun ThumbnailStudioScreen(
                 }
             }
         }
+    }
+
+    if (showGalleryPicker) {
+        GalleryMediaPickerSheet(
+            context = context,
+            title = if (galleryPickerTargetIsBase) "Select Base Thumbnail / Video" else "Attach Visual Reference (${referenceImages.size}/2)",
+            subtitle = "Organized by folder & date • Dieme/Thumbnails, Camera, Downloads",
+            isOpen = showGalleryPicker,
+            onDismiss = { showGalleryPicker = false },
+            onMediaSelected = { selectedUri, isVideo ->
+                if (galleryPickerTargetIsBase) {
+                    if (isVideo) {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val frame = extractFrameFromVideo(selectedUri)
+                            if (frame != null) {
+                                val frameFile = File(context.cacheDir, "base_vid_frame_${System.currentTimeMillis()}.jpg")
+                                FileOutputStream(frameFile).use { out ->
+                                    frame.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                                }
+                                val frameUri = Uri.fromFile(frameFile)
+                                withContext(Dispatchers.Main) {
+                                    currentThumbnailUrl = frameUri.toString()
+                                    generatedImageUrl = null
+                                    markedPins.clear()
+                                    chatMessages.add(
+                                        ThumbnailChatMessage(
+                                            isUser = false,
+                                            text = "🎬 Captured video frame from gallery. Ready for pinpoint revisions.",
+                                            previewImageUrl = frameUri.toString()
+                                        )
+                                    )
+                                }
+                            } else {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Could not extract video frame", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    } else {
+                        currentThumbnailUrl = selectedUri.toString()
+                        generatedImageUrl = null
+                        markedPins.clear()
+                        chatMessages.add(
+                            ThumbnailChatMessage(
+                                isUser = false,
+                                text = "Loaded media from gallery. Ready for pinpoint revisions.",
+                                previewImageUrl = selectedUri.toString()
+                            )
+                        )
+                    }
+                } else {
+                    if (referenceImages.size < 2) {
+                        if (isVideo) {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                val frame = extractFrameFromVideo(selectedUri)
+                                if (frame != null) {
+                                    val frameFile = File(context.cacheDir, "ref_vid_frame_${System.currentTimeMillis()}.jpg")
+                                    FileOutputStream(frameFile).use { out ->
+                                        frame.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                                    }
+                                    withContext(Dispatchers.Main) {
+                                        referenceImages.add(Uri.fromFile(frameFile))
+                                    }
+                                }
+                            }
+                        } else {
+                            referenceImages.add(selectedUri)
+                        }
+                    }
+                }
+            }
+        )
     }
 }

@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
                 id: `com.digicast.ext.${baseName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}`,
                 name: baseName.replace(/[-_]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
                 version: rel.tag_name || "1.0.0",
-                description: rel.body || "Official Digicast modular processor extension.",
+                description: rel.body || "Official Dieme modular processor extension.",
                 downloadUrl: asset.browser_download_url,
                 entryClass: `com.digicast.ext.${baseName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}.MainExtension`,
                 type: baseName.includes("chat") ? "CHAT_ANALYZER" : "CLIP_PROCESSOR",

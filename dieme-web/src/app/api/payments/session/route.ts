@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       workspaceId,
       planId: selectedPlan.id,
       userEmail: finalEmail,
-      customerName: wsData.name || "Digicast Creator",
+      customerName: wsData.name || "Dieme Creator",
     });
 
     const upiDeepLink = buildUpiDeepLink({

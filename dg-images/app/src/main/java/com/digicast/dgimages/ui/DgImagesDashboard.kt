@@ -301,23 +301,29 @@ fun DgImagesDashboard() {
                         }
                     }
 
-                    // Embedded WebView
+                    // Embedded WebView (reusing background service WebView if already active)
                     AndroidView(
                         factory = { ctx ->
-                            WebView(ctx).apply {
-                                layoutParams = ViewGroup.LayoutParams(
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                    ViewGroup.LayoutParams.MATCH_PARENT
-                                )
-                                val adapter = ChatGptWebAdapter(
-                                    context = ctx,
-                                    webView = this,
-                                    onStateChanged = {},
-                                    onResultCaptured = {},
-                                    onAuthRequired = {}
-                                )
-                                webAdapter = adapter
-                                ChatGptSessionManager.activeAdapter = adapter
+                            val existingWv = ChatGptSessionManager.activeAdapter?.webView
+                            if (existingWv != null) {
+                                (existingWv.parent as? ViewGroup)?.removeView(existingWv)
+                                existingWv
+                            } else {
+                                WebView(ctx).apply {
+                                    layoutParams = ViewGroup.LayoutParams(
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
+                                    val adapter = ChatGptWebAdapter(
+                                        context = ctx,
+                                        webView = this,
+                                        onStateChanged = {},
+                                        onResultCaptured = {},
+                                        onAuthRequired = {}
+                                    )
+                                    webAdapter = adapter
+                                    ChatGptSessionManager.activeAdapter = adapter
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxSize()

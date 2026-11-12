@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
       const profile = await userProfileRes.json();
 
       const email = (profile.email || "").toLowerCase().trim();
-      const displayName = profile.name || email.split("@")[0] || "Digicast User";
+      const displayName = profile.name || email.split("@")[0] || "Dieme User";
       const photoURL = profile.picture || "";
 
       if (!email) {
@@ -264,7 +264,7 @@ export async function GET(req: NextRequest) {
         }, { merge: true });
       }
     } else {
-      // First time this channel has ever connected to Digicast!
+      // First time this channel has ever connected to Dieme!
       await registryRef.set({
         channelId,
         channelTitle: channelName,

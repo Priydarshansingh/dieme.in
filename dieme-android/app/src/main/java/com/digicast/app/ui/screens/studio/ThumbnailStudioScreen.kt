@@ -44,9 +44,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -868,12 +872,19 @@ fun ThumbnailStudioScreen(
             },
             bottomBar = {
                 // ChatGPT Floating Input Capsule (Docked at Bottom like ChatGPT App)
+                val imeInsets = WindowInsets.ime
+                val density = LocalDensity.current
+                val isKeyboardOpen = remember(imeInsets, density) {
+                    derivedStateOf { imeInsets.getBottom(density) > 0 }
+                }.value
+
                 Surface(
                     color = DigicastDeepNavy,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
+                        .then(
+                            if (isKeyboardOpen) Modifier else Modifier.navigationBarsPadding()
+                        )
                 ) {
                     Column(
                         modifier = Modifier

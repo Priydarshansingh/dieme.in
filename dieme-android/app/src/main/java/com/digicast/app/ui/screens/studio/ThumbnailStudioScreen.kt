@@ -225,16 +225,6 @@ fun ThumbnailStudioScreen(
     var showGalleryPicker by remember { mutableStateOf(false) }
     var galleryPickerTargetIsBase by remember { mutableStateOf(false) }
 
-    val quickPresets = listOf(
-        "🔥 Neon Glow",
-        "🎯 Red Arrow",
-        "😱 Shock Face Aura",
-        "⚡ Lightning Spark",
-        "⚔️ Esports Arena",
-        "🏆 Victory Glow",
-        "🌌 Cyberpunk Theme"
-    )
-
     // ── Generation State ────────────────────────────────────────────────────
     var isGenerating by remember { mutableStateOf(false) }
     var generationStatusMessage by remember { mutableStateOf("Connecting to Dg-Images...") }
@@ -377,34 +367,43 @@ fun ThumbnailStudioScreen(
 
     // ── Fetch Thumbnail from CDN ────────────────────────────────────────────
     fun fetchThumbnail() {
+        if (isGenerating) {
+            Toast.makeText(context, "Generation in progress, please wait", Toast.LENGTH_SHORT).show()
+            return
+        }
         val parsedId = parseYoutubeId(urlInput)
         if (parsedId != null) {
             videoId = parsedId
             isFetchingUrl = true
             coroutineScope.launch(Dispatchers.IO) {
-                val maxResUrl = "https://img.youtube.com/vi/$parsedId/maxresdefault.jpg"
-                val hqUrl = "https://img.youtube.com/vi/$parsedId/hqdefault.jpg"
-                val finalUrl = try {
-                    val conn = URL(maxResUrl).openConnection() as HttpURLConnection
-                    conn.requestMethod = "HEAD"
-                    conn.connectTimeout = 3000
-                    conn.readTimeout = 3000
-                    if (conn.responseCode == 200) maxResUrl else hqUrl
-                } catch (_: Exception) {
-                    hqUrl
-                }
-                withContext(Dispatchers.Main) {
-                    currentThumbnailUrl = finalUrl
-                    generatedImageUrl = null
-                    markedPins.clear()
-                    isFetchingUrl = false
-                    chatMessages.add(
-                        ThumbnailChatMessage(
-                            isUser = false,
-                            text = "Loaded video thumbnail ($parsedId). Ready for pinpoint revisions.",
-                            previewImageUrl = finalUrl
+                try {
+                    val maxResUrl = "https://img.youtube.com/vi/$parsedId/maxresdefault.jpg"
+                    val hqUrl = "https://img.youtube.com/vi/$parsedId/hqdefault.jpg"
+                    val finalUrl = try {
+                        val conn = URL(maxResUrl).openConnection() as HttpURLConnection
+                        conn.requestMethod = "HEAD"
+                        conn.connectTimeout = 3000
+                        conn.readTimeout = 3000
+                        if (conn.responseCode == 200) maxResUrl else hqUrl
+                    } catch (_: Exception) {
+                        hqUrl
+                    }
+                    withContext(Dispatchers.Main) {
+                        currentThumbnailUrl = finalUrl
+                        generatedImageUrl = null
+                        markedPins.clear()
+                        chatMessages.add(
+                            ThumbnailChatMessage(
+                                isUser = false,
+                                text = "Loaded video thumbnail ($parsedId). Ready for pinpoint revisions.",
+                                previewImageUrl = finalUrl
+                            )
                         )
-                    )
+                    }
+                } finally {
+                    withContext(Dispatchers.Main) {
+                        isFetchingUrl = false
+                    }
                 }
             }
         } else {
@@ -666,101 +665,117 @@ fun ThumbnailStudioScreen(
         generationStatusMessage = "Connecting to Dg-Images..."
 
         coroutineScope.launch {
-            val resolvedBaseImage = withContext(Dispatchers.IO) {
-                if (baseImage.startsWith("content://") || baseImage.startsWith("file://")) {
-                    try {
-                        uriToBase64(Uri.parse(baseImage)) ?: baseImage
-                    } catch (_: Throwable) {
+            try {
+                val resolvedBaseImage = withContext(Dispatchers.IO) {
+                    if (baseImage.startsWith("content://") || baseImage.startsWith("file://")) {
+                        try {
+                            uriToBase64(Uri.parse(baseImage)) ?: baseImage
+                        } catch (_: Throwable) {
+                            baseImage
+                        }
+                    } else {
                         baseImage
                     }
-                } else {
-                    baseImage
                 }
-            }
 
-            val base64RefList = withContext(Dispatchers.IO) {
-                currentRefsSnapshot.mapNotNull { uriToBase64(it) }
-            }
+                val base64RefList = withContext(Dispatchers.IO) {
+                    currentRefsSnapshot.mapNotNull { uriToBase64(it) }
+                }
 
-            val masterPrompt = synthesizeMasterPrompt(
-                userText = displayPrompt,
-                pins = currentPinsSnapshot,
-                refCount = base64RefList.size
-            )
+                val masterPrompt = synthesizeMasterPrompt(
+                    userText = displayPrompt,
+                    pins = currentPinsSnapshot,
+                    refCount = base64RefList.size
+                )
 
-            val advancedWrapper = JSONObject().apply {
-                val pinsArray = JSONArray()
-                currentPinsSnapshot.forEach { pin ->
-                    val p = JSONObject().apply {
-                        put("id", pin.id)
-                        put("x", pin.xPercent)
-                        put("y", pin.yPercent)
+                val advancedWrapper = JSONObject().apply {
+                    val pinsArray = JSONArray()
+                    currentPinsSnapshot.forEach { pin ->
+                        val p = JSONObject().apply {
+                            put("id", pin.id)
+                            put("x", pin.xPercent)
+                            put("y", pin.yPercent)
+                        }
+                        pinsArray.put(p)
                     }
-                    pinsArray.put(p)
+                    put("pins", pinsArray)
+                    put("preferNewChat", currentNewChatChoice)
+                    val refArray = JSONArray()
+                    base64RefList.forEach { refArray.put(it) }
+                    put("referenceImages", refArray)
                 }
-                put("pins", pinsArray)
-                put("preferNewChat", currentNewChatChoice)
-                val refArray = JSONArray()
-                base64RefList.forEach { refArray.put(it) }
-                put("referenceImages", refArray)
-            }
 
-            val extension = extensionViewModel.getImageStudio()
-            if (extension == null) {
-                isGenerating = false
-                generationStatusMessage = ""
+                val extension = extensionViewModel.getImageStudio()
+                if (extension == null) {
+                    generationStatusMessage = ""
+                    val index = chatMessages.indexOfFirst { it.id == pendingMessageId }
+                    val errorMsg = ThumbnailChatMessage(
+                        id = pendingMessageId,
+                        isUser = false,
+                        text = "⚠️ Extension bridge not ready. Please make sure Dg-Images companion app is installed.",
+                        isGenerating = false
+                    )
+                    if (index != -1) {
+                        chatMessages[index] = errorMsg
+                    } else {
+                        chatMessages.add(errorMsg)
+                    }
+                    Toast.makeText(context, "Dg-Images bridge not ready", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+
+                val result = extension.generateThumbnail(
+                    context = context,
+                    baseImageUrl = resolvedBaseImage,
+                    maskPointsJson = advancedWrapper.toString(),
+                    prompt = masterPrompt,
+                    onProgress = { _, message ->
+                        generationStatusMessage = message
+                    }
+                )
+
+                val index = chatMessages.indexOfFirst { it.id == pendingMessageId }
+                if (result.isSuccess) {
+                    val resultUrl = result.getOrNull() ?: baseImage
+                    generatedImageUrl = resultUrl
+                    currentThumbnailUrl = resultUrl
+
+                    val successMsg = ThumbnailChatMessage(
+                        id = pendingMessageId,
+                        isUser = false,
+                        text = "Generated revision: ${if (currentPinsSnapshot.isNotEmpty()) "${currentPinsSnapshot.size} pins targeted" else "Canvas updated"}.",
+                        previewImageUrl = resultUrl,
+                        isGenerating = false
+                    )
+                    if (index != -1) {
+                        chatMessages[index] = successMsg
+                    } else {
+                        chatMessages.add(successMsg)
+                    }
+                    markedPins.clear()
+                    referenceImages.clear()
+                    Toast.makeText(context, "Thumbnail generated by Dg-Images!", Toast.LENGTH_SHORT).show()
+                } else {
+                    val errorMsg = ThumbnailChatMessage(
+                        id = pendingMessageId,
+                        isUser = false,
+                        text = "Generation failed: ${result.exceptionOrNull()?.message ?: "Connection timeout"}",
+                        isGenerating = false,
+                        status = "Error"
+                    )
+                    if (index != -1) {
+                        chatMessages[index] = errorMsg
+                    } else {
+                        chatMessages.add(errorMsg)
+                    }
+                    Toast.makeText(context, "Generation error: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
                 val index = chatMessages.indexOfFirst { it.id == pendingMessageId }
                 val errorMsg = ThumbnailChatMessage(
                     id = pendingMessageId,
                     isUser = false,
-                    text = "⚠️ Extension bridge not ready. Please make sure Dg-Images companion app is installed.",
-                    isGenerating = false
-                )
-                if (index != -1) {
-                    chatMessages[index] = errorMsg
-                } else {
-                    chatMessages.add(errorMsg)
-                }
-                Toast.makeText(context, "Dg-Images bridge not ready", Toast.LENGTH_LONG).show()
-                return@launch
-            }
-
-            val result = extension.generateThumbnail(
-                context = context,
-                baseImageUrl = resolvedBaseImage,
-                maskPointsJson = advancedWrapper.toString(),
-                prompt = masterPrompt,
-                onProgress = { _, message ->
-                    generationStatusMessage = message
-                }
-            )
-
-            val index = chatMessages.indexOfFirst { it.id == pendingMessageId }
-            if (result.isSuccess) {
-                val resultUrl = result.getOrNull() ?: baseImage
-                generatedImageUrl = resultUrl
-                currentThumbnailUrl = resultUrl
-
-                val successMsg = ThumbnailChatMessage(
-                    id = pendingMessageId,
-                    isUser = false,
-                    text = "Generated revision: ${if (currentPinsSnapshot.isNotEmpty()) "${currentPinsSnapshot.size} pins targeted" else "Canvas updated"}.",
-                    previewImageUrl = resultUrl,
-                    isGenerating = false
-                )
-                if (index != -1) {
-                    chatMessages[index] = successMsg
-                } else {
-                    chatMessages.add(successMsg)
-                }
-                markedPins.clear()
-                referenceImages.clear()
-                Toast.makeText(context, "Thumbnail generated by Dg-Images!", Toast.LENGTH_SHORT).show()
-            } else {
-                val errorMsg = ThumbnailChatMessage(
-                    id = pendingMessageId,
-                    isUser = false,
-                    text = "Generation failed: ${result.exceptionOrNull()?.message ?: "Connection timeout"}",
+                    text = "Generation encountered an unexpected error: ${e.message ?: "Unknown"}",
                     isGenerating = false,
                     status = "Error"
                 )
@@ -769,9 +784,10 @@ fun ThumbnailStudioScreen(
                 } else {
                     chatMessages.add(errorMsg)
                 }
-                Toast.makeText(context, "Generation error: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                isGenerating = false
             }
-            isGenerating = false
         }
     }
 
@@ -1050,9 +1066,9 @@ fun ThumbnailStudioScreen(
                                 .onGloballyPositioned { coordinates ->
                                     canvasSize = coordinates.size
                                 }
-                                .pointerInput(currentThumbnailUrl, generatedImageUrl) {
+                                .pointerInput(currentThumbnailUrl, generatedImageUrl, isGenerating) {
                                     detectTapGestures { tapOffset ->
-                                        if (generatedImageUrl == null && currentThumbnailUrl != null && size.width > 0 && size.height > 0) {
+                                        if (!isGenerating && generatedImageUrl == null && currentThumbnailUrl != null && size.width > 0 && size.height > 0) {
                                             val xPct = (tapOffset.x / size.width.toFloat()) * 100f
                                             val yPct = (tapOffset.y / size.height.toFloat()) * 100f
                                             val nextId = (markedPins.maxOfOrNull { it.id } ?: 0) + 1

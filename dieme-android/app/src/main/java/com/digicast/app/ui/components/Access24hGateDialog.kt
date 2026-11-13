@@ -52,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -127,11 +128,12 @@ fun Access24hGateDialog(
     var activeOrderId by remember { mutableStateOf<String?>(null) }
     var gatewayUpiString by remember { mutableStateOf<String?>(null) }
     var isCreatingGatewaySession by remember { mutableStateOf(false) }
-    var secondsRemaining by remember { mutableStateOf(300) } // 5-minute active gateway window
+    var secondsRemaining by remember { mutableIntStateOf(300) } // 5-minute active gateway window
+    var sessionRefreshTrigger by remember { mutableIntStateOf(0) }
     var isObserverVerified by remember { mutableStateOf(false) }
 
-    // Live Gateway Session Initializer: Registers orderId with the self-hosted UPI Gateway
-    LaunchedEffect(showScannerView, selectedPlanId) {
+    // Live Gateway Session Initializer & 5-Minute Window Manager
+    LaunchedEffect(showScannerView, selectedPlanId, sessionRefreshTrigger) {
         if (!showScannerView) return@LaunchedEffect
         isCreatingGatewaySession = true
         secondsRemaining = 300
@@ -143,12 +145,7 @@ fun Access24hGateDialog(
             gatewayUpiString = json.optString("upiDeepLink").ifBlank { null }
         }
         isCreatingGatewaySession = false
-    }
 
-    // 5-Minute Gateway Countdown Timer
-    LaunchedEffect(showScannerView, selectedPlanId) {
-        if (!showScannerView) return@LaunchedEffect
-        secondsRemaining = 300
         while (secondsRemaining > 0) {
             delay(1000)
             secondsRemaining--
@@ -156,7 +153,7 @@ fun Access24hGateDialog(
     }
 
     // Live SMS & Bank Observer Polling: Instantly detects when money hits the receiving bank
-    LaunchedEffect(showScannerView, activePaymentId) {
+    LaunchedEffect(showScannerView, activePaymentId, activeOrderId) {
         if (!showScannerView) return@LaunchedEffect
         val targetWid = session.workspaceId.ifEmpty { session.uid }
         while (true) {
@@ -663,13 +660,31 @@ fun Access24hGateDialog(
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
-                                Text(
-                                    text = "⏱ $timerStr",
-                                    color = if (secondsRemaining < 60) Color(0xFFF87171) else DigicastEmerald,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                )
+                                if (secondsRemaining <= 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(Color(0xFFEF4444).copy(alpha = 0.2f))
+                                            .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(6.dp))
+                                            .clickable { sessionRefreshTrigger++ }
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = "🔄 Expired • Refresh",
+                                            color = Color(0xFFF87171),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = "⏱ $timerStr",
+                                        color = if (secondsRemaining < 60) Color(0xFFF87171) else DigicastEmerald,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
                             }
 
                             // 2. 1-Tap Direct UPI Buttons (Avoids PhonePe Gallery Scan restriction!)

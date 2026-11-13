@@ -19,6 +19,7 @@ object AdMobManager {
     private const val TAG = "AdMobManager"
     private var rewardedAd: RewardedAd? = null
     private var isLoading = false
+    private val pendingCallbacks = mutableListOf<() -> Unit>()
 
     // Track active provider & unit for daily analytics reporting
     private var lastServedProvider: String = "ADMOB"
@@ -33,10 +34,16 @@ object AdMobManager {
     }
 
     fun loadRewardedAd(context: Context, onLoaded: (() -> Unit)? = null) {
-        if (rewardedAd != null || isLoading) {
-            if (rewardedAd != null) onLoaded?.invoke()
+        if (rewardedAd != null) {
+            onLoaded?.invoke()
             return
         }
+        if (onLoaded != null) {
+            synchronized(pendingCallbacks) {
+                pendingCallbacks.add(onLoaded)
+            }
+        }
+        if (isLoading) return
         isLoading = true
 
         val adRequest = AdRequest.Builder().build()
@@ -53,7 +60,7 @@ object AdMobManager {
                     lastServedProvider = "ADMOB"
                     lastServedUnitId = REWARDED_AD_UNIT_ID
                     isLoading = false
-                    onLoaded?.invoke()
+                    invokePendingCallbacks()
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
@@ -70,7 +77,7 @@ object AdMobManager {
                                 lastServedProvider = "ADMOB"
                                 lastServedUnitId = SAMPLE_TEST_AD_UNIT_ID
                                 isLoading = false
-                                onLoaded?.invoke()
+                                invokePendingCallbacks()
                             }
 
                             override fun onAdFailedToLoad(testError: LoadAdError) {
@@ -79,12 +86,24 @@ object AdMobManager {
                                 lastServedProvider = "SPONSORED_PARTNER"
                                 lastServedUnitId = "Direct_Partner_Video"
                                 isLoading = false
+                                synchronized(pendingCallbacks) {
+                                    pendingCallbacks.clear()
+                                }
                             }
                         }
                     )
                 }
             }
         )
+    }
+
+    private fun invokePendingCallbacks() {
+        val callbacks = synchronized(pendingCallbacks) {
+            val list = ArrayList(pendingCallbacks)
+            pendingCallbacks.clear()
+            list
+        }
+        callbacks.forEach { it.invoke() }
     }
 
     fun showRewardedAd(

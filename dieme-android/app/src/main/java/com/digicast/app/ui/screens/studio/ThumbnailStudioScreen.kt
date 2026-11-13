@@ -8,6 +8,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
@@ -202,19 +204,12 @@ fun ThumbnailStudioScreen(
         if (uris != null && uris.isNotEmpty()) {
             val availableSlots = 2 - referenceImages.size
             if (availableSlots > 0) {
-                uris.take(availableSlots).forEachIndexed { index, uri ->
-                    try {
-                        val inputStream = context.contentResolver.openInputStream(uri)
-                        if (inputStream != null) {
-                            val cachedRefFile = File(context.cacheDir, "ref_picked_${System.currentTimeMillis()}_$index.jpg")
-                            FileOutputStream(cachedRefFile).use { out ->
-                                inputStream.copyTo(out)
-                            }
-                            inputStream.close()
-                            referenceImages.add(Uri.fromFile(cachedRefFile))
+                coroutineScope.launch(Dispatchers.IO) {
+                    uris.take(availableSlots).forEach { uri ->
+                        val opt = optimizeAndCacheImage(context, uri) ?: uri
+                        withContext(Dispatchers.Main) {
+                            referenceImages.add(opt)
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
                     }
                 }
             } else {
@@ -801,30 +796,12 @@ fun ThumbnailStudioScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Left Group: Back Button + History Drawer Toggle + Screen Title (Shifted to Top-Left like ChatGPT)
+                    // Left Group: History Drawer Menu Icon + Screen Title (ChatGPT Style - Clean without crowded back button)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Back Icon Button
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.08f))
-                                .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                                .clickable(onClick = onNavigateBack),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        // History Drawer Menu Icon (like ChatGPT top-left drawer toggle)
+                        // History Drawer Menu Icon (Three lines like ChatGPT top-left drawer toggle)
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
@@ -842,7 +819,7 @@ fun ThumbnailStudioScreen(
                             )
                         }
 
-                        // Screen Title (Shifted to top left like ChatGPT)
+                        // Screen Title
                         Text(
                             text = "Thumbnail Studio",
                             color = Color.White,
@@ -1653,7 +1630,7 @@ fun ThumbnailStudioScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Drawer Header
+                    // Drawer Header (Includes Back / Exit Button inside the drawer)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1663,20 +1640,32 @@ fun ThumbnailStudioScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
+                            // Back / Exit Button inside Drawer
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(DigicastElectricCyan.copy(alpha = 0.15f)),
+                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                                    .clickable {
+                                        isHistoryDrawerOpen = false
+                                        onNavigateBack()
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Layers, contentDescription = null, tint = DigicastElectricCyan, modifier = Modifier.size(16.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Exit Studio",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
+
                             Column {
-                                Text("HISTORY", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
-                                Text("Revisions & Sessions", color = DigicastSlate, fontSize = 10.sp)
+                                Text("HISTORY & SESSIONS", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("Tap arrow to exit studio", color = DigicastSlate, fontSize = 10.sp)
                             }
                         }
 
@@ -1916,73 +1905,147 @@ fun ThumbnailStudioScreen(
     if (showGalleryPicker) {
         GalleryMediaPickerSheet(
             context = context,
-            title = if (galleryPickerTargetIsBase) "Select Base Thumbnail / Video" else "Attach Visual Reference (${referenceImages.size}/2)",
-            subtitle = "Organized by folder & date • Dieme/Thumbnails, Camera, Downloads",
+            title = if (galleryPickerTargetIsBase) "Select Base Thumbnail Image" else "Attach Visual Reference (${referenceImages.size}/2)",
+            subtitle = "Images Only • Camera, Screenshots, Downloads",
             isOpen = showGalleryPicker,
             onDismiss = { showGalleryPicker = false },
-            onMediaSelected = { selectedUri, isVideo ->
+            onMediaSelected = { selectedUri, _ ->
                 if (galleryPickerTargetIsBase) {
-                    if (isVideo) {
-                        coroutineScope.launch(Dispatchers.IO) {
-                            val frame = extractFrameFromVideo(selectedUri)
-                            if (frame != null) {
-                                val frameFile = File(context.cacheDir, "base_vid_frame_${System.currentTimeMillis()}.jpg")
-                                FileOutputStream(frameFile).use { out ->
-                                    frame.compress(Bitmap.CompressFormat.JPEG, 92, out)
-                                }
-                                val frameUri = Uri.fromFile(frameFile)
-                                withContext(Dispatchers.Main) {
-                                    currentThumbnailUrl = frameUri.toString()
-                                    generatedImageUrl = null
-                                    markedPins.clear()
-                                    chatMessages.add(
-                                        ThumbnailChatMessage(
-                                            isUser = false,
-                                            text = "🎬 Captured video frame from gallery. Ready for pinpoint revisions.",
-                                            previewImageUrl = frameUri.toString()
-                                        )
-                                    )
-                                }
-                            } else {
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(context, "Could not extract video frame", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        }
-                    } else {
-                        currentThumbnailUrl = selectedUri.toString()
-                        generatedImageUrl = null
-                        markedPins.clear()
-                        chatMessages.add(
-                            ThumbnailChatMessage(
-                                isUser = false,
-                                text = "Loaded media from gallery. Ready for pinpoint revisions.",
-                                previewImageUrl = selectedUri.toString()
+                    coroutineScope.launch(Dispatchers.IO) {
+                        val optimizedUri = optimizeAndCacheImage(context, selectedUri) ?: selectedUri
+                        withContext(Dispatchers.Main) {
+                            currentThumbnailUrl = optimizedUri.toString()
+                            generatedImageUrl = null
+                            markedPins.clear()
+                            chatMessages.add(
+                                ThumbnailChatMessage(
+                                    isUser = false,
+                                    text = "Loaded image from gallery. Ready for pinpoint revisions.",
+                                    previewImageUrl = optimizedUri.toString()
+                                )
                             )
-                        )
+                        }
                     }
                 } else {
                     if (referenceImages.size < 2) {
-                        if (isVideo) {
-                            coroutineScope.launch(Dispatchers.IO) {
-                                val frame = extractFrameFromVideo(selectedUri)
-                                if (frame != null) {
-                                    val frameFile = File(context.cacheDir, "ref_vid_frame_${System.currentTimeMillis()}.jpg")
-                                    FileOutputStream(frameFile).use { out ->
-                                        frame.compress(Bitmap.CompressFormat.JPEG, 90, out)
-                                    }
-                                    withContext(Dispatchers.Main) {
-                                        referenceImages.add(Uri.fromFile(frameFile))
-                                    }
-                                }
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val optimizedUri = optimizeAndCacheImage(context, selectedUri) ?: selectedUri
+                            withContext(Dispatchers.Main) {
+                                referenceImages.add(optimizedUri)
                             }
-                        } else {
-                            referenceImages.add(selectedUri)
                         }
+                    } else {
+                        Toast.makeText(context, "Maximum 2 reference images allowed", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
         )
+    }
+}
+
+
+
+private // ── Helper: Optimize & Cache Reference Images (Orientation Correction + 1024px Downsampling) ─
+fun optimizeAndCacheImage(context: Context, sourceUri: Uri): Uri? {
+    return try {
+        // 1. Read EXIF Orientation
+        var orientation = ExifInterface.ORIENTATION_NORMAL
+        try {
+            val exifStream = if (sourceUri.scheme == "file") {
+                val p = sourceUri.path ?: ""
+                File(p).inputStream()
+            } else {
+                context.contentResolver.openInputStream(sourceUri)
+            }
+            if (exifStream != null) {
+                val exif = ExifInterface(exifStream)
+                orientation = exif.getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL
+                )
+                exifStream.close()
+            }
+        } catch (e: Exception) {
+            Log.w("ThumbnailStudio", "Could not read EXIF: ${e.message}")
+        }
+
+        // 2. Decode Bounds
+        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        var boundsStream = if (sourceUri.scheme == "file") {
+            val p = sourceUri.path ?: ""
+            File(p).inputStream()
+        } else {
+            context.contentResolver.openInputStream(sourceUri)
+        }
+        BitmapFactory.decodeStream(boundsStream, null, boundsOptions)
+        boundsStream?.close()
+
+        val maxDim = 1024
+        var inSampleSize = 1
+        val rawW = boundsOptions.outWidth
+        val rawH = boundsOptions.outHeight
+        if (rawW > maxDim || rawH > maxDim) {
+            val halfW = rawW / 2
+            val halfH = rawH / 2
+            while ((halfW / inSampleSize) >= maxDim || (halfH / inSampleSize) >= maxDim) {
+                inSampleSize *= 2
+            }
+        }
+
+        // 3. Decode Bitmap
+        val decodeOptions = BitmapFactory.Options().apply {
+            this.inSampleSize = inSampleSize
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        var decStream = if (sourceUri.scheme == "file") {
+            val p = sourceUri.path ?: ""
+            File(p).inputStream()
+        } else {
+            context.contentResolver.openInputStream(sourceUri)
+        }
+        val decoded = BitmapFactory.decodeStream(decStream, null, decodeOptions)
+        decStream?.close()
+
+        if (decoded == null) return null
+
+        // 4. Matrix for EXIF orientation
+        val matrix = Matrix()
+        when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
+        }
+
+        val rotated = if (!matrix.isIdentity) {
+            Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+        } else {
+            decoded
+        }
+
+        // 5. Constrain to maxDim
+        val curW = rotated.width
+        val curH = rotated.height
+        val finalBitmap = if (curW > maxDim || curH > maxDim) {
+            val ratio = curW.toFloat() / curH.toFloat()
+            val targetW = if (curW > curH) maxDim else (maxDim * ratio).toInt()
+            val targetH = if (curH > curW) maxDim else (maxDim / ratio).toInt()
+            Bitmap.createScaledBitmap(rotated, targetW.coerceAtLeast(1), targetH.coerceAtLeast(1), true)
+        } else {
+            rotated
+        }
+
+        // 6. Write compressed JPEG to cache
+        val outFile = File(context.cacheDir, "ref_opt_${System.currentTimeMillis()}_${(100..999).random()}.jpg")
+        FileOutputStream(outFile).use { out ->
+            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 88, out)
+        }
+        Log.i("ThumbnailStudio", "⚡ Optimized image: ${rawW}x${rawH} -> ${finalBitmap.width}x${finalBitmap.height} (${outFile.length()} bytes)")
+        Uri.fromFile(outFile)
+    } catch (e: Exception) {
+        Log.e("ThumbnailStudio", "Error optimizing image: ${e.message}", e)
+        sourceUri
     }
 }
 

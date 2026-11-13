@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -33,7 +32,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -56,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Calendar
@@ -66,19 +65,18 @@ data class MediaGalleryItem(
     val name: String,
     val dateAddedSec: Long,
     val bucketName: String,
-    val isVideo: Boolean,
-    val durationMs: Long = 0L
+    val isVideo: Boolean = false
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GalleryMediaPickerSheet(
     context: Context,
-    title: String = "Select Media from Gallery",
-    subtitle: String = "Organized by folder and date for stream thumbnails",
+    title: String = "Attach Visual Reference (Images Only)",
+    subtitle: String = "Organized by folder and date • Camera, Screenshots, Downloads",
     isOpen: Boolean,
     onDismiss: () -> Unit,
-    onMediaSelected: (Uri, Boolean) -> Unit // (uri, isVideo)
+    onMediaSelected: (Uri, Boolean) -> Unit
 ) {
     if (!isOpen) return
 
@@ -123,18 +121,19 @@ fun GalleryMediaPickerSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
                         color = Color.White,
                         fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.3).sp
                     )
                     Text(
                         text = subtitle,
                         color = Color(0xFF94A3B8),
                         fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
+                        lineHeight = 15.sp
                     )
                 }
 
@@ -143,7 +142,7 @@ fun GalleryMediaPickerSheet(
                         .size(32.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.08f))
-                        .clickable { onDismiss() },
+                        .clickable(onClick = onDismiss),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -157,22 +156,24 @@ fun GalleryMediaPickerSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Folder Filter Chips
+            // Folder Filter Pills Row (All, Screenshots, Camera, Downloads, etc.)
             LazyRow(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                contentPadding = PaddingValues(vertical = 4.dp)
             ) {
                 items(folders) { folder ->
                     val isSelected = folder == selectedFolder
                     val count = if (folder == "All") allItems.size else allItems.count { it.bucketName == folder }
+
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isSelected) Color(0xFF10B981) else Color(0xFF161D2E))
+                            .clip(RoundedCornerShape(9999.dp))
+                            .background(if (isSelected) Color(0xFF00F0FF).copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f))
                             .border(
                                 1.dp,
-                                if (isSelected) Color(0xFF10B981) else Color.White.copy(alpha = 0.1f),
-                                RoundedCornerShape(10.dp)
+                                if (isSelected) Color(0xFF00F0FF) else Color.White.copy(alpha = 0.1f),
+                                RoundedCornerShape(9999.dp)
                             )
                             .clickable { selectedFolder = folder }
                             .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -182,15 +183,15 @@ fun GalleryMediaPickerSheet(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Folder,
+                                imageVector = if (folder == "All") Icons.Default.Image else Icons.Default.Folder,
                                 contentDescription = null,
-                                tint = if (isSelected) Color(0xFF041014) else Color(0xFF94A3B8),
-                                modifier = Modifier.size(13.dp)
+                                tint = if (isSelected) Color(0xFF00F0FF) else Color(0xFF94A3B8),
+                                modifier = Modifier.size(12.dp)
                             )
                             Text(
                                 text = "$folder ($count)",
-                                color = if (isSelected) Color(0xFF041014) else Color.White,
-                                fontSize = 12.sp,
+                                color = if (isSelected) Color(0xFF00F0FF) else Color(0xFFCBD5E1),
+                                fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )
                         }
@@ -200,7 +201,7 @@ fun GalleryMediaPickerSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Media Grid with Date Grouping
+            // Media Grid with Optimized Thumbnails
             if (isLoading) {
                 Box(
                     modifier = Modifier
@@ -208,7 +209,7 @@ fun GalleryMediaPickerSheet(
                         .height(280.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Scanning media gallery...", color = Color(0xFF94A3B8), fontSize = 13.sp)
+                    Text("Scanning image gallery...", color = Color(0xFF94A3B8), fontSize = 13.sp)
                 }
             } else if (filteredItems.isEmpty()) {
                 Box(
@@ -217,7 +218,7 @@ fun GalleryMediaPickerSheet(
                         .height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No media found in this folder", color = Color(0xFF64748B), fontSize = 13.sp)
+                    Text("No images found in this folder", color = Color(0xFF64748B), fontSize = 13.sp)
                 }
             } else {
                 LazyVerticalGrid(
@@ -228,7 +229,7 @@ fun GalleryMediaPickerSheet(
                         .fillMaxWidth()
                         .height(380.dp)
                 ) {
-                    items(filteredItems) { item ->
+                    items(filteredItems, key = { it.uri.toString() }) { item ->
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -237,12 +238,17 @@ fun GalleryMediaPickerSheet(
                                 .background(Color(0xFF111622))
                                 .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
                                 .clickable {
-                                    onMediaSelected(item.uri, item.isVideo)
+                                    onMediaSelected(item.uri, false)
                                     onDismiss()
                                 }
                         ) {
+                            // Memory-optimized Coil thumbnail
                             AsyncImage(
-                                model = item.uri,
+                                model = ImageRequest.Builder(context)
+                                    .data(item.uri)
+                                    .size(240, 240)
+                                    .crossfade(true)
+                                    .build(),
                                 contentDescription = item.name,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
@@ -266,7 +272,7 @@ fun GalleryMediaPickerSheet(
                                 )
                             }
 
-                            // Bottom date / video duration pill
+                            // Bottom date pill
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
@@ -286,21 +292,12 @@ fun GalleryMediaPickerSheet(
                                         fontSize = 9.sp,
                                         fontFamily = FontFamily.Monospace
                                     )
-                                    if (item.isVideo) {
-                                        Icon(
-                                            imageVector = Icons.Default.Videocam,
-                                            contentDescription = "Video",
-                                            tint = Color(0xFF00F0FF),
-                                            modifier = Modifier.size(10.dp)
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.Image,
-                                            contentDescription = "Image",
-                                            tint = Color(0xFF10B981),
-                                            modifier = Modifier.size(10.dp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Image,
+                                        contentDescription = "Image",
+                                        tint = Color(0xFF10B981),
+                                        modifier = Modifier.size(10.dp)
+                                    )
                                 }
                             }
                         }
@@ -325,10 +322,12 @@ private fun formatTimestamp(timestampSec: Long): String {
     }
 }
 
+/**
+ * Filter Images Only from MediaStore. Videos are explicitly excluded.
+ */
 private fun queryDeviceMedia(context: Context): List<MediaGalleryItem> {
     val results = mutableListOf<MediaGalleryItem>()
 
-    // 1. Query Images (MediaStore)
     try {
         val imgUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val imgProj = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -359,7 +358,7 @@ private fun queryDeviceMedia(context: Context): List<MediaGalleryItem> {
             } else -1
 
             var count = 0
-            while (cursor.moveToNext() && count < 500) {
+            while (cursor.moveToNext() && count < 600) {
                 val id = cursor.getLong(idCol)
                 val name = cursor.getString(nameCol) ?: "Image"
                 val dateAdded = cursor.getLong(dateCol)
@@ -387,72 +386,6 @@ private fun queryDeviceMedia(context: Context): List<MediaGalleryItem> {
         }
     } catch (_: Exception) {}
 
-    // 2. Query Videos (MediaStore)
-    try {
-        val vidUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        val vidProj = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            arrayOf(
-                MediaStore.Video.Media._ID,
-                MediaStore.Video.Media.DISPLAY_NAME,
-                MediaStore.Video.Media.DATE_ADDED,
-                MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
-                MediaStore.Video.Media.DURATION,
-                MediaStore.Video.Media.RELATIVE_PATH
-            )
-        } else {
-            arrayOf(
-                MediaStore.Video.Media._ID,
-                MediaStore.Video.Media.DISPLAY_NAME,
-                MediaStore.Video.Media.DATE_ADDED,
-                MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
-                MediaStore.Video.Media.DURATION
-            )
-        }
-        val vidSort = "${MediaStore.Video.Media.DATE_ADDED} DESC"
-
-        context.contentResolver.query(vidUri, vidProj, null, null, vidSort)?.use { cursor ->
-            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
-            val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
-            val bucketCol = cursor.getColumnIndex(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
-            val durCol = cursor.getColumnIndex(MediaStore.Video.Media.DURATION)
-            val relPathCol = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                cursor.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
-            } else -1
-
-            var count = 0
-            while (cursor.moveToNext() && count < 200) {
-                val id = cursor.getLong(idCol)
-                val name = cursor.getString(nameCol) ?: "Video"
-                val dateAdded = cursor.getLong(dateCol)
-                var bucket = if (bucketCol != -1) cursor.getString(bucketCol) else null
-                if (bucket.isNullOrBlank() && relPathCol != -1) {
-                    val rel = cursor.getString(relPathCol)
-                    if (!rel.isNullOrBlank()) {
-                        bucket = rel.trim('/').split('/').lastOrNull()
-                    }
-                }
-                if (bucket.isNullOrBlank()) bucket = "Videos"
-                val duration = if (durCol != -1) cursor.getLong(durCol) else 0L
-                val contentUri = ContentUris.withAppendedId(vidUri, id)
-
-                results.add(
-                    MediaGalleryItem(
-                        uri = contentUri,
-                        name = name,
-                        dateAddedSec = dateAdded,
-                        bucketName = bucket,
-                        isVideo = true,
-                        durationMs = duration
-                    )
-                )
-                count++
-            }
-        }
-    } catch (_: Exception) {}
-
-    // Sort combined by date added descending
     results.sortByDescending { it.dateAddedSec }
     return results
 }
-

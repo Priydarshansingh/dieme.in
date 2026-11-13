@@ -44,6 +44,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -58,6 +60,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
@@ -74,6 +77,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -793,54 +797,257 @@ fun ThumbnailStudioScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Left: Back Icon Button
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                            .clickable(onClick = onNavigateBack),
-                        contentAlignment = Alignment.Center
+                    // Left Group: Back Button + History Drawer Toggle + Screen Title (Shifted to Top-Left like ChatGPT)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                        // Back Icon Button
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.08f))
+                                .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                                .clickable(onClick = onNavigateBack),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
 
-                    // Center: Screen Title
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // History Drawer Menu Icon (like ChatGPT top-left drawer toggle)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.08f))
+                                .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                                .clickable { isHistoryDrawerOpen = !isHistoryDrawerOpen },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = "History Drawer",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        // Screen Title (Shifted to top left like ChatGPT)
                         Text(
                             text = "Thumbnail Studio",
                             color = Color.White,
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
 
-                    // Right: Clean Status Button (Green when engine ready, Red when offline)
+                    // Right: Clean normal indicator light (no rounded extra button needed)
                     val isBridgeReady = isDgImagesAppInstalled && (loadedExtension != null || extensionViewModel.getImageStudio() != null)
                     val statusDotColor = if (isBridgeReady) Color(0xFF10B981) else Color(0xFFEF4444)
 
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .padding(end = 6.dp)
+                            .size(10.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                            .clickable { isHistoryDrawerOpen = !isHistoryDrawerOpen },
-                        contentAlignment = Alignment.Center
+                            .background(statusDotColor)
+                            .drawBehind {
+                                drawCircle(
+                                    color = statusDotColor.copy(alpha = 0.45f),
+                                    radius = size.minDimension * 0.95f
+                                )
+                            }
+                    )
+                }
+            },
+            bottomBar = {
+                // ChatGPT Floating Input Capsule (Docked at Bottom like ChatGPT App)
+                Surface(
+                    color = DigicastDeepNavy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .imePadding()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(Color(0xFF161E24))
+                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(26.dp))
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(statusDotColor)
-                                .border(1.5.dp, Color(0xFF030A0D), CircleShape)
-                        )
+                        // Attached Media & Active Pin Chips Row (shown inside top of capsule)
+                        if (markedPins.isNotEmpty() || referenceImages.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                markedPins.forEach { pin ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(9999.dp))
+                                            .background(Color(0xFF041A20))
+                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(9999.dp))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(
+                                                text = "📍 Pin #${pin.id}",
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove Pin",
+                                                tint = DigicastSlate,
+                                                modifier = Modifier
+                                                    .size(12.dp)
+                                                    .clickable { markedPins.remove(pin) }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                referenceImages.forEach { uri ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    ) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context).data(uri).crossfade(true).build(),
+                                            contentDescription = "Ref",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .size(16.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.Black.copy(alpha = 0.75f))
+                                                .clickable { referenceImages.remove(uri) },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(9.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ChatGPT-Style Composer Bar ( (+) Attachment Icon | Message ChatGPT... | Circular (↑) Send Button )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // (+) Attach Media Button
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .clickable {
+                                        if (referenceImages.size < 2) {
+                                            galleryPickerTargetIsBase = false
+                                            showGalleryPicker = true
+                                        } else {
+                                            Toast.makeText(context, "Maximum 2 reference images allowed", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Attach Reference",
+                                    tint = if (referenceImages.isNotEmpty()) DigicastElectricCyan else Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Center Multiline Input
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = promptInput,
+                                    onValueChange = { promptInput = it },
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        lineHeight = 20.sp
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    cursorBrush = SolidColor(DigicastElectricCyan),
+                                    decorationBox = { innerTextField ->
+                                        if (promptInput.isEmpty()) {
+                                            Text(
+                                                text = if (markedPins.isNotEmpty())
+                                                    "Message ChatGPT (e.g. Inpaint Pin #1...)"
+                                                else
+                                                    "Message ChatGPT...",
+                                                color = Color.White.copy(alpha = 0.45f),
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                )
+                            }
+
+                            // Circular Send Button
+                            val canSend = !isGenerating && currentThumbnailUrl != null && (promptInput.isNotBlank() || markedPins.isNotEmpty() || referenceImages.isNotEmpty())
+
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (canSend) DigicastElectricCyan else Color.White.copy(alpha = 0.08f))
+                                    .clickable(enabled = canSend) { sendPromptAndGenerate() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isGenerating) {
+                                    CircularProgressIndicator(
+                                        color = DigicastElectricCyan,
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowUpward,
+                                        contentDescription = "Send",
+                                        tint = if (canSend) Color(0xFF030A0D) else Color.White.copy(alpha = 0.3f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -916,58 +1123,75 @@ fun ThumbnailStudioScreen(
                                 }
                             }
 
-                            // Paste Icon Button
-                            IconButton(
-                                onClick = {
-                                    clipboardManager.getText()?.text?.let { text ->
-                                        urlInput = text
-                                        fetchThumbnail()
-                                    }
-                                },
-                                modifier = Modifier.size(26.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ContentPaste,
-                                    contentDescription = "Paste",
-                                    tint = Color.White.copy(alpha = 0.8f),
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            }
-
-                            // Fetch CDN Button
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(9999.dp))
-                                    .background(Color(0xFF134E5E))
-                                    .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(9999.dp))
-                                    .clickable { fetchThumbnail() }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                if (isFetchingUrl) {
-                                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                                } else {
-                                    Text("Fetch", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-
-                            // Gallery Folder Picker Button
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(9999.dp))
-                                    .background(Color(0xFF161D2E))
-                                    .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(9999.dp))
-                                    .clickable {
-                                        galleryPickerTargetIsBase = true
-                                        showGalleryPicker = true
-                                    }
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            // SINGLE Contextual Button: Shows "Paste" when empty; transforms to "Fetch" when link is present
+                            if (urlInput.isBlank()) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(9999.dp))
+                                        .background(Color.White.copy(alpha = 0.1f))
+                                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(9999.dp))
+                                        .clickable {
+                                            clipboardManager.getText()?.text?.let { text ->
+                                                if (text.isNotBlank()) {
+                                                    urlInput = text.trim()
+                                                    fetchThumbnail()
+                                                }
+                                            }
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 7.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Default.Folder, contentDescription = null, tint = Color(0xFF00F0FF), modifier = Modifier.size(12.dp))
-                                    Text("Gallery", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentPaste,
+                                            contentDescription = "Paste",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Text(
+                                            text = "Paste",
+                                            color = Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(9999.dp))
+                                        .background(Color(0xFF134E5E))
+                                        .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(9999.dp))
+                                        .clickable { fetchThumbnail() }
+                                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                                ) {
+                                    if (isFetchingUrl) {
+                                        CircularProgressIndicator(
+                                            color = DigicastElectricCyan,
+                                            modifier = Modifier.size(14.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.AutoAwesome,
+                                                contentDescription = "Fetch",
+                                                tint = DigicastElectricCyan,
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Text(
+                                                text = "Fetch",
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1387,243 +1611,8 @@ fun ThumbnailStudioScreen(
                     }
                 }
 
-                // ── 3. Style Presets Scroll Row ─────────────────────────────
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "STYLE & OBJECT PRESETS",
-                            color = DigicastSlate,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp
-                        )
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            quickPresets.forEach { tag ->
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(9999.dp))
-                                        .background(AppleDarkEdgePillBrush)
-                                        .border(1.dp, AppleSpecularBorder, RoundedCornerShape(9999.dp))
-                                        .clickable {
-                                            val cleanTag = tag.substringAfter(" ")
-                                            promptInput = if (promptInput.isEmpty()) cleanTag else "$promptInput, $cleanTag"
-                                        }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Text(text = tag, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ── 4. ChatGPT-Style Input Capsule (Attachments Chips + Pill Composer) ─
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(26.dp))
-                            .background(Color(0xFF161E24))
-                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(26.dp))
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        // Attached Media & Active Pin Chips Row (shown inside top of capsule)
-                        if (markedPins.isNotEmpty() || referenceImages.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                markedPins.forEach { pin ->
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(9999.dp))
-                                            .background(Color(0xFF041A20))
-                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(9999.dp))
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Text(
-                                                text = "📍 Pin #${pin.id}",
-                                                color = Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Remove Pin",
-                                                tint = DigicastSlate,
-                                                modifier = Modifier
-                                                    .size(12.dp)
-                                                    .clickable { markedPins.remove(pin) }
-                                            )
-                                        }
-                                    }
-                                }
-
-                                referenceImages.forEach { uri ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                    ) {
-                                        AsyncImage(
-                                            model = ImageRequest.Builder(context).data(uri).crossfade(true).build(),
-                                            contentDescription = "Ref",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .size(16.dp)
-                                                .clip(CircleShape)
-                                                .background(Color.Black.copy(alpha = 0.75f))
-                                                .clickable { referenceImages.remove(uri) },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(9.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // ChatGPT-Style Composer Bar ( (+) Attachment Icon | Message ChatGPT... | Circular (↑) Send Button )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // (+) Attach Media Button
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.08f))
-                                    .clickable {
-                                        if (referenceImages.size < 2) {
-                                            galleryPickerTargetIsBase = false
-                                            showGalleryPicker = true
-                                        } else {
-                                            Toast.makeText(context, "Maximum 2 reference images allowed", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Attach Reference",
-                                    tint = if (referenceImages.isNotEmpty()) DigicastElectricCyan else Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            // Center Multiline Input
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                androidx.compose.foundation.text.BasicTextField(
-                                    value = promptInput,
-                                    onValueChange = { promptInput = it },
-                                    textStyle = androidx.compose.ui.text.TextStyle(
-                                        color = Color.White,
-                                        fontSize = 14.sp,
-                                        lineHeight = 20.sp
-                                    ),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    cursorBrush = SolidColor(DigicastElectricCyan),
-                                    decorationBox = { innerTextField ->
-                                        if (promptInput.isEmpty()) {
-                                            Text(
-                                                text = if (markedPins.isNotEmpty())
-                                                    "Message ChatGPT (e.g. Inpaint Pin #1...)"
-                                                else
-                                                    "Message ChatGPT...",
-                                                color = Color.White.copy(alpha = 0.45f),
-                                                fontSize = 14.sp
-                                            )
-                                        }
-                                        innerTextField()
-                                    }
-                                )
-                            }
-
-                            // Circular Send Button
-                            val canSend = !isGenerating && currentThumbnailUrl != null && (promptInput.isNotBlank() || markedPins.isNotEmpty() || referenceImages.isNotEmpty())
-
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(if (canSend) DigicastElectricCyan else Color.White.copy(alpha = 0.08f))
-                                    .clickable(enabled = canSend) { sendPromptAndGenerate() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isGenerating) {
-                                    CircularProgressIndicator(
-                                        color = DigicastElectricCyan,
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowUpward,
-                                        contentDescription = "Send",
-                                        tint = if (canSend) Color(0xFF030A0D) else Color.White.copy(alpha = 0.3f),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ── 5. Quick Actions: Open History Drawer ───────────────────────
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isHistoryDrawerOpen = true }
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Layers,
-                            contentDescription = null,
-                            tint = DigicastSlate,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (chatMessages.isNotEmpty()) "View Revision History (${chatMessages.size})" else "View Revision History",
-                            color = DigicastSlate,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -1998,3 +1987,4 @@ fun ThumbnailStudioScreen(
         )
     }
 }
+

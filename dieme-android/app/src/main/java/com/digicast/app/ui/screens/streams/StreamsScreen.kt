@@ -294,7 +294,8 @@ fun StreamsScreen(
                                 text = cat,
                                 color = Color.White,
                                 fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                softWrap = false
                             )
                         }
                     }

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.digicast.app.ui.theme.DigicastBorder
@@ -34,8 +35,23 @@ fun MetricCard(
             .padding(14.dp)
             .fillMaxWidth()
     ) {
-        Text(text = label.uppercase(), color = DigicastSlate, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+        Text(
+            text = label.uppercase(),
+            color = DigicastSlate,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
         Spacer(modifier = Modifier.height(4.dp))
-        Text(text = value, color = DigicastWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(
+            text = value,
+            color = DigicastWhite,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

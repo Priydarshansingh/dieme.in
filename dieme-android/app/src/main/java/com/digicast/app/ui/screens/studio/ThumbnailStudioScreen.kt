@@ -814,6 +814,7 @@ fun ThumbnailStudioScreen(
                 ) {
                     // Left Group: History Drawer Menu Icon + Screen Title (ChatGPT Style - Clean without crowded back button)
                     Row(
+                        modifier = Modifier.weight(1f, fill = false),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
@@ -840,7 +841,9 @@ fun ThumbnailStudioScreen(
                             text = "Thumbnail Studio",
                             color = Color.White,
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -913,7 +916,9 @@ fun ThumbnailStudioScreen(
                                         Text(
                                             text = "Paste YouTube livestream or video link...",
                                             color = Color.White.copy(alpha = 0.4f),
-                                            fontSize = 13.sp
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                     innerTextField()
@@ -950,7 +955,7 @@ fun ThumbnailStudioScreen(
                                                 }
                                             }
                                         }
-                                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                                        .padding(horizontal = 12.dp, vertical = 7.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -966,7 +971,8 @@ fun ThumbnailStudioScreen(
                                             text = "Paste",
                                             color = Color.White,
                                             fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
+                                            softWrap = false
                                         )
                                     }
                                 }
@@ -977,7 +983,7 @@ fun ThumbnailStudioScreen(
                                         .background(Color(0xFF134E5E))
                                         .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(9999.dp))
                                         .clickable { fetchThumbnail() }
-                                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                                        .padding(horizontal = 12.dp, vertical = 7.dp)
                                 ) {
                                     if (isFetchingUrl) {
                                         CircularProgressIndicator(
@@ -1000,7 +1006,8 @@ fun ThumbnailStudioScreen(
                                                 text = "Fetch",
                                                 color = Color.White,
                                                 fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
+                                                fontWeight = FontWeight.Bold,
+                                                softWrap = false
                                             )
                                         }
                                     }
@@ -1415,7 +1422,9 @@ fun ThumbnailStudioScreen(
                                         text = if (generatedImageUrl != null) "Download 1080p Thumbnail to Gallery" else "Save HD Thumbnail to Gallery",
                                         color = if (generatedImageUrl != null) Color(0xFF030A0D) else Color.White,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -1563,7 +1572,9 @@ fun ThumbnailStudioScreen(
                                                 else
                                                     "Message ChatGPT...",
                                                 color = Color.White.copy(alpha = 0.45f),
-                                                fontSize = 14.sp
+                                                fontSize = 14.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                         innerTextField()

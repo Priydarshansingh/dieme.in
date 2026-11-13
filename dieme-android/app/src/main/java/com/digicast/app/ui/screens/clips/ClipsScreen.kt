@@ -5,6 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -301,7 +303,12 @@ fun ClipsScreen(
             // ── 2. Focused Status Filter Pills Only (All Clips, Ready, Pending) ─
             item {
                 val statusList = listOf("All Clips", "Ready", "Pending")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     statusList.forEach { status ->
                         val isSelected = selectedStatusFilter == status
                         Box(
@@ -320,7 +327,8 @@ fun ClipsScreen(
                                 text = status,
                                 color = Color.White,
                                 fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                softWrap = false
                             )
                         }
                     }

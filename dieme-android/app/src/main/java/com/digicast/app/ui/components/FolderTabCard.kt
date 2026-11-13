@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.digicast.app.ui.theme.AppleDarkEdgeCardBrush
@@ -107,7 +108,9 @@ fun FolderTabCard(
                 color = Color.White,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
-                letterSpacing = (-0.5).sp
+                letterSpacing = (-0.5).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             // Label
@@ -116,7 +119,9 @@ fun FolderTabCard(
                 color = Color.White.copy(alpha = 0.9f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.1.sp
+                letterSpacing = 0.1.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             if (!sublabel.isNullOrEmpty()) {
@@ -124,7 +129,9 @@ fun FolderTabCard(
                     text = sublabel,
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

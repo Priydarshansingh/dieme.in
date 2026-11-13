@@ -68,6 +68,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -581,9 +582,9 @@ fun Access24hGateDialog(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Column {
+                                        Column(modifier = Modifier.weight(1f, fill = false)) {
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                Text(p.name, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                Text(p.name, color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 Text(
                                                     text = p.badge,
                                                     color = p.color,
@@ -594,7 +595,9 @@ fun Access24hGateDialog(
                                             Text(
                                                 text = "${p.durationLabel} • ${p.dpCost} DP • ${p.dCoinsCost} D-Coins",
                                                 color = DigicastSlate,
-                                                fontSize = 11.sp
+                                                fontSize = 11.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
 
@@ -602,7 +605,8 @@ fun Access24hGateDialog(
                                             text = "₹${p.priceINR}",
                                             color = if (isSelected) p.color else DigicastWhite,
                                             fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 17.sp
+                                            fontSize = 17.sp,
+                                            modifier = Modifier.padding(start = 8.dp)
                                         )
                                     }
                                 }
@@ -717,7 +721,7 @@ fun Access24hGateDialog(
                                             modifier = Modifier.weight(1f).height(42.dp),
                                             contentPadding = PaddingValues(horizontal = 4.dp)
                                         ) {
-                                            Text("PhonePe", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text("PhonePe", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                                         }
 
                                         Button(
@@ -728,7 +732,7 @@ fun Access24hGateDialog(
                                             modifier = Modifier.weight(1f).height(42.dp),
                                             contentPadding = PaddingValues(horizontal = 4.dp)
                                         ) {
-                                            Text("GPay", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text("GPay", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                                         }
 
                                         Button(
@@ -738,7 +742,7 @@ fun Access24hGateDialog(
                                             modifier = Modifier.weight(1f).height(42.dp),
                                             contentPadding = PaddingValues(horizontal = 4.dp)
                                         ) {
-                                            Text("Paytm", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text("Paytm", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                                         }
                                     }
 

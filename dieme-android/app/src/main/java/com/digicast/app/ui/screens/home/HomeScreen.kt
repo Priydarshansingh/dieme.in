@@ -440,6 +440,7 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
+                            modifier = Modifier.weight(1f, fill = false),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
@@ -454,7 +455,9 @@ fun HomeScreen(
                                 color = if (capturing) DigicastLiveRed else DigicastElectricCyan,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.sp
+                                letterSpacing = 1.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -643,12 +646,16 @@ fun HomeScreen(
                                     text = "Thumbnail Studio",
                                     color = Color.White,
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = "AI Inpaint & 1080p Export",
                                     color = DigicastSlate,
-                                    fontSize = 10.sp
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -703,12 +710,16 @@ fun HomeScreen(
                                     text = "Voice Studio",
                                     color = Color.White,
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = "Zero-Shot Voice Clones",
                                     color = DigicastSlate,
-                                    fontSize = 10.sp
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -743,7 +754,8 @@ fun HomeScreen(
                                 text = cat,
                                 color = Color.White,
                                 fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                softWrap = false
                             )
                         }
                     }

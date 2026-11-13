@@ -72,40 +72,13 @@ class DgImagesService : Service() {
             val wv = WebView(this)
             this.webView = wv
 
-            // Attach offscreen overlay window if SYSTEM_ALERT_WINDOW is granted, or measure in memory
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
-                val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-                this.windowManager = wm
-                val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                } else {
-                    @Suppress("DEPRECATION")
-                    WindowManager.LayoutParams.TYPE_PHONE
-                }
-                val params = WindowManager.LayoutParams(
-                    1080,
-                    1920,
-                    layoutType,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                    PixelFormat.TRANSLUCENT
-                ).apply {
-                    x = -5000
-                    y = -5000
-                }
-                try {
-                    wm.addView(wv, params)
-                    Log.i(TAG, "✅ Offscreen overlay window attached at 1080x1920 (x=-5000, y=-5000)")
-                } catch (e: Exception) {
-                    Log.w(TAG, "Could not attach overlay window: ${e.message}")
-                    wv.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
-                    wv.layout(0, 0, 1080, 1920)
-                }
-            } else {
-                wv.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY))
-                wv.layout(0, 0, 1080, 1920)
-            }
+            // Measure and layout headless WebView in memory (no overlay window required)
+            wv.measure(
+                View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY)
+            )
+            wv.layout(0, 0, 1080, 1920)
+            Log.i(TAG, "✅ In-memory headless WebView prepared at 1080x1920")
 
             val adapter = ChatGptWebAdapter(
                 context = this,

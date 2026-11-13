@@ -186,11 +186,22 @@ class DefaultImageStudioExtension : ImageStudioExtension {
 
     private fun wakeUpDaemon(context: Context) {
         try {
-            val intent = Intent(ACTION_START_SERVICE).apply {
-                setPackage(DG_IMAGES_PACKAGE)
+            val sIntent = Intent().apply {
+                component = android.content.ComponentName(DG_IMAGES_PACKAGE, "com.digicast.dgimages.service.DgImagesService")
             }
-            context.sendBroadcast(intent)
-        } catch (_: Exception) {}
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(sIntent)
+            } else {
+                context.startService(sIntent)
+            }
+        } catch (_: Exception) {
+            try {
+                val intent = Intent(ACTION_START_SERVICE).apply {
+                    setPackage(DG_IMAGES_PACKAGE)
+                }
+                context.sendBroadcast(intent)
+            } catch (_: Exception) {}
+        }
     }
 }
 

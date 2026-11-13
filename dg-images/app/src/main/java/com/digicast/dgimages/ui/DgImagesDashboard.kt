@@ -1,7 +1,10 @@
 package com.digicast.dgimages.ui
 
+import android.content.Context
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.WebView
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,13 +29,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -40,7 +44,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -64,9 +68,14 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.digicast.dgimages.browser.ChatGptSessionManager
 import com.digicast.dgimages.browser.ChatGptWebAdapter
+import com.digicast.dgimages.engine.GenerationJob
 import com.digicast.dgimages.engine.ImageInpaintEngine
+import com.digicast.dgimages.util.FileProviderUtils
 import kotlinx.coroutines.launch
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // Apple & Linear inspired obsidian dark design tokens
 val DgCanvas = Color(0xFF030A0D)
@@ -77,6 +86,15 @@ val DgEmerald = Color(0xFF10B981)
 val DgAmber = Color(0xFFFBBF24)
 val DgSlate = Color(0xFF8E9BAE)
 val DgMuted = Color(0xFF5A6677)
+
+fun resolveJobImageModel(context: Context, job: GenerationJob): Any {
+    val localFile = FileProviderUtils.resolveImageFile(context, job.resultUrl)
+    if (localFile != null && localFile.exists()) return localFile
+    val baseFile = FileProviderUtils.resolveImageFile(context, job.baseImageUrl)
+    if (baseFile != null && baseFile.exists()) return baseFile
+    if (job.resultUrl.startsWith("http")) return job.resultUrl
+    return job.baseImageUrl
+}
 
 @Composable
 fun DgImagesDashboard() {
@@ -90,6 +108,12 @@ fun DgImagesDashboard() {
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = ChatGPT Engine, 1 = Activity Feed
     var webAdapter by remember { mutableStateOf<ChatGptWebAdapter?>(null) }
     var testFeedback by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        ImageInpaintEngine.loadCachedJobs(context)
+    }
+
+    val latestJob = recentJobs.firstOrNull()
 
     Scaffold(
         containerColor = DgCanvas,
@@ -280,6 +304,76 @@ fun DgImagesDashboard() {
                         }
                     }
 
+                    // Top Banner: Latest Generated Image Download Shortcut (if exists)
+                    if (latestJob != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF05171F))
+                                .border(1.dp, DgElectricCyan.copy(alpha = 0.3f))
+                                .clickable { selectedTab = 1 }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                val model = resolveJobImageModel(context, latestJob)
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp, 28.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.Black)
+                                        .border(1.dp, DgElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                ) {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(context).data(model).crossfade(true).build(),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "✨ Latest Generated Thumbnail (1080p)",
+                                        color = DgElectricCyan,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = latestJob.prompt,
+                                        color = Color.White.copy(alpha = 0.8f),
+                                        fontSize = 10.sp,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(DgElectricCyan)
+                                    .clickable {
+                                        FileProviderUtils.saveImageToGallery(context, latestJob.resultUrl) { success, msg ->
+                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFF030A0D), modifier = Modifier.size(13.dp))
+                                    Text("Download", color = Color(0xFF030A0D), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+
                     // Notice capsule
                     Box(
                         modifier = Modifier
@@ -301,12 +395,19 @@ fun DgImagesDashboard() {
                         }
                     }
 
-                    // Embedded WebView (reusing background service WebView if already active)
+                    // Embedded WebView (safely detaching from any previous parent first)
                     AndroidView(
                         factory = { ctx ->
                             val existingWv = ChatGptSessionManager.activeAdapter?.webView
                             if (existingWv != null) {
-                                (existingWv.parent as? ViewGroup)?.removeView(existingWv)
+                                try {
+                                    (existingWv.parent as? ViewGroup)?.removeView(existingWv)
+                                } catch (_: Throwable) {}
+                                try {
+                                    val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+                                    wm?.removeViewImmediate(existingWv)
+                                } catch (_: Throwable) {}
+                                webAdapter = ChatGptSessionManager.activeAdapter
                                 existingWv
                             } else {
                                 WebView(ctx).apply {
@@ -326,11 +427,21 @@ fun DgImagesDashboard() {
                                 }
                             }
                         },
+                        onRelease = { wv ->
+                            try {
+                                (wv.parent as? ViewGroup)?.removeView(wv)
+                            } catch (_: Throwable) {}
+                        },
+                        onReset = { wv ->
+                            try {
+                                (wv.parent as? ViewGroup)?.removeView(wv)
+                            } catch (_: Throwable) {}
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             } else {
-                // ── TAB 1: Activity Feed & Daemon Status ─────────────────────────
+                // ── TAB 1: Activity Feed & Generated Thumbnails ──────────────────
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -400,15 +511,161 @@ fun DgImagesDashboard() {
                         }
                     }
 
-                    // Feed Items
+                    // ── FEATURED HERO CARD: LATEST GENERATED THUMBNAIL (1080P) ──────
+                    if (latestJob != null) {
+                        item {
+                            val model = resolveJobImageModel(context, latestJob)
+                            val timeStr = SimpleDateFormat("h:mm a, MMM d", Locale.getDefault()).format(Date(latestJob.timestamp))
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(
+                                                Color(0xFF0B2129),
+                                                Color(0xFF041014)
+                                            )
+                                        )
+                                    )
+                                    .border(1.5.dp, DgElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                                    .padding(16.dp)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = DgElectricCyan, modifier = Modifier.size(16.dp))
+                                            Text(
+                                                "LATEST INPAINTED THUMBNAIL",
+                                                color = DgElectricCyan,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                letterSpacing = 1.sp
+                                            )
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(DgEmerald.copy(alpha = 0.15f))
+                                                .border(1.dp, DgEmerald.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Text("1080P • ${latestJob.status}", color = DgEmerald, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    // High-Definition 16:9 Canvas Preview
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .aspectRatio(16f / 9f)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(Color.Black)
+                                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
+                                    ) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(model)
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = "Latest Generated Thumbnail",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+
+                                        // 1080P Badge Top Left
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopStart)
+                                                .padding(10.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color.Black.copy(alpha = 0.7f))
+                                                .border(1.dp, DgElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Text("✨ 1920×1080", color = DgElectricCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    // Prompt description
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(
+                                            text = latestJob.prompt,
+                                            color = Color.White,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            lineHeight = 18.sp
+                                        )
+                                        Text(
+                                            text = "Generated at $timeStr • Latency: ${latestJob.latencyMs}ms",
+                                            color = DgSlate,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+
+                                    // Action Buttons: One-Tap Download & Share
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Button(
+                                            onClick = {
+                                                FileProviderUtils.saveImageToGallery(context, latestJob.resultUrl) { success, msg ->
+                                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = DgElectricCyan),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(44.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFF030A0D), modifier = Modifier.size(16.dp))
+                                                Text("Download to Gallery", color = Color(0xFF030A0D), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .size(44.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(Color.White.copy(alpha = 0.08f))
+                                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                                .clickable {
+                                                    FileProviderUtils.shareImage(context, latestJob.resultUrl)
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(18.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Feed Items Header
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("LIVE ACTIVITY FROM DIGICAST", color = DgSlate, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                            Text("${recentJobs.size} tasks", color = DgMuted, fontSize = 11.sp)
+                            Text("HISTORY & ACTIVITY LOG", color = DgSlate, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                            Text("${recentJobs.size} total tasks", color = DgMuted, fontSize = 11.sp)
                         }
                     }
 
@@ -435,6 +692,9 @@ fun DgImagesDashboard() {
                         }
                     } else {
                         items(recentJobs) { job ->
+                            val model = resolveJobImageModel(context, job)
+                            val timeStr = SimpleDateFormat("h:mm a, MMM d", Locale.getDefault()).format(Date(job.timestamp))
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -456,13 +716,11 @@ fun DgImagesDashboard() {
                                             Icon(Icons.Default.CheckCircle, contentDescription = null, tint = DgEmerald, modifier = Modifier.size(14.dp))
                                             Text(job.status, color = DgEmerald, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                         }
-                                        Text(text = "${job.latencyMs}ms", color = DgSlate, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                                        Text(text = timeStr, color = DgSlate, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                                     }
 
                                     Text(text = job.prompt, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
 
-                                    val file = File(job.resultUrl)
-                                    val model = if (file.exists()) file else job.baseImageUrl
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -477,6 +735,40 @@ fun DgImagesDashboard() {
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()
                                         )
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "ID: ${job.id} • ${job.latencyMs}ms",
+                                            color = DgMuted,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(DgElectricCyan.copy(alpha = 0.15f))
+                                                .border(1.dp, DgElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                                .clickable {
+                                                    FileProviderUtils.saveImageToGallery(context, job.resultUrl) { _, msg ->
+                                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(Icons.Default.Download, contentDescription = null, tint = DgElectricCyan, modifier = Modifier.size(13.dp))
+                                                Text("Download", color = DgElectricCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
                                     }
                                 }
                             }

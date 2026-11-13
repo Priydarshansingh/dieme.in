@@ -2,6 +2,7 @@ package com.digicast.app.ui.screens.studio
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -14,6 +15,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -53,6 +56,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
@@ -66,12 +72,14 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -82,13 +90,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -98,6 +109,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import kotlinx.coroutines.isActive
 import com.digicast.app.ui.screens.settings.ExtensionViewModel
 import com.digicast.app.ui.theme.AppleDarkEdgeCardBrush
 import com.digicast.app.ui.theme.AppleDarkEdgePillBrush
@@ -228,8 +240,8 @@ fun ThumbnailStudioScreen(
 
     val loadedExtension by extensionViewModel.loadedImageStudio.collectAsState()
 
-    // Pulsing pin animation
-    val infiniteTransition = rememberInfiniteTransition(label = "pinPulse")
+    // Pulsing pin animation & ChatGPT generation transitions
+    val infiniteTransition = rememberInfiniteTransition(label = "studioTransitions")
     val pinPulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.35f,
         targetValue = 0.95f,
@@ -239,6 +251,55 @@ fun ThumbnailStudioScreen(
         ),
         label = "pinPulseAlpha"
     )
+    val borderPulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "borderPulseAlpha"
+    )
+    val shimmerOffset by infiniteTransition.animateFloat(
+        initialValue = -1f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerOffset"
+    )
+    val scanY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scanY"
+    )
+    val sparkAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "sparkAngle"
+    )
+
+    var generationElapsedSeconds by remember { mutableIntStateOf(0) }
+    LaunchedEffect(isGenerating) {
+        if (isGenerating) {
+            generationElapsedSeconds = 0
+            while (isActive) {
+                delay(1000)
+                generationElapsedSeconds++
+            }
+        } else {
+            generationElapsedSeconds = 0
+        }
+    }
 
     // ── Helper: Start New Session ───────────────────────────────────────────
     fun startNewSession() {
@@ -267,9 +328,10 @@ fun ThumbnailStudioScreen(
     }
 
     LaunchedEffect(Unit) {
-        isDgImagesAppInstalled = checkAppInstalled()
+        val installed = checkAppInstalled()
+        isDgImagesAppInstalled = installed
         coroutineScope.launch(Dispatchers.IO) {
-            val daemonAlive = try {
+            var daemonAlive = try {
                 val conn = URL("http://127.0.0.1:5488/v1/health").openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection
                 conn.connectTimeout = 2000
                 conn.readTimeout = 2000
@@ -277,6 +339,20 @@ fun ThumbnailStudioScreen(
             } catch (_: Exception) {
                 false
             }
+
+            if (!daemonAlive && installed) {
+                try {
+                    val sIntent = Intent().apply {
+                        component = android.content.ComponentName("com.digicast.dgimages", "com.digicast.dgimages.service.DgImagesService")
+                    }
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        context.startForegroundService(sIntent)
+                    } else {
+                        context.startService(sIntent)
+                    }
+                } catch (_: Exception) {}
+            }
+
             if (daemonAlive) {
                 withContext(Dispatchers.Main) {
                     isDgImagesAppInstalled = true
@@ -458,25 +534,26 @@ fun ThumbnailStudioScreen(
         refCount: Int
     ): String {
         val builder = StringBuilder()
-        builder.appendLine("[TASK: YOUTUBE THUMBNAIL REVISION & INPAINTING]")
-        builder.appendLine("Source Format: 16:9 Cinematic High-Definition Canvas")
+        builder.appendLine("[TASK: INPAINTING & PRECISE SUBJECT REVISION]")
+        builder.appendLine("STRICT PRESERVATION DIRECTIVES (DO NOT VIOLATE):")
+        builder.appendLine("1. PRESERVE ALL EXISTING BACKGROUND TEXT, TYPOGRAPHY, HEADLINES, WORDS, NUMBERS, AND LOGOS EXACTLY AS THEY ARE IN THE BASE IMAGE. DO NOT REGENERATE, ALTER, SPELL, TRANSLATE, REPLACE, OR DISTORT ANY EXISTING TEXT OR GRAPHICS IN THE BASE THUMBNAIL.")
+        builder.appendLine("2. PRESERVE THE OVERALL COMPOSITION, BACKGROUND ENVIRONMENT, LIGHTING SCHEME, AND COLOR PALETTE. ONLY EDIT/REPLACE THE SPECIFIC TARGETED CHARACTER/OBJECT AT THE DESIGNATED LOCATION.")
         if (pins.isNotEmpty()) {
-            builder.appendLine("Target Mark Points on Canvas:")
+            builder.appendLine("3. TARGET LOCATIONS ON CANVAS:")
             pins.forEach { pin ->
-                builder.appendLine("- Pin #${pin.id} located at X=${"%.1f".format(Locale.US, pin.xPercent)}%, Y=${"%.1f".format(Locale.US, pin.yPercent)}% (measured from top-left)")
+                builder.appendLine("   - Pin #${pin.id} at X=${"%.1f".format(Locale.US, pin.xPercent)}%, Y=${"%.1f".format(Locale.US, pin.yPercent)}% (measured from top-left)")
             }
         }
         if (refCount > 0) {
-            builder.appendLine("Reference Media: $refCount visual reference image(s) provided for character, face, object, or color alignment.")
-            builder.appendLine("- Explicitly incorporate the subject/character/features from the attached reference image(s) into the thumbnail composition.")
+            builder.appendLine("4. REFERENCE CHARACTER / ASSET:")
+            builder.appendLine("   - $refCount visual reference image(s) provided.")
+            builder.appendLine("   - Explicitly match the subject/person/character from the attached reference photo (exact facial structure, skin tone, clothing, and likeness).")
+            builder.appendLine("   - Blend the reference subject seamlessly into the scene with matching lighting, depth, shadows, and natural perspective.")
         }
-        builder.appendLine("User Creative Request:")
+        builder.appendLine("5. USER REQUEST:")
         builder.appendLine(userText.trim())
-        builder.appendLine("Synthesis Directives:")
-        builder.appendLine("- Seamlessly blend changes at marked target pins while retaining photorealistic depth.")
-        builder.appendLine("- Apply high-contrast, specular highlights designed for maximum mobile CTR.")
-        builder.appendLine("- Render crisp, readable typography with subtle specular or rim lighting.")
-        builder.appendLine("- Maintain seamless 16:9 composition cohesion.")
+        builder.appendLine("6. QUALITY DIRECTIVE:")
+        builder.appendLine("- Output a pristine 16:9 full-bleed 1080p photorealistic composition with seamless blending.")
         return builder.toString().trim()
     }
 
@@ -716,123 +793,54 @@ fun ThumbnailStudioScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // ── LEFT SIDE: Back Button + History Drawer Toggle ────────
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // Left: Back Icon Button
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                            .clickable(onClick = onNavigateBack),
+                        contentAlignment = Alignment.Center
                     ) {
-                        // Back Icon
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.08f))
-                                .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                                .clickable(onClick = onNavigateBack),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        // Collapsible History Drawer Button (Named History as requested)
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isHistoryDrawerOpen) DigicastElectricCyan.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f))
-                                .border(
-                                    1.dp,
-                                    if (isHistoryDrawerOpen) DigicastElectricCyan else Color.White.copy(alpha = 0.15f),
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .clickable { isHistoryDrawerOpen = !isHistoryDrawerOpen }
-                                .padding(horizontal = 10.dp, vertical = 7.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Layers,
-                                    contentDescription = "History",
-                                    tint = if (isHistoryDrawerOpen) DigicastElectricCyan else Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = if (chatMessages.isNotEmpty()) "History (${chatMessages.size})" else "History",
-                                    color = if (isHistoryDrawerOpen) DigicastElectricCyan else Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
 
-                    // ── RIGHT SIDE: (+) New Chat / Session Button & Status Pill ───
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // Center: Screen Title
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Thumbnail Studio",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Right: Clean Status Button (Green when engine ready, Red when offline)
+                    val isBridgeReady = isDgImagesAppInstalled && (loadedExtension != null || extensionViewModel.getImageStudio() != null)
+                    val statusDotColor = if (isBridgeReady) Color(0xFF10B981) else Color(0xFFEF4444)
+
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                            .clickable { isHistoryDrawerOpen = !isHistoryDrawerOpen },
+                        contentAlignment = Alignment.Center
                     ) {
-                        // (+) Plus New Session Button
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(10.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF134E5E))
-                                .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), CircleShape)
-                                .clickable { startNewSession() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "New Session",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        // Dg-Images Companion Status Pill
-                        val isBridgeReady = isDgImagesAppInstalled && (loadedExtension != null || extensionViewModel.getImageStudio() != null)
-                        val statusLabel = when {
-                            isBridgeReady -> "Dg-Images Active"
-                            !isDgImagesAppInstalled -> "Dg-Images Missing"
-                            else -> "Bridge Ready"
-                        }
-                        val statusColor = if (isBridgeReady) DigicastElectricCyan else if (!isDgImagesAppInstalled) Color(0xFFFBBF24) else DigicastElectricCyan
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(9999.dp))
-                                .background(statusColor.copy(alpha = 0.15f))
-                                .border(
-                                    1.dp,
-                                    statusColor.copy(alpha = 0.4f),
-                                    RoundedCornerShape(9999.dp)
-                                )
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(statusColor)
-                                )
-                                Text(
-                                    text = statusLabel,
-                                    color = statusColor,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
+                                .background(statusDotColor)
+                                .border(1.5.dp, Color(0xFF030A0D), CircleShape)
+                        )
                     }
                 }
             }
@@ -1005,13 +1013,26 @@ fun ThumbnailStudioScreen(
                                 .aspectRatio(16f / 9f)
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(Color(0xFF041014))
-                                .border(1.5.dp, AppleSpecularBorder, RoundedCornerShape(20.dp))
+                                .border(
+                                    width = if (isGenerating) 2.dp else 1.5.dp,
+                                    brush = if (isGenerating) {
+                                        Brush.sweepGradient(
+                                            listOf(
+                                                DigicastElectricCyan.copy(alpha = borderPulseAlpha),
+                                                Color(0xFF10B981).copy(alpha = borderPulseAlpha),
+                                                Color(0xFF134E5E),
+                                                DigicastElectricCyan.copy(alpha = borderPulseAlpha)
+                                            )
+                                        )
+                                    } else AppleSpecularBorder,
+                                    shape = RoundedCornerShape(20.dp)
+                                )
                                 .onGloballyPositioned { coordinates ->
                                     canvasSize = coordinates.size
                                 }
-                                .pointerInput(currentThumbnailUrl) {
+                                .pointerInput(currentThumbnailUrl, generatedImageUrl) {
                                     detectTapGestures { tapOffset ->
-                                        if (currentThumbnailUrl != null && size.width > 0 && size.height > 0) {
+                                        if (generatedImageUrl == null && currentThumbnailUrl != null && size.width > 0 && size.height > 0) {
                                             val xPct = (tapOffset.x / size.width.toFloat()) * 100f
                                             val yPct = (tapOffset.y / size.height.toFloat()) * 100f
                                             val nextId = (markedPins.maxOfOrNull { it.id } ?: 0) + 1
@@ -1031,62 +1052,83 @@ fun ThumbnailStudioScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
 
-                                // Render Glowing Mark Points on Canvas
-                                Canvas(modifier = Modifier.fillMaxSize()) {
-                                    markedPins.forEach { pin ->
-                                        val px = (pin.xPercent / 100f) * size.width
-                                        val py = (pin.yPercent / 100f) * size.height
-                                        val center = Offset(px, py)
+                                // Only draw pin markers when on base image (no pins on generated revision)
+                                if (generatedImageUrl == null) {
+                                    // Render Glowing Mark Points on Canvas
+                                    Canvas(modifier = Modifier.fillMaxSize()) {
+                                        markedPins.forEach { pin ->
+                                            val px = (pin.xPercent / 100f) * size.width
+                                            val py = (pin.yPercent / 100f) * size.height
+                                            val center = Offset(px, py)
 
-                                        // Outer pulsing ring
-                                        drawCircle(
-                                            color = Color(0xFF2DD4BF).copy(alpha = pinPulseAlpha),
-                                            radius = 26f,
-                                            center = center,
-                                            style = Stroke(width = 3f)
-                                        )
+                                            // Outer pulsing ring
+                                            drawCircle(
+                                                color = Color(0xFF2DD4BF).copy(alpha = pinPulseAlpha),
+                                                radius = 26f,
+                                                center = center,
+                                                style = Stroke(width = 3f)
+                                            )
 
-                                        // Inner target circle
-                                        drawCircle(
-                                            color = Color(0xFF134E5E),
-                                            radius = 16f,
-                                            center = center
-                                        )
-                                        drawCircle(
-                                            color = Color.White,
-                                            radius = 16f,
-                                            center = center,
-                                            style = Stroke(width = 2.5f)
-                                        )
-                                        // Target center dot
-                                        drawCircle(
-                                            color = Color(0xFF00F0FF),
-                                            radius = 4f,
-                                            center = center
-                                        )
+                                            // Inner target circle
+                                            drawCircle(
+                                                color = Color(0xFF134E5E),
+                                                radius = 16f,
+                                                center = center
+                                            )
+                                            drawCircle(
+                                                color = Color.White,
+                                                radius = 16f,
+                                                center = center,
+                                                style = Stroke(width = 2.5f)
+                                            )
+                                            // Target center dot
+                                            drawCircle(
+                                                color = Color(0xFF00F0FF),
+                                                radius = 4f,
+                                                center = center
+                                            )
+                                        }
                                     }
-                                }
 
-                                // Render Pin Badges (#1, #2) with coordinates
-                                Box(modifier = Modifier.fillMaxSize()) {
-                                    markedPins.forEach { pin ->
+                                    // Render Pin Badges (#1, #2) with coordinates
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        markedPins.forEach { pin ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .padding(
+                                                        start = ((pin.xPercent / 100f) * 280).dp,
+                                                        top = ((pin.yPercent / 100f) * 160).dp
+                                                    )
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(Color.Black.copy(alpha = 0.85f))
+                                                    .border(1.dp, DigicastElectricCyan, RoundedCornerShape(6.dp))
+                                                    .clickable { markedPins.remove(pin) }
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = "#${pin.id} (${"%.0f".format(Locale.US, pin.xPercent)}%, ${"%.0f".format(Locale.US, pin.yPercent)}%)",
+                                                    color = DigicastElectricCyan,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Instruction overlay hint
+                                    if (markedPins.isEmpty() && !isGenerating) {
                                         Box(
                                             modifier = Modifier
-                                                .padding(
-                                                    start = ((pin.xPercent / 100f) * 280).dp,
-                                                    top = ((pin.yPercent / 100f) * 160).dp
-                                                )
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(Color.Black.copy(alpha = 0.85f))
-                                                .border(1.dp, DigicastElectricCyan, RoundedCornerShape(6.dp))
-                                                .clickable { markedPins.remove(pin) }
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                .align(Alignment.BottomCenter)
+                                                .padding(bottom = 10.dp)
+                                                .clip(RoundedCornerShape(9999.dp))
+                                                .background(Color.Black.copy(alpha = 0.65f))
+                                                .padding(horizontal = 12.dp, vertical = 4.dp)
                                         ) {
                                             Text(
-                                                text = "#${pin.id} (${"%.0f".format(Locale.US, pin.xPercent)}%, ${"%.0f".format(Locale.US, pin.yPercent)}%)",
-                                                color = DigicastElectricCyan,
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold
+                                                text = "Tap anywhere on image to drop a target pin",
+                                                color = Color.White.copy(alpha = 0.85f),
+                                                fontSize = 11.sp
                                             )
                                         }
                                     }
@@ -1098,8 +1140,8 @@ fun ThumbnailStudioScreen(
                                         .align(Alignment.TopStart)
                                         .padding(12.dp)
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(Color.Black.copy(alpha = 0.65f))
-                                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                                        .background(Color.Black.copy(alpha = 0.7f))
+                                        .border(1.dp, if (generatedImageUrl != null) DigicastElectricCyan.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
                                         .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
@@ -1110,21 +1152,159 @@ fun ThumbnailStudioScreen(
                                     )
                                 }
 
-                                // Instruction overlay hint
-                                if (markedPins.isEmpty()) {
+                                // ── CHATGPT-STYLE GENERATING ANIMATION OVERLAY ───────
+                                if (isGenerating) {
                                     Box(
                                         modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .padding(bottom = 10.dp)
-                                            .clip(RoundedCornerShape(9999.dp))
-                                            .background(Color.Black.copy(alpha = 0.65f))
-                                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                                            .fillMaxSize()
+                                            .background(Color(0xD9030A0D))
                                     ) {
-                                        Text(
-                                            text = "Tap anywhere on image to drop a target pin",
-                                            color = Color.White.copy(alpha = 0.85f),
-                                            fontSize = 11.sp
-                                        )
+                                        // 1. Moving shimmer sweep & horizontal laser scan line
+                                        Canvas(modifier = Modifier.fillMaxSize()) {
+                                            val w = size.width
+                                            val h = size.height
+
+                                            // Diagonal shimmer beam
+                                            val shimmerX = shimmerOffset * w
+                                            val shimmerBrush = Brush.linearGradient(
+                                                colors = listOf(
+                                                    Color.Transparent,
+                                                    Color(0x3300F0FF),
+                                                    Color(0x882DD4BF),
+                                                    Color(0x3300F0FF),
+                                                    Color.Transparent
+                                                ),
+                                                start = Offset(shimmerX - 180f, 0f),
+                                                end = Offset(shimmerX + 180f, h)
+                                            )
+                                            drawRect(brush = shimmerBrush)
+
+                                            // Horizontal neon laser scan line
+                                            val laserY = scanY * h
+                                            val laserGlow = Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color.Transparent,
+                                                    Color(0x5500F0FF),
+                                                    Color(0xEE2DD4BF),
+                                                    Color(0x5500F0FF),
+                                                    Color.Transparent
+                                                ),
+                                                startY = (laserY - 18f).coerceAtLeast(0f),
+                                                endY = (laserY + 18f).coerceAtMost(h)
+                                            )
+                                            drawRect(
+                                                brush = laserGlow,
+                                                topLeft = Offset(0f, (laserY - 18f).coerceAtLeast(0f)),
+                                                size = androidx.compose.ui.geometry.Size(w, 36f)
+                                            )
+                                        }
+
+                                        // 2. Central Glassmorphic Status HUD Card
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.Center)
+                                                .fillMaxWidth(0.88f)
+                                                .clip(RoundedCornerShape(18.dp))
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        listOf(
+                                                            Color(0xF5081C24),
+                                                            Color(0xF9041016)
+                                                        )
+                                                    )
+                                                )
+                                                .border(1.dp, DigicastElectricCyan.copy(alpha = borderPulseAlpha), RoundedCornerShape(18.dp))
+                                                .padding(horizontal = 18.dp, vertical = 14.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                // Rotating neural spark icon
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(42.dp)
+                                                        .clip(CircleShape)
+                                                        .background(
+                                                            Brush.sweepGradient(
+                                                                listOf(
+                                                                    Color(0xFF00F0FF),
+                                                                    Color(0xFF10B981),
+                                                                    Color(0xFF0F766E),
+                                                                    Color(0xFF00F0FF)
+                                                                )
+                                                            )
+                                                        )
+                                                        .graphicsLayer { rotationZ = sparkAngle },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(34.dp)
+                                                            .clip(CircleShape)
+                                                            .background(Color(0xFF041014)),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.AutoAwesome,
+                                                            contentDescription = null,
+                                                            tint = DigicastElectricCyan,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                Text(
+                                                    text = "ChatGPT Generating 1080p Canvas",
+                                                    color = Color.White,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    letterSpacing = (-0.2).sp
+                                                )
+
+                                                val dynamicStatus = if (generationStatusMessage.isNotBlank() && generationStatusMessage != "Connecting to Dg-Images...") {
+                                                    generationStatusMessage
+                                                } else {
+                                                    when {
+                                                        generationElapsedSeconds < 4 -> "🧠 Analyzing reference pins & character pose..."
+                                                        generationElapsedSeconds < 8 -> "⚡ Uploading reference image to ChatGPT Engine..."
+                                                        generationElapsedSeconds < 24 -> "✨ Synthesizing photorealistic character in 1080p..."
+                                                        else -> "🎨 Polishing specular highlights & composition..."
+                                                    }
+                                                }
+
+                                                Text(
+                                                    text = dynamicStatus,
+                                                    color = DigicastElectricCyan,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    textAlign = TextAlign.Center,
+                                                    maxLines = 2
+                                                )
+
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(3.dp)
+                                                        .clip(RoundedCornerShape(9999.dp))
+                                                        .background(Color.White.copy(alpha = 0.1f))
+                                                ) {
+                                                    LinearProgressIndicator(
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        color = DigicastElectricCyan,
+                                                        trackColor = Color.Transparent
+                                                    )
+                                                }
+
+                                                Text(
+                                                    text = "Elapsed: ${generationElapsedSeconds}s • 127.0.0.1:5488",
+                                                    color = DigicastSlate,
+                                                    fontSize = 10.sp,
+                                                    fontFamily = FontFamily.Monospace
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             } else {
@@ -1169,6 +1349,41 @@ fun ThumbnailStudioScreen(
                                 }
                             }
                         }
+
+                        // ── DIRECT ONE-TAP DOWNLOAD BUTTON UNDER CANVAS ─────────
+                        if (generatedImageUrl != null || currentThumbnailUrl != null) {
+                            Button(
+                                onClick = {
+                                    (generatedImageUrl ?: currentThumbnailUrl)?.let { saveImageToDownloads(it) }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (generatedImageUrl != null) DigicastElectricCyan else Color(0xFF134E5E)
+                                ),
+                                border = BorderStroke(1.dp, if (generatedImageUrl != null) DigicastElectricCyan else Color.White.copy(alpha = 0.2f))
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Download,
+                                        contentDescription = null,
+                                        tint = if (generatedImageUrl != null) Color(0xFF030A0D) else Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = if (generatedImageUrl != null) "Download 1080p Thumbnail to Gallery" else "Save HD Thumbnail to Gallery",
+                                        color = if (generatedImageUrl != null) Color(0xFF030A0D) else Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -1208,151 +1423,103 @@ fun ThumbnailStudioScreen(
                     }
                 }
 
-                // ── 4. Compose Revision Card (Pins + Up to 2 References + Text) ─
+                // ── 4. ChatGPT-Style Input Capsule (Attachments Chips + Pill Composer) ─
                 item {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(AppleDarkEdgeCardBrush)
-                            .border(1.5.dp, AppleSpecularBorder, RoundedCornerShape(20.dp))
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(Color(0xFF161E24))
+                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(26.dp))
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // Row A: Active Marked Pin Targets Chips
-                        if (markedPins.isNotEmpty()) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "TARGET COORDINATES ON CANVAS (${markedPins.size})",
-                                    color = DigicastElectricCyan,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    markedPins.forEach { pin ->
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(9999.dp))
-                                                .background(Color(0xFF041A20))
-                                                .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(9999.dp))
-                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        // Attached Media & Active Pin Chips Row (shown inside top of capsule)
+                        if (markedPins.isNotEmpty() || referenceImages.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                markedPins.forEach { pin ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(9999.dp))
+                                            .background(Color(0xFF041A20))
+                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(9999.dp))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                Text(
-                                                    text = "📍 Pin #${pin.id} (${"%.0f".format(Locale.US, pin.xPercent)}%, ${"%.0f".format(Locale.US, pin.yPercent)}%)",
-                                                    color = Color.White,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.SemiBold
-                                                )
-                                                Icon(
-                                                    imageVector = Icons.Default.Close,
-                                                    contentDescription = "Remove Pin",
-                                                    tint = DigicastSlate,
-                                                    modifier = Modifier
-                                                        .size(14.dp)
-                                                        .clickable { markedPins.remove(pin) }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Row B: Attached Reference Images (Up to 2)
-                        if (referenceImages.isNotEmpty()) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "ATTACHED REFERENCE IMAGES (${referenceImages.size}/2)",
-                                    color = DigicastEmerald,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    referenceImages.forEach { uri ->
-                                        Box(
-                                            modifier = Modifier
-                                                .size(54.dp)
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .border(1.dp, DigicastEmerald.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                        ) {
-                                            AsyncImage(
-                                                model = ImageRequest.Builder(context).data(uri).crossfade(true).build(),
-                                                contentDescription = "Reference",
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier.fillMaxSize()
+                                            Text(
+                                                text = "📍 Pin #${pin.id}",
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold
                                             )
-                                            Box(
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove Pin",
+                                                tint = DigicastSlate,
                                                 modifier = Modifier
-                                                    .align(Alignment.TopEnd)
-                                                    .size(18.dp)
-                                                    .clip(CircleShape)
-                                                    .background(Color.Black.copy(alpha = 0.8f))
-                                                    .clickable { referenceImages.remove(uri) },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(10.dp))
-                                            }
+                                                    .size(12.dp)
+                                                    .clickable { markedPins.remove(pin) }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                referenceImages.forEach { uri ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    ) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context).data(uri).crossfade(true).build(),
+                                            contentDescription = "Ref",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .size(16.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.Black.copy(alpha = 0.75f))
+                                                .clickable { referenceImages.remove(uri) },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(9.dp)
+                                            )
                                         }
                                     }
                                 }
                             }
                         }
 
-                        // Row C: Multiline Input Box
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF041217))
-                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                                .padding(12.dp)
-                        ) {
-                            androidx.compose.foundation.text.BasicTextField(
-                                value = promptInput,
-                                onValueChange = { promptInput = it },
-                                textStyle = androidx.compose.ui.text.TextStyle(
-                                    color = Color.White,
-                                    fontSize = 13.sp,
-                                    lineHeight = 19.sp
-                                ),
-                                modifier = Modifier.fillMaxWidth(),
-                                decorationBox = { innerTextField ->
-                                    if (promptInput.isEmpty()) {
-                                        Text(
-                                            text = if (markedPins.isNotEmpty())
-                                                "e.g. Replace character at Pin 1 with anime avatar, add neon arrow to Pin 2..."
-                                            else
-                                                "Describe character changes, colors, background, or text...",
-                                            color = Color.White.copy(alpha = 0.4f),
-                                            fontSize = 13.sp
-                                        )
-                                    }
-                                    innerTextField()
-                                }
-                            )
-                        }
-
-                        // Row D: Bottom Controls (Attach Media + Send)
+                        // ChatGPT-Style Composer Bar ( (+) Attachment Icon | Message ChatGPT... | Circular (↑) Send Button )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Attach Reference Button (Max 2)
+                            // (+) Attach Media Button
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .size(36.dp)
+                                    .clip(CircleShape)
                                     .background(Color.White.copy(alpha = 0.08f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                                     .clickable {
                                         if (referenceImages.size < 2) {
                                             galleryPickerTargetIsBase = false
@@ -1360,117 +1527,102 @@ fun ThumbnailStudioScreen(
                                         } else {
                                             Toast.makeText(context, "Maximum 2 reference images allowed", Toast.LENGTH_SHORT).show()
                                         }
-                                    }
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                                    Text(
-                                        text = "Attach Ref (${referenceImages.size}/2)",
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Attach Reference",
+                                    tint = if (referenceImages.isNotEmpty()) DigicastElectricCyan else Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
 
-                            // Send / Generate Button
-                            Button(
-                                onClick = { sendPromptAndGenerate() },
-                                enabled = !isGenerating && currentThumbnailUrl != null,
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF134E5E),
-                                    disabledContainerColor = Color(0xFF0B242B)
-                                ),
-                                border = BorderStroke(1.dp, if (isGenerating) DigicastElectricCyan else Color(0x662DD4BF)),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            // Center Multiline Input
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(vertical = 4.dp)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    if (isGenerating) {
-                                        CircularProgressIndicator(
-                                            color = DigicastElectricCyan,
-                                            modifier = Modifier.size(14.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                        Text("Generating...", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.Send,
-                                            contentDescription = "Send",
-                                            tint = DigicastElectricCyan,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Text("Send to Dg-Images", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = promptInput,
+                                    onValueChange = { promptInput = it },
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        lineHeight = 20.sp
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    cursorBrush = SolidColor(DigicastElectricCyan),
+                                    decorationBox = { innerTextField ->
+                                        if (promptInput.isEmpty()) {
+                                            Text(
+                                                text = if (markedPins.isNotEmpty())
+                                                    "Message ChatGPT (e.g. Inpaint Pin #1...)"
+                                                else
+                                                    "Message ChatGPT...",
+                                                color = Color.White.copy(alpha = 0.45f),
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                        innerTextField()
                                     }
+                                )
+                            }
+
+                            // Circular Send Button
+                            val canSend = !isGenerating && currentThumbnailUrl != null && (promptInput.isNotBlank() || markedPins.isNotEmpty() || referenceImages.isNotEmpty())
+
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (canSend) DigicastElectricCyan else Color.White.copy(alpha = 0.08f))
+                                    .clickable(enabled = canSend) { sendPromptAndGenerate() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isGenerating) {
+                                    CircularProgressIndicator(
+                                        color = DigicastElectricCyan,
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowUpward,
+                                        contentDescription = "Send",
+                                        tint = if (canSend) Color(0xFF030A0D) else Color.White.copy(alpha = 0.3f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
                             }
                         }
                     }
                 }
 
-                // ── 5. Quick Actions: Open History Drawer & Save 1080p ──────────
+                // ── 5. Quick Actions: Open History Drawer ───────────────────────
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // Open History Drawer Pill
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFF0B262E))
-                                .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-                                .clickable { isHistoryDrawerOpen = true }
-                                .padding(horizontal = 14.dp, vertical = 12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(Icons.Default.Layers, contentDescription = null, tint = DigicastElectricCyan, modifier = Modifier.size(18.dp))
-                                    Text(
-                                        text = if (chatMessages.isNotEmpty()) "View History (${chatMessages.size} revisions)" else "View History",
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                                Text("Slide Out ›", color = DigicastElectricCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        // Direct Save 1080p to Gallery
-                        if (generatedImageUrl != null || currentThumbnailUrl != null) {
-                            Button(
-                                onClick = {
-                                    (generatedImageUrl ?: currentThumbnailUrl)?.let { saveImageToDownloads(it) }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(46.dp),
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F323A)),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(Icons.Default.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                    Text("Save Active Canvas (1080p) to Gallery", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                }
-                            }
-                        }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isHistoryDrawerOpen = true }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Layers,
+                            contentDescription = null,
+                            tint = DigicastSlate,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (chatMessages.isNotEmpty()) "View Revision History (${chatMessages.size})" else "View Revision History",
+                            color = DigicastSlate,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }

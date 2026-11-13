@@ -36,7 +36,39 @@ object ImageInpaintEngine {
     val engineStatus: StateFlow<String> = _engineStatus.asStateFlow()
 
     fun recordJob(job: GenerationJob) {
-        _recentJobs.value = listOf(job) + _recentJobs.value.take(15)
+        _recentJobs.value = listOf(job) + _recentJobs.value.filter { it.id != job.id }.take(15)
+    }
+
+    fun loadCachedJobs(context: Context) {
+        try {
+            val cacheFiles = context.cacheDir.listFiles { file ->
+                file.name.startsWith("chatgpt_gen_") || file.name.startsWith("dg_generated_")
+            } ?: emptyArray()
+
+            val jobs = cacheFiles
+                .sortedByDescending { it.lastModified() }
+                .take(20)
+                .map { file ->
+                    val isChatGpt = file.name.startsWith("chatgpt_gen_")
+                    GenerationJob(
+                        id = file.name.takeLast(14).removeSuffix(".jpg"),
+                        prompt = if (isChatGpt) "ChatGPT 1080p Inpainted Thumbnail" else "Dieme Neural Canvas Thumbnail",
+                        baseImageUrl = file.absolutePath,
+                        resultUrl = "http://127.0.0.1:5488/v1/image/${file.name}",
+                        timestamp = file.lastModified(),
+                        status = if (isChatGpt) "CHATGPT (1080P)" else "COMPLETED (1080P)",
+                        latencyMs = if (isChatGpt) 2400 else 850
+                    )
+                }
+
+            if (jobs.isNotEmpty()) {
+                val currentIds = _recentJobs.value.map { it.id }.toSet()
+                val newJobs = jobs.filter { it.id !in currentIds }
+                if (newJobs.isNotEmpty()) {
+                    _recentJobs.value = (_recentJobs.value + newJobs).sortedByDescending { it.timestamp }
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     suspend fun processInpaintTask(

@@ -139,63 +139,37 @@ class ChatGptWebAdapter(
                     var count = window.DgImagesJs ? window.DgImagesJs.getPendingFilesCount() : 0;
                     if (count <= 0) return false;
 
-                    var dt = new DataTransfer();
-                    for (var i = 0; i < count; i++) {
-                        var b64 = window.DgImagesJs.getPendingFileBase64(i);
-                        var name = window.DgImagesJs.getPendingFileName(i);
-                        var mime = window.DgImagesJs.getPendingFileMime(i) || 'image/jpeg';
-                        if (b64 && b64.length > 0) {
-                            var binary = atob(b64);
-                            var bytes = new Uint8Array(binary.length);
-                            for (var j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
-                            var blob = new Blob([bytes], { type: mime });
-                            var file = new File([blob], name, { type: mime });
-                            dt.items.add(file);
-                        }
-                    }
+                    var editor = document.querySelector(".ProseMirror, [contenteditable='true'], textarea, #prompt-textarea") || document.body;
+                    if (!editor) return false;
 
-                    // 1. Locate file inputs or trigger upload button
-                    var fileInputs = Array.from(document.querySelectorAll("input[type='file']"));
-                    if (fileInputs.length === 0) {
-                        var attachBtn = document.querySelector("button[aria-label*='Attach' i], button[data-testid='attach-button'], button[aria-label*='Add files' i], button[aria-label*='Upload' i]");
-                        if (attachBtn) {
-                            try { attachBtn.click(); } catch(e) {}
-                        }
-                        fileInputs = Array.from(document.querySelectorAll("input[type='file']"));
-                    }
+                    editor.focus();
 
-                    // 2. Set files on all relevant file inputs to ensure React picks up all files (Base + References)
-                    var applied = false;
-                    for (var k = 0; k < fileInputs.length; k++) {
-                        var inp = fileInputs[k];
+                    function pasteFileAt(idx) {
+                        if (idx >= count) return;
                         try {
-                            inp.removeAttribute('disabled');
-                            inp.setAttribute('multiple', '');
-                            inp.multiple = true;
-                            try {
-                                var setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files').set;
-                                setter.call(inp, dt.files);
-                            } catch(e) {
-                                inp.files = dt.files;
+                            var b64 = window.DgImagesJs.getPendingFileBase64(idx);
+                            var name = window.DgImagesJs.getPendingFileName(idx);
+                            var mime = window.DgImagesJs.getPendingFileMime(idx) || 'image/jpeg';
+                            if (b64 && b64.length > 0) {
+                                var binary = atob(b64);
+                                var bytes = new Uint8Array(binary.length);
+                                for (var j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+                                var blob = new Blob([bytes], { type: mime });
+                                var file = new File([blob], name, { type: mime, lastModified: Date.now() });
+                                var dt = new DataTransfer();
+                                dt.items.add(file);
+                                var pasteEvt = new ClipboardEvent('paste', {
+                                    bubbles: true,
+                                    cancelable: true,
+                                    clipboardData: dt
+                                });
+                                editor.dispatchEvent(pasteEvt);
                             }
-                            inp.dispatchEvent(new Event('input', { bubbles: true }));
-                            inp.dispatchEvent(new Event('change', { bubbles: true }));
-                            applied = true;
                         } catch(e) {}
+                        setTimeout(function() { pasteFileAt(idx + 1); }, 350);
                     }
 
-                    // 3. Dispatch drop and paste events directly to prompt textarea
-                    var editor = document.querySelector("#prompt-textarea, div[contenteditable='true'], textarea") || document.body;
-                    if (editor) {
-                        try {
-                            var dropEvt = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt });
-                            editor.dispatchEvent(dropEvt);
-                        } catch(e) {}
-                        try {
-                            var pasteEvt = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt });
-                            editor.dispatchEvent(pasteEvt);
-                        } catch(e) {}
-                    }
+                    pasteFileAt(0);
                     return true;
                 } catch(e) {
                     return false;
@@ -205,7 +179,7 @@ class ChatGptWebAdapter(
         webView.evaluateJavascript(js) { res ->
             Handler(Looper.getMainLooper()).postDelayed({
                 onComplete?.invoke(res?.trim() == "true")
-            }, 1200)
+            }, files.size * 400L + 800L)
         }
     }
 
@@ -215,16 +189,23 @@ class ChatGptWebAdapter(
                 try {
                     // Check for attachments inside the composer form
                     var attachments = document.querySelectorAll(
+                        ".group\\/composer-attachment, " +
+                        "[class*='composer-attachment'], " +
                         "[data-testid*='attachment'], " +
-                        "[class*='attachment'], " +
                         "[data-testid*='file-thumbnail'], " +
-                        "form img[src*='blob:'], " +
-                        "#prompt-textarea ~ div img, " +
-                        "[data-testid*='composer'] img"
+                        "form img[src*='blob:']"
                     );
 
                     if (attachments.length === 0) {
                         return false;
+                    }
+
+                    // Check if any attachment is showing an upload error
+                    for (var i = 0; i < attachments.length; i++) {
+                        var text = attachments[i].innerText || "";
+                        if (text.indexOf("Upload failed") !== -1 || text.indexOf("failed") !== -1) {
+                            return false;
+                        }
                     }
 
                     // Ensure none of the attachments are currently uploading or spinning
@@ -250,24 +231,38 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    var editor = document.querySelector("#prompt-textarea, div[contenteditable='true'], textarea");
+                    var editor = document.querySelector(".ProseMirror, [contenteditable='true'], textarea, #prompt-textarea");
                     if (!editor) return false;
 
                     editor.focus();
-                    if (editor.tagName === 'TEXTAREA' || editor.tagName === 'INPUT') {
-                        editor.value = $escaped;
+
+                    // If ProseMirror or contentEditable, use execCommand to create a transaction so React state & send button update
+                    if (editor.isContentEditable) {
+                        try {
+                            document.execCommand('selectAll', false, null);
+                            document.execCommand('insertText', false, $escaped);
+                        } catch(e) {
+                            var p = editor.querySelector('p');
+                            if (!p) {
+                                p = document.createElement('p');
+                                editor.appendChild(p);
+                            }
+                            p.innerText = $escaped;
+                        }
                     } else {
-                        editor.innerText = $escaped;
+                        editor.value = $escaped;
                     }
+
                     editor.dispatchEvent(new Event('input', { bubbles: true }));
                     editor.dispatchEvent(new Event('change', { bubbles: true }));
 
                     setTimeout(function() {
                         var sendBtn = document.querySelector("button[data-testid='send-button'], button[aria-label*='Send' i], button[aria-label*='Submit' i]");
-                        if (sendBtn && !sendBtn.disabled) {
+                        if (sendBtn) {
+                            sendBtn.removeAttribute('disabled');
                             sendBtn.click();
                         }
-                    }, 600);
+                    }, 800);
 
                     return true;
                 } catch(e) {
@@ -334,35 +329,53 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    // Check if generation is still active (Stop button visible)
+                    // Auto-scroll transcript container to bottom so virtualized turns & images are rendered
+                    var scroller = document.querySelector("[class*='scroll-container'], [class*='scrollContainer'], main, div[role='region']");
+                    if (scroller) {
+                        scroller.scrollTop = scroller.scrollHeight;
+                    }
+
+                    // Check if generation is still active (Stop button visible or Creating image progress visible)
                     var stopBtn = document.querySelector("button[data-testid='stop-button'], button[aria-label*='Stop' i]");
-                    if (stopBtn) {
+                    var bodyText = document.body.innerText || "";
+                    if (stopBtn || bodyText.indexOf("Creating image") !== -1) {
                         return "GENERATING";
                     }
 
                     var excludeList = $excludeJson;
                     var excludeSet = new Set(excludeList);
 
-                    // Exclude images from user message containers or editor attachment thumbnails
-                    var userContainers = document.querySelectorAll("div[data-message-author-role='user'], #prompt-textarea, [data-testid*='attachment']");
-                    var userImgs = new Set();
-                    userContainers.forEach(function(c) {
-                        c.querySelectorAll("img").forEach(function(i) { userImgs.add(i); });
-                    });
-
                     // Target assistant generated image candidates
                     var assistantImgs = Array.from(document.querySelectorAll(
-                        "div[data-message-author-role='assistant'] img, " +
-                        "[data-testid*='conversation-turn']:not(:has([data-message-author-role='user'])) img, " +
                         "img[alt*='Generated' i], " +
-                        "img[src*='oaiusercontent.com']"
+                        "img[alt*='Created' i], " +
+                        "img[src*='oaiusercontent.com'], " +
+                        ".markdown img"
                     )).filter(function(img) {
-                        if (userImgs.has(img)) return false;
+                        if (img.getAttribute('alt') === 'User attachment') return false;
+                        if (img.closest("[class*='user-message']")) return false;
+                        if (img.closest("[class*='composer-attachment']")) return false;
                         var src = img.currentSrc || img.src || '';
                         if (!src) return false;
                         if (excludeSet.has(src)) return false;
                         return true;
                     });
+
+                    // If no explicit alt='Generated', find any blob/url img not in user-message
+                    if (assistantImgs.length === 0) {
+                        var candidateImgs = Array.from(document.querySelectorAll("img")).filter(function(img) {
+                            if (img.getAttribute('alt') === 'User attachment') return false;
+                            if (img.closest("[class*='user-message']")) return false;
+                            if (img.closest("[class*='composer-attachment']")) return false;
+                            var src = img.currentSrc || img.src || '';
+                            if (!src) return false;
+                            if (excludeSet.has(src)) return false;
+                            return (img.naturalWidth && img.naturalWidth > 400);
+                        });
+                        if (candidateImgs.length > 0) {
+                            assistantImgs = candidateImgs;
+                        }
+                    }
 
                     if (assistantImgs.length === 0) return null;
                     var lastImg = assistantImgs[assistantImgs.length - 1];

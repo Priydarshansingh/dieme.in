@@ -276,7 +276,14 @@ object ChatGptSessionManager {
                 FileOutputStream(outputFile).use { it.write(bytes) }
                 "http://127.0.0.1:5488/v1/image/${outputFile.name}"
             } else if (captured.startsWith("http://") || captured.startsWith("https://")) {
-                val request = Request.Builder().url(captured).build()
+                val cookie = CookieManager.getInstance().getCookie(captured) ?: ""
+                val reqBuilder = Request.Builder()
+                    .url(captured)
+                    .header("User-Agent", ChatGptWebAdapter.USER_AGENT)
+                if (cookie.isNotBlank()) {
+                    reqBuilder.header("Cookie", cookie)
+                }
+                val request = reqBuilder.build()
                 val response = httpClient.newCall(request).execute()
                 if (response.isSuccessful) {
                     val bytes = response.body?.bytes()

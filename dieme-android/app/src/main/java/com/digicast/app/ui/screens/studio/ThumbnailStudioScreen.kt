@@ -870,198 +870,6 @@ fun ThumbnailStudioScreen(
                     )
                 }
             },
-            bottomBar = {
-                // ChatGPT Floating Input Capsule (Docked at Bottom like ChatGPT App)
-                val imeInsets = WindowInsets.ime
-                val density = LocalDensity.current
-                val isKeyboardOpen = remember(imeInsets, density) {
-                    derivedStateOf { imeInsets.getBottom(density) > 0 }
-                }.value
-
-                Surface(
-                    color = DigicastDeepNavy,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(
-                            if (isKeyboardOpen) Modifier else Modifier.navigationBarsPadding()
-                        )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                            .clip(RoundedCornerShape(26.dp))
-                            .background(Color(0xFF161E24))
-                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(26.dp))
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        // Attached Media & Active Pin Chips Row (shown inside top of capsule)
-                        if (markedPins.isNotEmpty() || referenceImages.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                markedPins.forEach { pin ->
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(9999.dp))
-                                            .background(Color(0xFF041A20))
-                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(9999.dp))
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Text(
-                                                text = "📍 Pin #${pin.id}",
-                                                color = Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Remove Pin",
-                                                tint = DigicastSlate,
-                                                modifier = Modifier
-                                                    .size(12.dp)
-                                                    .clickable { markedPins.remove(pin) }
-                                            )
-                                        }
-                                    }
-                                }
-
-                                referenceImages.forEach { uri ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                    ) {
-                                        AsyncImage(
-                                            model = ImageRequest.Builder(context).data(uri).crossfade(true).build(),
-                                            contentDescription = "Ref",
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .size(16.dp)
-                                                .clip(CircleShape)
-                                                .background(Color.Black.copy(alpha = 0.75f))
-                                                .clickable { referenceImages.remove(uri) },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(9.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // ChatGPT-Style Composer Bar ( (+) Attachment Icon | Message ChatGPT... | Circular (↑) Send Button )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // (+) Attach Media Button
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.08f))
-                                    .clickable {
-                                        if (referenceImages.size < 2) {
-                                            galleryPickerTargetIsBase = false
-                                            showGalleryPicker = true
-                                        } else {
-                                            Toast.makeText(context, "Maximum 2 reference images allowed", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Attach Reference",
-                                    tint = if (referenceImages.isNotEmpty()) DigicastElectricCyan else Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            // Center Multiline Input
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                androidx.compose.foundation.text.BasicTextField(
-                                    value = promptInput,
-                                    onValueChange = { promptInput = it },
-                                    textStyle = androidx.compose.ui.text.TextStyle(
-                                        color = Color.White,
-                                        fontSize = 14.sp,
-                                        lineHeight = 20.sp
-                                    ),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    cursorBrush = SolidColor(DigicastElectricCyan),
-                                    decorationBox = { innerTextField ->
-                                        if (promptInput.isEmpty()) {
-                                            Text(
-                                                text = if (markedPins.isNotEmpty())
-                                                    "Message ChatGPT (e.g. Inpaint Pin #1...)"
-                                                else
-                                                    "Message ChatGPT...",
-                                                color = Color.White.copy(alpha = 0.45f),
-                                                fontSize = 14.sp
-                                            )
-                                        }
-                                        innerTextField()
-                                    }
-                                )
-                            }
-
-                            // Circular Send Button
-                            val canSend = !isGenerating && currentThumbnailUrl != null && (promptInput.isNotBlank() || markedPins.isNotEmpty() || referenceImages.isNotEmpty())
-
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(if (canSend) DigicastElectricCyan else Color.White.copy(alpha = 0.08f))
-                                    .clickable(enabled = canSend) { sendPromptAndGenerate() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isGenerating) {
-                                    CircularProgressIndicator(
-                                        color = DigicastElectricCyan,
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowUpward,
-                                        contentDescription = "Send",
-                                        tint = if (canSend) Color(0xFF030A0D) else Color.White.copy(alpha = 0.3f),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         ) { paddingValues ->
             LazyColumn(
                 modifier = Modifier
@@ -1622,8 +1430,187 @@ fun ThumbnailStudioScreen(
                     }
                 }
 
+                // ── 3. ChatGPT-Style Input Capsule (Attachments Chips + Pill Composer) ─
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(Color(0xFF161E24))
+                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(26.dp))
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Attached Media & Active Pin Chips Row (shown inside top of capsule)
+                        if (markedPins.isNotEmpty() || referenceImages.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                markedPins.forEach { pin ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(9999.dp))
+                                            .background(Color(0xFF041A20))
+                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(9999.dp))
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(
+                                                text = "📍 Pin #${pin.id}",
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove Pin",
+                                                tint = DigicastSlate,
+                                                modifier = Modifier
+                                                    .size(12.dp)
+                                                    .clickable { markedPins.remove(pin) }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                referenceImages.forEach { uri ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    ) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context).data(uri).crossfade(true).build(),
+                                            contentDescription = "Ref",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .size(16.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.Black.copy(alpha = 0.75f))
+                                                .clickable { referenceImages.remove(uri) },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(9.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ChatGPT-Style Composer Bar ( (+) Attachment Icon | Message ChatGPT... | Circular (↑) Send Button )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Bottom,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // (+) Attach Media Button
+                            Box(
+                                modifier = Modifier
+                                    .padding(bottom = 2.dp)
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .clickable {
+                                        if (referenceImages.size < 2) {
+                                            galleryPickerTargetIsBase = false
+                                            showGalleryPicker = true
+                                        } else {
+                                            Toast.makeText(context, "Maximum 2 reference images allowed", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Attach Reference",
+                                    tint = if (referenceImages.isNotEmpty()) DigicastElectricCyan else Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Center Multiline Input
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = promptInput,
+                                    onValueChange = { promptInput = it },
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        lineHeight = 20.sp
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    cursorBrush = SolidColor(DigicastElectricCyan),
+                                    decorationBox = { innerTextField ->
+                                        if (promptInput.isEmpty()) {
+                                            Text(
+                                                text = if (markedPins.isNotEmpty())
+                                                    "Message ChatGPT (e.g. Inpaint Pin #1...)"
+                                                else
+                                                    "Message ChatGPT...",
+                                                color = Color.White.copy(alpha = 0.45f),
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                )
+                            }
+
+                            // Circular Send Button
+                            val canSend = !isGenerating && currentThumbnailUrl != null && (promptInput.isNotBlank() || markedPins.isNotEmpty() || referenceImages.isNotEmpty())
+
+                            Box(
+                                modifier = Modifier
+                                    .padding(bottom = 2.dp)
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (canSend) DigicastElectricCyan else Color.White.copy(alpha = 0.08f))
+                                    .clickable(enabled = canSend) { sendPromptAndGenerate() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isGenerating) {
+                                    CircularProgressIndicator(
+                                        color = DigicastElectricCyan,
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowUpward,
+                                        contentDescription = "Send",
+                                        tint = if (canSend) Color(0xFF030A0D) else Color.White.copy(alpha = 0.3f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.navigationBarsPadding().height(24.dp))
                 }
             }
         }

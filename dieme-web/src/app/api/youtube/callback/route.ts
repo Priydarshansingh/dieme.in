@@ -304,13 +304,23 @@ export async function GET(req: NextRequest) {
     }
 
     if (trialBypassTriggered) {
+      if (decodedState.source === "mobile_connect_youtube" || decodedState.source === "mobile") {
+        return NextResponse.redirect(`digicast://youtube-connected?status=error&error=trial_already_claimed&channel=${encodeURIComponent(channelName)}`);
+      }
       return NextResponse.redirect(`${baseUrl}/settings?tab=subscription&error=trial_already_claimed&channel=${encodeURIComponent(channelName)}`);
+    }
+
+    if (decodedState.source === "mobile_connect_youtube" || decodedState.source === "mobile") {
+      return NextResponse.redirect(`digicast://youtube-connected?status=success&channel=${encodeURIComponent(channelName)}`);
     }
 
     return NextResponse.redirect(`${baseUrl}/dashboard?success=youtube_connected`);
 
   } catch (err: any) {
     console.error("[youtube-callback-error]", err);
+    if (decodedState?.source === "mobile_connect_youtube" || decodedState?.source === "mobile") {
+      return NextResponse.redirect(`digicast://youtube-connected?status=error&error=${encodeURIComponent(err.message || "connection_failed")}`);
+    }
     return NextResponse.redirect(`${baseUrl}/settings?error=${encodeURIComponent(err.message || "connection_failed")}`);
   }
 }

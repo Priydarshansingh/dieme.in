@@ -51,7 +51,7 @@ interface DigicastDao {
     @Query("DELETE FROM streams")
     suspend fun clearAllStreams()
 
-    @Query("DELETE FROM streams WHERE id LIKE 'demo%' OR id LIKE 'stream-%' OR channelTitle LIKE '%Demo%' OR title LIKE '%Demo%'")
+    @Query("DELETE FROM streams WHERE id LIKE 'demo%' OR id LIKE 'stream-demo%' OR channelTitle LIKE '%Demo%' OR title LIKE '%Demo%'")
     suspend fun clearDemoStreams()
 
     // --- Chat Messages ---
@@ -67,7 +67,7 @@ interface DigicastDao {
     @Query("DELETE FROM chat_messages WHERE streamId = :streamId")
     suspend fun clearChatMessagesForStream(streamId: String)
 
-    @Query("DELETE FROM chat_messages WHERE id LIKE 'msg_%' OR authorDisplayName LIKE '%FreeFire_Fan%' OR authorDisplayName LIKE '%Rohan_Gamer%' OR authorDisplayName LIKE '%Sahil_Gaming%' OR authorDisplayName LIKE '%Devil_OP%'")
+    @Query("DELETE FROM chat_messages WHERE id LIKE 'msg_dummy_%' OR authorDisplayName LIKE '%FreeFire_Fan%'")
     suspend fun clearDummyChatMessages()
 
     // For local context around a clip

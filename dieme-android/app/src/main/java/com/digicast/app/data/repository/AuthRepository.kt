@@ -763,7 +763,27 @@ class AuthRepository @Inject constructor(
                 .addHeader("x-user-email", session.email)
                 .build()
 
-            val response = okHttpClient.newCall(request).execute()
+            var response = okHttpClient.newCall(request).execute()
+            if (response.code == 401) {
+                // Attempt automatic re-authentication if token has expired
+                val (savedEmail, savedPassword) = getSavedCredentials()
+                if (savedEmail.isNotBlank() && savedPassword.isNotBlank()) {
+                    val loginRes = signInWithEmail(savedEmail, savedPassword)
+                    if (loginRes.isSuccess) {
+                        val refreshedSession = (_authState.value as? AuthState.SignedIn)?.session
+                        if (refreshedSession != null) {
+                            val retryReq = Request.Builder()
+                                .url(url)
+                                .addHeader("Authorization", "Bearer ${refreshedSession.token}")
+                                .addHeader("x-user-uid", refreshedSession.uid)
+                                .addHeader("x-user-email", refreshedSession.email)
+                                .build()
+                            response = okHttpClient.newCall(retryReq).execute()
+                        }
+                    }
+                }
+            }
+
             if (!response.isSuccessful) {
                 _isSyncing.value = false
                 val respBody = response.body?.string() ?: "{}"
@@ -776,11 +796,6 @@ class AuthRepository @Inject constructor(
                     _authState.value = AuthState.SignedOut
                     signOut()
                     return@withContext Result.failure(Exception("Subscription Expired: Workspace subscription or trial has ended. Mobile app access suspended."))
-                }
-                if (response.code == 401 && !isPremium) {
-                    _authState.value = AuthState.SignedOut
-                    signOut()
-                    return@withContext Result.failure(Exception("Session expired or password was updated on web. Please sign in again with your app password."))
                 }
                 return@withContext Result.failure(Exception("Sync failed: ${response.code}"))
             }
@@ -883,32 +898,9 @@ class AuthRepository @Inject constructor(
                     }
                 }
             } else {
-                if (isDemo) {
-                    val sid = "g_4KXSxPzGo"
-                    if (dao.getStreamById(sid) == null) {
-                        dao.insertStream(
-                            StreamEntity(
-                                id = sid,
-                                workspaceId = session.workspaceId,
-                                title = "FREE FIRE INDIA LIVE | Playing With Friends & Custom Rooms",
-                                channelId = "UC_livehellboy",
-                                channelTitle = "Live hellboy",
-                                liveChatId = "chat_g_4KXSxPzGo",
-                                thumbnailUrl = "https://i.ytimg.com/vi/g_4KXSxPzGo/hqdefault.jpg",
-                                status = "live",
-                                isActive = true,
-                                concurrentViewers = 502,
-                                viewCount = 1420,
-                                likeCount = 303,
-                                startedAtMs = System.currentTimeMillis() - 3600000L,
-                                endedAtMs = null
-                            )
-                        )
-                    }
-                } else {
-                    // Authenticated real user has 0 streams
-                    dao.clearStreamsForWorkspace(session.workspaceId)
-                }
+                // Workspace has 0 streams: purge local streams and any legacy demo entries
+                dao.clearStreamsForWorkspace(session.workspaceId)
+                dao.clearDemoStreams()
             }
 
             // 2. Clip markers
@@ -1621,57 +1613,7 @@ class AuthRepository @Inject constructor(
             dao.clearDummyChatMessages()
             dao.deleteStream("demo-stream-001")
             dao.deleteClipMarker("demo-clip-001")
-
-            val current = (_authState.value as? AuthState.SignedIn)?.session
-            val isDemo = prefs.getBoolean(KEY_IS_DEMO, false) || current?.uid == DEMO_SESSION.uid
-            if (!isDemo) {
-                // Strictly isolated: NEVER seed demo or sample data for real authenticated accounts!
-                return@withContext
-            }
-
-            val realStreamId = "g_4KXSxPzGo"
-            val existing = dao.getStreamById(realStreamId)
-            if (existing == null) {
-                dao.insertStream(
-                    StreamEntity(
-                        id = realStreamId,
-                        workspaceId = "ws-hellxshakti",
-                        title = "FREE FIRE INDIA LIVE | Playing With Friends & Custom Rooms",
-                        channelId = "UC_livehellboy",
-                        channelTitle = "HellxShakti",
-                        liveChatId = "chat_g_4KXSxPzGo",
-                        thumbnailUrl = "https://i.ytimg.com/vi/g_4KXSxPzGo/hqdefault.jpg",
-                        status = "live",
-                        isActive = true,
-                        startedAtMs = System.currentTimeMillis() - 3600000L,
-                        endedAtMs = null,
-                        concurrentViewers = 502,
-                        viewCount = 1420,
-                        likeCount = 303
-                    )
-                )
-            }
-
-            val clipId = "CLP-2U6JKN"
-            val existingClip = dao.getClipMarkerById(clipId)
-            if (existingClip == null) {
-                val clipsDir = java.io.File(context.filesDir, "clips")
-                val sampleFile = java.io.File(clipsDir, "clip_${realStreamId}_Clip_Marker_30s_15s.mp4")
-                dao.insertClipMarker(
-                    ClipMarkerEntity(
-                        id = clipId,
-                        streamId = realStreamId,
-                        authorName = "HellxShakti",
-                        authorId = "user_hellxshakti",
-                        triggerMessageId = "msg_yt_070",
-                        timestampMs = 45000L, // 00:45 (!clip)
-                        label = "Clip Marker",
-                        status = "GENERATED",
-                        localFilePath = if (sampleFile.exists()) sampleFile.absolutePath else null,
-                        telegramMessageUrl = null
-                    )
-                )
-            }
+            dao.deleteClipMarker("CLP-2U6JKN")
         } catch (e: Exception) {
             e.printStackTrace()
         }

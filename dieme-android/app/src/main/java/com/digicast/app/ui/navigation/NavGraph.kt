@@ -258,7 +258,8 @@ fun DigicastNavGraph(
                     onNavigateToStreamDetail = { navController.navigate(Screen.StreamDetail.createRoute(it)) },
                     onNavigateToClips = { navController.navigate(Screen.Clips.route) },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                    onNavigateToThumbnailStudio = { navController.navigate(Screen.ThumbnailStudio.route) }
+                    onNavigateToThumbnailStudio = { navController.navigate(Screen.ThumbnailStudio.route) },
+                    onNavigateToStreams = { navController.navigate(Screen.Streams.route) }
                 )
             }
             composable(Screen.ThumbnailStudio.route) {

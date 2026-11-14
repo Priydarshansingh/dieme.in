@@ -63,6 +63,7 @@ import com.digicast.app.ui.theme.DigicastAccentBlue
 import com.digicast.app.ui.theme.DigicastAmber
 import com.digicast.app.ui.theme.DigicastBorder
 import com.digicast.app.ui.theme.DigicastCardSurface
+import com.digicast.app.ui.theme.DigicastDeepNavy
 import com.digicast.app.ui.theme.DigicastElectricCyan
 import com.digicast.app.ui.theme.DigicastEmerald
 import com.digicast.app.ui.theme.DigicastNavy
@@ -87,24 +88,17 @@ fun parseHexColor(hex: String, defaultColor: Color = DigicastElectricCyan): Colo
 }
 
 /**
- * Bento Card showcasing the Duolingo-style Gamer Avatar Studio on the main Settings screen.
- */
-/**
- * Bento Card showcasing the Gamer Avatar Studio with horizontal scroll on the main Settings screen.
+ * Bento Card showcasing the Avatar selection with horizontal scroll on the main Settings screen.
  */
 @Composable
 fun DuolingoAvatarStudioBentoCard(
     session: UserSession,
     isPremium: Boolean = true,
-    onOpenPicker: () -> Unit,
+    onEquipAvatar: (url: String, name: String) -> Unit,
     onOpenUpgrade: () -> Unit = {}
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                if (isPremium) onOpenPicker() else onOpenUpgrade()
-            },
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
         border = BorderStroke(1.dp, DigicastBorder)
@@ -145,7 +139,7 @@ fun DuolingoAvatarStudioBentoCard(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "Gamer Avatar Studio",
+                                text = "Avatar",
                                 color = DigicastWhite,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
@@ -179,7 +173,7 @@ fun DuolingoAvatarStudioBentoCard(
                             }
                         }
                         Text(
-                            text = "Swipe right to preview anime champions",
+                            text = "Tap to equip creator avatar directly",
                             color = DigicastSlate,
                             fontSize = 11.sp,
                             maxLines = 1,
@@ -188,20 +182,17 @@ fun DuolingoAvatarStudioBentoCard(
                     }
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = DigicastSurfaceElevated,
-                    border = BorderStroke(1.dp, if (isPremium) DigicastElectricCyan.copy(alpha = 0.6f) else DigicastAmber.copy(alpha = 0.6f)),
-                    modifier = Modifier.clickable {
-                        if (isPremium) onOpenPicker() else onOpenUpgrade()
-                    }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(DigicastSurfaceElevated)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = if (isPremium) "Customize" else "Unlock Pro",
-                        color = DigicastWhite,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        text = "1-Tap Equip",
+                        color = DigicastElectricCyan,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -233,7 +224,7 @@ fun DuolingoAvatarStudioBentoCard(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(5.dp),
                         modifier = Modifier.clickable {
-                            if (isPremium) onOpenPicker() else onOpenUpgrade()
+                            onEquipAvatar(url, name)
                         }
                     ) {
                         Box(
@@ -242,8 +233,8 @@ fun DuolingoAvatarStudioBentoCard(
                                 .clip(CircleShape)
                                 .background(DigicastSurfaceElevated)
                                 .border(
-                                    width = if (isCurrent) 2.dp else 1.dp,
-                                    color = if (isCurrent) DigicastEmerald else if (!isPremium) DigicastBorder.copy(alpha = 0.6f) else heroColor.copy(alpha = 0.5f),
+                                    width = if (isCurrent) 2.5.dp else 1.dp,
+                                    color = if (isCurrent) DigicastEmerald else heroColor.copy(alpha = 0.5f),
                                     shape = CircleShape
                                 ),
                             contentAlignment = Alignment.Center
@@ -257,21 +248,20 @@ fun DuolingoAvatarStudioBentoCard(
                                     .clip(CircleShape)
                             )
 
-                            if (!isPremium) {
+                            if (isCurrent) {
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
                                         .size(17.dp)
                                         .clip(CircleShape)
-                                        .background(DigicastCardSurface)
-                                        .border(1.dp, DigicastAmber, CircleShape),
+                                        .background(DigicastEmerald),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Lock,
-                                        contentDescription = "Locked",
-                                        tint = DigicastAmber,
-                                        modifier = Modifier.size(9.dp)
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Equipped",
+                                        tint = DigicastDeepNavy,
+                                        modifier = Modifier.size(10.dp)
                                     )
                                 }
                             }

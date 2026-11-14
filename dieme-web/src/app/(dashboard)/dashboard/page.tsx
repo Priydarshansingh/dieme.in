@@ -164,7 +164,7 @@ function DashboardContent() {
 
       const res = await fetch(`/api/youtube/sync?workspaceId=${workspaceId}`, {
         headers,
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(30000)
       });
       const data = await res.json();
       if (data.syncedCount !== undefined) {

@@ -19,33 +19,40 @@ const YOUTUBE_SCOPES = [
 ];
 
 export async function GET(req: NextRequest) {
-  // Validate caller authentication (Digicast web user)
+  const { searchParams } = new URL(req.url);
+  const tokenParam = searchParams.get("token");
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  let idToken = "";
+  if (authHeader?.startsWith("Bearer ")) {
+    idToken = authHeader.slice(7);
+  } else if (tokenParam) {
+    idToken = tokenParam;
+  } else {
+    return NextResponse.json({ error: "Unauthorized: Missing authentication token" }, { status: 401 });
   }
 
   let uid: string;
   try {
-    const idToken = authHeader.slice(7);
     const decoded = await adminAuth.verifyIdToken(idToken);
     uid = decoded.uid;
   } catch {
     return NextResponse.json({ error: "Token verification failed" }, { status: 401 });
   }
 
-  const { searchParams } = new URL(req.url);
   const workspaceId = searchParams.get("workspaceId");
 
   if (!workspaceId) {
     return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
   }
 
-  // Pass workspaceId and uid via state variable to maintain context for callback
-  const state = Buffer.from(JSON.stringify({ workspaceId, uid })).toString("base64");
+  const source = searchParams.get("source") || "web";
+
+  // Pass workspaceId, uid, and source via state variable to maintain context for callback
+  const state = Buffer.from(JSON.stringify({ workspaceId, uid, source })).toString("base64");
 
   const redirectUri = `${getBaseUrl(req)}/api/youtube/callback`;
-  const clientId = process.env.YOUTUBE_CLIENT_ID;
+  const clientId = process.env.YOUTUBE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
 
   if (!clientId) {
     return NextResponse.json({ error: "YOUTUBE_CLIENT_ID is not configured on server" }, { status: 500 });
@@ -62,6 +69,10 @@ export async function GET(req: NextRequest) {
   });
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+  if (searchParams.get("redirect") === "true") {
+    return NextResponse.redirect(authUrl);
+  }
 
   return NextResponse.json({ authUrl });
 }

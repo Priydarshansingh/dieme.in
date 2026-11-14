@@ -3,7 +3,10 @@ package com.digicast.app.ui.screens.settings
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -50,6 +53,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PowerSettingsNew
@@ -177,6 +181,7 @@ fun SettingsScreen(
     var isLoadingTeam by remember { mutableStateOf(false) }
     var visiblePasswords by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var isAddingMember by remember { mutableStateOf(false) }
+    var isTeamExpanded by remember { mutableStateOf(false) }
     var memberToDelete by remember { mutableStateOf<TeamMember?>(null) }
     var memberToChangeRole by remember { mutableStateOf<TeamMember?>(null) }
     var isUpdatingRole by remember { mutableStateOf(false) }
@@ -321,7 +326,7 @@ fun SettingsScreen(
                             !session.plan.equals("free", true) &&
                             !session.plan.equals("free_trial", true)
 
-                    // 1. Workspace Profile & Subscription Bento Card
+                    // 1. Workspace Profile, Membership & Currency Bento Card (Consolidated)
                     item(key = "workspace_profile_bento") {
                         WorkspaceProfileBentoCard(
                             session = session,
@@ -334,14 +339,230 @@ fun SettingsScreen(
                         )
                     }
 
-                    // 1a. Gamer Avatar Studio Bento Card (Swipeable with Premium Locks)
-                    item(key = "gamer_avatar_studio_card") {
+                    // 2. Team Management & Mobile Credentials Card (Moved UP above Avatar, Collapsible)
+                    val isAdmin = session.role.equals("admin", ignoreCase = true)
+                    val isMod = session.role.equals("moderator", ignoreCase = true)
+                    val canViewTeam = isOwner || isAdmin || isMod
+                    val canAddMember = isOwner || isAdmin
+
+                    if (canViewTeam) {
+                        val roleHierarchyOrder = mapOf("owner" to 0, "admin" to 1, "moderator" to 2, "editor" to 3)
+                        val sortedTeamMembers = teamMembers.sortedBy { roleHierarchyOrder[it.role.lowercase()] ?: 99 }
+
+                        item(key = "team_management_collapsible") {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable { isTeamExpanded = !isTeamExpanded },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+                                border = BorderStroke(1.dp, DigicastBorder)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    // Collapsible Header Row (Tap to reveal)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.weight(1f),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(38.dp)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(DigicastAccentBlue.copy(alpha = 0.2f))
+                                                    .border(1.dp, DigicastAccentBlue.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Group,
+                                                    contentDescription = null,
+                                                    tint = DigicastAccentBlue,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Team Members",
+                                                    color = DigicastWhite,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 15.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = if (isTeamExpanded) "${sortedTeamMembers.size} members in workspace" else "Tap to reveal members (${sortedTeamMembers.size})",
+                                                    color = DigicastSlate,
+                                                    fontSize = 11.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(DigicastSurfaceElevated)
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = if (isTeamExpanded) "Hide" else "Reveal",
+                                                color = DigicastAccentBlue,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+
+                                    // Expandable Members Body
+                                    AnimatedVisibility(
+                                        visible = isTeamExpanded,
+                                        enter = expandVertically(tween(250, easing = FastOutSlowInEasing)) + fadeIn(),
+                                        exit = shrinkVertically(tween(200, easing = FastOutSlowInEasing)) + fadeOut()
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                            if (canAddMember) {
+                                                Button(
+                                                    onClick = { isAddingMember = !isAddingMember },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = if (isAddingMember) DigicastSurfaceElevated else DigicastWhite,
+                                                        contentColor = if (isAddingMember) DigicastSlate else DigicastDeepNavy
+                                                    ),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (isAddingMember) Icons.Default.Close else Icons.Default.PersonAdd,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(15.dp),
+                                                        tint = if (isAddingMember) DigicastSlate else DigicastDeepNavy
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = if (isAddingMember) "Close Form" else "+ Add Team Member",
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 12.sp,
+                                                        color = if (isAddingMember) DigicastSlate else DigicastDeepNavy
+                                                    )
+                                                }
+                                            }
+
+                                            if (isAddingMember && canAddMember) {
+                                                AddMemberCard(
+                                                    name = newMemberName,
+                                                    email = newMemberEmail,
+                                                    password = newMemberPassword,
+                                                    role = newMemberRole,
+                                                    showPassword = showNewMemberPassword,
+                                                    canAssignAdmin = isOwner,
+                                                    isSubmitting = isSubmittingMember,
+                                                    onNameChange = { newMemberName = it },
+                                                    onEmailChange = { newMemberEmail = it },
+                                                    onPasswordChange = { newMemberPassword = it },
+                                                    onRoleChange = { newMemberRole = it },
+                                                    onToggleShowPassword = { showNewMemberPassword = !showNewMemberPassword },
+                                                    onSubmit = {
+                                                        if (newMemberEmail.isBlank() || newMemberPassword.isBlank()) {
+                                                            Toast.makeText(context, "Email and Password are required", Toast.LENGTH_SHORT).show()
+                                                            return@AddMemberCard
+                                                        }
+                                                        if (newMemberPassword.length < 6) {
+                                                            Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
+                                                            return@AddMemberCard
+                                                        }
+
+                                                        coroutineScope.launch {
+                                                            isSubmittingMember = true
+                                                            val res = authRepository.createTeamMember(
+                                                                email = newMemberEmail,
+                                                                password = newMemberPassword,
+                                                                displayName = newMemberName,
+                                                                role = newMemberRole
+                                                            )
+                                                            isSubmittingMember = false
+                                                            if (res.isSuccess) {
+                                                                Toast.makeText(context, "${newMemberRole.uppercase()} created successfully!", Toast.LENGTH_SHORT).show()
+                                                                newMemberName = ""
+                                                                newMemberEmail = ""
+                                                                newMemberPassword = ""
+                                                                isAddingMember = false
+                                                                refreshTeam()
+                                                            } else {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    res.exceptionOrNull()?.message ?: "Failed to create member",
+                                                                    Toast.LENGTH_LONG
+                                                                ).show()
+                                                            }
+                                                        }
+                                                    }
+                                                )
+                                            }
+
+                                            if (sortedTeamMembers.isEmpty() && !isLoadingTeam) {
+                                                Text(
+                                                    text = "No additional team members in workspace yet",
+                                                    color = DigicastSlate,
+                                                    fontSize = 12.sp,
+                                                    modifier = Modifier.padding(vertical = 8.dp)
+                                                )
+                                            } else {
+                                                sortedTeamMembers.forEach { member ->
+                                                    TeamMemberItemCard(
+                                                        member = member,
+                                                        currentSession = session,
+                                                        isPasswordVisible = visiblePasswords[member.uid] == true,
+                                                        onTogglePasswordVisibility = {
+                                                            visiblePasswords = visiblePasswords.toMutableMap().apply {
+                                                                put(member.uid, !(this[member.uid] ?: false))
+                                                            }
+                                                        },
+                                                        onCopyPassword = {
+                                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                            val clip = ClipData.newPlainText("Password", member.appPassword ?: "")
+                                                            clipboard.setPrimaryClip(clip)
+                                                            Toast.makeText(context, "Password copied to clipboard!", Toast.LENGTH_SHORT).show()
+                                                        },
+                                                        onDeleteClick = {
+                                                            memberToDelete = member
+                                                        },
+                                                        onChangeRoleClick = {
+                                                            memberToChangeRole = member
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Avatar Section (1-Tap Direct Equip, No Extra Screen)
+                    item(key = "avatar_studio_card") {
                         DuolingoAvatarStudioBentoCard(
                             session = session,
                             isPremium = isPaidSubscriber,
-                            onOpenPicker = {
-                                loadAvatars()
-                                showAvatarPicker = true
+                            onEquipAvatar = { url, name ->
+                                coroutineScope.launch {
+                                    val res = authRepository.updateUserAvatar(url)
+                                    if (res.isSuccess) {
+                                        Toast.makeText(context, "✨ Equipped $name!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Failed to update avatar", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             },
                             onOpenUpgrade = {
                                 showUpgradeDialog = true
@@ -349,163 +570,34 @@ fun SettingsScreen(
                         )
                     }
 
-                    // 1b. Creator Wallet & Ad Pass
-                    item(key = "wallet_and_ads_card") {
-                        WalletAndAdsCard(
-                            session = session,
-                            authRepository = authRepository
-                        )
-                    }
-
-                    // 2. Connected YouTube Channel (if connected)
-                    if (youtubeAccount != null) {
-                        item(key = "youtube_account_card") {
-                            ConnectedYouTubeCard(youtube = youtubeAccount!!)
-                        }
-                    }
-
-                    // 3. Team Management & Mobile Credentials Card (Hierarchy sorted: Owner > Admin > Mod > Editor)
-                    val isAdmin = session.role.equals("admin", ignoreCase = true)
-                    val isMod = session.role.equals("moderator", ignoreCase = true)
-                    val canViewTeam = isOwner || isAdmin || isMod
-                    val canAddMember = isOwner || isAdmin
-
-                    if (canViewTeam) {
-                        item(key = "team_management_header") {
-                            TeamSectionHeader(
-                                memberCount = teamMembers.size,
-                                isAddingMember = isAddingMember,
-                                canAddMember = canAddMember,
-                                onToggleAdd = { isAddingMember = !isAddingMember }
+                    // 4. Connected YouTube Channel / Link Action
+                    item(key = "youtube_account_card") {
+                        if (youtubeAccount != null) {
+                            ConnectedYouTubeCard(
+                                youtube = youtubeAccount!!,
+                                onReconnect = {
+                                    val connectUrl = "https://www.dieme.in/api/youtube/auth?workspaceId=${session.workspaceId}&token=${session.token}&source=mobile_connect_youtube&redirect=true"
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(connectUrl))
+                                    context.startActivity(intent)
+                                }
+                            )
+                        } else {
+                            UnconnectedYouTubeCard(
+                                onConnect = {
+                                    val connectUrl = "https://www.dieme.in/api/youtube/auth?workspaceId=${session.workspaceId}&token=${session.token}&source=mobile_connect_youtube&redirect=true"
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(connectUrl))
+                                    context.startActivity(intent)
+                                }
                             )
                         }
+                    }
 
-                        // Add Member Expandable Form (Only Owner & Admin can add members)
-                        if (canAddMember) {
-                            item(key = "add_member_form") {
-                                AnimatedVisibility(
-                                    visible = isAddingMember,
-                                    enter = expandVertically(tween(250, easing = FastOutSlowInEasing)) + fadeIn(),
-                                    exit = shrinkVertically(tween(200, easing = FastOutSlowInEasing)) + fadeOut()
-                                ) {
-                                    AddMemberCard(
-                                        name = newMemberName,
-                                        email = newMemberEmail,
-                                        password = newMemberPassword,
-                                        role = newMemberRole,
-                                        showPassword = showNewMemberPassword,
-                                        canAssignAdmin = isOwner,
-                                        isSubmitting = isSubmittingMember,
-                                        onNameChange = { newMemberName = it },
-                                        onEmailChange = { newMemberEmail = it },
-                                        onPasswordChange = { newMemberPassword = it },
-                                        onRoleChange = { newMemberRole = it },
-                                        onToggleShowPassword = { showNewMemberPassword = !showNewMemberPassword },
-                                        onSubmit = {
-                                            if (newMemberEmail.isBlank() || newMemberPassword.isBlank()) {
-                                                Toast.makeText(context, "Email and Password are required", Toast.LENGTH_SHORT).show()
-                                                return@AddMemberCard
-                                            }
-                                            if (newMemberPassword.length < 6) {
-                                                Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
-                                                return@AddMemberCard
-                                            }
-
-                                            coroutineScope.launch {
-                                                isSubmittingMember = true
-                                                val res = authRepository.createTeamMember(
-                                                    email = newMemberEmail,
-                                                    password = newMemberPassword,
-                                                    displayName = newMemberName,
-                                                    role = newMemberRole
-                                                )
-                                                isSubmittingMember = false
-                                                if (res.isSuccess) {
-                                                    Toast.makeText(context, "${newMemberRole.uppercase()} created successfully!", Toast.LENGTH_SHORT).show()
-                                                    newMemberName = ""
-                                                    newMemberEmail = ""
-                                                    newMemberPassword = ""
-                                                    isAddingMember = false
-                                                    refreshTeam()
-                                                } else {
-                                                    Toast.makeText(
-                                                        context,
-                                                        res.exceptionOrNull()?.message ?: "Failed to create user",
-                                                        Toast.LENGTH_LONG
-                                                    ).show()
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        // Hierarchy Sorted Team Members: Owner -> Admin -> Moderator -> Editor
-                        val roleHierarchyOrder = mapOf("owner" to 0, "admin" to 1, "moderator" to 2, "editor" to 3)
-                        val sortedTeamMembers = teamMembers.sortedBy { roleHierarchyOrder[it.role.lowercase()] ?: 99 }
-
-                        // Team Member Cards List
-                        if (sortedTeamMembers.isEmpty() && !isLoadingTeam) {
-                            item(key = "no_members_placeholder") {
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = DigicastSurface,
-                                    border = BorderStroke(1.dp, DigicastBorder)
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(20.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Group,
-                                            contentDescription = null,
-                                            tint = DigicastSlate,
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                        Text(
-                                            text = "No additional team members created yet",
-                                            color = DigicastWhite,
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 13.sp
-                                        )
-                                        Text(
-                                            text = "Tap '+ Add Member' above to create mobile login credentials for your video editors.",
-                                            color = DigicastSlate,
-                                            fontSize = 11.sp,
-                                            lineHeight = 16.sp
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
-                            items(sortedTeamMembers, key = { it.uid }) { member ->
-                                TeamMemberItemCard(
-                                    member = member,
-                                    currentSession = session,
-                                    isPasswordVisible = visiblePasswords[member.uid] == true,
-                                    onTogglePasswordVisibility = {
-                                        visiblePasswords = visiblePasswords.toMutableMap().apply {
-                                            put(member.uid, !(this[member.uid] ?: false))
-                                        }
-                                    },
-                                    onCopyPassword = {
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        val clip = ClipData.newPlainText("Password", member.appPassword ?: "")
-                                        clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(context, "Password copied to clipboard!", Toast.LENGTH_SHORT).show()
-                                    },
-                                    onDeleteClick = {
-                                        memberToDelete = member
-                                    },
-                                    onChangeRoleClick = {
-                                        memberToChangeRole = member
-                                    }
-                                )
-                            }
-                        }
+                    // 4b. Nightbot Webhook Command Card (Tenant isolated per workspace)
+                    item(key = "nightbot_command_card") {
+                        NightbotCommandCard(
+                            workspaceId = session.workspaceId,
+                            context = context
+                        )
                     }
 
                     // 4. Extensions & Plugins Card (.dcast)
@@ -860,7 +952,7 @@ private fun WorkspaceProfileBentoCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Profile Avatar Box with Duolingo-style glowing border and edit badge
+                // Profile Avatar Box (Cleaned - no green dot)
                 Box(
                     modifier = Modifier
                         .size(56.dp)
@@ -887,28 +979,11 @@ private fun WorkspaceProfileBentoCard(
                             fontSize = 22.sp
                         )
                     }
-
-                    // Edit badge overlay
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(18.dp)
-                            .clip(CircleShape)
-                            .background(DigicastElectricCyan)
-                            .border(1.5.dp, DigicastCardSurface, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Change Avatar",
-                            tint = DigicastDeepNavy,
-                            modifier = Modifier.size(10.dp)
-                        )
-                    }
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -918,7 +993,8 @@ private fun WorkspaceProfileBentoCard(
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                         Box(
                             modifier = Modifier
@@ -933,7 +1009,8 @@ private fun WorkspaceProfileBentoCard(
                                 color = if (isOwner) DigicastAmber else DigicastAccentBlue,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.5.sp
+                                letterSpacing = 0.5.sp,
+                                softWrap = false
                             )
                         }
                     }
@@ -944,115 +1021,12 @@ private fun WorkspaceProfileBentoCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Row(
-                        modifier = Modifier.padding(top = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Surface(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onChangeAvatar() },
-                            color = DigicastSurfaceElevated,
-                            border = BorderStroke(1.dp, DigicastElectricCyan.copy(alpha = 0.6f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Palette,
-                                    contentDescription = null,
-                                    tint = DigicastElectricCyan,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Text(
-                                    text = "Equip Avatar",
-                                    color = DigicastWhite,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Workspace ID 1-Tap Copy Card (Never Truncates Awkwardly)
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("Workspace ID", session.workspaceId)
-                        clipboard.setPrimaryClip(clip)
-                        Toast.makeText(context, "Workspace ID copied to clipboard!", Toast.LENGTH_SHORT).show()
-                    },
-                shape = RoundedCornerShape(10.dp),
-                color = DigicastDeepNavy,
-                border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.6f))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 10.dp)
-                    ) {
-                        Text(
-                            text = "WORKSPACE",
-                            color = DigicastSlate,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        )
-                        Text(
-                            text = if (session.workspaceName.isNotBlank()) session.workspaceName else session.workspaceId,
-                            color = DigicastWhite,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 2,
-                            lineHeight = 16.sp
-                        )
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = DigicastSurfaceElevated,
-                        border = BorderStroke(1.dp, DigicastBorder)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = "Copy Workspace ID",
-                                tint = DigicastWhite,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Text(
-                                text = "Copy ID",
-                                color = DigicastWhite,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
                 }
             }
 
             HorizontalDivider(color = DigicastBorder.copy(alpha = 0.6f))
 
-            // Subscription & Remaining Days Status Box with 2 White Buttons
+            // Unified Membership & Currency Status Section (Consolidated in 1 Card)
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -1063,6 +1037,7 @@ private fun WorkspaceProfileBentoCard(
                     modifier = Modifier.padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // 1. Membership Status Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1079,7 +1054,7 @@ private fun WorkspaceProfileBentoCard(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "MEMBERSHIP STATUS",
+                                text = "MEMBERSHIP PLAN",
                                 color = DigicastSlate,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
@@ -1107,7 +1082,8 @@ private fun WorkspaceProfileBentoCard(
                                     text = if (isExpired) "EXPIRED" else if (isGraceActive) "24H GRACE PASS" else "ACTIVE",
                                     color = planBadgeColor,
                                     fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold
+                                    fontWeight = FontWeight.ExtraBold,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -1118,17 +1094,70 @@ private fun WorkspaceProfileBentoCard(
                             text = planTitle,
                             color = DigicastWhite,
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = if (isGraceActive) "Instant platform access granted while admin verifies UTR proof"
                             else "${session.daysRemaining} days remaining on this plan",
                             color = DigicastSlate,
-                            fontSize = 11.sp
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    // Two Properly Arranged White Buttons
+                    HorizontalDivider(color = DigicastBorder.copy(alpha = 0.4f))
+
+                    // 2. Creator Currency / Wallet Balance Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Paid,
+                                contentDescription = null,
+                                tint = DigicastNeonLime,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "CREATOR CURRENCY",
+                                    color = DigicastSlate,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Text(
+                                    text = "10 D = 1 DP = ₹1 INR",
+                                    color = DigicastSlate.copy(alpha = 0.7f),
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .background(DigicastNeonLime.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "120 D-Coins Balance",
+                                color = DigicastNeonLime,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                softWrap = false
+                            )
+                        }
+                    }
+
+                    // Two Properly Arranged Buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1156,7 +1185,8 @@ private fun WorkspaceProfileBentoCard(
                                 text = if (isExpired) "Renew Plan" else "Upgrade Pass",
                                 color = DigicastDeepNavy,
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 12.sp
+                                fontSize = 12.sp,
+                                softWrap = false
                             )
                         }
 
@@ -1176,7 +1206,8 @@ private fun WorkspaceProfileBentoCard(
                                 text = "All Plans",
                                 color = DigicastWhite,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
+                                fontSize = 12.sp,
+                                softWrap = false
                             )
                         }
                     }
@@ -1187,7 +1218,10 @@ private fun WorkspaceProfileBentoCard(
 }
 
 @Composable
-private fun ConnectedYouTubeCard(youtube: com.digicast.app.data.repository.YouTubeAccountInfo) {
+private fun ConnectedYouTubeCard(
+    youtube: com.digicast.app.data.repository.YouTubeAccountInfo,
+    onReconnect: () -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -1251,6 +1285,154 @@ private fun ConnectedYouTubeCard(youtube: com.digicast.app.data.repository.YouTu
                     text = "Live streams & chat automatically sync to this mobile studio",
                     color = DigicastSlate,
                     fontSize = 11.sp
+                )
+            }
+
+            TextButton(
+                onClick = onReconnect,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text("Switch", fontSize = 11.sp, color = DigicastElectricCyan, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnconnectedYouTubeCard(onConnect: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+        border = BorderStroke(1.dp, DigicastBorder)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(DigicastLiveRed.copy(alpha = 0.15f))
+                    .border(1.dp, DigicastLiveRed.copy(alpha = 0.35f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SmartDisplay,
+                    contentDescription = null,
+                    tint = DigicastLiveRed,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Connect YouTube Channel",
+                    color = DigicastWhite,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = "Link your Google account to sync live streams, chat & stats",
+                    color = DigicastSlate,
+                    fontSize = 11.sp
+                )
+            }
+
+            Button(
+                onClick = onConnect,
+                colors = ButtonDefaults.buttonColors(containerColor = DigicastLiveRed),
+                shape = RoundedCornerShape(9999.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Text("Connect", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NightbotCommandCard(workspaceId: String, context: Context) {
+    val commandText = "!addcom !clip $(urlfetch https://www.dieme.in/api/webhooks/nightbot?workspaceId=$workspaceId&user=$(user)&query=$(querystring))"
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+        border = BorderStroke(1.dp, DigicastBorder)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF134E5E)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("NB", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Text(
+                        text = "Nightbot Stream Command",
+                        color = DigicastWhite,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("Nightbot Command", commandText)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, "Command copied to clipboard!", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
+                    shape = RoundedCornerShape(9999.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text("Copy", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Text(
+                text = "Paste this into your channel chat to let viewers & mods clip moments:",
+                color = DigicastSlate,
+                fontSize = 11.sp
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF041215))
+                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp))
+                    .padding(10.dp)
+            ) {
+                Text(
+                    text = commandText,
+                    color = DigicastElectricCyan,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 14.sp
                 )
             }
         }
@@ -1615,6 +1797,7 @@ private fun TeamMemberItemCard(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
@@ -1624,7 +1807,8 @@ private fun TeamMemberItemCard(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             if (canChangeRole) {
                                 Row(
@@ -1642,7 +1826,8 @@ private fun TeamMemberItemCard(
                                         color = roleColor,
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 9.sp,
-                                        letterSpacing = 0.5.sp
+                                        letterSpacing = 0.5.sp,
+                                        softWrap = false
                                     )
                                     Icon(
                                         imageVector = Icons.Default.Edit,
@@ -1662,18 +1847,21 @@ private fun TeamMemberItemCard(
                                         color = roleColor,
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 9.sp,
-                                        letterSpacing = 0.5.sp
+                                        letterSpacing = 0.5.sp,
+                                        softWrap = false
                                     )
                                 }
                             }
                         }
-                        Text(
-                            text = member.email,
-                            color = DigicastSlate,
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        if (!isOwnerMember && !isAdminMember) {
+                            Text(
+                                text = member.email,
+                                color = DigicastSlate,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 
@@ -1705,110 +1893,86 @@ private fun TeamMemberItemCard(
             }
 
             // Credential Row: Strict Role-Based Visibility
-            // Owner: Can view Editor, Mod & Admin credentials
-            // Admin: Can make & check Mod and Editor account credentials
-            // Moderator: Can ONLY check Editor credentials
-            val callerRole = currentSession.role.lowercase()
-            val memberRole = member.role.lowercase()
-            val isSelf = member.uid == currentSession.uid
-            val canViewThisPassword = when {
-                isSelf -> true
-                callerRole == "owner" -> memberRole in listOf("editor", "moderator", "admin")
-                callerRole == "admin" -> memberRole in listOf("editor", "moderator")
-                callerRole == "moderator" -> memberRole == "editor"
-                else -> false
-            }
+            // For Owner & Admin: Never show password/credentials in the app (only Name & Role)
+            // For other workers (Moderator, Editor): Show credentials to authorized supervisors
+            if (!isOwnerMember && !isAdminMember) {
+                val callerRole = currentSession.role.lowercase()
+                val memberRole = member.role.lowercase()
+                val isSelf = member.uid == currentSession.uid
+                val canViewThisPassword = when {
+                    isSelf -> true
+                    callerRole == "owner" -> memberRole in listOf("editor", "moderator")
+                    callerRole == "admin" -> memberRole in listOf("editor", "moderator")
+                    callerRole == "moderator" -> memberRole == "editor"
+                    else -> false
+                }
 
-            if (canViewThisPassword) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    color = DigicastDeepNavy,
-                    border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                if (canViewThisPassword) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        color = DigicastDeepNavy,
+                        border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f))
                     ) {
                         Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = DigicastSlate,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Text(
-                                text = "Password:",
-                                color = DigicastSlate,
-                                fontSize = 11.sp
-                            )
-                            Text(
-                                text = if (isPasswordVisible) (member.appPassword ?: "••••••••") else "••••••••",
-                                color = if (isPasswordVisible) DigicastWhite else DigicastSlate,
-                                fontWeight = if (isPasswordVisible) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 11.sp
-                            )
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            IconButton(
-                                onClick = onTogglePasswordVisibility,
-                                modifier = Modifier.size(24.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
-                                    imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Toggle password visibility",
-                                    tint = if (isPasswordVisible) DigicastAccentBlue else DigicastSlate,
-                                    modifier = Modifier.size(14.dp)
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = DigicastSlate,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Password:",
+                                    color = DigicastSlate,
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    text = if (isPasswordVisible) (member.appPassword ?: "••••••••") else "••••••••",
+                                    color = if (isPasswordVisible) DigicastWhite else DigicastSlate,
+                                    fontWeight = if (isPasswordVisible) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 11.sp
                                 )
                             }
 
-                            if (!member.appPassword.isNullOrBlank()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 IconButton(
-                                    onClick = onCopyPassword,
+                                    onClick = onTogglePasswordVisibility,
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = "Copy password",
-                                        tint = DigicastSlate,
-                                        modifier = Modifier.size(13.dp)
+                                        imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = "Toggle password visibility",
+                                        tint = if (isPasswordVisible) DigicastAccentBlue else DigicastSlate,
+                                        modifier = Modifier.size(14.dp)
                                     )
+                                }
+
+                                if (!member.appPassword.isNullOrBlank()) {
+                                    IconButton(
+                                        onClick = onCopyPassword,
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentCopy,
+                                            contentDescription = "Copy password",
+                                            tint = DigicastSlate,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                }
-            } else {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    color = DigicastSurface.copy(alpha = 0.4f),
-                    border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.2f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = null,
-                            tint = DigicastSlate.copy(alpha = 0.5f),
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Text(
-                            text = "Password: Protected (${if (memberRole == "owner") "Workspace Owner" else "Admin Level"})",
-                            color = DigicastSlate.copy(alpha = 0.6f),
-                            fontSize = 11.sp
-                        )
                     }
                 }
             }

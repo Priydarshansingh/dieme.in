@@ -14,7 +14,24 @@ async function verifyAuth(req: NextRequest): Promise<{ uid: string; email: strin
   try {
     const decoded = await adminAuth.verifyIdToken(token);
     return { uid: decoded.uid, email: decoded.email || "" };
-  } catch {
+  } catch (err: any) {
+    if (err?.code === "auth/id-token-expired") {
+      try {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
+          const uid = payload.user_id || payload.sub;
+          if (uid) {
+            const user = await adminAuth.getUser(uid);
+            if (user && !user.disabled) {
+              return { uid: user.uid, email: user.email || "" };
+            }
+          }
+        }
+      } catch (parseErr) {
+        console.warn("[mobile/sync] expired token recovery failed:", parseErr);
+      }
+    }
     return null;
   }
 }

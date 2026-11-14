@@ -206,6 +206,13 @@ export async function activateSubscriptionForPayment(
   const paymentDoc = await paymentRef.get();
   const existingPaymentData = paymentDoc.exists ? paymentDoc.data() : {};
 
+  // SM-3: Terminal Status Guard (Prevent overwriting rejected/refunded payments)
+  if (existingPaymentData?.status === "rejected" || existingPaymentData?.status === "refunded") {
+    throw new Error(
+      `Cannot activate subscription: payment ${paymentId} already in terminal status '${existingPaymentData.status}'`
+    );
+  }
+
   const updatedPayment = {
     ...existingPaymentData,
     id: paymentId,

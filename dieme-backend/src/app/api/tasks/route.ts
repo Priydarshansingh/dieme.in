@@ -3,6 +3,7 @@ import { TaskItem, TaskSubmission } from '@/types';
 import { recordLedgerTransaction } from '@/lib/ledger';
 import { verifyGodSessionToken } from '@/lib/godpanelAuth';
 import { verifyAdminKey } from '@/lib/security';
+import { adminDb } from '@/lib/firebase/admin';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -55,7 +56,7 @@ const initialTasks: TaskItem[] = [
   },
 ];
 
-// In-memory submissions store
+// In-memory submissions store (acts as local cache and fallback)
 const submissionsStore: TaskSubmission[] = [
   {
     id: 'sub_sample_1',
@@ -76,8 +77,25 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const uid = searchParams.get('uid');
 
+  let allSubmissions = [...submissionsStore];
+  if (adminDb) {
+    try {
+      const snap = await adminDb.collection('task_submissions').get();
+      if (!snap.empty) {
+        const subMap = new Map<string, TaskSubmission>();
+        for (const s of submissionsStore) subMap.set(s.id, s);
+        snap.forEach((doc) => {
+          subMap.set(doc.id, doc.data() as TaskSubmission);
+        });
+        allSubmissions = Array.from(subMap.values());
+      }
+    } catch (dbErr) {
+      console.warn('[tasks/GET] Failed to fetch submissions from Firestore, using memory fallback:', dbErr);
+    }
+  }
+
   if (uid) {
-    const userSubmissions = submissionsStore.filter((s) => s.uid === uid);
+    const userSubmissions = allSubmissions.filter((s) => s.uid === uid);
     return NextResponse.json({
       tasks: initialTasks,
       userSubmissions,
@@ -87,6 +105,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     tasks: initialTasks,
     totalAvailableTasks: initialTasks.length,
+    submissions: allSubmissions,
   });
 }
 
@@ -120,6 +139,14 @@ export async function POST(req: NextRequest) {
 
     submissionsStore.push(submission);
 
+    if (adminDb) {
+      try {
+        await adminDb.collection('task_submissions').doc(submission.id).set(submission);
+      } catch (dbErr) {
+        console.warn('[tasks/POST] Failed to persist submission to Firestore:', dbErr);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       submission,
@@ -144,26 +171,97 @@ export async function PATCH(req: NextRequest) {
 
     const { submissionId, decision, rejectionReason, reviewedBy } = await req.json();
 
-    const submission = submissionsStore.find((s) => s.id === submissionId);
+    let submission = submissionsStore.find((s) => s.id === submissionId);
+    let firestoreDocRef: any = null;
+
+    if (adminDb) {
+      try {
+        const docRef = adminDb.collection('task_submissions').doc(submissionId);
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+          firestoreDocRef = docRef;
+          submission = { ...(submission || {}), ...(docSnap.data() as TaskSubmission) };
+        }
+      } catch (dbErr) {
+        console.warn('[tasks/PATCH] Could not query Firestore for submission:', dbErr);
+      }
+    }
+
     if (!submission) {
       return NextResponse.json({ error: 'SUBMISSION_NOT_FOUND' }, { status: 404 });
     }
 
     if (decision === 'APPROVE') {
+      // Guard against duplicate approvals
+      if (submission.status === 'APPROVED') {
+        return NextResponse.json({
+          success: true,
+          submission,
+          message: 'Task submission is already approved.',
+        });
+      }
+
+      // SM-7: Atomic ledger credit with idempotency guarantee
+      const idempotencyKey = `task_${submission.id}_approve`;
+      let ledgerResult: ReturnType<typeof recordLedgerTransaction>;
+
+      try {
+        ledgerResult = recordLedgerTransaction({
+          uid: submission.uid,
+          type: 'CREDIT',
+          currency: submission.rewardCurrency,
+          amount: submission.rewardAmount,
+          source: 'TASK_REWARD',
+          description: `Earned reward for completing task: ${submission.taskTitle}`,
+          referenceId: submission.id,
+          idempotencyKey,
+        });
+      } catch (ledgerErr: any) {
+        console.error('[tasks/PATCH] Atomic ledger credit failed:', ledgerErr);
+        return NextResponse.json(
+          {
+            error: 'LEDGER_CREDIT_FAILED',
+            message: `Failed to credit wallet: ${ledgerErr.message}. Submission remains in review.`,
+          },
+          { status: 500 }
+        );
+      }
+
+      // State is safely transitioned only after credit succeeds
       submission.status = 'APPROVED';
       submission.reviewedAt = Date.now();
       submission.reviewedBy = reviewedBy || 'admin';
 
-      // Automatically credit user's wallet
-      const ledgerResult = recordLedgerTransaction({
-        uid: submission.uid,
-        type: 'CREDIT',
-        currency: submission.rewardCurrency,
-        amount: submission.rewardAmount,
-        source: 'TASK_REWARD',
-        description: `Earned reward for completing task: ${submission.taskTitle}`,
-        referenceId: submission.id,
-      });
+      // Keep in-memory cache in sync
+      const memIndex = submissionsStore.findIndex((s) => s.id === submissionId);
+      if (memIndex >= 0) {
+        submissionsStore[memIndex] = submission;
+      } else {
+        submissionsStore.push(submission);
+      }
+
+      // Atomically persist to Firestore if available
+      if (adminDb) {
+        try {
+          const batch = adminDb.batch();
+          const subRef = firestoreDocRef || adminDb.collection('task_submissions').doc(submission.id);
+          batch.set(subRef, submission, { merge: true });
+
+          const ledgerRef = adminDb.collection('ledger').doc(ledgerResult.entry.id);
+          batch.set(
+            ledgerRef,
+            {
+              ...ledgerResult.entry,
+              createdAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+
+          await batch.commit();
+        } catch (batchErr) {
+          console.error('[tasks/PATCH] Firestore batch commit error (in-memory ledger succeeded):', batchErr);
+        }
+      }
 
       return NextResponse.json({
         success: true,
@@ -176,6 +274,22 @@ export async function PATCH(req: NextRequest) {
       submission.reviewedAt = Date.now();
       submission.reviewedBy = reviewedBy || 'admin';
       submission.rejectionReason = rejectionReason || 'Proof does not satisfy instructions';
+
+      const memIndex = submissionsStore.findIndex((s) => s.id === submissionId);
+      if (memIndex >= 0) {
+        submissionsStore[memIndex] = submission;
+      } else {
+        submissionsStore.push(submission);
+      }
+
+      if (adminDb) {
+        try {
+          const subRef = firestoreDocRef || adminDb.collection('task_submissions').doc(submission.id);
+          await subRef.set(submission, { merge: true });
+        } catch (dbErr) {
+          console.error('[tasks/PATCH] Firestore reject update error:', dbErr);
+        }
+      }
 
       return NextResponse.json({
         success: true,

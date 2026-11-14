@@ -102,6 +102,24 @@ export async function POST(req: NextRequest) {
 
     const paymentIdToSave = targetPaymentId || `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+    // SM-3: Terminal Status Guard (Prevent race condition overwriting rejected/refunded payments)
+    if (targetPaymentId) {
+      const existingPayDoc = await adminDb.collection("payments").doc(targetPaymentId).get();
+      if (existingPayDoc.exists) {
+        const currentData = existingPayDoc.data();
+        if (currentData?.status === "rejected" || currentData?.status === "refunded") {
+          console.warn(
+            `[payments/webhook] ⚠️ Skipping overwrite of terminal status '${currentData.status}' for payment ${targetPaymentId}`
+          );
+          return NextResponse.json({
+            success: true,
+            skipped: true,
+            message: `Payment ${targetPaymentId} is in terminal status '${currentData.status}'. Activation skipped.`,
+          });
+        }
+      }
+    }
+
     // Authoritatively activate workspace subscription immediately
     const activationResult = await activateSubscriptionForPayment(adminDb, {
       workspaceId,

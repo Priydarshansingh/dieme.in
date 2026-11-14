@@ -80,6 +80,37 @@ export default function PrivacyPage() {
                 </li>
               </ul>
             </div>
+
+            {/* Explicit Scope Disclosures for Google OAuth Verification */}
+            <div className="space-y-3 pt-2">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono text-emerald-400">
+                Specific YouTube API Scopes Requested &amp; Data Usage
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5">
+                  <div className="font-mono font-bold text-cyan-300 break-all">
+                    https://www.googleapis.com/auth/youtube.readonly
+                  </div>
+                  <p className="text-slate-300">
+                    <b>Purpose:</b> Read-only access to verify channel ownership, fetch active live broadcasts, view stream metrics (viewer count, likes), and synchronize broadcast start times.
+                  </p>
+                  <p className="text-slate-400">
+                    <b>Data Processed:</b> Channel ID, Channel Title, Thumbnail URL, Active Live Broadcast IDs, and View Counts.
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5">
+                  <div className="font-mono font-bold text-cyan-300 break-all">
+                    https://www.googleapis.com/auth/youtube.force-ssl
+                  </div>
+                  <p className="text-slate-300">
+                    <b>Purpose:</b> Secure read and interactive management of live chat streams during live broadcasts to detect <code>!clip</code> trigger commands and post automated clip confirmation messages.
+                  </p>
+                  <p className="text-slate-400">
+                    <b>Data Processed:</b> Live stream chat message timestamps, author display names, and trigger commands.
+                  </p>
+                </div>
+              </div>
+            </div>
           </section>
 
           {/* Section 3: Google API Limited Use Requirements */}
@@ -207,6 +238,7 @@ export default function PrivacyPage() {
             <div className="bg-black/40 p-4 rounded-xl border border-white/10 font-mono text-xs space-y-1 text-slate-300">
               <p><b className="text-slate-400">Entity:</b> Dieme Creator Studio</p>
               <p><b className="text-slate-400">Authorized Domains:</b> dieme.in &bull; www.dieme.in</p>
+              <p><b className="text-slate-400">Developer Contact (Google OAuth):</b> <a href="mailto:johnykand8@gmail.com" className="text-emerald-400 hover:underline">johnykand8@gmail.com</a></p>
               <p><b className="text-slate-400">Grievance / Compliance Officer:</b> <a href="mailto:support@dieme.in" className="text-emerald-400 hover:underline">support@dieme.in</a></p>
               <p><b className="text-slate-400">Website:</b> <a href="https://www.dieme.in" className="text-cyan-400 hover:underline">https://www.dieme.in</a></p>
             </div>

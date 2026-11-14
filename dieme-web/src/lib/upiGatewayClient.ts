@@ -44,6 +44,7 @@ export async function createGatewayPaymentSession(params: {
   amountINR: number;
   workspaceId: string;
   planId: string;
+  planName?: string;
   userEmail?: string;
   customerName?: string;
   redirectUrl?: string;
@@ -67,6 +68,9 @@ export async function createGatewayPaymentSession(params: {
         method: "UPI",
         autoActivate: true,
         merchantName: "Dieme",
+        planName: params.planName,
+        description: params.planName,
+        note: params.planName,
         redirectUrl: params.redirectUrl || "https://www.dieme.in/pricing?payment=success",
         returnUrl: params.redirectUrl || "https://www.dieme.in/pricing?payment=success",
         callbackUrl: "https://www.dieme.in/api/payments/webhook",
@@ -77,6 +81,7 @@ export async function createGatewayPaymentSession(params: {
         metadata: {
           workspaceId: params.workspaceId,
           planId: params.planId,
+          planName: params.planName,
           userEmail: params.userEmail || "",
           system: "dieme",
         },

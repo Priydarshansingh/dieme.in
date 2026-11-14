@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
       amountINR: selectedPlan.priceINR,
       workspaceId,
       planId: selectedPlan.id,
+      planName: selectedPlan.name,
       userEmail: finalEmail,
       customerName: wsData.name || "Dieme Creator",
       redirectUrl,

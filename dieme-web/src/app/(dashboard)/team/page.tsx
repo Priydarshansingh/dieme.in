@@ -815,94 +815,108 @@ export default function TeamPage() {
               );
 
               return (
-                <div key={member.uid} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white/[0.03] transition">
-                  {/* Avatar & Info */}
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    {member.photoURL ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={member.photoURL}
-                        alt=""
-                        className="w-10 h-10 rounded-full shrink-0 ring-1 ring-white/15"
-                      />
-                    ) : (
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 bg-white/10 text-white border border-white/15"
-                      >
-                        {member.displayName?.[0]?.toUpperCase() ?? '?'}
-                      </div>
-                    )}
+                <div key={member.uid} className="p-4 sm:p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 hover:bg-white/[0.025] transition border-b border-white/[0.04] last:border-0">
+                  {/* Left: Avatar & Info */}
+                  <div className="flex items-center justify-between xl:justify-start gap-3.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {member.photoURL ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={member.photoURL}
+                          alt=""
+                          className="w-10 h-10 rounded-full shrink-0 ring-1 ring-white/15 object-cover"
+                        />
+                      ) : (
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 bg-white/10 text-white border border-white/15"
+                        >
+                          {member.displayName?.[0]?.toUpperCase() ?? '?'}
+                        </div>
+                      )}
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold truncate text-white">
-                          {member.displayName ?? 'Unknown'}
-                        </p>
-                        {/* Interactive Role Switcher for Owner & Admin */}
-                        {canManageTeam && !isSelf && member.role !== 'owner' ? (
-                          <div className="relative inline-flex items-center">
-                            <select
-                              value={member.role}
-                              disabled={updatingRoleUid === member.uid}
-                              onChange={(e) => handleUpdateMemberRole(member.uid, e.target.value)}
-                              className="appearance-none text-xs font-bold pl-2.5 pr-6 py-0.5 rounded-md border cursor-pointer outline-none transition focus:ring-1 focus:ring-cyan-400 disabled:opacity-50"
-                              style={{
-                                color: cfg.color,
-                                backgroundColor: cfg.bg,
-                                borderColor: cfg.border,
-                              }}
-                              title="Change Member Access Role (Admin, Moderator, Editor)"
-                            >
-                              {currentUserRole === 'owner' && (
-                                <option value="admin" className="bg-slate-900 text-blue-400">
-                                  Admin
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold truncate text-white">
+                            {member.displayName ?? 'Unknown'}
+                          </p>
+                          {/* Interactive Role Switcher for Owner & Admin */}
+                          {canManageTeam && !isSelf && member.role !== 'owner' ? (
+                            <div className="relative inline-flex items-center">
+                              <select
+                                value={member.role}
+                                disabled={updatingRoleUid === member.uid}
+                                onChange={(e) => handleUpdateMemberRole(member.uid, e.target.value)}
+                                className="appearance-none text-xs font-bold pl-2.5 pr-6 py-0.5 rounded-md border cursor-pointer outline-none transition focus:ring-1 focus:ring-cyan-400 disabled:opacity-50"
+                                style={{
+                                  color: cfg.color,
+                                  backgroundColor: cfg.bg,
+                                  borderColor: cfg.border,
+                                }}
+                                title="Change Member Access Role (Admin, Moderator, Editor)"
+                              >
+                                {currentUserRole === 'owner' && (
+                                  <option value="admin" className="bg-slate-900 text-blue-400">
+                                    Admin
+                                  </option>
+                                )}
+                                <option value="moderator" className="bg-slate-900 text-cyan-400">
+                                  Moderator
                                 </option>
-                              )}
-                              <option value="moderator" className="bg-slate-900 text-cyan-400">
-                                Moderator
-                              </option>
-                              <option value="editor" className="bg-slate-900 text-emerald-400">
-                                Editor
-                              </option>
-                            </select>
-                            <ChevronDown
-                              className="w-3 h-3 absolute right-1.5 pointer-events-none opacity-70"
-                              style={{ color: cfg.color }}
-                            />
-                          </div>
-                        ) : (
-                          <span
-                            className="text-xs font-semibold px-2 py-0.5 rounded-md border"
-                            style={{ color: cfg.color, backgroundColor: cfg.bg, borderColor: cfg.border }}
-                          >
-                            {cfg.label}
-                          </span>
-                        )}
-                        {(member.developerAccess || member.email === 'pskishnawat133@gmail.com') && (
-                          <span className="text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 flex items-center gap-1 shadow-sm">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                            DEV PREVIEW
-                          </span>
-                        )}
+                                <option value="editor" className="bg-slate-900 text-emerald-400">
+                                  Editor
+                                </option>
+                              </select>
+                              <ChevronDown
+                                className="w-3 h-3 absolute right-1.5 pointer-events-none opacity-70"
+                                style={{ color: cfg.color }}
+                              />
+                            </div>
+                          ) : (
+                            <span
+                              className="text-xs font-semibold px-2 py-0.5 rounded-md border"
+                              style={{ color: cfg.color, backgroundColor: cfg.bg, borderColor: cfg.border }}
+                            >
+                              {cfg.label}
+                            </span>
+                          )}
+                          {(member.developerAccess || member.email === 'pskishnawat133@gmail.com') && (
+                            <span className="text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 flex items-center gap-1 shadow-sm">
+                              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                              DEV PREVIEW
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-mono text-slate-400 truncate mt-0.5">{member.email}</p>
                       </div>
-                      <p className="text-xs font-mono text-slate-400 truncate mt-0.5">{member.email}</p>
                     </div>
+
+                    {/* Mobile-only delete button pinned to top-right of card */}
+                    {canDeleteThisMember && (
+                      <button
+                        onClick={() => handleDeleteMember(member.uid)}
+                        className="xl:hidden p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition shrink-0"
+                        title="Remove member"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
 
-                  {/* Credentials Box (Strict Role-Based Access) */}
-                  <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Right: Symmetrical Control Columns */}
+                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0 w-full xl:w-auto">
+                    {/* Column 1: Password / Protected Box (fixed 210px on desktop) */}
                     {canViewThisPassword ? (
-                      <div className="flex items-center gap-2 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-1.5">
-                        <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="text-xs text-slate-400 font-medium">Password:</span>
+                      <div className="flex items-center justify-between gap-1.5 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 w-full sm:w-[210px] shrink-0 h-9">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-xs text-slate-400 font-medium shrink-0">Password:</span>
+                          <span className="text-xs font-mono text-cyan-300 font-semibold tracking-wider truncate">
+                            {hasPassword ? (isPasswordVisible ? member.appPassword : '••••••••') : <span className="text-slate-500 italic font-normal">Not set</span>}
+                          </span>
+                        </div>
 
-                        {hasPassword ? (
-                          <>
-                            <span className="text-xs font-mono text-cyan-300 font-semibold tracking-wider">
-                              {isPasswordVisible ? member.appPassword : '••••••••'}
-                            </span>
-
-                            {/* Eye Hide / Unhide Button */}
+                        {hasPassword && (
+                          <div className="flex items-center gap-0.5 shrink-0">
                             <button
                               type="button"
                               onClick={() => togglePasswordVisibility(member.uid)}
@@ -915,8 +929,6 @@ export default function TeamPage() {
                                 <Eye className="w-3.5 h-3.5" />
                               )}
                             </button>
-
-                            {/* Copy button */}
                             <button
                               type="button"
                               onClick={() => copyToClipboard(member.appPassword || '', member.uid)}
@@ -929,25 +941,23 @@ export default function TeamPage() {
                                 <Copy className="w-3.5 h-3.5" />
                               )}
                             </button>
-                          </>
-                        ) : (
-                          <span className="text-xs text-slate-500 italic">Not set</span>
+                          </div>
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 rounded-xl px-2.5 py-1 text-slate-500 text-xs">
-                        <Lock className="w-3 h-3 text-slate-600" />
+                      <div className="flex items-center justify-center gap-2 bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-slate-500 text-xs w-full sm:w-[210px] shrink-0 h-9">
+                        <Lock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                         <span>Protected</span>
                       </div>
                     )}
 
-                    {/* Developer Access Permission Toggle */}
+                    {/* Column 2: Developer Access Toggle (fixed 130px on desktop) */}
                     {canManageTeam && (
                       <button
                         type="button"
                         disabled={updatingDevUid === member.uid || member.email === 'pskishnawat133@gmail.com'}
                         onClick={() => handleToggleDevAccess(member)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition shadow-sm ${
+                        className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition shadow-sm w-full sm:w-[130px] shrink-0 h-9 ${
                           member.developerAccess || member.email === 'pskishnawat133@gmail.com'
                             ? 'bg-cyan-950/70 border-cyan-500/50 text-cyan-300 hover:bg-cyan-900/80 hover:border-cyan-400'
                             : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:border-white/25 hover:bg-white/[0.08]'
@@ -960,8 +970,8 @@ export default function TeamPage() {
                             : 'Developer preview is OFF (sees Coming Soon gate). Click to grant access.'
                         }
                       >
-                        <Code2 className={`w-3.5 h-3.5 ${member.developerAccess || member.email === 'pskishnawat133@gmail.com' ? 'text-cyan-400' : 'text-slate-500'}`} />
-                        <span>
+                        <Code2 className={`w-3.5 h-3.5 shrink-0 ${member.developerAccess || member.email === 'pskishnawat133@gmail.com' ? 'text-cyan-400' : 'text-slate-500'}`} />
+                        <span className="truncate">
                           {updatingDevUid === member.uid
                             ? 'Updating...'
                             : member.email === 'pskishnawat133@gmail.com'
@@ -973,8 +983,8 @@ export default function TeamPage() {
                       </button>
                     )}
 
-                    {/* Quick Reset Button (Admin/Owner for eligible members) */}
-                    {canManageTeam && canViewThisPassword && !isSelf && (
+                    {/* Column 3: Reset Password Button (fixed 115px on desktop) */}
+                    {canManageTeam && canViewThisPassword && !isSelf ? (
                       <button
                         onClick={() => {
                           setInviteEmail(member.email || '');
@@ -982,22 +992,26 @@ export default function TeamPage() {
                           setInviteName(member.displayName || '');
                           window.scrollTo({ top: 320, behavior: 'smooth' });
                         }}
-                        className="px-2.5 py-1.5 text-xs font-medium rounded-xl border border-white/10 hover:bg-white/10 text-slate-300 hover:text-white transition"
+                        className="px-3 py-2 text-xs font-medium rounded-xl border border-white/10 hover:bg-white/10 text-slate-300 hover:text-white transition w-full sm:w-[115px] shrink-0 h-9 text-center"
                         title="Update credentials"
                       >
                         Reset Password
                       </button>
+                    ) : (
+                      <div className="w-[115px] shrink-0 hidden sm:block" />
                     )}
 
-                    {/* Remove Member Button */}
-                    {canDeleteThisMember && (
+                    {/* Column 4: Desktop Delete Button (fixed 36px on desktop) */}
+                    {canDeleteThisMember ? (
                       <button
                         onClick={() => handleDeleteMember(member.uid)}
-                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition"
+                        className="hidden xl:flex items-center justify-center w-9 h-9 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition shrink-0"
                         title="Remove member"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+                    ) : (
+                      <div className="w-9 h-9 shrink-0 hidden xl:block" />
                     )}
                   </div>
                 </div>

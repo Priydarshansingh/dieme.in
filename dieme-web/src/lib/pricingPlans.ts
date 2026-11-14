@@ -27,7 +27,7 @@ export interface PricingPlan {
 }
 
 export const UPI_CONFIG = {
-  upiId: 'dkigicast@ptyes',
+  upiId: process.env.NEXT_PUBLIC_MERCH_PAYEE_VPA || process.env.MERCH_PAYEE_VPA || 'diieme@ptyes',
   payeeName: 'Dieme',
   telegramSupportUrl: 'https://t.me/YT_digicast?start=help',
   telegramBotUsername: 'YT_digicast',

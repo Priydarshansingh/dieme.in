@@ -35,15 +35,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid planId selected" }, { status: 400 });
     }
 
-    const wsRef = adminDb.doc(col.workspace(workspaceId));
-    const wsDoc = await wsRef.get();
+    let actualWorkspaceId = workspaceId;
+    let wsRef = adminDb.doc(col.workspace(actualWorkspaceId));
+    let wsDoc = await wsRef.get();
+
     if (!wsDoc.exists) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+      // Check if workspaceId is actually a user UID
+      const byOwnerSnap = await adminDb
+        .collection(col.workspaces())
+        .where("ownerUid", "==", workspaceId)
+        .limit(1)
+        .get();
+
+      if (!byOwnerSnap.empty) {
+        wsDoc = byOwnerSnap.docs[0];
+        actualWorkspaceId = wsDoc.id;
+        wsRef = adminDb.doc(col.workspace(actualWorkspaceId));
+      } else {
+        // Auto-provision personal workspace for seamless payment onboarding
+        const fallbackName = clientEmail ? clientEmail.split("@")[0] : "Creator Studio";
+        const newWsData = {
+          id: actualWorkspaceId,
+          name: fallbackName,
+          ownerUid: userUid !== "anonymous" ? userUid : actualWorkspaceId,
+          ownerEmail: clientEmail || userEmail || "",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          subscription: {
+            status: "pending_payment",
+            plan: "free_trial",
+            planId: "free_trial",
+          },
+        };
+        await wsRef.set(newWsData, { merge: true });
+        wsDoc = await wsRef.get();
+      }
     }
 
     const wsData = wsDoc.data() || {};
     const finalEmail = userEmail || clientEmail || wsData.ownerEmail || "";
-    const orderId = `DIGI-${workspaceId.slice(0, 6).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+    const orderId = `DIGI-${actualWorkspaceId.slice(0, 6).toUpperCase()}-${Date.now().toString().slice(-6)}`;
     const paymentId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const nowIso = new Date().toISOString();
 
@@ -56,7 +87,7 @@ export async function POST(req: NextRequest) {
     const gatewayResult = await createGatewayPaymentSession({
       orderId,
       amountINR: selectedPlan.priceINR,
-      workspaceId,
+      workspaceId: actualWorkspaceId,
       planId: selectedPlan.id,
       planName: selectedPlan.name,
       userEmail: finalEmail,
@@ -67,14 +98,14 @@ export async function POST(req: NextRequest) {
     const upiDeepLink = buildUpiDeepLink({
       amount: selectedPlan.priceINR,
       planName: selectedPlan.name,
-      workspaceId,
+      workspaceId: actualWorkspaceId,
       email: finalEmail,
     });
 
     const paymentRecord = {
       id: paymentId,
       orderId,
-      workspaceId,
+      workspaceId: actualWorkspaceId,
       workspaceName: wsData.name || "Creator Studio",
       userUid,
       userEmail: finalEmail,
@@ -88,12 +119,12 @@ export async function POST(req: NextRequest) {
       gatewayCheckoutUrl: gatewayResult.checkoutUrl || null,
       createdAt: nowIso,
       updatedAt: nowIso,
-      submittedVia: "web_session",
+      submittedVia: "session",
     };
 
     // Store in global payments and workspace payments
     await adminDb.collection("payments").doc(paymentId).set(paymentRecord);
-    await adminDb.doc(`workspaces/${workspaceId}/payments/${paymentId}`).set(paymentRecord);
+    await adminDb.doc(`workspaces/${actualWorkspaceId}/payments/${paymentId}`).set(paymentRecord);
 
     return NextResponse.json({
       success: true,

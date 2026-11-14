@@ -128,6 +128,7 @@ fun Access24hGateDialog(
     var activePaymentId by remember { mutableStateOf<String?>(null) }
     var activeOrderId by remember { mutableStateOf<String?>(null) }
     var gatewayUpiString by remember { mutableStateOf<String?>(null) }
+    var gatewayCheckoutUrl by remember { mutableStateOf<String?>(null) }
     var isCreatingGatewaySession by remember { mutableStateOf(false) }
     var secondsRemaining by remember { mutableIntStateOf(300) } // 5-minute active gateway window
     var sessionRefreshTrigger by remember { mutableIntStateOf(0) }
@@ -144,6 +145,7 @@ fun Access24hGateDialog(
             activePaymentId = json.optString("paymentId").ifBlank { null }
             activeOrderId = json.optString("orderId").ifBlank { null }
             gatewayUpiString = json.optString("upiDeepLink").ifBlank { null }
+            gatewayCheckoutUrl = json.optString("gatewayCheckoutUrl").ifBlank { null }
         }
         isCreatingGatewaySession = false
 
@@ -691,7 +693,34 @@ fun Access24hGateDialog(
                                 }
                             }
 
-                            // 2. 1-Tap Direct UPI Buttons (Avoids PhonePe Gallery Scan restriction!)
+                            // 2. Direct Payment Gateway Checkout Button
+                            Button(
+                                onClick = {
+                                    try {
+                                        val targetUrl = gatewayCheckoutUrl ?: "https://www.dieme.in/pricing?workspaceId=${session.workspaceId}&planId=${selectedPlan.id}"
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = DigicastElectricCyan),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                            ) {
+                                Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastDeepNavy)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Pay via Gateway (Live Web Checkout)",
+                                    color = DigicastDeepNavy,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                            }
+
+                            // 3. 1-Tap Direct UPI Buttons (Avoids PhonePe Gallery Scan restriction!)
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, DigicastBorder),
@@ -850,8 +879,8 @@ fun Access24hGateDialog(
                             OutlinedButton(
                                 onClick = {
                                     try {
-                                        val webGatewayUrl = "https://www.dieme.in/pricing"
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(webGatewayUrl))
+                                        val targetUrl = gatewayCheckoutUrl ?: "https://www.dieme.in/pricing?workspaceId=${session.workspaceId}&planId=${selectedPlan.id}"
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
                                         context.startActivity(intent)
                                     } catch (e: Exception) {
                                         Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
@@ -865,7 +894,7 @@ fun Access24hGateDialog(
                             ) {
                                 Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp), tint = DigicastElectricCyan)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Open Web Gateway (Live Checkout)", color = DigicastElectricCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Open Live Gateway Checkout", color = DigicastElectricCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
 
                             // UTR Input & Submission Box

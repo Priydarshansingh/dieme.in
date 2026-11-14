@@ -95,10 +95,14 @@ export async function createGatewayPaymentSession(params: {
     }
 
     const data = await res.json();
+    let checkoutUrl = data.checkoutUrl;
+    if (checkoutUrl && checkoutUrl.startsWith("/")) {
+      checkoutUrl = `${UPI_GATEWAY_URL.replace(/\/+$/, "")}${checkoutUrl}`;
+    }
     return {
       success: true,
       gatewayPaymentId: data.paymentId,
-      checkoutUrl: data.checkoutUrl,
+      checkoutUrl,
       status: data.status,
     };
   } catch (err: any) {

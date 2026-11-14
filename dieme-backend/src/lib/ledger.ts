@@ -7,6 +7,7 @@ import {
   LedgerTransactionType,
   UserWalletBalance,
 } from '@/types';
+import { adminDb } from '@/lib/firebase/admin';
 import crypto from 'crypto';
 
 // In-memory ledger store for atomic fast operations / fallback when DB is initializing
@@ -50,7 +51,49 @@ export function calculateWalletBalance(entries: LedgerEntry[], uid: string): Use
 }
 
 /**
+ * Loads a user's transactions from Firestore to hydrate memory during serverless cold starts
+ */
+export async function loadUserLedgerFromFirestore(uid: string): Promise<LedgerEntry[]> {
+  if (!adminDb) return memoryLedgerStore.get(uid) || [];
+
+  try {
+    const snap = await adminDb.collection('ledger').where('uid', '==', uid).get();
+    if (!snap.empty) {
+      const firestoreEntries: LedgerEntry[] = [];
+      snap.forEach((doc) => {
+        const data = doc.data() as LedgerEntry;
+        firestoreEntries.push(data);
+      });
+
+      // Sort chronologically
+      firestoreEntries.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+      // Merge with memory store, deduplicating by ID
+      const existing = memoryLedgerStore.get(uid) || [];
+      const idSet = new Set(existing.map((e) => e.id));
+
+      for (const fe of firestoreEntries) {
+        if (!idSet.has(fe.id)) {
+          existing.push(fe);
+          idSet.add(fe.id);
+          if (fe.idempotencyKey) idempotencyKeySet.add(fe.idempotencyKey);
+        }
+      }
+
+      existing.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      memoryLedgerStore.set(uid, existing);
+      return existing;
+    }
+  } catch (err: any) {
+    console.warn('[ledger] Firestore loadUserLedger error, using memory fallback:', err.message);
+  }
+
+  return memoryLedgerStore.get(uid) || [];
+}
+
+/**
  * Appends a new transaction entry into the double-entry ledger with idempotency check
+ * Persists to Firestore and updates aggregated user document balances
  */
 export function recordLedgerTransaction(params: {
   uid: string;
@@ -112,7 +155,53 @@ export function recordLedgerTransaction(params: {
   idempotencyKeySet.add(key);
 
   const updatedBalance = calculateWalletBalance(userEntries, uid);
+
+  // Asynchronously persist transaction to Firestore ledger and update user document
+  if (adminDb) {
+    try {
+      adminDb
+        .collection('ledger')
+        .doc(newEntry.id)
+        .set({
+          ...newEntry,
+          createdAt: new Date().toISOString(),
+        })
+        .catch((err) => {
+          console.warn('[ledger] Async Firestore set error:', err.message);
+        });
+
+      adminDb
+        .collection('users')
+        .doc(uid)
+        .set(
+          {
+            dpBalance: updatedBalance.dpBalance,
+            dCoinsBalance: updatedBalance.dCoinsBalance,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        )
+        .catch((err) => {
+          console.warn('[ledger] Async user balance update error:', err.message);
+        });
+    } catch (e: any) {
+      console.warn('[ledger] Firestore write warning:', e.message);
+    }
+  }
+
   return { entry: newEntry, balance: updatedBalance };
+}
+
+/**
+ * Async version of recordLedgerTransaction that hydrates user state before checking balances
+ */
+export async function recordLedgerTransactionAsync(
+  params: Parameters<typeof recordLedgerTransaction>[0]
+): Promise<{ entry: LedgerEntry; balance: UserWalletBalance }> {
+  if (params.type === 'DEBIT') {
+    await loadUserLedgerFromFirestore(params.uid);
+  }
+  return recordLedgerTransaction(params);
 }
 
 /**
@@ -152,6 +241,17 @@ export function convertDCoinsToDP(uid: string, dCoinsToConvert: number): { conve
 }
 
 /**
+ * Async version of convertDCoinsToDP ensuring user state is loaded from Firestore first
+ */
+export async function convertDCoinsToDPAsync(
+  uid: string,
+  dCoinsToConvert: number
+): Promise<{ convertedDP: number; balance: UserWalletBalance }> {
+  await loadUserLedgerFromFirestore(uid);
+  return convertDCoinsToDP(uid, dCoinsToConvert);
+}
+
+/**
  * External withdrawal block rule - enforced at code and policy level
  */
 export function assertWithdrawalAllowed(): never {
@@ -159,7 +259,7 @@ export function assertWithdrawalAllowed(): never {
 }
 
 /**
- * Retrieves all ledger entries for a user
+ * Retrieves all ledger entries for a user (sync memory cache)
  */
 export function getLedgerEntries(uid: string): LedgerEntry[] {
   return memoryLedgerStore.get(uid) || [];
@@ -177,14 +277,22 @@ export function getAllLedgerEntries(): LedgerEntry[] {
 }
 
 /**
- * Retrieves current wallet balance for a user
+ * Retrieves current wallet balance for a user (sync memory cache)
  */
 export function getUserWallet(uid: string): UserWalletBalance {
   const entries = memoryLedgerStore.get(uid) || [];
   return calculateWalletBalance(entries, uid);
 }
 
-// Seed realistic initial transactions
+/**
+ * Retrieves current wallet balance for a user, hydrating from Firestore on serverless cold starts
+ */
+export async function getUserWalletAsync(uid: string): Promise<UserWalletBalance> {
+  const entries = await loadUserLedgerFromFirestore(uid);
+  return calculateWalletBalance(entries, uid);
+}
+
+// Seed realistic initial transactions for demo/dev accounts
 function seedTransactions() {
   const seeds: Array<Parameters<typeof recordLedgerTransaction>[0] & { timestampDelta: number }> = [
     {
@@ -280,4 +388,3 @@ function seedTransactions() {
 }
 
 seedTransactions();
-

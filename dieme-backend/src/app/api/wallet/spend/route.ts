@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { recordLedgerTransaction } from '@/lib/ledger';
+import { recordLedgerTransactionAsync } from '@/lib/ledger';
 import { UNLOCK_24H_DCOINS_COST } from '@/lib/pricingPlans';
 
 export const dynamic = 'force-dynamic';
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         ? `Purchased subscription plan [${itemId}] using DP`
         : `Purchased stream asset [${itemId}] using DP`;
 
-    const result = recordLedgerTransaction({
+    const result = await recordLedgerTransactionAsync({
       uid,
       type: 'DEBIT',
       currency: spendCurrency,

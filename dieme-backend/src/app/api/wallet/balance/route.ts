@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserWallet, getLedgerEntries } from '@/lib/ledger';
+import { getUserWalletAsync, loadUserLedgerFromFirestore } from '@/lib/ledger';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'UID_REQUIRED', message: 'User ID is required' }, { status: 400 });
     }
 
-    const wallet = getUserWallet(uid);
-    const recentLedger = getLedgerEntries(uid).slice(-10);
+    const wallet = await getUserWalletAsync(uid);
+    const recentLedger = (await loadUserLedgerFromFirestore(uid)).slice(-10);
 
     return NextResponse.json({
       success: true,

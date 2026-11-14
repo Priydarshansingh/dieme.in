@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyGodSessionToken } from '@/lib/godpanelAuth';
 import { verifyAdminKey } from '@/lib/security';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
-import { userAdPassStore } from '@/lib/adStore';
+import { countActiveAdPasses } from '@/lib/adStore';
 import { GodPanelOverviewMetrics } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -73,11 +73,8 @@ export async function GET(req: NextRequest) {
       pendingTasksForReview = pendingPaySnap.size;
     }
 
-    // 3. Count real active 24h ad passes
-    const now = Date.now();
-    userAdPassStore.forEach((pass) => {
-      if (pass.passExpiresAt > now) active24hAdPasses++;
-    });
+    // 3. Count real active 24h ad passes from Firestore (with memory fallback)
+    active24hAdPasses = await countActiveAdPasses();
   } catch (err: any) {
     console.error('[godpanel/overview] Error fetching real metrics:', err.message);
   }

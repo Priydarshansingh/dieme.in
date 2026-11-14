@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SUBSCRIPTION_PLANS } from '@/lib/plans';
-import { recordLedgerTransaction } from '@/lib/ledger';
+import { recordLedgerTransaction, recordLedgerTransactionAsync } from '@/lib/ledger';
 import { activeSubscriptions, affiliateLedger } from '@/lib/subscriptionStore';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     // If paying via In-App DP balance
     if (paymentMethod === 'IN_APP_DP') {
       if (plan.dpCost > 0) {
-        recordLedgerTransaction({
+        await recordLedgerTransactionAsync({
           uid,
           type: 'DEBIT',
           currency: 'DP',

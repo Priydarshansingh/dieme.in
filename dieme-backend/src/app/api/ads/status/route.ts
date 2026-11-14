@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { userAdPassStore } from '@/lib/adStore';
+import { getAdPass } from '@/lib/adStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'UID_REQUIRED' }, { status: 400 });
     }
 
-    const pass = userAdPassStore.get(uid);
+    const pass = await getAdPass(uid);
     const now = Date.now();
     const isActive = pass ? pass.passExpiresAt > now : false;
     const remainingMs = pass && pass.passExpiresAt > now ? pass.passExpiresAt - now : 0;

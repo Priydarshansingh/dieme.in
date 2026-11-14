@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySignedAdSession } from '@/lib/security';
 import { recordLedgerTransaction } from '@/lib/ledger';
-import { userAdPassStore } from '@/lib/adStore';
+import { getAdPass, saveAdPass } from '@/lib/adStore';
 import { adminDb } from '@/lib/firebase/admin';
 import { recordAdImpression } from '@/lib/adTracking';
 
@@ -35,20 +35,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Grant 24 hours full feature access from now
+    // Grant 24 hours full feature access from now (Firestore TTL persisted)
     const now = Date.now();
     const passDurationMs = 24 * 60 * 60 * 1000; // 24 Hours
-    const currentPass = userAdPassStore.get(uid);
+    const currentPass = await getAdPass(uid);
 
     // If existing active pass, extend from current expiration or now
     const baseTime = currentPass && currentPass.passExpiresAt > now ? currentPass.passExpiresAt : now;
     const newExpiresAt = baseTime + passDurationMs;
     const totalWatched = (currentPass?.totalAdsWatched || 0) + 1;
 
-    userAdPassStore.set(uid, {
+    await saveAdPass(uid, {
       passExpiresAt: newExpiresAt,
       totalAdsWatched: totalWatched,
       lastAdWatchedAt: now,
+      unlockMethod: provider,
     });
 
     // Record impression and daily aggregate earnings in Firestore

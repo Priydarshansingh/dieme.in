@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { convertDCoinsToDP } from '@/lib/ledger';
+import { convertDCoinsToDPAsync } from '@/lib/ledger';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'INVALID_PARAMETERS', message: 'uid and dCoinsToConvert are required' }, { status: 400 });
     }
 
-    const result = convertDCoinsToDP(uid, dCoinsToConvert);
+    const result = await convertDCoinsToDPAsync(uid, dCoinsToConvert);
 
     return NextResponse.json({
       success: true,

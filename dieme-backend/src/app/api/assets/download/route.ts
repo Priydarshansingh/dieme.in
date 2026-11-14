@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { liveStreamAssets } from '@/lib/assetStore';
-import { recordLedgerTransaction, getUserWallet } from '@/lib/ledger';
-import { userAdPassStore } from '@/lib/adStore';
+import { recordLedgerTransactionAsync, getUserWalletAsync } from '@/lib/ledger';
+import { getAdPass } from '@/lib/adStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +18,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ASSET_NOT_FOUND' }, { status: 404 });
     }
 
-    // 1. If requires Ad Pass, check if user has active 24h pass
+    // 1. If requires Ad Pass, check if user has active 24h pass (checked via Firestore & cache)
     if (asset.requiresAdPass) {
-      const pass = userAdPassStore.get(uid);
+      const pass = await getAdPass(uid);
       const hasActivePass = pass ? pass.passExpiresAt > Date.now() : false;
 
       if (!hasActivePass) {
@@ -32,9 +32,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. If Premium with DP cost, check and debit user DP
+    // 2. If Premium with DP cost, check and debit user DP (verified with Firestore)
     if (asset.isPremium && asset.dpCost > 0) {
-      const wallet = getUserWallet(uid);
+      const wallet = await getUserWalletAsync(uid);
       if (wallet.dpBalance < asset.dpCost) {
         return NextResponse.json({
           error: 'INSUFFICIENT_DP',
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Debit DP
-      recordLedgerTransaction({
+      await recordLedgerTransactionAsync({
         uid,
         type: 'DEBIT',
         currency: 'DP',

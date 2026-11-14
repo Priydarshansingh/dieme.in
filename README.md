@@ -15,6 +15,47 @@ It combines a local-first **Android App** (for on-device live chat analysis and 
 
 ---
 
+## 🏛️ System Architecture & Service Topology
+
+```mermaid
+flowchart TD
+    subgraph Clients["1. User & Creator Facing"]
+        WebClient["Desktop / Web Creators<br/>(dieme.in)"]
+        MobileApp["Android Mobile App<br/>(Digicast Companion)"]
+    end
+
+    subgraph CorePlatform["2. Main Creator Platform (Full-Stack)"]
+        DiemeWeb["dieme-web (www.dieme.in)<br/>• Next.js App & UI<br/>• Creator APIs (/api/payments, /api/youtube)<br/>• Mobile App Sync API (/api/mobile)<br/>• Nightbot & Telegram Webhooks"]
+    end
+
+    subgraph PaymentGateway["3. Sovereign Gateway (Render)"]
+        PayGateway["digicast-pay (payments.dieme.in)<br/>• UPI Session Engine<br/>• Dynamic QR Generation<br/>• Bank SMS & Gmail Verification<br/>• Instant HMAC Webhooks"]
+    end
+
+    subgraph AdminBackend["4. Platform Superadmin & Ops"]
+        DiemeBackend["dieme-backend (digicast-backend.vercel.app)<br/>• GodPanel Superadmin Hub<br/>• Dual-Currency Ledger (DP / D-Coins)<br/>• Ad Network Analytics (AdMob, Unity, Start.io)<br/>• Groq AI Bot Training & Telemetry"]
+    end
+
+    subgraph Database["Shared Cloud Database"]
+        Firestore["Google Cloud Firestore<br/>(Users, Workspaces, Passes, Ledger)"]
+    end
+
+    WebClient -->|Browse & Pay| DiemeWeb
+    MobileApp -->|Sync & Auth API| DiemeWeb
+    DiemeWeb -->|Create Session| PayGateway
+    PayGateway -->|Instant Webhook| DiemeWeb
+    DiemeWeb <-->|Read & Write Data| Firestore
+    DiemeBackend <-->|Admin Control & Overwrite| Firestore
+```
+
+### Component Breakdown
+1. **`dieme-web` (`https://www.dieme.in`)**: The primary full-stack Next.js application hosting creator dashboards, clip management, and core user-facing API routes (`/api/payments/session`, `/api/youtube/*`, `/api/mobile/*`).
+2. **`digicast-pay` (`https://payments.dieme.in`)**: The sovereign UPI payment engine running on Render, isolated from user traffic spikes. Generates pre-coded UPI QR codes and dispatches verified payment webhooks.
+3. **`dieme-backend` (`https://digicast-backend.vercel.app`)**: The administrative node hosting the pitch-black **GodPanel** superadmin portal, Groq AI support training, dual-currency ledger audits, and ad revenue tracking.
+4. **Shared Firestore Database**: Both `dieme-web` and `dieme-backend` connect to the same Firebase Firestore instance, ensuring instant real-time synchronization across desktop, mobile, and administrative views.
+
+---
+
 ## ✨ Full Working Features & Modules
 
 ### 1. 🎬 Editor Showcase & Portfolio Profiles (`/editors`)

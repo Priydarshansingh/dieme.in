@@ -32,15 +32,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Server OAuth credentials missing" }, { status: 500 });
   }
 
-  try {
-    let decodedState: any = {};
-    if (state) {
-      try {
-        decodedState = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
-      } catch {
-        decodedState = {};
-      }
+  let decodedState: any = {};
+  if (state) {
+    try {
+      decodedState = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
+    } catch {
+      decodedState = {};
     }
+  }
+
+  try {
 
     // ── 1. MOBILE ANDROID AUTHENTICATION FLOW ────────────────────────────────
     if (decodedState.source === "mobile_android") {

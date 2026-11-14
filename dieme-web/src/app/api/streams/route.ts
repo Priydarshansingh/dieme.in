@@ -66,6 +66,73 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // If specific streamId requested, return that stream directly
+    const streamId = searchParams.get('streamId');
+    if (streamId) {
+      let sDoc = await adminDb.doc(col.stream(actualWorkspaceId, streamId)).get();
+      if (!sDoc.exists && callerUid !== actualWorkspaceId) {
+        sDoc = await adminDb.doc(col.stream(callerUid, streamId)).get();
+      }
+
+      if (sDoc.exists) {
+        const d = sDoc.data() || {};
+        let startedAtMs = Date.now();
+        if (d.startedAt?._seconds) {
+          startedAtMs = d.startedAt._seconds * 1000;
+        } else if (typeof d.startedAt === 'number') {
+          startedAtMs = d.startedAt;
+        } else if (typeof d.startedAt === 'string') {
+          const parsed = Date.parse(d.startedAt);
+          if (!isNaN(parsed)) startedAtMs = parsed;
+        } else if (d.startedAt?.toDate) {
+          startedAtMs = d.startedAt.toDate().getTime();
+        }
+
+        let endedAtMs: number | null = null;
+        if (d.endedAt?._seconds) {
+          endedAtMs = d.endedAt._seconds * 1000;
+        } else if (typeof d.endedAt === 'number') {
+          endedAtMs = d.endedAt;
+        } else if (typeof d.endedAt === 'string') {
+          const parsed = Date.parse(d.endedAt);
+          if (!isNaN(parsed)) endedAtMs = parsed;
+        } else if (d.endedAt?.toDate) {
+          endedAtMs = d.endedAt.toDate().getTime();
+        }
+
+        const videoId = d.youtubeVideoId || sDoc.id;
+        const thumbnailUrl =
+          d.thumbnailUrl ||
+          d.thumbnail ||
+          d.thumb ||
+          (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '');
+
+        const formattedStream = {
+          id: sDoc.id,
+          title: d.title || 'Live Stream',
+          youtubeVideoId: videoId,
+          thumbnailUrl,
+          startedAt: startedAtMs,
+          endedAt: endedAtMs,
+          clipCount: d.clipCount || 0,
+          status: d.status || 'ended',
+          viewCount: d.viewCount || 0,
+          concurrentViewers: d.concurrentViewers || 0,
+          channelId: d.channelId || '',
+          channelName: d.channelName || '',
+          durationSeconds: d.durationSeconds || (endedAtMs ? Math.max(0, Math.floor((endedAtMs - startedAtMs) / 1000)) : undefined),
+        };
+
+        return NextResponse.json({
+          success: true,
+          workspaceId: actualWorkspaceId,
+          stream: formattedStream,
+        });
+      }
+
+      return NextResponse.json({ error: 'Stream not found' }, { status: 404 });
+    }
+
     // Fetch streams via adminDb (bypasses client security rules)
     let streamsSnap = await adminDb
       .collection(col.streams(actualWorkspaceId))

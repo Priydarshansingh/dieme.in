@@ -17,6 +17,7 @@ interface StreamDoc {
   endedAt?: any;
   clipCount: number;
   status: 'live' | 'ended' | 'vod_processing' | 'vod_ready' | 'archived' | string;
+  viewCount?: number;
 }
 
 function parseDate(val: any): Date {
@@ -203,7 +204,7 @@ function StreamsContent() {
   }
 
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="w-full max-w-6xl space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Streams</h1>
@@ -216,13 +217,13 @@ function StreamsContent() {
           disabled={isSyncing}
           className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 text-xs font-semibold rounded-xl border bg-white/10 border-white/15 hover:bg-white/20 transition shadow-sm disabled:opacity-50 text-white w-full sm:w-auto"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-red-400' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-cyan-400' : ''}`} />
           {isSyncing ? 'Syncing...' : 'Sync YouTube'}
         </button>
       </div>
 
       {syncFeedback && (
-        <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 flex items-center justify-between">
+        <div className="p-3.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-slate-200 flex items-center justify-between shadow">
           <span>{syncFeedback}</span>
           <button onClick={() => setSyncFeedback(null)} className="text-cyan-400 font-bold hover:underline">Dismiss</button>
         </div>
@@ -232,74 +233,73 @@ function StreamsContent() {
         <EmptyState onSync={handleSyncStreams} isSyncing={isSyncing} />
       ) : (
         <div
-          className="glass-card rounded-2xl overflow-hidden divide-y divide-white/[0.06] shadow-xl"
+          className="glass-card rounded-2xl overflow-hidden divide-y divide-white/[0.06] shadow-xl border border-white/10"
         >
           {streams.map((s) => {
-            const cfg = STATUS_CONFIG[s.status] ?? STATUS_CONFIG.ended;
             const isLive = s.status === 'live';
             return (
               <a
                 key={s.id}
                 href={`/streams/${s.id}`}
-                className="flex items-center gap-3 sm:gap-4 px-3.5 sm:px-5 py-3 sm:py-4 hover:bg-white/[0.04] active:bg-white/[0.08] transition group"
+                className="flex items-center gap-4 px-4 sm:px-6 py-4 hover:bg-white/[0.03] active:bg-white/[0.06] transition group"
               >
-                {/* Thumbnail / Icon */}
+                {/* Thumbnail */}
                 {s.thumbnailUrl ? (
-                  <img
-                    src={s.thumbnailUrl}
-                    alt={s.title}
-                    className="w-14 h-9 sm:w-16 sm:h-10 rounded-lg object-cover shrink-0 border border-white/10"
-                  />
+                  <div className="relative w-20 sm:w-28 aspect-video rounded-xl overflow-hidden shrink-0 border border-white/10 bg-slate-900 shadow">
+                    <img
+                      src={s.thumbnailUrl}
+                      alt={s.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    />
+                    {isLive && (
+                      <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-600 text-white uppercase shadow flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        LIVE
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <div
-                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-white/10"
+                    className="w-20 sm:w-28 aspect-video rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-white/10 text-slate-400"
                   >
-                    {isLive ? (
-                      <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-                      </span>
-                    ) : (
-                      <Radio className="w-4 h-4 text-slate-400" />
-                    )}
+                    <Radio className="w-5 h-5" />
                   </div>
                 )}
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    {isLive && (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold bg-red-500 text-white uppercase shadow-sm">
-                        LIVE
-                      </span>
-                    )}
-                    <p className="text-xs sm:text-sm font-semibold truncate text-white">
-                      {s.title || (s.startedAt ? formatDate(s.startedAt) : 'Untitled stream')}
-                    </p>
-                  </div>
-                  <p className="text-[11px] sm:text-xs mt-0.5 text-slate-400 truncate">
-                    {s.startedAt ? formatDate(s.startedAt) : '—'}
-                    {s.startedAt && ` · ${formatDuration(s.startedAt, s.endedAt)}`}
+                  <p className="text-sm sm:text-base font-bold text-white truncate group-hover:text-cyan-300 transition">
+                    {s.title || 'Untitled Stream'}
                   </p>
+                  <div className="flex items-center gap-2 mt-1 text-xs text-slate-400 flex-wrap">
+                    <span>{s.startedAt ? formatDate(s.startedAt) : '—'}</span>
+                    {s.startedAt && <span>· {formatDuration(s.startedAt, s.endedAt)}</span>}
+                    {s.viewCount != null && Number(s.viewCount) > 0 && (
+                      <span>· {Number(s.viewCount).toLocaleString()} views</span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Status badge */}
+                {/* Status badge (Clean normal neutral tokens) */}
                 <span
-                  className="text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg shrink-0 border"
-                  style={{ color: cfg.color, backgroundColor: cfg.bg, borderColor: cfg.border }}
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0 border ${
+                    isLive
+                      ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                      : 'bg-white/[0.04] text-slate-400 border-white/10'
+                  }`}
                 >
-                  {cfg.label}
+                  {isLive ? 'Live' : 'Ended'}
                 </span>
 
                 {/* Clips count */}
-                <div className="text-right shrink-0 min-w-[32px] sm:w-12">
-                  <p className="text-xs sm:text-sm font-bold text-white">{s.clipCount ?? 0}</p>
-                  <p className="text-[10px] sm:text-xs text-slate-400">
-                    <Scissors className="inline w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5" /><span className="hidden sm:inline">clips</span>
+                <div className="text-right shrink-0 min-w-[48px]">
+                  <p className="text-sm font-bold text-white">{s.clipCount ?? 0}</p>
+                  <p className="text-xs text-slate-400">
+                    <Scissors className="inline w-3 h-3 mr-0.5" />clips
                   </p>
                 </div>
 
-                <ArrowRight className="w-4 h-4 shrink-0 text-slate-500 opacity-0 group-hover:opacity-100 group-hover:text-white transition hidden sm:block" />
+                <ArrowRight className="w-4 h-4 shrink-0 text-slate-500 opacity-0 group-hover:opacity-100 group-hover:text-cyan-400 transition hidden sm:block" />
               </a>
             );
           })}

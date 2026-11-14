@@ -825,6 +825,14 @@ class AuthRepository @Inject constructor(
                         daysRemaining = subObj.optInt("daysRemaining", updated.daysRemaining)
                     )
                 }
+                val userObj = json.optJSONObject("user")
+                if (userObj != null) {
+                    val cloudPhoto = userObj.optString("photoUrl", "").ifBlank { userObj.optString("photoURL", "") }
+                    if (cloudPhoto.isNotBlank() && cloudPhoto != updated.photoUrl) {
+                        updated = updated.copy(photoUrl = cloudPhoto)
+                        prefs.edit().putString(KEY_PHOTO, cloudPhoto).apply()
+                    }
+                }
                 if (updated != current) {
                     _authState.value = AuthState.SignedIn(updated)
                     saveRealSession(updated)

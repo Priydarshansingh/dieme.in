@@ -17,6 +17,7 @@ import {
   setDoc,
   collection,
   serverTimestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/client';
 
@@ -84,6 +85,7 @@ export function useAuth() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
+    let unsubsDoc: (() => void) | null = null;
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       // Set user immediately so UI renders without delay
       setUser(u);
@@ -94,9 +96,32 @@ export function useAuth() {
         provisionNewUser(u).catch((e) => {
           console.warn('[useAuth] Background user provision error:', e);
         });
+
+        // Real-time synchronization of avatar and profile changes from mobile or web
+        try {
+          unsubsDoc = onSnapshot(doc(db, 'users', u.uid), (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              const cloudPhoto = data?.photoURL || data?.photoUrl;
+              if (cloudPhoto && cloudPhoto !== u.photoURL) {
+                setUser((prev) => (prev ? ({ ...prev, photoURL: cloudPhoto } as User) : prev));
+              }
+            }
+          });
+        } catch (snapErr) {
+          console.warn('[useAuth] User snapshot listener error:', snapErr);
+        }
+      } else {
+        if (unsubsDoc) {
+          unsubsDoc();
+          unsubsDoc = null;
+        }
       }
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      if (unsubsDoc) unsubsDoc();
+    };
   }, []);
 
   const signInWithGoogle = async () => {

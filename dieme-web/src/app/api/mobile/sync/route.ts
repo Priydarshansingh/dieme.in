@@ -58,16 +58,32 @@ export async function GET(req: NextRequest) {
     // ── Authorization & Workspace Resolution ──────────────────────────────────
     let actualWorkspaceId = workspaceId;
 
-    // Check user profile for their canonical workspace
+    // Check user profile for their canonical workspace and avatar
+    let userProfile: any = null;
     try {
       const userDoc = await adminDb.doc(col.user(caller.uid)).get();
-      const userDefaultWid = userDoc.data()?.defaultWorkspaceId;
+      const userData = userDoc.exists ? userDoc.data() : null;
+      const userDefaultWid = userData?.defaultWorkspaceId;
       if (userDefaultWid) {
         const preferredWs = await adminDb.doc(col.workspace(userDefaultWid)).get();
         if (preferredWs.exists) {
           actualWorkspaceId = userDefaultWid;
         }
       }
+
+      let photoUrl = userData?.photoURL || userData?.photoUrl || "";
+      if (!photoUrl) {
+        const authUser = await adminAuth.getUser(caller.uid).catch(() => null);
+        photoUrl = authUser?.photoURL || "";
+      }
+
+      userProfile = {
+        uid: caller.uid,
+        email: caller.email,
+        displayName: userData?.displayName || "Creator",
+        photoUrl,
+        photoURL: photoUrl,
+      };
     } catch (e) {
       console.warn("[mobile/sync] User profile check warning:", e);
     }
@@ -248,6 +264,7 @@ export async function GET(req: NextRequest) {
         telegramConnected: Boolean(telegramChatId),
         telegramChatId: telegramChatId || null,
       },
+      user: userProfile,
       subscription,
       youtubeAccount,
       activeStream,

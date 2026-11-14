@@ -30,9 +30,58 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isRedirectingToGateway, setIsRedirectingToGateway] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        let plan = params.get('plan');
+        const redirectParam = params.get('redirect');
+
+        if (!plan && redirectParam) {
+          try {
+            const decoded = decodeURIComponent(redirectParam);
+            const redirectUrlObj = new URL(decoded, window.location.origin);
+            plan = redirectUrlObj.searchParams.get('plan');
+          } catch {}
+        }
+
+        if (plan && plan !== 'free_trial') {
+          setIsRedirectingToGateway(true);
+          (async () => {
+            try {
+              const token = await user.getIdToken().catch(() => '');
+              const res = await fetch('/api/payments/session', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({
+                  workspaceId: user.uid,
+                  planId: plan,
+                  clientEmail: user.email || '',
+                }),
+              });
+              const data = await res.json();
+              if (data.gatewayCheckoutUrl) {
+                window.location.href = data.gatewayCheckoutUrl;
+                return;
+              }
+            } catch (err) {
+              console.error('Failed to auto-trigger payment gateway:', err);
+            }
+            router.replace('/pricing');
+          })();
+          return;
+        }
+
+        if (redirectParam) {
+          router.replace(decodeURIComponent(redirectParam));
+          return;
+        }
+      }
       router.replace('/dashboard');
     }
   }, [user, loading, router]);
@@ -69,6 +118,14 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen bg-[#06080D] text-[#F8FAFC] font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-300 relative flex flex-col justify-between overflow-x-hidden">
+      {isRedirectingToGateway && (
+        <div className="fixed inset-0 z-50 bg-[#06080D]/95 backdrop-blur-md flex flex-col items-center justify-center gap-4 text-center p-6">
+          <div className="w-8 h-8 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+          <h2 className="text-lg font-bold text-white">Connecting to Secure Payment Gateway...</h2>
+          <p className="text-xs text-slate-400 max-w-sm">Opening your reserved checkout session with instant UPI observation.</p>
+        </div>
+      )}
+
       {/* ── Volumetric Aurora Ambient Beams ─────────────────────────────────── */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-36 left-1/3 -translate-x-1/2 w-[720px] h-[480px] bg-gradient-to-b from-emerald-500/15 via-teal-500/10 to-transparent rounded-full blur-[140px] opacity-70" />

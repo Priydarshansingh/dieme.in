@@ -10,7 +10,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace('/login');
+      if (typeof window !== 'undefined') {
+        const fullPath = window.location.pathname + window.location.search;
+        router.replace(`/login?redirect=${encodeURIComponent(fullPath)}`);
+      } else {
+        router.replace('/login');
+      }
     }
   }, [user, loading, router]);
 

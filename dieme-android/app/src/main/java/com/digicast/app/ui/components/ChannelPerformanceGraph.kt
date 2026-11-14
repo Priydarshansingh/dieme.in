@@ -983,51 +983,172 @@ private fun calculateChannelTimelineData(
     isCalendarActive: Boolean,
     customRange: Pair<Long, Long>?
 ): ChannelGraphResult {
+    val dayKeyFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     val dayFormat = SimpleDateFormat("EEE", Locale.US)
     val monthDayFormat = SimpleDateFormat("dd MMM", Locale.US)
     val fullDateFormat = SimpleDateFormat("EEE, dd MMM", Locale.US)
 
-    val startMs: Long
-    val endMs: Long
+    val validStreams = streams.filter { (it.startedAtMs ?: 0L) > 0L }.sortedBy { it.startedAtMs ?: 0L }
 
-    if (isCalendarActive && customRange != null) {
-        startMs = customRange.first
-        endMs = customRange.second.coerceAtLeast(startMs + 86400000L)
-    } else {
+    // If no streams exist in database, fall back to empty points
+    if (validStreams.isEmpty()) {
         val now = System.currentTimeMillis()
-        endMs = now
-        startMs = now - (period.days.toLong() * 86400000L)
+        val emptyPoints = (0..6).map { i ->
+            val t = now - ((6 - i) * 86400000L)
+            val d = Date(t)
+            ChannelTimelinePoint(
+                dayName = dayFormat.format(d),
+                dayOfMonth = monthDayFormat.format(d),
+                fullDateLabel = fullDateFormat.format(d),
+                value = 0L,
+                trendPercent = 0.0,
+                timestampMs = t
+            )
+        }
+        return ChannelGraphResult(
+            totalValue = 0L,
+            overallGrowthPercent = 0.0,
+            viewsGrowthPercent = 0.0,
+            followersGrowthPercent = 0.0,
+            engagementGrowthPercent = 0.0,
+            points = emptyPoints,
+            yAxisSteps = listOf(20L, 40L, 60L, 80L, 100L)
+        )
     }
 
-    // Filter streams that fall within the query window
-    val inRangeStreams = streams.filter {
-        val t = it.startedAtMs ?: 0L
-        t in startMs..endMs
+    // Group valid streams by actual calendar broadcast day
+    data class DayData(
+        val dateKey: String,
+        val timestampMs: Long,
+        val dayName: String,
+        val dayOfMonth: String,
+        val fullDateLabel: String,
+        var viewCount: Long,
+        var likeCount: Long,
+        var commentCount: Long
+    )
+
+    val daysMap = linkedMapOf<String, DayData>()
+    validStreams.forEach { stream ->
+        val t = stream.startedAtMs ?: 0L
+        val d = Date(t)
+        val key = dayKeyFormat.format(d)
+        val existing = daysMap[key]
+        if (existing == null) {
+            daysMap[key] = DayData(
+                dateKey = key,
+                timestampMs = t,
+                dayName = dayFormat.format(d),
+                dayOfMonth = monthDayFormat.format(d),
+                fullDateLabel = fullDateFormat.format(d),
+                viewCount = stream.viewCount.coerceAtLeast(0L),
+                likeCount = stream.likeCount.coerceAtLeast(0L),
+                commentCount = stream.commentCount.coerceAtLeast(0L)
+            )
+        } else {
+            existing.viewCount += stream.viewCount.coerceAtLeast(0L)
+            existing.likeCount += stream.likeCount.coerceAtLeast(0L)
+            existing.commentCount += stream.commentCount.coerceAtLeast(0L)
+        }
     }
 
-    val totalViews = inRangeStreams.sumOf { it.viewCount }.coerceAtLeast(0L)
-    val totalLikes = inRangeStreams.sumOf { it.likeCount }.coerceAtLeast(0L)
-    val totalComments = inRangeStreams.sumOf { it.commentCount }.coerceAtLeast(0L)
+    val allBroadcastDays = daysMap.values.sortedBy { it.timestampMs }
 
-    // Calculate previous period for comparison
-    val windowDurationMs = (endMs - startMs).coerceAtLeast(86400000L)
-    val prevStartMs = startMs - windowDurationMs
-    val prevEndMs = startMs
-    val prevStreams = streams.filter {
-        val t = it.startedAtMs ?: 0L
-        t in prevStartMs..prevEndMs
-    }
-    val prevViews = prevStreams.sumOf { it.viewCount }.coerceAtLeast(0L)
-
-    val viewsGrowth = if (totalViews == 0L) {
-        0.0
-    } else if (prevViews > 0L) {
-        ((totalViews - prevViews).toDouble() / prevViews.toDouble()) * 100.0
+    // Filter broadcast days based on period or custom date range
+    val candidateDays: List<DayData> = if (isCalendarActive && customRange != null) {
+        val start = customRange.first
+        val end = customRange.second.coerceAtLeast(start + 86400000L)
+        allBroadcastDays.filter { it.timestampMs in start..end }
     } else {
-        100.0
+        when (period) {
+            ChannelGraphPeriod.DAYS_7 -> {
+                // 7 most recent broadcast sessions / days
+                allBroadcastDays.takeLast(7)
+            }
+            ChannelGraphPeriod.DAYS_30 -> {
+                // Last 14-30 broadcast sessions
+                allBroadcastDays.takeLast(14)
+            }
+            ChannelGraphPeriod.DAYS_90 -> {
+                // All recent broadcast sessions across 90-stream history
+                allBroadcastDays
+            }
+        }
     }
 
-    // Engagement & Likes ratio
+    val selectedDays: List<DayData> = if (candidateDays.isEmpty()) {
+        emptyList()
+    } else if (candidateDays.size <= 7) {
+        candidateDays
+    } else {
+        // Sample exactly 7 evenly spaced broadcast days
+        val sampled = mutableListOf<DayData>()
+        val total = candidateDays.size
+        for (i in 0..6) {
+            val idx = ((i * (total - 1)).toDouble() / 6.0).roundToInt().coerceIn(0, total - 1)
+            sampled.add(candidateDays[idx])
+        }
+        sampled
+    }
+
+    val points = mutableListOf<ChannelTimelinePoint>()
+    if (selectedDays.isEmpty()) {
+        // If candidate days were empty (e.g. empty custom calendar range)
+        val startMs = customRange?.first ?: (System.currentTimeMillis() - 7 * 86400000L)
+        val endMs = customRange?.second ?: System.currentTimeMillis()
+        val stepMs = ((endMs - startMs) / 6L).coerceAtLeast(86400000L)
+        for (i in 0..6) {
+            val t = startMs + (i * stepMs)
+            val d = Date(t)
+            points.add(
+                ChannelTimelinePoint(
+                    dayName = dayFormat.format(d),
+                    dayOfMonth = monthDayFormat.format(d),
+                    fullDateLabel = fullDateFormat.format(d),
+                    value = 0L,
+                    trendPercent = 0.0,
+                    timestampMs = t
+                )
+            )
+        }
+    } else {
+        selectedDays.forEachIndexed { index, day ->
+            val prevVal = if (index > 0) selectedDays[index - 1].viewCount else 0L
+            val currentVal = day.viewCount
+            val delta = if (prevVal > 0L) {
+                ((currentVal - prevVal).toDouble() / prevVal.toDouble()) * 100.0
+            } else if (currentVal > 0L) {
+                100.0
+            } else {
+                0.0
+            }
+            points.add(
+                ChannelTimelinePoint(
+                    dayName = day.dayName,
+                    dayOfMonth = day.dayOfMonth,
+                    fullDateLabel = day.fullDateLabel,
+                    value = currentVal,
+                    trendPercent = delta,
+                    timestampMs = day.timestampMs
+                )
+            )
+        }
+    }
+
+    val totalViews = points.sumOf { it.value }.coerceAtLeast(0L)
+    val firstVal = points.firstOrNull()?.value ?: 0L
+    val lastVal = points.lastOrNull()?.value ?: 0L
+    val viewsGrowth = if (firstVal > 0L) {
+        ((lastVal - firstVal).toDouble() / firstVal.toDouble()) * 100.0
+    } else if (lastVal > 0L) {
+        100.0
+    } else {
+        0.0
+    }
+
+    val totalLikes = selectedDays.sumOf { it.likeCount }.coerceAtLeast(0L)
+    val totalComments = selectedDays.sumOf { it.commentCount }.coerceAtLeast(0L)
+
     val followersGrowth = if (totalViews > 0L) {
         (totalLikes.toDouble() / totalViews.toDouble()) * 100.0
     } else {
@@ -1040,45 +1161,6 @@ private fun calculateChannelTimelineData(
         0.0
     }
 
-    val points = mutableListOf<ChannelTimelinePoint>()
-    val stepMs = windowDurationMs / 6L
-
-    for (i in 0..6) {
-        val checkpointMs = startMs + (i * stepMs)
-        val d = Date(checkpointMs)
-        val dayName = dayFormat.format(d)
-        val monthDay = monthDayFormat.format(d)
-        val fullDate = fullDateFormat.format(d)
-
-        // Cumulative views up to this checkpoint in the window
-        val ptVal = inRangeStreams.filter { (it.startedAtMs ?: 0L) <= checkpointMs }.sumOf { it.viewCount }
-
-        val prevPtVal = if (i > 0) {
-            inRangeStreams.filter { (it.startedAtMs ?: 0L) <= (checkpointMs - stepMs) }.sumOf { it.viewCount }
-        } else {
-            0L
-        }
-
-        val delta = if (prevPtVal > 0L) {
-            ((ptVal - prevPtVal).toDouble() / prevPtVal.toDouble()) * 100.0
-        } else if (ptVal > 0L) {
-            100.0
-        } else {
-            0.0
-        }
-
-        points.add(
-            ChannelTimelinePoint(
-                dayName = dayName,
-                dayOfMonth = monthDay,
-                fullDateLabel = fullDate,
-                value = ptVal,
-                trendPercent = delta,
-                timestampMs = checkpointMs
-            )
-        )
-    }
-
     // Calculate Y-Axis steps
     val maxPt = points.maxOfOrNull { it.value } ?: 0L
     val niceMax = when {
@@ -1087,6 +1169,7 @@ private fun calculateChannelTimelineData(
         maxPt <= 100L -> 100L
         maxPt <= 250L -> 250L
         maxPt <= 500L -> 500L
+        maxPt <= 600L -> 600L
         maxPt <= 1000L -> 1000L
         maxPt <= 5000L -> 5000L
         else -> ((maxPt / 1000) + 1) * 1000L

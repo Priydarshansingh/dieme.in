@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "registryName": "Official Dieme Extensions Registry",
+  "updatedAt": "2026-11-14T23:00:00Z",
+  "extensions": [
+    {
+      "id": "com.digicast.ext.youtubedl",
+      "name": "YouTube Stream Downloader",
+      "version": "1.0.0",
+      "versionCode": 1,
+      "description": "High-speed stream extraction engine supporting 1080p60, 1440p, and 4K stream video and audio.",
+      "type": "CLIP_PROCESSOR",
+      "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/extensions/com.digicast.ext.youtubedl.dcast",
+      "entryClass": "com.digicast.ext.youtubedl.YouTubeDownloaderExtension",
+      "minCoreVersion": 1,
+      "fileSize": "1.0 MB",
+      "sha256": "official-build"
+    },
+    {
+      "id": "com.digicast.ext.ffmpeg",
+      "name": "FFmpeg Precision Trimmer",
+      "version": "1.0.0",
+      "versionCode": 1,
+      "description": "Lossless frame-accurate stream cutter and high-efficiency MP4 encoder for rapid clip delivery.",
+      "type": "CLIP_PROCESSOR",
+      "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/extensions/com.digicast.ext.ffmpeg.dcast",
+      "entryClass": "com.digicast.ext.ffmpeg.FFmpegTrimmerExtension",
+      "minCoreVersion": 1,
+      "fileSize": "1.0 MB",
+      "sha256": "official-build"
+    },
+    {
+      "id": "com.digicast.ext.clipengine",
+      "name": "Dieme Clip Engine Suite",
+      "version": "1.0.0",
+      "versionCode": 1,
+      "description": "All-in-one automated pipeline integrating moment detection, stream download, and lossless trimming.",
+      "type": "CLIP_PROCESSOR",
+      "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/extensions/com.digicast.ext.clipengine.dcast",
+      "entryClass": "com.digicast.ext.clipengine.ClipEngineExtension",
+      "minCoreVersion": 1,
+      "fileSize": "1.0 MB",
+      "sha256": "official-build"
+    },
+    {
+      "id": "com.digicast.ext.dgimages",
+      "name": "DGImages Canvas Bridge",
+      "version": "1.0.0",
+      "versionCode": 1,
+      "description": "Hardware-accelerated thumbnail generation, overlay composition, and visual telemetry bridge.",
+      "type": "IMAGE_PROCESSOR",
+      "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/extensions/com.digicast.ext.dgimages.dcast",
+      "entryClass": "com.digicast.ext.dgimages.DgImagesExtension",
+      "minCoreVersion": 1,
+      "fileSize": "1.4 MB",
+      "sha256": "official-build"
+    }
+  ]
+}

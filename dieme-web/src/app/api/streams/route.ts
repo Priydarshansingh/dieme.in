@@ -74,6 +74,38 @@ export async function GET(req: NextRequest) {
         sDoc = await adminDb.doc(col.stream(callerUid, streamId)).get();
       }
 
+      // Fallback: look up by youtubeVideoId or ID in actualWorkspaceId
+      if (!sDoc.exists) {
+        const byYt = await adminDb
+          .collection(col.streams(actualWorkspaceId))
+          .where('youtubeVideoId', '==', streamId)
+          .limit(1)
+          .get();
+        if (!byYt.empty) sDoc = byYt.docs[0];
+      }
+
+      // Fallback: look up by youtubeVideoId or ID in callerUid workspace
+      if (!sDoc.exists && callerUid !== actualWorkspaceId) {
+        const byYtCaller = await adminDb
+          .collection(col.streams(callerUid))
+          .where('youtubeVideoId', '==', streamId)
+          .limit(1)
+          .get();
+        if (!byYtCaller.empty) sDoc = byYtCaller.docs[0];
+      }
+
+      // Fallback: search collectionGroup across all streams if accessible
+      if (!sDoc.exists) {
+        const groupSnap = await adminDb
+          .collectionGroup('streams')
+          .where('youtubeVideoId', '==', streamId)
+          .limit(1)
+          .get();
+        if (!groupSnap.empty) {
+          sDoc = groupSnap.docs[0];
+        }
+      }
+
       if (sDoc.exists) {
         const d = sDoc.data() || {};
         let startedAtMs = Date.now();

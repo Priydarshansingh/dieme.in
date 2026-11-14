@@ -69,6 +69,9 @@ export async function GET(req: NextRequest) {
       let q = adminDb.collection(col.clips(workspaceId));
       if (streamId) {
         snap = await q.where('streamId', '==', streamId).get();
+        if (snap.empty) {
+          snap = await q.where('youtubeVideoId', '==', streamId).get();
+        }
       } else {
         snap = await q.get();
       }

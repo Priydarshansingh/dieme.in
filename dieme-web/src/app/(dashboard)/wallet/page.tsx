@@ -35,6 +35,17 @@ export default function WalletAndTasksPage() {
         if (d.subscription) setSubscription(d.subscription);
       })
       .catch(() => {});
+
+    // Fetch real-time wallet ledger balances from dieme-backend
+    fetch(`/api/wallet/balance?uid=${encodeURIComponent(user.uid)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.wallet) {
+          setDCoinsBalance(d.wallet.dCoins ?? 0);
+          setDpBalance(d.wallet.dp ?? 0);
+        }
+      })
+      .catch(() => {});
   }, [user]);
 
   // Restore 24h Ad Pass if active
@@ -101,8 +112,8 @@ export default function WalletAndTasksPage() {
   // 10 D Coins = 1 DP = ₹1 INR
   const totalEquivalentINR = dpBalance + dCoinsBalance / 10;
 
-  // Handle D Coins to DP Conversion
-  const handleConvert = (e: React.FormEvent) => {
+  // Handle D Coins to DP Conversion via dieme-backend Ledger Engine
+  const handleConvert = async (e: React.FormEvent) => {
     e.preventDefault();
     if (convertAmount < 10) {
       setFeedback('Minimum conversion is 10 D Coins.');
@@ -117,23 +128,67 @@ export default function WalletAndTasksPage() {
       return;
     }
 
-    const dpGained = convertAmount / 10;
-    setDCoinsBalance((prev) => prev - convertAmount);
-    setDpBalance((prev) => prev + dpGained);
-    setFeedback(`Success! Converted ${convertAmount} D Coins to ${dpGained} DP (₹${dpGained} INR).`);
+    try {
+      const res = await fetch('/api/wallet/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user?.uid || 'guest_creator', dCoinsToConvert: convertAmount }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback(data.message || 'Conversion failed. Please try again.');
+        return;
+      }
+      if (data.wallet) {
+        setDCoinsBalance(data.wallet.dCoins);
+        setDpBalance(data.wallet.dp);
+      } else {
+        const dpGained = convertAmount / 10;
+        setDCoinsBalance((prev) => Math.max(0, prev - convertAmount));
+        setDpBalance((prev) => prev + dpGained);
+      }
+      setFeedback(`Success! Converted ${convertAmount} D Coins to ${data.convertedDP || convertAmount / 10} DP.`);
+    } catch {
+      setFeedback('Network error during conversion.');
+    }
     setTimeout(() => setFeedback(''), 5000);
   };
 
-  // Handle Watermark Removal In-App Purchase
-  const handleBuyWatermarkRemoval = () => {
+  // Handle Watermark Removal In-App Purchase via dieme-backend Ledger Engine
+  const handleBuyWatermarkRemoval = async () => {
     const costDP = 29;
     if (dpBalance < costDP) {
       setFeedback(`Insufficient DP balance. You need ${costDP} DP (₹29) to remove watermarks.`);
       return;
     }
-    setDpBalance((prev) => prev - costDP);
-    setHasWatermarkRemoved(true);
-    setFeedback('🎉 Watermark removal successfully unlocked using your in-app DP balance!');
+    try {
+      const res = await fetch('/api/wallet/spend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: user?.uid || 'guest_creator',
+          itemType: 'WATERMARK_REMOVAL',
+          dpAmount: costDP,
+          amount: costDP,
+          currency: 'DP',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFeedback(data.message || 'Debit failed.');
+        return;
+      }
+      if (data.wallet) {
+        setDpBalance(data.wallet.dp);
+        setDCoinsBalance(data.wallet.dCoins);
+      } else {
+        setDpBalance((prev) => Math.max(0, prev - costDP));
+      }
+      setHasWatermarkRemoved(true);
+      setFeedback('🎉 Watermark removal successfully unlocked using your in-app DP balance!');
+    } catch {
+      setFeedback('Network error during purchase.');
+    }
     setTimeout(() => setFeedback(''), 5000);
   };
 

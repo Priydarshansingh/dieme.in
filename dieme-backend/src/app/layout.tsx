@@ -2,8 +2,13 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Dieme Core Backend Digicast Core Backend & God Panel API God Panel API',
-  description: 'Decoupled API Hub, Dual Currency Ledger & Relocated God Panel',
+  title: 'Dieme Backend Control Hub & God Panel',
+  description: 'Decoupled API Hub, Dual Currency Ledger & Dieme Root Access',
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
 };
 
 export default function RootLayout({

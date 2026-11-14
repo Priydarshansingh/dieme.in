@@ -151,20 +151,52 @@ fun ChannelPerformanceGraph(
     var customDateRange by remember { mutableStateOf<Pair<Long, Long>?>(null) }
     var showDatePickerDialog by remember { mutableStateOf(false) }
 
-    // Generate authentic timeline data from real channel streams
-    val graphData = remember(streams, totalMessagesCount, selectedPeriod, isCalendarActive, customDateRange) {
-        calculateChannelTimelineData(
-            streams = streams,
-            totalMessagesCount = totalMessagesCount,
-            period = selectedPeriod,
-            isCalendarActive = isCalendarActive,
-            customRange = customDateRange
-        )
+    // Generate authentic timeline data from real channel streams (returns 0s if no connected account or streams)
+    val graphData = remember(streams, totalMessagesCount, selectedPeriod, isCalendarActive, customDateRange, youtubeAccount) {
+        if (youtubeAccount == null) {
+            val now = System.currentTimeMillis()
+            val dayFormat = SimpleDateFormat("EEE", Locale.US)
+            val monthDayFormat = SimpleDateFormat("dd MMM", Locale.US)
+            val fullDateFormat = SimpleDateFormat("EEE, dd MMM", Locale.US)
+            val emptyPoints = (0..6).map { i ->
+                val t = now - ((6 - i) * 86400000L)
+                val d = Date(t)
+                ChannelTimelinePoint(
+                    dayName = dayFormat.format(d),
+                    dayOfMonth = monthDayFormat.format(d),
+                    fullDateLabel = fullDateFormat.format(d),
+                    value = 0L,
+                    trendPercent = 0.0,
+                    timestampMs = t
+                )
+            }
+            ChannelGraphResult(
+                totalValue = 0L,
+                overallGrowthPercent = 0.0,
+                viewsGrowthPercent = 0.0,
+                followersGrowthPercent = 0.0,
+                engagementGrowthPercent = 0.0,
+                points = emptyPoints,
+                yAxisSteps = listOf(0L, 0L, 0L, 0L, 0L)
+            )
+        } else {
+            calculateChannelTimelineData(
+                streams = streams,
+                totalMessagesCount = totalMessagesCount,
+                period = selectedPeriod,
+                isCalendarActive = isCalendarActive,
+                customRange = customDateRange
+            )
+        }
     }
 
-    // Always calculate 30-day monthly actual data for Key Insights (independent of top period filter)
-    val monthlyInsights = remember(streams, totalMessagesCount) {
-        calculateMonthlyInsightsData(streams, totalMessagesCount)
+    // Always calculate 30-day monthly actual data for Key Insights (returns 0s if not connected)
+    val monthlyInsights = remember(streams, totalMessagesCount, youtubeAccount) {
+        if (youtubeAccount == null) {
+            MonthlyInsightsResult(0L, 0.0, 0.0, 0.0)
+        } else {
+            calculateMonthlyInsightsData(streams, totalMessagesCount)
+        }
     }
 
     var selectedPointIndex by remember(graphData) {
@@ -179,6 +211,112 @@ fun ChannelPerformanceGraph(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // ── 0. YouTube Channel Status / Connect Header (Top Side of 7 Days) ──
+        if (youtubeAccount == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF140D0F))
+                    .border(1.dp, DigicastLiveRed.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SmartDisplay,
+                            contentDescription = null,
+                            tint = DigicastLiveRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "YouTube channel is not connected",
+                            color = DigicastWhite,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Button(
+                        onClick = onConnectYouTube,
+                        colors = ButtonDefaults.buttonColors(containerColor = DigicastLiveRed),
+                        shape = RoundedCornerShape(9999.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Text(
+                            text = "Connect",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF072126))
+                    .border(1.dp, DigicastElectricCyan.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SmartDisplay,
+                            contentDescription = null,
+                            tint = DigicastLiveRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = youtubeAccount.channelName.ifBlank { "YouTube Channel" },
+                            color = DigicastWhite,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(DigicastElectricCyan)
+                        )
+                        Text(
+                            text = "Connected",
+                            color = DigicastElectricCyan,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+
         // ── 1. Top Period Filters (7 Days, 30 Days, 90 Days) + Calendar Picker ──
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -523,108 +661,6 @@ fun ChannelPerformanceGraph(
                         growthValue = engagementStr,
                         label = "Engagement\nthis month",
                         modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-
-        // ── 4. YouTube Channel Connection / Status Banner ─────────────────────
-        if (youtubeAccount == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(AppleDarkEdgeCardBrush)
-                    .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
-                    .padding(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(DigicastLiveRed)
-                            )
-                            Text(
-                                text = "Connect YouTube Account",
-                                color = DigicastWhite,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Link your channel to import live broadcasts, viewer stats, and chat logs directly with Google YouTube API.",
-                            color = DigicastSlate,
-                            fontSize = 11.sp,
-                            lineHeight = 15.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Button(
-                        onClick = onConnectYouTube,
-                        colors = ButtonDefaults.buttonColors(containerColor = DigicastLiveRed),
-                        shape = RoundedCornerShape(9999.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = "Connect",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF072126))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SmartDisplay,
-                            contentDescription = null,
-                            tint = DigicastLiveRed,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "${youtubeAccount.channelName} • YouTube Synced",
-                            color = DigicastWhite,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Text(
-                        text = "Reconnect",
-                        color = DigicastElectricCyan,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable(onClick = onConnectYouTube)
                     )
                 }
             }
@@ -1012,7 +1048,7 @@ private fun calculateChannelTimelineData(
             followersGrowthPercent = 0.0,
             engagementGrowthPercent = 0.0,
             points = emptyPoints,
-            yAxisSteps = listOf(20L, 40L, 60L, 80L, 100L)
+            yAxisSteps = listOf(0L, 0L, 0L, 0L, 0L)
         )
     }
 

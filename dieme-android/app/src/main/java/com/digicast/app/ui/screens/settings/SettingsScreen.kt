@@ -1288,11 +1288,27 @@ private fun ConnectedYouTubeCard(
                 )
             }
 
-            TextButton(
-                onClick = onReconnect,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(9999.dp))
+                    .background(DigicastElectricCyan.copy(alpha = 0.1f))
+                    .border(1.dp, DigicastElectricCyan.copy(alpha = 0.25f), RoundedCornerShape(9999.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
-                Text("Switch", fontSize = 11.sp, color = DigicastElectricCyan, fontWeight = FontWeight.Bold)
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(DigicastElectricCyan)
+                )
+                Text(
+                    text = "Connected",
+                    fontSize = 11.sp,
+                    color = DigicastElectricCyan,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

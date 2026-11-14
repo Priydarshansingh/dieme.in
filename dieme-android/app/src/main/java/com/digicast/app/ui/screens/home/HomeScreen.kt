@@ -201,10 +201,14 @@ fun HomeScreen(
         }
     }
 
-    val liveStreams = remember(realAllStreams, realActiveStreams) {
-        (realActiveStreams + realAllStreams)
-            .distinctBy { it.id }
-            .filter { it.status == "live" }
+    val liveStreams = remember(realAllStreams, realActiveStreams, ytAccount) {
+        if (ytAccount == null) {
+            emptyList()
+        } else {
+            (realActiveStreams + realAllStreams)
+                .distinctBy { it.id }
+                .filter { it.status == "live" }
+        }
     }
     val isUserLive = liveStreams.isNotEmpty() || LiveChatCaptureService.isServiceRunning
     val pastStreams = remember(realAllStreams) {
@@ -305,13 +309,13 @@ fun HomeScreen(
     ) { padding ->
         val onConnectYouTube = {
             val session = signedInSession
-            if (session != null) {
-                val connectUrl = "https://www.dieme.in/api/youtube/auth?workspaceId=${session.workspaceId}&token=${session.token}&source=mobile_connect_youtube&redirect=true"
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(connectUrl))
-                context.startActivity(intent)
+            val connectUrl = if (session != null) {
+                "https://www.dieme.in/api/youtube/auth?workspaceId=${session.workspaceId}&token=${session.token}&source=mobile_connect_youtube&redirect=true"
             } else {
-                Toast.makeText(context, "Please sign in to connect YouTube", Toast.LENGTH_SHORT).show()
+                "https://www.dieme.in/settings"
             }
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(connectUrl))
+            context.startActivity(intent)
         }
 
         LazyColumn(
@@ -324,8 +328,8 @@ fun HomeScreen(
             // ── 1. Interactive Channel Performance Graph ───────────────────────
             item {
                 ChannelPerformanceGraph(
-                    streams = realAllStreams,
-                    totalMessagesCount = messages.size,
+                    streams = if (ytAccount != null) realAllStreams else emptyList(),
+                    totalMessagesCount = if (ytAccount != null) messages.size else 0,
                     youtubeAccount = ytAccount,
                     onConnectYouTube = onConnectYouTube,
                     onViewDetailsClick = onNavigateToStreams

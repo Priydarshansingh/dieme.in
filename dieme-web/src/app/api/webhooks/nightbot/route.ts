@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { col } from '@/lib/firestore/collections';
 import { ClipMarker } from '@/types';
+import { callBackendService } from '@/lib/backendClient';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
@@ -69,6 +70,31 @@ async function sendTelegramClipAlert(chatId: string | number, clip: {
 }
 
 async function handleNightbotClip(req: NextRequest) {
+  // Delegate compute & Telegram alert dispatch to dieme-backend
+  try {
+    const searchString = req.nextUrl.search;
+    let bodyPayload: any = undefined;
+    if (req.method === 'POST') {
+      try { bodyPayload = await req.clone().json(); } catch {}
+    }
+    const backendRes = await callBackendService(`api/webhooks/nightbot${searchString}`, {
+      method: req.method as any,
+      body: bodyPayload,
+      timeoutMs: 4000,
+    });
+    if (backendRes.ok && backendRes.data) {
+      const respText = typeof backendRes.data === 'string'
+        ? backendRes.data
+        : (backendRes.data.message || JSON.stringify(backendRes.data));
+      return new NextResponse(respText, {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    }
+  } catch (proxyErr) {
+    console.warn('[nightbot-webhook] Backend delegation fallback to local:', proxyErr);
+  }
+
   const { searchParams } = new URL(req.url);
 
   // Read params from query string or body (Nightbot $(urlfetch) supports both)

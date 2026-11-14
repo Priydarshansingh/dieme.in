@@ -288,3 +288,35 @@ export interface GodPanelOverviewMetrics {
   pendingTasksForReview: number;
   active24hAdPasses: number;
 }
+
+// -------------------------------------------------------------
+// CLIP MARKERS & NIGHTBOT INTEGRATION
+// -------------------------------------------------------------
+export type ClipSource = 'chat_command' | 'mobile_tap' | 'ai_highlight' | 'manual';
+export type ClipDownloadStatus = 'pending' | 'downloading' | 'ready' | 'failed';
+export type ClipTelegramStatus = 'pending' | 'sent' | 'failed' | 'not_configured';
+
+export interface ClipMarker {
+  id: string;
+  workspaceId: string;
+  streamId: string;
+  youtubeVideoId: string;
+  markerTimestamp: number;
+  markerTimestampDisplay: string;
+  windowStartSeconds?: number;
+  windowEndSeconds?: number;
+  lookbackSeconds?: number;
+  source: ClipSource;
+  authorName?: string;
+  title?: string;
+  note?: string;
+  chatMessageId?: string;
+  aiTopic?: string;
+  aiEngagementScore?: number;
+  createdAt: string;
+  downloadStatus?: ClipDownloadStatus;
+  telegramStatus?: ClipTelegramStatus;
+  telegramSent?: boolean;
+  assignedTo?: string[];
+}
+

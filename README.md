@@ -1,4 +1,4 @@
-# Dieme — Stream Intelligence & Highlight Delivery Platform
+ # Dieme — Stream Intelligence & Highlight Delivery Platform
 
 Official open-source distribution repository for Dieme extensions, companion mobile releases, and stream asset packages.
 

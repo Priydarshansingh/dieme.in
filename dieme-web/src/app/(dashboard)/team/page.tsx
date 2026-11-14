@@ -404,7 +404,7 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-8 pb-12">
+    <div className="w-full space-y-8 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Team & App Access</h1>

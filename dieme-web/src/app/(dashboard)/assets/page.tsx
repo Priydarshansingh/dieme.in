@@ -173,7 +173,7 @@ export default function StreamAssetsPage() {
         { title: "1-Click OBS Integration", desc: "Download and auto-install into your live streaming setup with loss-free alpha channels.", tag: "STREAMLABS" }
       ]}
     >
-      <div className="space-y-8 max-w-7xl mx-auto">
+      <div className="w-full space-y-8">
         {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

@@ -438,7 +438,7 @@ function SettingsContent() {
   };
 
   return (
-    <div className="w-full max-w-6xl space-y-8 mx-auto">
+    <div className="w-full space-y-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Settings</h1>
         <p className="text-sm mt-1 text-slate-400">

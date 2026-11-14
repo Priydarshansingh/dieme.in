@@ -114,7 +114,7 @@ export default function PricingAndSubscriptionsPage() {
   };
 
   return (
-    <div className="space-y-10 max-w-7xl mx-auto pb-12">
+    <div className="w-full space-y-10 pb-12">
       {/* Top Header */}
       <div className="text-center space-y-3">
         <span className="rounded-full bg-cyan-500/10 border border-cyan-500/30 px-3.5 py-1 text-xs font-bold text-cyan-400">

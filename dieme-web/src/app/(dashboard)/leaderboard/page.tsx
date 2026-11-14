@@ -77,7 +77,7 @@ export default function LeaderboardPage() {
         { title: "Verified Pro Badging", desc: "Stand out to top creators and multi-channel production studios with proof-of-work authenticity.", tag: "VERIFIED" }
       ]}
     >
-      <div className="space-y-8 max-w-7xl mx-auto">
+      <div className="w-full space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

@@ -137,7 +137,7 @@ export default function ClipsPage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="w-full space-y-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Clips</h1>
         <p className="text-sm mt-1 text-slate-400">

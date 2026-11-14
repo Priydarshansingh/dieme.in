@@ -147,7 +147,7 @@ export default function AIMatchmakerPage() {
         { title: "Escrow Protected Payments", desc: "Release DP or INR payments only after you approve the rendered 9:16 vertical clip.", tag: "ESCROW" }
       ]}
     >
-      <div className="space-y-6 max-w-5xl mx-auto flex flex-col h-[calc(100vh-140px)]">
+      <div className="space-y-6 w-full flex flex-col h-[calc(100vh-140px)]">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-4">
         <div>

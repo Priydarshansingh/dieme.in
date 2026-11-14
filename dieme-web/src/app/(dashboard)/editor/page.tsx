@@ -28,7 +28,7 @@ const mockAssignedClips = [
 
 export default function EditorPage() {
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full">
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Editor Workspace</h1>
         <p className="text-slate-400 text-sm mt-1">

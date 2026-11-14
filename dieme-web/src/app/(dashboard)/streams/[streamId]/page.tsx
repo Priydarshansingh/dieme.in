@@ -120,7 +120,7 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
 
   if (!stream) {
     return (
-      <div className="w-full max-w-5xl space-y-6">
+      <div className="w-full space-y-6">
         <Link href="/streams" className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition">
           <ChevronLeft className="w-4 h-4" /> Back to Streams
         </Link>
@@ -139,7 +139,7 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
   const appDeepLink = `digicast://stream/${videoId}`;
 
   return (
-    <div className="w-full max-w-6xl space-y-6">
+    <div className="w-full space-y-6">
       {/* Top Navigation */}
       <div className="flex items-center justify-between gap-4">
         <Link

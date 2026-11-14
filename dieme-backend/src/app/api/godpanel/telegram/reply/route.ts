@@ -70,10 +70,12 @@ export async function POST(req: NextRequest) {
       timestamp: now,
     });
 
-    // Update parent chat summary
+    // Update parent chat summary with explicit lastAdminReplyAt timestamp
     await adminDb.collection('telegram_chats').doc(String(chatId)).set({
       lastMessage: `Admin: ${text.trim()}`,
       lastMessageAt: now,
+      lastAdminReplyAt: now,
+      unreadCount: 0,
       updatedAt: now,
     }, { merge: true });
 

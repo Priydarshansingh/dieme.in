@@ -641,13 +641,32 @@ Thank you <b>${senderName}</b>! Your concern has been recorded and dispatched to
 
       // ─── Intelligent Groq AI Fallback with Dynamic Knowledge Base ─────────
       try {
-        // Check if AI is enabled for this chat (admin can pause for manual takeover)
+        // SM-9: 500ms Firestore propagation grace delay to prevent race conditions with human admin replies
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Re-read fresh chat state
         const chatDoc = await adminDb.collection('telegram_chats').doc(String(chatId)).get();
-        const isAiEnabled = chatDoc.exists ? (chatDoc.data()?.isAiEnabled ?? true) : true;
+        const chatData = chatDoc.exists ? chatDoc.data() : null;
+        const isAiEnabled = chatData?.isAiEnabled ?? true;
 
         if (!isAiEnabled) {
           console.info(`[telegram/webhook] AI disabled for chatId=${chatId}, waiting for admin reply`);
           return NextResponse.json({ ok: true });
+        }
+
+        // Check if a human admin recently replied (15-minute takeover grace window)
+        const lastAdminReplyTime = chatData?.lastAdminReplyAt
+          ? (typeof chatData.lastAdminReplyAt === 'number'
+              ? chatData.lastAdminReplyAt
+              : Date.parse(chatData.lastAdminReplyAt))
+          : 0;
+        const ADMIN_RECENCY_WINDOW_MS = 15 * 60 * 1000;
+
+        if (lastAdminReplyTime && Date.now() - lastAdminReplyTime < ADMIN_RECENCY_WINDOW_MS) {
+          console.info(
+            `[telegram/webhook] Human admin active on chatId=${chatId} (${Math.round((Date.now() - lastAdminReplyTime) / 1000)}s ago) - suppressing AI reply.`
+          );
+          return NextResponse.json({ ok: true, skippedAi: true, reason: 'human_admin_active' });
         }
 
         // Fetch user session context if linked

@@ -839,7 +839,8 @@ export default function TeamPage() {
                           <p className="text-sm font-bold truncate text-white">
                             {member.displayName ?? 'Unknown'}
                           </p>
-                          {/* Interactive Role Switcher for Owner & Admin */}
+
+                          {/* Role Badge / Switcher */}
                           {canManageTeam && !isSelf && member.role !== 'owner' ? (
                             <div className="relative inline-flex items-center">
                               <select
@@ -852,7 +853,7 @@ export default function TeamPage() {
                                   backgroundColor: cfg.bg,
                                   borderColor: cfg.border,
                                 }}
-                                title="Change Member Access Role (Admin, Moderator, Editor)"
+                                title="Change Member Role (Admin, Moderator, Editor)"
                               >
                                 {currentUserRole === 'owner' && (
                                   <option value="admin" className="bg-slate-900 text-blue-400">
@@ -879,12 +880,40 @@ export default function TeamPage() {
                               {cfg.label}
                             </span>
                           )}
-                          {(member.developerAccess || member.email === 'pskishnawat133@gmail.com') && (
-                            <span className="text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 flex items-center gap-1 shadow-sm">
-                              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                              DEV PREVIEW
+
+                          {/* Unified Dev Access Indicator & 1-Click Toggle */}
+                          {member.email === 'pskishnawat133@gmail.com' ? (
+                            <span
+                              className="text-[11px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 flex items-center gap-1.5 shadow-sm shrink-0"
+                              title="Permanent Master Developer"
+                            >
+                              <Code2 className="w-3 h-3 text-cyan-400" />
+                              DEV
                             </span>
-                          )}
+                          ) : member.developerAccess ? (
+                            <button
+                              type="button"
+                              disabled={updatingDevUid === member.uid || !canManageTeam}
+                              onClick={() => handleToggleDevAccess(member)}
+                              className="text-[11px] font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/30 transition flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer disabled:opacity-70 disabled:cursor-default"
+                              title="Developer Preview is ON. Click to toggle OFF."
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                              <Code2 className="w-3 h-3 text-cyan-400" />
+                              <span>{updatingDevUid === member.uid ? '...' : 'DEV'}</span>
+                            </button>
+                          ) : canManageTeam ? (
+                            <button
+                              type="button"
+                              disabled={updatingDevUid === member.uid}
+                              onClick={() => handleToggleDevAccess(member)}
+                              className="text-[11px] font-mono font-semibold tracking-wider px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/10 text-slate-400 hover:text-white hover:border-white/25 hover:bg-white/[0.08] transition flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-60"
+                              title="Developer Preview is OFF. Click to grant DEV access."
+                            >
+                              <Code2 className="w-3 h-3 opacity-60" />
+                              <span>{updatingDevUid === member.uid ? '...' : '+ DEV'}</span>
+                            </button>
+                          ) : null}
                         </div>
                         <p className="text-xs font-mono text-slate-400 truncate mt-0.5">{member.email}</p>
                       </div>
@@ -902,11 +931,11 @@ export default function TeamPage() {
                     )}
                   </div>
 
-                  {/* Right: Symmetrical Control Columns */}
+                  {/* Right: Symmetrical Credentials & Actions */}
                   <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0 w-full xl:w-auto">
-                    {/* Column 1: Password / Protected Box (fixed 210px on desktop) */}
+                    {/* Column 1: Password / Protected Box */}
                     {canViewThisPassword ? (
-                      <div className="flex items-center justify-between gap-1.5 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 w-full sm:w-[210px] shrink-0 h-9">
+                      <div className="flex items-center justify-between gap-1.5 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 w-full sm:w-[220px] shrink-0 h-9">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span className="text-xs text-slate-400 font-medium shrink-0">Password:</span>
@@ -945,45 +974,13 @@ export default function TeamPage() {
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center gap-2 bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-slate-500 text-xs w-full sm:w-[210px] shrink-0 h-9">
+                      <div className="flex items-center justify-center gap-2 bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 text-slate-500 text-xs w-full sm:w-[220px] shrink-0 h-9">
                         <Lock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                         <span>Protected</span>
                       </div>
                     )}
 
-                    {/* Column 2: Developer Access Toggle (fixed 130px on desktop) */}
-                    {canManageTeam && (
-                      <button
-                        type="button"
-                        disabled={updatingDevUid === member.uid || member.email === 'pskishnawat133@gmail.com'}
-                        onClick={() => handleToggleDevAccess(member)}
-                        className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition shadow-sm w-full sm:w-[130px] shrink-0 h-9 ${
-                          member.developerAccess || member.email === 'pskishnawat133@gmail.com'
-                            ? 'bg-cyan-950/70 border-cyan-500/50 text-cyan-300 hover:bg-cyan-900/80 hover:border-cyan-400'
-                            : 'bg-white/[0.04] border-white/10 text-slate-400 hover:text-white hover:border-white/25 hover:bg-white/[0.08]'
-                        } ${member.email === 'pskishnawat133@gmail.com' ? 'opacity-85 cursor-default' : 'cursor-pointer'}`}
-                        title={
-                          member.email === 'pskishnawat133@gmail.com'
-                            ? 'Permanent Master Developer Access'
-                            : member.developerAccess
-                            ? 'Developer preview is ACTIVE (can view Marketplace, Matchmaker, Leaderboard). Click to revoke.'
-                            : 'Developer preview is OFF (sees Coming Soon gate). Click to grant access.'
-                        }
-                      >
-                        <Code2 className={`w-3.5 h-3.5 shrink-0 ${member.developerAccess || member.email === 'pskishnawat133@gmail.com' ? 'text-cyan-400' : 'text-slate-500'}`} />
-                        <span className="truncate">
-                          {updatingDevUid === member.uid
-                            ? 'Updating...'
-                            : member.email === 'pskishnawat133@gmail.com'
-                            ? 'Master Dev'
-                            : member.developerAccess
-                            ? 'Dev Access: ON'
-                            : 'Dev Access: OFF'}
-                        </span>
-                      </button>
-                    )}
-
-                    {/* Column 3: Reset Password Button (fixed 115px on desktop) */}
+                    {/* Column 2: Reset Password Button */}
                     {canManageTeam && canViewThisPassword && !isSelf ? (
                       <button
                         onClick={() => {
@@ -992,16 +989,16 @@ export default function TeamPage() {
                           setInviteName(member.displayName || '');
                           window.scrollTo({ top: 320, behavior: 'smooth' });
                         }}
-                        className="px-3 py-2 text-xs font-medium rounded-xl border border-white/10 hover:bg-white/10 text-slate-300 hover:text-white transition w-full sm:w-[115px] shrink-0 h-9 text-center"
+                        className="px-3 py-2 text-xs font-medium rounded-xl border border-white/10 hover:bg-white/10 text-slate-300 hover:text-white transition w-full sm:w-[125px] shrink-0 h-9 text-center"
                         title="Update credentials"
                       >
                         Reset Password
                       </button>
                     ) : (
-                      <div className="w-[115px] shrink-0 hidden sm:block" />
+                      <div className="w-[125px] shrink-0 hidden sm:block" />
                     )}
 
-                    {/* Column 4: Desktop Delete Button (fixed 36px on desktop) */}
+                    {/* Column 3: Desktop Delete Button */}
                     {canDeleteThisMember ? (
                       <button
                         onClick={() => handleDeleteMember(member.uid)}

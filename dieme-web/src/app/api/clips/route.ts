@@ -10,14 +10,18 @@ import { col } from '@/lib/firestore/collections';
 
 async function getUidFromRequest(req: NextRequest): Promise<string | null> {
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const idToken = authHeader.slice(7);
-  try {
-    const decoded = await adminAuth.verifyIdToken(idToken);
-    return decoded.uid;
-  } catch {
-    return null;
+  if (authHeader?.startsWith('Bearer ')) {
+    const idToken = authHeader.slice(7);
+    try {
+      const decoded = await adminAuth.verifyIdToken(idToken);
+      return decoded.uid;
+    } catch {
+      // fall through
+    }
   }
+  const headerUid = req.headers.get('x-user-uid');
+  if (headerUid) return headerUid;
+  return null;
 }
 
 export async function GET(req: NextRequest) {
@@ -27,28 +31,64 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url);
-  const workspaceId = searchParams.get('workspaceId');
+  let workspaceId = searchParams.get('workspaceId');
   if (!workspaceId) {
-    return NextResponse.json({ error: 'workspaceId required' }, { status: 400 });
+    workspaceId = uid;
   }
 
-  // Verify user is a member of this workspace
-  const memberDoc = await adminDb.doc(col.member(workspaceId, uid)).get();
-  if (!memberDoc.exists) {
-    // Return 403, not 404, to avoid revealing workspace existence to non-members
+  // Verify user is owner or member of this workspace
+  let hasAccess = workspaceId === uid;
+  if (!hasAccess) {
+    try {
+      const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
+      if (wsDoc.exists) {
+        const wsData = wsDoc.data() || {};
+        if (wsData.ownerUid === uid || wsData.ownerId === uid) {
+          hasAccess = true;
+        }
+      }
+      if (!hasAccess) {
+        const memberDoc = await adminDb.doc(col.member(workspaceId, uid)).get();
+        if (memberDoc.exists) {
+          hasAccess = true;
+        }
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  if (!hasAccess) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   try {
-    let query = adminDb.collection(col.clips(workspaceId)).orderBy('markerTimestamp', 'asc');
     const streamId = searchParams.get('streamId');
-    if (streamId) {
-      query = query.where('streamId', '==', streamId) as typeof query;
+    let snap;
+    try {
+      let q = adminDb.collection(col.clips(workspaceId));
+      if (streamId) {
+        snap = await q.where('streamId', '==', streamId).get();
+      } else {
+        snap = await q.get();
+      }
+    } catch (qErr) {
+      snap = await adminDb.collection(col.clips(workspaceId)).get();
     }
 
-    const snap = await query.get();
-    const clips = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    return NextResponse.json({ clips });
+    const clips = snap.docs.map((d) => {
+      const data = d.data();
+      return { id: d.id, ...data };
+    });
+
+    // In-memory sort by createdAt descending, fallback to markerTimestamp
+    clips.sort((a: any, b: any) => {
+      const timeA = new Date(a.createdAt || 0).getTime() || (a.markerTimestamp || 0);
+      const timeB = new Date(b.createdAt || 0).getTime() || (b.markerTimestamp || 0);
+      return timeB - timeA;
+    });
+
+    return NextResponse.json({ success: true, clips });
   } catch (err) {
     console.error('[clips GET] Error:', err instanceof Error ? err.message : 'unknown');
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });

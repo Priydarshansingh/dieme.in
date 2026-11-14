@@ -6,7 +6,8 @@ export async function getValidAccessToken(
   workspaceId: string,
   accountDoc: any
 ): Promise<string | null> {
-  let { access_token, refresh_token, token_expires_at, id: channelId } = accountDoc;
+  let { access_token, refresh_token, token_expires_at, id, channelId } = accountDoc;
+  const resolvedChannelId = channelId || id;
 
   // If token is valid for at least another 2 minutes, reuse it
   if (access_token && token_expires_at && Date.now() < token_expires_at - 120000) {
@@ -16,8 +17,8 @@ export async function getValidAccessToken(
   // If we have a refresh token, request a new access token
   if (refresh_token) {
     try {
-      const clientId = process.env.YOUTUBE_CLIENT_ID;
-      const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
+      const clientId = process.env.YOUTUBE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+      const clientSecret = process.env.YOUTUBE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
 
       if (!clientId || !clientSecret) return null;
 
@@ -37,11 +38,13 @@ export async function getValidAccessToken(
         access_token = refreshData.access_token;
         const newExpiresAt = Date.now() + (refreshData.expires_in || 3600) * 1000;
 
-        await adminDb.doc(col.youtubeAccount(workspaceId, channelId)).update({
-          access_token,
-          token_expires_at: newExpiresAt,
-          updatedAt: new Date().toISOString(),
-        });
+        if (resolvedChannelId) {
+          await adminDb.doc(col.youtubeAccount(workspaceId, resolvedChannelId)).set({
+            access_token,
+            token_expires_at: newExpiresAt,
+            updatedAt: new Date().toISOString(),
+          }, { merge: true });
+        }
 
         return access_token;
       }

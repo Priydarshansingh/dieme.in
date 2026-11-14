@@ -112,6 +112,7 @@ function SettingsContent() {
   
   const [connectedChannel, setConnectedChannel] = useState<ConnectedChannel | null>(null);
   const [isConnectingYoutube, setIsConnectingYoutube] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [youtubeSuccess, setYoutubeSuccess] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -224,6 +225,8 @@ function SettingsContent() {
             if (!snap.empty) {
               const docData = snap.docs[0].data() as ConnectedChannel;
               setConnectedChannel(docData);
+            } else {
+              setConnectedChannel(null);
             }
           },
           (err) => {
@@ -356,14 +359,51 @@ function SettingsContent() {
   };
 
   const handleDisconnectYoutube = async () => {
-    if (!workspaceId || !connectedChannel) return;
+    const wid = workspaceId || user?.uid;
+    if (!wid) return;
+    setIsDisconnecting(true);
+    setYoutubeError(null);
+    setYoutubeSuccess(null);
     try {
-      await deleteDoc(doc(db, 'workspaces', workspaceId, 'youtube', connectedChannel.id));
+      const idToken = await user?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
+      const res = await fetch(`/api/youtube/disconnect?workspaceId=${wid}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          workspaceId: wid,
+          channelId: connectedChannel?.channelId || connectedChannel?.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Failed to disconnect YouTube channel.');
+      }
+
       setConnectedChannel(null);
-      setYoutubeSuccess('YouTube channel disconnected.');
+      setYoutubeSuccess('✅ YouTube channel disconnected successfully.');
+      setTimeout(() => setYoutubeSuccess(null), 6000);
     } catch (err: any) {
       console.error('[youtube-disconnect] Error:', err);
-      setYoutubeError('Failed to disconnect YouTube channel.');
+      // Fallback: try client deletion if permitted
+      try {
+        if (connectedChannel?.id) {
+          await deleteDoc(doc(db, 'workspaces', wid, 'youtube', connectedChannel.id));
+          setConnectedChannel(null);
+          setYoutubeSuccess('✅ YouTube channel disconnected.');
+          return;
+        }
+      } catch {}
+      setYoutubeError(err.message || 'Failed to disconnect YouTube channel.');
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -474,10 +514,12 @@ function SettingsContent() {
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleDisconnectYoutube}
-                  className="text-xs font-semibold px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition"
+                  disabled={isDisconnecting}
+                  className="text-xs font-semibold px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition disabled:opacity-50"
                 >
-                  Disconnect
+                  {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
                 </button>
               </div>
             </div>

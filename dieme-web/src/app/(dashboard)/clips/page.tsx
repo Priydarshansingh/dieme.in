@@ -67,17 +67,51 @@ export default function ClipsPage() {
     if (!user) return;
     async function load() {
       try {
-        const userSnap = await getDoc(doc(db, 'users', user!.uid));
-        if (!userSnap.exists()) return;
-        const workspaceId: string = userSnap.data().defaultWorkspaceId;
-        const snap = await getDocs(
-          query(
-            collection(db, 'workspaces', workspaceId, 'clips'),
-            orderBy('createdAt', 'desc'),
-            limit(100),
-          )
-        );
-        setClips(snap.docs.map(d => ({ id: d.id, ...d.data() } as ClipDoc)));
+        const idToken = await user?.getIdToken().catch(() => '');
+        const headers: Record<string, string> = {
+          'x-user-uid': user!.uid,
+          'x-user-email': user!.email || '',
+        };
+        if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
+        let workspaceId = user!.uid;
+        try {
+          const userSnap = await getDoc(doc(db, 'users', user!.uid));
+          if (userSnap.exists() && userSnap.data()?.defaultWorkspaceId) {
+            workspaceId = userSnap.data().defaultWorkspaceId;
+          }
+        } catch {
+          // fallback
+        }
+
+        let clipsList: ClipDoc[] = [];
+        try {
+          const res = await fetch(`/api/clips?workspaceId=${workspaceId}`, { headers });
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.clips)) {
+              clipsList = data.clips;
+            }
+          }
+        } catch (apiErr) {
+          console.warn('[clips] api note:', apiErr);
+        }
+
+        if (clipsList.length === 0) {
+          try {
+            const snap = await getDocs(
+              query(
+                collection(db, 'workspaces', workspaceId, 'clips'),
+                limit(100),
+              )
+            );
+            clipsList = snap.docs.map(d => ({ id: d.id, ...d.data() } as ClipDoc));
+          } catch {
+            // ignore
+          }
+        }
+
+        setClips(clipsList);
       } catch (err) {
         console.error('Clips load error:', err);
       } finally {

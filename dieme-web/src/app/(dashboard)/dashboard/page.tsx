@@ -121,24 +121,72 @@ function DashboardContent() {
 
   const loadData = useCallback(async (wid: string) => {
     try {
-      const streamsSnap = await getDocs(
-        query(collection(db, 'workspaces', wid, 'streams'), limit(30))
-      );
+      const idToken = await user?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
 
-      const allStreams = streamsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as StreamDoc));
+      // 1. Fetch streams from authoritative server API
+      let allStreams: StreamDoc[] = [];
+      let activeLive: StreamDoc | null = null;
+      try {
+        const streamsRes = await fetch(`/api/streams?workspaceId=${wid}`, { headers });
+        if (streamsRes.ok) {
+          const data = await streamsRes.json();
+          if (Array.isArray(data.streams)) {
+            allStreams = data.streams;
+            activeLive = data.activeLiveStream || allStreams.find((s) => s.status === 'live') || null;
+          }
+        }
+      } catch (streamApiErr) {
+        console.warn('[dashboard] /api/streams fallback note:', streamApiErr);
+      }
 
-      // Sort by startedAt descending
-      allStreams.sort((a, b) => parseDate(b.startedAt).getTime() - parseDate(a.startedAt).getTime());
+      // If server API returned empty or failed, fallback to client firestore attempt
+      if (allStreams.length === 0) {
+        try {
+          const streamsSnap = await getDocs(
+            query(collection(db, 'workspaces', wid, 'streams'), limit(30))
+          );
+          allStreams = streamsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as StreamDoc));
+          allStreams.sort((a, b) => parseDate(b.startedAt).getTime() - parseDate(a.startedAt).getTime());
+          activeLive = allStreams.find((s) => s.status === 'live') || null;
+        } catch {
+          // ignore
+        }
+      }
 
-      const activeLive = allStreams.find((s) => s.status === 'live') || null;
       setLiveStream(activeLive);
       setRecentStreams(allStreams.slice(0, 10));
       setStreamsThisMonth(allStreams.length);
 
-      const clipsSnap = await getDocs(collection(db, 'workspaces', wid, 'clips'));
-      setClipsThisMonth(clipsSnap.size);
+      // 2. Fetch clips from authoritative server API
+      let clipsList: any[] = [];
+      try {
+        const clipsRes = await fetch(`/api/clips?workspaceId=${wid}`, { headers });
+        if (clipsRes.ok) {
+          const data = await clipsRes.json();
+          if (Array.isArray(data.clips)) {
+            clipsList = data.clips;
+          }
+        }
+      } catch (clipsApiErr) {
+        console.warn('[dashboard] /api/clips fallback note:', clipsApiErr);
+      }
 
-      const tgUploaded = clipsSnap.docs.filter((d) => d.data().telegramSent || d.data().telegramStatus === 'uploaded').length;
+      if (clipsList.length === 0) {
+        try {
+          const clipsSnap = await getDocs(collection(db, 'workspaces', wid, 'clips'));
+          clipsList = clipsSnap.docs.map((d) => d.data());
+        } catch {
+          // ignore
+        }
+      }
+
+      setClipsThisMonth(clipsList.length);
+      const tgUploaded = clipsList.filter((d) => d.telegramSent || d.telegramStatus === 'uploaded').length;
       setTelegramUploads(tgUploaded);
 
       return allStreams.length;
@@ -148,7 +196,7 @@ function DashboardContent() {
     } finally {
       setLoadingData(false);
     }
-  }, []);
+  }, [user]);
 
   const handleSyncStreams = async () => {
     if (!workspaceId) return;
@@ -238,14 +286,26 @@ function DashboardContent() {
 
         // Background auto-trigger sync if empty without blocking screen
         if (count === 0 && !isCancelled) {
-          fetch(`/api/youtube/sync?workspaceId=${wid}`, { signal: AbortSignal.timeout(4000) })
-            .then(r => r.json())
-            .then(data => {
+          (async () => {
+            try {
+              const idToken = await user?.getIdToken().catch(() => '');
+              const headers: Record<string, string> = {
+                'x-user-uid': user!.uid,
+                'x-user-email': user!.email || '',
+              };
+              if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+              const r = await fetch(`/api/youtube/sync?workspaceId=${wid}`, {
+                headers,
+                signal: AbortSignal.timeout(15000),
+              });
+              const data = await r.json();
               if (data.syncedCount && !isCancelled) {
                 loadData(wid);
               }
-            })
-            .catch(() => {});
+            } catch {
+              // Non-fatal
+            }
+          })();
         }
       } catch (err) {
         console.error('Dashboard init error:', err);

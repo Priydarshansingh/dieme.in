@@ -86,11 +86,38 @@ function StreamsContent() {
 
   const loadStreams = useCallback(async (wid: string) => {
     try {
-      const snap = await getDocs(
-        query(collection(db, 'workspaces', wid, 'streams'), limit(50))
-      );
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as StreamDoc));
-      list.sort((a, b) => parseDate(b.startedAt).getTime() - parseDate(a.startedAt).getTime());
+      const idToken = await user?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
+      let list: StreamDoc[] = [];
+      try {
+        const res = await fetch(`/api/streams?workspaceId=${wid}`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.streams)) {
+            list = data.streams;
+          }
+        }
+      } catch (streamApiErr) {
+        console.warn('[streams] api fallback note:', streamApiErr);
+      }
+
+      if (list.length === 0) {
+        try {
+          const snap = await getDocs(
+            query(collection(db, 'workspaces', wid, 'streams'), limit(50))
+          );
+          list = snap.docs.map(d => ({ id: d.id, ...d.data() } as StreamDoc));
+          list.sort((a, b) => parseDate(b.startedAt).getTime() - parseDate(a.startedAt).getTime());
+        } catch {
+          // ignore
+        }
+      }
+
       setStreams(list);
       return list.length;
     } catch (err) {
@@ -99,14 +126,24 @@ function StreamsContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const handleSyncStreams = async () => {
     if (!workspaceId) return;
     setIsSyncing(true);
     setSyncFeedback(null);
     try {
-      const res = await fetch(`/api/youtube/sync?workspaceId=${workspaceId}`);
+      const idToken = await user?.getIdToken().catch(() => '');
+      const headers: Record<string, string> = {
+        'x-user-uid': user?.uid || '',
+        'x-user-email': user?.email || '',
+      };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
+      const res = await fetch(`/api/youtube/sync?workspaceId=${workspaceId}`, {
+        headers,
+        signal: AbortSignal.timeout(30000),
+      });
       const data = await res.json();
       if (data.syncedCount !== undefined) {
         setSyncFeedback(`✅ Synced ${data.syncedCount} streams from YouTube!`);

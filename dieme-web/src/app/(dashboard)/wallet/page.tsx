@@ -6,17 +6,13 @@ import {
   Coins,
   Tv,
   CheckCircle2,
-  AlertTriangle,
-  ArrowRight,
-  Sparkles,
   RefreshCw,
-  Clock,
-  ShieldAlert,
-  Sliders,
-  DollarSign,
+  Sparkles,
+  ShieldCheck,
   Award,
   Video,
-  ShieldCheck,
+  ArrowRight,
+  Info,
 } from 'lucide-react';
 
 export default function WalletAndTasksPage() {
@@ -141,7 +137,7 @@ export default function WalletAndTasksPage() {
     setTimeout(() => setFeedback(''), 5000);
   };
 
-  // Simulate / Play Rewarded Ad for 24h Pass (Official AdMob Unit: ca-app-pub-5470934256709090/8839247619)
+  // Simulate / Play Rewarded Ad for 24h Pass
   const handleWatchAd = () => {
     setIsWatchingAd(true);
     setAdProgress(0);
@@ -157,8 +153,8 @@ export default function WalletAndTasksPage() {
           } catch (_) {}
           setHasActiveAdPass(true);
           setAdRemainingHours(24);
-          setDCoinsBalance((prev) => prev + 10); // 10 D coins reward + 24 hour pass
-          setFeedback('🎉 Rewarded Ad completed! Verified AdMob Unit [ca-app-pub-5470934256709090/8839247619]. 24-hour full feature access granted and +10 D-Coins added to your wallet.');
+          setDCoinsBalance((prev) => prev + 10);
+          setFeedback('🎉 Rewarded session completed! 24-hour full feature access granted and +10 D Coins added to your wallet.');
           setTimeout(() => setFeedback(''), 6000);
           return 100;
         }
@@ -175,7 +171,7 @@ export default function WalletAndTasksPage() {
       return;
     }
 
-    setFeedback(`Proof submitted for "${selectedTask.title}"! SuperAdmin will verify in the God Panel.`);
+    setFeedback(`Proof submitted for "${selectedTask.title}". Our team will verify and credit your balance.`);
     setSelectedTask(null);
     setProofUrl('');
     setProofNotes('');
@@ -188,25 +184,25 @@ export default function WalletAndTasksPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <Coins className="h-6 w-6 text-amber-400" />
-            <span>Virtual Currency, Tasks & Rewards</span>
+            <Coins className="h-6 w-6 text-cyan-400" />
+            <span>Virtual Currency &amp; Utility Store</span>
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Earn D-Coins and DP through tasks & ads to unlock subscriptions and remove watermarks.
+            Earn D Coins through companion stream clipping, convert to DP, and unlock platform features.
           </p>
         </div>
 
-        {/* Currency badge pill */}
-        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
-          <span className="text-xs font-semibold text-slate-400 uppercase">Conversion Rule:</span>
-          <span className="text-xs font-bold text-amber-400">10 D Coins = 1 DP = ₹1 INR</span>
+        {/* Global Conversion Rule Pill */}
+        <div className="flex items-center gap-2.5 bg-slate-900/90 border border-white/10 px-4 py-2 rounded-xl text-xs">
+          <span className="font-semibold text-slate-400 uppercase tracking-wider text-[11px]">Conversion Rule:</span>
+          <span className="font-bold text-cyan-400">10 D Coins = 1 DP = ₹1 INR</span>
         </div>
       </div>
 
       {/* Tab Navigation */}
       <div className="flex gap-2 border-b border-white/[0.08] pb-3">
         {[
-          { id: 'wallet', label: 'Wallet & In-App Store', icon: Coins },
+          { id: 'wallet', label: 'Wallet & Utility Store', icon: Coins },
           {
             id: 'ads',
             label: isPaidSubscriber ? 'Pro Ad-Free Status' : 'Ad-Supported Free Tier (24h Pass)',
@@ -222,8 +218,8 @@ export default function WalletAndTasksPage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition ${
                 isActive
-                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
+                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -233,9 +229,10 @@ export default function WalletAndTasksPage() {
         })}
       </div>
 
+      {/* Feedback Banner */}
       {feedback && (
-        <div className="rounded-xl bg-amber-950/70 border border-amber-500/40 p-4 text-xs text-amber-200 flex items-center gap-2 shadow-lg">
-          <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
+        <div className="rounded-xl bg-cyan-950/40 border border-cyan-500/30 p-4 text-xs text-cyan-200 flex items-center gap-2.5 shadow-sm">
+          <Sparkles className="h-4 w-4 text-cyan-400 shrink-0" />
           <span>{feedback}</span>
         </div>
       )}
@@ -243,117 +240,202 @@ export default function WalletAndTasksPage() {
       {/* TAB 1: WALLET & IN-APP STORE */}
       {activeTab === 'wallet' && (
         <div className="space-y-6">
-          {/* Balance Cards */}
+          {/* Top Symmetrical Stat Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 space-y-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                D Coins Balance
-              </span>
-              <div className="text-3xl font-extrabold text-amber-400">{dCoinsBalance} D</div>
-              <p className="text-xs text-slate-400">= {dCoinsBalance / 10} DP equivalent value</p>
+            {/* Card 1: D Coins */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 flex flex-col justify-between h-[150px]">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  D Coins Balance
+                </span>
+                <span className="text-[11px] font-medium text-slate-500 bg-white/[0.04] px-2 py-0.5 rounded-md border border-white/5">
+                  Mobile Reward
+                </span>
+              </div>
+              <div>
+                <div className="text-3xl font-extrabold text-white tracking-tight tabular-nums flex items-baseline gap-1.5">
+                  <span>{dCoinsBalance}</span>
+                  <span className="text-sm font-bold text-cyan-400">D</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">= {dCoinsBalance / 10} DP equivalent value</p>
+              </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 space-y-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                DP Balance (Main Currency)
-              </span>
-              <div className="text-3xl font-extrabold text-cyan-400">{dpBalance} DP</div>
-              <p className="text-xs text-slate-400">1 DP = ₹1 INR spendable on any in-app perk</p>
+            {/* Card 2: DP Balance */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 flex flex-col justify-between h-[150px]">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  DP Balance
+                </span>
+                <span className="text-[11px] font-medium text-cyan-400/90 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">
+                  Main Currency
+                </span>
+              </div>
+              <div>
+                <div className="text-3xl font-extrabold text-white tracking-tight tabular-nums flex items-baseline gap-1.5">
+                  <span>{dpBalance}</span>
+                  <span className="text-sm font-bold text-cyan-400">DP</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">1 DP = ₹1 INR spendable on in-app perks</p>
+              </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 space-y-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Total Wallet Purchasing Power
-              </span>
-              <div className="text-3xl font-extrabold text-emerald-400">₹{totalEquivalentINR} INR</div>
-              <p className="text-xs text-slate-400">Usable for subscriptions & watermark removal</p>
+            {/* Card 3: Total Purchasing Power */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 flex flex-col justify-between h-[150px]">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  Total Purchasing Power
+                </span>
+                <span className="text-[11px] font-medium text-slate-500 bg-white/[0.04] px-2 py-0.5 rounded-md border border-white/5">
+                  Combined Value
+                </span>
+              </div>
+              <div>
+                <div className="text-3xl font-extrabold text-white tracking-tight tabular-nums flex items-baseline gap-1.5">
+                  <span>₹{totalEquivalentINR}</span>
+                  <span className="text-sm font-bold text-cyan-400">INR</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">Usable for subscriptions &amp; watermark removal</p>
+              </div>
             </div>
           </div>
 
-          {/* Strict Policy Notice */}
-          <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-4 text-xs text-red-300 flex items-start gap-3">
-            <ShieldAlert className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold text-red-200">Withdrawal Policy Notice:</p>
-              <p className="mt-0.5 text-slate-400">
-                In-app balances cannot be withdrawn to external bank accounts. Earned D-Coins and DP are strictly designed for in-platform utility: subscribing to creator plans, removing export watermarks, and accessing premium live stream overlays.
+          {/* Platform Utility Policy Notice (Neutral, Professional Design) */}
+          <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 text-xs flex items-start gap-3">
+            <Info className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="font-semibold text-white">Platform Utility &amp; Currency Policy</p>
+              <p className="text-slate-400 leading-relaxed text-[12px]">
+                In-app balances (D Coins and DP) are digital utility credits designed exclusively for unlocking platform perks: watermark-free exports, priority cloud rendering, and subscription passes. In accordance with policy, in-app points are non-refundable and cannot be withdrawn as cash to external bank accounts.
               </p>
             </div>
           </div>
 
-          {/* D-Coins to DP Conversion Card */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <RefreshCw className="h-4 w-4 text-amber-400" />
-                <span>Convert D Coins into DP</span>
-              </h3>
-              <p className="text-xs text-slate-400">
-                Accumulate 10 D coins to exchange for 1 DP. DP can be directly spent in place of real INR.
-              </p>
-
-              <form onSubmit={handleConvert} className="space-y-4 pt-2">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    D Coins to Convert (Multiple of 10)
-                  </label>
-                  <input
-                    type="number"
-                    step="10"
-                    min="10"
-                    max={dCoinsBalance}
-                    value={convertAmount}
-                    onChange={(e) => setConvertAmount(Number(e.target.value))}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white"
-                  />
-                  <p className="text-[11px] text-cyan-400 mt-1">
-                    You will receive: {convertAmount / 10} DP (₹{convertAmount / 10} INR)
-                  </p>
+          {/* Symmetrical Dual Action Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+            {/* Card 1: Convert D Coins into DP */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 flex flex-col justify-between h-full">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                    <RefreshCw className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Convert D Coins into DP</h3>
+                    <p className="text-xs text-slate-400">Exchange mobile companion coins for spendable platform points.</p>
+                  </div>
                 </div>
 
+                <div className="pt-2">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    D Coins to Convert (Multiples of 10)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="10"
+                      min="10"
+                      max={dCoinsBalance}
+                      value={convertAmount}
+                      onChange={(e) => setConvertAmount(Number(e.target.value))}
+                      className="w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+                    />
+                    <div className="absolute right-3 top-2.5 text-xs font-bold text-cyan-400">
+                      = {convertAmount / 10} DP
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2 px-0.5">
+                    <span>Available: <strong className="text-white">{dCoinsBalance} D</strong></span>
+                    <span>Credit: <strong className="text-cyan-400">₹{convertAmount / 10} INR</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6">
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleConvert}
                   disabled={dCoinsBalance < 10}
-                  className="w-full rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 py-2.5 text-xs font-bold text-slate-950 transition shadow"
+                  className="w-full rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 py-3 text-xs font-semibold text-white transition shadow-sm cursor-pointer disabled:cursor-not-allowed"
                 >
                   Convert {convertAmount} D Coins &rarr; {convertAmount / 10} DP
                 </button>
-              </form>
+              </div>
             </div>
 
-            {/* In-App Spend Store */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-cyan-400" />
-                <span>In-App Feature Unlocks</span>
-              </h3>
-              <p className="text-xs text-slate-400">
-                Spend your earned DP balance directly without credit card or bank payments.
-              </p>
-
-              <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Permanent Watermark Removal</h4>
-                    <p className="text-xs text-slate-400">Remove &quot;Clipped with Digicast&quot; watermark on all exported clips.</p>
+            {/* Card 2: In-App Feature Store */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 flex flex-col justify-between h-full">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                    <Sparkles className="h-4 w-4" />
                   </div>
-                  <span className="text-sm font-extrabold text-cyan-400">29 DP (₹29)</span>
+                  <div>
+                    <h3 className="text-base font-bold text-white">In-App Feature Unlocks</h3>
+                    <p className="text-xs text-slate-400">Spend DP directly without card payments or bank details.</p>
+                  </div>
                 </div>
 
+                {/* Feature Item Details Box */}
+                <div className="rounded-xl border border-white/10 bg-slate-950 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-white">Permanent Watermark Removal</h4>
+                    <span className="text-sm font-extrabold text-cyan-400">29 DP (₹29)</span>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Remove &quot;Clipped with Digicast&quot; branding across all exported clips and videos permanently.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-6">
                 {hasWatermarkRemoved ? (
-                  <div className="flex items-center gap-2 text-xs text-emerald-400 font-semibold bg-emerald-950/50 p-2.5 rounded-lg border border-emerald-500/30">
+                  <div className="flex items-center justify-center gap-2 text-xs text-cyan-400 font-semibold bg-cyan-500/10 py-3 rounded-xl border border-cyan-500/30">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Unlocked on your account</span>
                   </div>
                 ) : (
                   <button
+                    type="button"
                     onClick={handleBuyWatermarkRemoval}
                     disabled={dpBalance < 29}
-                    className="w-full rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 py-2 text-xs font-semibold text-white transition shadow"
+                    className="w-full rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 py-3 text-xs font-semibold text-white transition shadow-sm cursor-pointer disabled:cursor-not-allowed"
                   >
-                    Unlock with 29 DP
+                    Unlock with 29 DP (₹29 Balance)
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+
+          {/* Symmetrical 3-Step Guide: How to Earn and Spend */}
+          <div className="pt-2">
+            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              How the Ecosystem Works
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+                <span className="text-[11px] font-bold text-cyan-400 uppercase">Step 1 &bull; Earn D Coins</span>
+                <h5 className="text-sm font-semibold text-white">Clip on Mobile Companion</h5>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Capture live moments during streams or complete daily check-ins to build your D Coins balance.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+                <span className="text-[11px] font-bold text-cyan-400 uppercase">Step 2 &bull; Convert to DP</span>
+                <h5 className="text-sm font-semibold text-white">10 D Coins = 1 DP</h5>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Convert coins in your wallet anytime. Every 10 D Coins gives 1 DP, equivalent to ₹1 INR utility credit.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-1.5">
+                <span className="text-[11px] font-bold text-cyan-400 uppercase">Step 3 &bull; Redeem Perks</span>
+                <h5 className="text-sm font-semibold text-white">Zero Payment Checkout</h5>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Redeem DP directly for watermark-free exports, 24-hour passes, and creator subscription tiers.
+                </p>
               </div>
             </div>
           </div>
@@ -364,16 +446,15 @@ export default function WalletAndTasksPage() {
       {activeTab === 'ads' && (
         <div className="space-y-6">
           {isPaidSubscriber ? (
-            /* Subscribed Users NEVER see ads */
-            <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 p-8 space-y-5">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-8 space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                  <div className="h-12 w-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
                     <ShieldCheck className="h-6 w-6" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-emerald-950 border border-emerald-500/40 px-3 py-1 text-xs font-bold text-emerald-300">
+                      <span className="rounded-md bg-cyan-500/10 border border-cyan-500/30 px-2.5 py-0.5 text-xs font-bold text-cyan-400">
                         PRO AD-FREE ACTIVE
                       </span>
                       <span className="text-xs text-slate-400 font-mono">
@@ -387,7 +468,7 @@ export default function WalletAndTasksPage() {
                 </div>
 
                 <div className="text-right">
-                  <div className="text-2xl font-black text-emerald-400">100% Ad-Free</div>
+                  <div className="text-2xl font-black text-cyan-400">100% Ad-Free</div>
                   <p className="text-xs text-slate-400">Subscription Benefit</p>
                 </div>
               </div>
@@ -397,43 +478,39 @@ export default function WalletAndTasksPage() {
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/[0.06]">
-                <div className="bg-slate-950/50 rounded-xl p-3.5 border border-slate-800">
+                <div className="bg-slate-950 rounded-xl p-3.5 border border-white/5">
                   <span className="text-[11px] text-slate-400 block font-semibold">Ad-Free Guarantee</span>
-                  <span className="text-sm font-bold text-emerald-400">Ads Permanently Disabled</span>
+                  <span className="text-sm font-bold text-cyan-400">Ads Permanently Disabled</span>
                 </div>
-                <div className="bg-slate-950/50 rounded-xl p-3.5 border border-slate-800">
+                <div className="bg-slate-950 rounded-xl p-3.5 border border-white/5">
                   <span className="text-[11px] text-slate-400 block font-semibold">Live Stream Clipping</span>
                   <span className="text-sm font-bold text-white">Full Speed Priority</span>
                 </div>
-                <div className="bg-slate-950/50 rounded-xl p-3.5 border border-slate-800">
+                <div className="bg-slate-950 rounded-xl p-3.5 border border-white/5">
                   <span className="text-[11px] text-slate-400 block font-semibold">Export Watermarks</span>
                   <span className="text-sm font-bold text-white">Clean Unbranded Exports</span>
                 </div>
               </div>
             </div>
           ) : (
-            /* Free & Free Trial users: Rewarded Ad 24-hour pass */
-            <div className="rounded-2xl border border-slate-800 bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-900 p-6 space-y-4">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-purple-950 border border-purple-500/40 px-3 py-1 text-xs font-bold text-purple-300">
+                    <span className="rounded-md bg-cyan-500/10 border border-cyan-500/30 px-2.5 py-0.5 text-xs font-bold text-cyan-400">
                       Ad-Supported Free Tier
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-mono">
-                      Unit: ca-app-pub-5470934256709090/8839247619
                     </span>
                   </div>
                   <h2 className="text-xl font-bold text-white mt-2">
-                    Watch 1 Sponsored Video &rarr; Unlock 24 Hours Full Access (+10 D-Coins)
+                    Watch 1 Sponsored Video &rarr; Unlock 24 Hours Full Access (+10 D Coins)
                   </h2>
                   <p className="text-xs text-slate-400 mt-1">
-                    Free &amp; Free Trial users can watch 1 rewarded advertisement to enjoy 24 hours of uninterrupted live stream tools and receive 10 D-Coins.
+                    Free users can watch 1 rewarded session to enjoy 24 hours of uninterrupted live stream tools and receive 10 D Coins.
                   </p>
                 </div>
 
                 <div className="text-right">
-                  <div className={`text-2xl font-black ${hasActiveAdPass ? 'text-emerald-400' : 'text-slate-500'}`}>
+                  <div className={`text-2xl font-black ${hasActiveAdPass ? 'text-cyan-400' : 'text-slate-500'}`}>
                     {hasActiveAdPass ? `${adRemainingHours}h Active` : 'No Active Pass'}
                   </div>
                   <p className="text-xs text-slate-400">24-Hour Access Status</p>
@@ -441,32 +518,32 @@ export default function WalletAndTasksPage() {
               </div>
 
               {isWatchingAd ? (
-                <div className="rounded-xl border border-purple-500/40 bg-purple-950/50 p-6 text-center space-y-3">
-                  <div className="flex items-center justify-center gap-2 text-purple-300 text-sm font-semibold">
+                <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-6 text-center space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-cyan-300 text-sm font-semibold">
                     <Tv className="h-4 w-4 animate-pulse" />
-                    <span>Playing Google AdMob Rewarded Video...</span>
+                    <span>Playing Rewarded Video Session...</span>
                   </div>
-                  <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-purple-500 transition-all duration-300"
+                      className="h-full bg-cyan-500 transition-all duration-300"
                       style={{ width: `${adProgress}%` }}
                     />
                   </div>
                   <p className="text-xs text-slate-400">
-                    Watching Rewarded Ad (ca-app-pub-5470934256709090/8839247619)... {adProgress}%
+                    Watching Rewarded Session... {adProgress}%
                   </p>
                 </div>
               ) : (
                 <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                   <button
                     onClick={handleWatchAd}
-                    className="rounded-xl bg-purple-600 hover:bg-purple-500 px-6 py-3 text-xs font-bold text-white transition shadow-lg shadow-purple-600/30 flex items-center gap-2"
+                    className="rounded-xl bg-cyan-600 hover:bg-cyan-500 px-6 py-2.5 text-xs font-semibold text-white transition shadow flex items-center gap-2 cursor-pointer"
                   >
                     <Tv className="h-4 w-4" />
-                    <span>Watch Sponsored Ad (AdMob 24h Pass &amp; +10 D)</span>
+                    <span>Watch Sponsored Ad (24h Pass &amp; +10 D)</span>
                   </button>
                   {hasActiveAdPass && (
-                    <span className="text-xs text-emerald-400 flex items-center gap-1 font-semibold">
+                    <span className="text-xs text-cyan-400 flex items-center gap-1 font-semibold">
                       <CheckCircle2 className="h-4 w-4" />
                       24h Pass is active for another {adRemainingHours} hours
                     </span>
@@ -485,31 +562,31 @@ export default function WalletAndTasksPage() {
             <div>
               <h3 className="text-lg font-bold text-white">Earn DP Without Money</h3>
               <p className="text-xs text-slate-400">
-                Complete custom marketing or client tasks to earn DP directly into your wallet balance.
+                Complete custom marketing or community tasks to earn DP directly into your wallet balance.
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {tasks.map((task) => (
-              <div key={task.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col justify-between space-y-4">
+              <div key={task.id} className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 flex flex-col justify-between space-y-4">
                 <div className="space-y-2">
-                  <span className="rounded bg-emerald-950 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                  <span className="rounded bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[10px] font-bold text-cyan-400">
                     Reward: {task.reward}
                   </span>
                   <h4 className="text-sm font-bold text-white">{task.title}</h4>
-                  <p className="text-xs text-slate-400">{task.description}</p>
+                  <p className="text-xs text-slate-400 leading-relaxed">{task.description}</p>
                 </div>
 
-                <div className="pt-2 border-t border-slate-800/80">
+                <div className="pt-2 border-t border-white/5">
                   <p className="text-[11px] text-slate-500 mb-3">
                     <strong>Instructions:</strong> {task.instructions}
                   </p>
                   <button
                     onClick={() => setSelectedTask(task)}
-                    className="w-full rounded-lg bg-slate-800 hover:bg-slate-700 py-2 text-xs font-semibold text-slate-200 border border-slate-700 transition"
+                    className="w-full rounded-xl bg-white/[0.04] hover:bg-white/[0.08] py-2 text-xs font-semibold text-slate-200 border border-white/10 transition"
                   >
-                    Submit Proof & Claim &rarr;
+                    Submit Proof &amp; Claim &rarr;
                   </button>
                 </div>
               </div>
@@ -519,7 +596,7 @@ export default function WalletAndTasksPage() {
           {/* Submission Modal */}
           {selectedTask && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-              <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 space-y-4 shadow-2xl">
+              <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 space-y-4 shadow-2xl">
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-base font-bold text-white">Submit Proof</h3>
@@ -539,7 +616,7 @@ export default function WalletAndTasksPage() {
                       value={proofUrl}
                       onChange={(e) => setProofUrl(e.target.value)}
                       required
-                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white"
+                      className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500/50"
                     />
                   </div>
 
@@ -549,10 +626,10 @@ export default function WalletAndTasksPage() {
                     </label>
                     <textarea
                       rows={3}
-                      placeholder="Describe client agreement or channel link..."
+                      placeholder="Describe submission details or links..."
                       value={proofNotes}
                       onChange={(e) => setProofNotes(e.target.value)}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white"
+                      className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500/50"
                     />
                   </div>
 
@@ -560,15 +637,15 @@ export default function WalletAndTasksPage() {
                     <button
                       type="button"
                       onClick={() => setSelectedTask(null)}
-                      className="rounded-lg bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300"
+                      className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow"
+                      className="rounded-xl bg-cyan-600 hover:bg-cyan-500 px-4 py-2 text-xs font-semibold text-white shadow transition"
                     >
-                      Submit for God Panel Review
+                      Submit for Review
                     </button>
                   </div>
                 </form>

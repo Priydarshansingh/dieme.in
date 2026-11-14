@@ -9,8 +9,8 @@ export async function getValidAccessToken(
   let { access_token, refresh_token, token_expires_at, id, channelId } = accountDoc;
   const resolvedChannelId = channelId || id;
 
-  // If token is valid for at least another 2 minutes, reuse it
-  if (access_token && token_expires_at && Date.now() < token_expires_at - 120000) {
+  // If token is valid for at least another 5 minutes (SM-10: proactive refresh), reuse it
+  if (access_token && token_expires_at && Date.now() < token_expires_at - 300000) {
     return access_token;
   }
 
@@ -344,18 +344,53 @@ export async function syncWorkspaceYouTubeStreams(workspaceId: string): Promise<
       }
     }
 
-    // F. If there is NO active live stream, ensure no stale stream is marked 'live'
+    // F. Debounced stream ending guard (SM-6: Prevent stream flapping during OBS reconnection)
     if (!activeLiveStream) {
       const staleLiveSnap = await adminDb
         .collection(col.streams(workspaceId))
         .where('status', '==', 'live')
         .get();
 
+      const now = Date.now();
+      const FLAP_GRACE_MS = 90_000; // 90 seconds grace window for OBS reconnects
+
       for (const staleDoc of staleLiveSnap.docs) {
         if (!seenVideoIds.has(staleDoc.id)) {
-          await staleDoc.ref.update({ status: 'ended', updatedAt: new Date().toISOString() });
+          const streamData = staleDoc.data();
+          const potentiallyEndedAt = streamData?.potentiallyEndedAt
+            ? (typeof streamData.potentiallyEndedAt === 'number'
+                ? streamData.potentiallyEndedAt
+                : Date.parse(streamData.potentiallyEndedAt))
+            : null;
+
+          if (!potentiallyEndedAt) {
+            // First time missing from broadcast API — record grace timestamp but DO NOT mark ended yet
+            await staleDoc.ref.set(
+              { potentiallyEndedAt: new Date(now).toISOString(), updatedAt: new Date().toISOString() },
+              { merge: true }
+            );
+          } else if (now - potentiallyEndedAt >= FLAP_GRACE_MS) {
+            // Grace window expired (was missing for >90s) — stream genuinely ended
+            await staleDoc.ref.set(
+              {
+                status: 'ended',
+                potentiallyEndedAt: null,
+                endedAt: streamData.endedAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true }
+            );
+          }
         }
       }
+    } else {
+      // Active live stream confirmed — clear any transient potentiallyEndedAt marker
+      try {
+        await adminDb.doc(col.stream(workspaceId, activeLiveStream.id)).set(
+          { status: 'live', potentiallyEndedAt: null, updatedAt: new Date().toISOString() },
+          { merge: true }
+        );
+      } catch (_) {}
     }
 
     return {

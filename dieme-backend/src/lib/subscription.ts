@@ -1,6 +1,6 @@
 // Central subscription calculation and enforcement helper for Digicast.
 
-export type PlanType = 'free_trial' | 'intro_29' | 'starter' | 'pro' | 'studio' | 'lifetime' | string;
+export type PlanType = 'free_trial' | 'ad_pass_24h' | 'intro_29' | 'starter' | 'pro' | 'studio' | 'lifetime' | string;
 
 export interface WorkspaceSubscription {
   status: 'trial' | 'active' | 'expired';
@@ -12,6 +12,8 @@ export interface WorkspaceSubscription {
   isSuspended?: boolean;
   trialBypassDetected?: boolean;
   trialBypassedChannelTitle?: string;
+  adPassActive?: boolean;
+  activeTier?: string;
 }
 
 export function computeWorkspaceSubscription(wsData: any): WorkspaceSubscription {
@@ -20,89 +22,7 @@ export function computeWorkspaceSubscription(wsData: any): WorkspaceSubscription
   const isSuspended = Boolean(wsData?.isSuspended);
   const trialBypassDetected = Boolean(wsData?.trialBypassDetected);
 
-  // If this workspace attempted to bypass the 14-day trial by reusing a YouTube channel that already consumed trial,
-  // and they haven't purchased a paid plan (still on free_trial), lock trial access immediately.
-  if (trialBypassDetected && rawPlan === 'free_trial') {
-    return {
-      status: 'expired',
-      plan: 'free_trial',
-      trialEndsAt: wsData?.trialEndsAt || new Date(now).toISOString(),
-      subscriptionExpiresAt: wsData?.subscriptionExpiresAt,
-      isExpired: true,
-      daysRemaining: 0,
-      isSuspended,
-      trialBypassDetected: true,
-      trialBypassedChannelTitle: wsData?.trialBypassedChannelTitle,
-    };
-  }
-
-  // Explicit suspension or override by admin
-  if (isSuspended || wsData?.subscriptionStatus === 'expired') {
-    return {
-      status: 'expired',
-      plan: rawPlan,
-      trialEndsAt: wsData?.trialEndsAt || new Date(now).toISOString(),
-      subscriptionExpiresAt: wsData?.subscriptionExpiresAt,
-      isExpired: true,
-      daysRemaining: 0,
-      isSuspended,
-    };
-  }
-
-  // Lifetime plan
-  if (rawPlan === 'lifetime') {
-    return {
-      status: 'active',
-      plan: 'lifetime',
-      trialEndsAt: wsData?.trialEndsAt || new Date(now).toISOString(),
-      subscriptionExpiresAt: new Date(now + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
-      isExpired: false,
-      daysRemaining: 3650,
-      isSuspended: false,
-    };
-  }
-
-  // Paid Plans: intro_29, starter, pro, studio
-  const isPaidPlan = ['intro_29', 'starter', 'pro', 'studio'].includes(rawPlan) || rawPlan.startsWith('tier_');
-  if (isPaidPlan) {
-    let expiresMs = 0;
-    if (wsData?.subscriptionExpiresAt) {
-      expiresMs = typeof wsData.subscriptionExpiresAt === 'number'
-        ? wsData.subscriptionExpiresAt
-        : Date.parse(wsData.subscriptionExpiresAt);
-    } else {
-      let defaultDays = 30;
-      if (rawPlan === 'pro') defaultDays = 90;
-      if (rawPlan === 'studio') defaultDays = 365;
-      const baseMs = wsData?.updatedAt?._seconds ? (wsData.updatedAt._seconds * 1000) : now;
-      expiresMs = baseMs + (defaultDays * 24 * 60 * 60 * 1000);
-    }
-
-    if (isNaN(expiresMs) || now > expiresMs) {
-      return {
-        status: 'expired',
-        plan: rawPlan,
-        trialEndsAt: wsData?.trialEndsAt || new Date(now).toISOString(),
-        subscriptionExpiresAt: new Date(expiresMs).toISOString(),
-        isExpired: true,
-        daysRemaining: 0,
-        isSuspended: false,
-      };
-    }
-
-    const daysRemaining = Math.max(1, Math.ceil((expiresMs - now) / (24 * 60 * 60 * 1000)));
-    return {
-      status: 'active',
-      plan: rawPlan,
-      trialEndsAt: wsData?.trialEndsAt || new Date(now).toISOString(),
-      subscriptionExpiresAt: new Date(expiresMs).toISOString(),
-      isExpired: false,
-      daysRemaining,
-      isSuspended: false,
-    };
-  }
-
-  // Free Trial (14 days default from creation)
+  // Parse trial end timestamp
   let createdMs = now;
   if (wsData?.createdAt?._seconds) {
     createdMs = wsData.createdAt._seconds * 1000;
@@ -111,30 +31,144 @@ export function computeWorkspaceSubscription(wsData: any): WorkspaceSubscription
     if (!isNaN(parsed)) createdMs = parsed;
   }
 
-  let trialEndMs = createdMs + (14 * 24 * 60 * 60 * 1000);
+  let trialEndMs = createdMs + 14 * 24 * 60 * 60 * 1000;
   if (wsData?.trialEndsAt) {
     const customTrial = typeof wsData.trialEndsAt === 'number' ? wsData.trialEndsAt : Date.parse(wsData.trialEndsAt);
     if (!isNaN(customTrial)) trialEndMs = customTrial;
   }
 
-  if (now > trialEndMs) {
+  // Parse subscription expiration timestamp
+  let subExpiresMs = 0;
+  if (wsData?.subscriptionExpiresAt) {
+    subExpiresMs =
+      typeof wsData.subscriptionExpiresAt === 'number'
+        ? wsData.subscriptionExpiresAt
+        : Date.parse(wsData.subscriptionExpiresAt);
+  }
+
+  // Parse Ad Pass expiration (e.g. 24h pass from rewarded ad)
+  let adPassExpiresMs = 0;
+  if (wsData?.adPassExpiresAt) {
+    adPassExpiresMs =
+      typeof wsData.adPassExpiresAt === 'number'
+        ? wsData.adPassExpiresAt
+        : Date.parse(wsData.adPassExpiresAt);
+  }
+  const hasActiveAdPass = adPassExpiresMs > now || Boolean(wsData?.hasActiveAdPass);
+
+  // SM-1: Ordered Priority Precedence Stack (First matching rule determines access)
+
+  // Rule 1: Explicit Admin Suspension or Overwrite
+  if (isSuspended || wsData?.subscriptionStatus === 'suspended' || wsData?.subscriptionStatus === 'expired') {
+    return {
+      status: 'expired',
+      plan: rawPlan,
+      trialEndsAt: new Date(trialEndMs).toISOString(),
+      subscriptionExpiresAt: subExpiresMs ? new Date(subExpiresMs).toISOString() : undefined,
+      isExpired: true,
+      daysRemaining: 0,
+      isSuspended: true,
+      activeTier: 'none',
+    };
+  }
+
+  // Rule 2: Trial Bypass Lockout (only applies if user has NOT purchased a paid plan)
+  const isPaidPlanName =
+    ['intro_29', 'starter', 'pro', 'studio', 'lifetime'].includes(rawPlan) || rawPlan.startsWith('tier_');
+  if (trialBypassDetected && !isPaidPlanName) {
     return {
       status: 'expired',
       plan: 'free_trial',
       trialEndsAt: new Date(trialEndMs).toISOString(),
+      subscriptionExpiresAt: subExpiresMs ? new Date(subExpiresMs).toISOString() : undefined,
       isExpired: true,
       daysRemaining: 0,
       isSuspended: false,
+      trialBypassDetected: true,
+      trialBypassedChannelTitle: wsData?.trialBypassedChannelTitle,
+      activeTier: 'none',
     };
   }
 
-  const daysRemaining = Math.max(1, Math.ceil((trialEndMs - now) / (24 * 60 * 60 * 1000)));
+  // Rule 3: Lifetime Access
+  if (rawPlan === 'lifetime') {
+    return {
+      status: 'active',
+      plan: 'lifetime',
+      trialEndsAt: new Date(trialEndMs).toISOString(),
+      subscriptionExpiresAt: new Date(now + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
+      isExpired: false,
+      daysRemaining: 3650,
+      isSuspended: false,
+      activeTier: 'studio',
+    };
+  }
+
+  // Rule 4: Active Paid Subscription (pro / studio / starter / intro_29)
+  if (isPaidPlanName) {
+    let effectiveExpiresMs = subExpiresMs;
+    if (!effectiveExpiresMs || isNaN(effectiveExpiresMs)) {
+      let defaultDays = 30;
+      if (rawPlan === 'pro') defaultDays = 90;
+      if (rawPlan === 'studio') defaultDays = 365;
+      const baseMs = wsData?.updatedAt?._seconds ? wsData.updatedAt._seconds * 1000 : now;
+      effectiveExpiresMs = baseMs + defaultDays * 24 * 60 * 60 * 1000;
+    }
+
+    if (effectiveExpiresMs > now) {
+      const daysRemaining = Math.max(1, Math.ceil((effectiveExpiresMs - now) / (24 * 60 * 60 * 1000)));
+      return {
+        status: 'active',
+        plan: rawPlan,
+        trialEndsAt: new Date(trialEndMs).toISOString(),
+        subscriptionExpiresAt: new Date(effectiveExpiresMs).toISOString(),
+        isExpired: false,
+        daysRemaining,
+        isSuspended: false,
+        activeTier: rawPlan,
+      };
+    }
+  }
+
+  // Rule 5: Active 24-Hour Ad Pass (Watched Ad tier)
+  if (hasActiveAdPass) {
+    const daysRemaining = Math.max(1, Math.ceil((adPassExpiresMs - now) / (24 * 60 * 60 * 1000)));
+    return {
+      status: 'active',
+      plan: 'ad_pass_24h',
+      trialEndsAt: new Date(trialEndMs).toISOString(),
+      subscriptionExpiresAt: new Date(adPassExpiresMs).toISOString(),
+      isExpired: false,
+      daysRemaining,
+      isSuspended: false,
+      adPassActive: true,
+      activeTier: 'intro',
+    };
+  }
+
+  // Rule 6: Active 14-Day Free Trial
+  if (now <= trialEndMs) {
+    const daysRemaining = Math.max(1, Math.ceil((trialEndMs - now) / (24 * 60 * 60 * 1000)));
+    return {
+      status: 'trial',
+      plan: 'free_trial',
+      trialEndsAt: new Date(trialEndMs).toISOString(),
+      isExpired: false,
+      daysRemaining,
+      isSuspended: false,
+      activeTier: 'pro',
+    };
+  }
+
+  // Rule 7: Exhausted / Expired
   return {
-    status: 'trial',
-    plan: 'free_trial',
+    status: 'expired',
+    plan: rawPlan,
     trialEndsAt: new Date(trialEndMs).toISOString(),
-    isExpired: false,
-    daysRemaining,
+    subscriptionExpiresAt: subExpiresMs ? new Date(subExpiresMs).toISOString() : undefined,
+    isExpired: true,
+    daysRemaining: 0,
     isSuspended: false,
+    activeTier: 'none',
   };
 }

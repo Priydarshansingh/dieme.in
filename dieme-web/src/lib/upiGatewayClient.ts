@@ -5,7 +5,7 @@ import { col } from "./firestore/collections";
 export const UPI_GATEWAY_URL =
   process.env.UPI_GATEWAY_URL ||
   process.env.BASE_PAYMENT_API_URL ||
-  "https://payment-gateway-p44g.onrender.com";
+  "https://payments.dieme.in";
 
 export const UPI_GATEWAY_WEBHOOK_SECRET =
   process.env.UPI_GATEWAY_WEBHOOK_SECRET ||

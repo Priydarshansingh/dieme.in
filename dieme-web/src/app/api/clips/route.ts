@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { col } from '@/lib/firestore/collections';
+import { ClipDownloadStatus, ClipTelegramStatus } from '@/types';
 
 async function getUidFromRequest(req: NextRequest): Promise<string | null> {
   const authHeader = req.headers.get('Authorization');
@@ -130,7 +131,27 @@ export async function POST(req: NextRequest) {
     }
 
     const clipRef = adminDb.doc(col.clip(workspaceId, clipId));
-    const finalDownloadStatus = downloadStatus || (status === 'GENERATED' ? 'completed' : 'not_started');
+
+    // SM-2: Canonical cross-platform clip status resolution
+    const statusUpper = (status || '').toUpperCase();
+    let finalDownloadStatus: ClipDownloadStatus = downloadStatus || 'not_started';
+    let finalTelegramStatus: ClipTelegramStatus = (body.telegramStatus as ClipTelegramStatus) || 'not_uploaded';
+    let canonicalAndroidStatus = statusUpper || 'PENDING';
+
+    if (statusUpper === 'UPLOADED') {
+      finalDownloadStatus = 'completed';
+      finalTelegramStatus = 'uploaded';
+      canonicalAndroidStatus = 'UPLOADED';
+    } else if (statusUpper === 'GENERATING' || statusUpper === 'PROCESSING' || statusUpper === 'DOWNLOADING') {
+      finalDownloadStatus = 'processing';
+      canonicalAndroidStatus = 'GENERATING';
+    } else if (statusUpper === 'GENERATED' || statusUpper === 'COMPLETED' || statusUpper === 'READY') {
+      finalDownloadStatus = 'completed';
+      canonicalAndroidStatus = 'GENERATED';
+    } else if (statusUpper === 'FAILED') {
+      finalDownloadStatus = 'failed';
+      canonicalAndroidStatus = 'FAILED';
+    }
 
     const clipData = {
       id: clipId,
@@ -142,7 +163,9 @@ export async function POST(req: NextRequest) {
       authorName: authorName || 'Viewer',
       title: title || 'Clip Marker',
       note: title || 'Clip Marker',
+      status: canonicalAndroidStatus,
       downloadStatus: finalDownloadStatus,
+      telegramStatus: finalTelegramStatus,
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
     };

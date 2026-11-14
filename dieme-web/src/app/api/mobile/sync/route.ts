@@ -202,7 +202,28 @@ export async function GET(req: NextRequest) {
         .limit(50)
         .get();
 
-      clips = clipsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      clips = clipsSnap.docs.map(doc => {
+        const d = doc.data();
+        let normalizedStatus = d.status;
+        if (!normalizedStatus) {
+          if (d.downloadStatus === 'completed' || d.telegramStatus === 'uploaded' || d.telegramSent) {
+            normalizedStatus = 'UPLOADED';
+          } else if (d.downloadStatus === 'processing' || d.downloadStatus === 'downloading') {
+            normalizedStatus = 'GENERATING';
+          } else if (d.downloadStatus === 'failed') {
+            normalizedStatus = 'FAILED';
+          } else {
+            normalizedStatus = 'PENDING';
+          }
+        }
+        return {
+          id: doc.id,
+          ...d,
+          status: normalizedStatus,
+          downloadStatus: d.downloadStatus || (normalizedStatus === 'UPLOADED' || normalizedStatus === 'GENERATED' ? 'completed' : 'not_started'),
+          telegramStatus: d.telegramStatus || (normalizedStatus === 'UPLOADED' ? 'uploaded' : 'not_uploaded'),
+        };
+      });
     } catch (clipErr) {
       console.warn("[mobile/sync] Clip fetch warning:", clipErr);
     }

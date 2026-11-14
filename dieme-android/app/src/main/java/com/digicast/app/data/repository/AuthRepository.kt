@@ -85,6 +85,7 @@ data class MobileEditorInfo(
 sealed class AuthState {
     object SignedOut : AuthState()
     object Loading : AuthState()
+    object Refreshing : AuthState()
     data class SignedIn(val session: UserSession) : AuthState()
     data class Error(val message: String) : AuthState()
 }
@@ -765,6 +766,9 @@ class AuthRepository @Inject constructor(
 
             var response = okHttpClient.newCall(request).execute()
             if (response.code == 401) {
+                // SM-8: Set intermediate refreshing state so background trim/render coroutines aren't cancelled
+                _authState.value = AuthState.Refreshing
+
                 // Attempt automatic re-authentication if token has expired
                 val (savedEmail, savedPassword) = getSavedCredentials()
                 if (savedEmail.isNotBlank() && savedPassword.isNotBlank()) {
@@ -780,7 +784,12 @@ class AuthRepository @Inject constructor(
                                 .build()
                             response = okHttpClient.newCall(retryReq).execute()
                         }
+                    } else {
+                        // Refresh failed — now safe to emit SignedOut
+                        _authState.value = AuthState.SignedOut
                     }
+                } else {
+                    _authState.value = AuthState.SignedOut
                 }
             }
 

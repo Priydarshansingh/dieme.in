@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import {
   PRICING_PLANS,
   PlanId,
 } from '@/lib/pricingPlans';
-import UpiPaymentModal from '@/components/subscription/UpiPaymentModal';
 import {
   Check,
   CreditCard,
@@ -17,7 +17,8 @@ import {
   Copy,
   CheckCircle2,
   Gift,
-  QrCode,
+  ExternalLink,
+  Loader2,
   ChevronDown,
   ChevronUp,
   HelpCircle,
@@ -25,14 +26,21 @@ import {
   Zap,
 } from 'lucide-react';
 
-export default function PricingAndSubscriptionsPage() {
+function PricingContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const uid = user?.uid || 'guest_creator';
 
-  const [feedback, setFeedback] = useState('');
+  const isSuccess = searchParams.get('payment') === 'success';
+  const orderIdParam = searchParams.get('orderId');
+
+  const [feedback, setFeedback] = useState(
+    isSuccess
+      ? `🎉 Payment Successful${orderIdParam ? ` for order ${orderIdParam}` : ''}! Your subscription pass is being verified and activated.`
+      : ''
+  );
   const [copiedLink, setCopiedLink] = useState(false);
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [selectedPlanId, setSelectedPlanId] = useState<PlanId>('pro');
+  const [initiatingPlanId, setInitiatingPlanId] = useState<string | null>(null);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
 
   const referralCode = `REF_${uid.slice(0, 6).toUpperCase()}`;
@@ -64,7 +72,6 @@ export default function PricingAndSubscriptionsPage() {
       popular: false,
     },
     ...PRICING_PLANS.map((p) => {
-      // Split into 3 primary highlights and remaining extra features
       const highlightFeatures = p.features.slice(0, 3);
       const extraFeatures = p.features.slice(3);
       return {
@@ -90,9 +97,47 @@ export default function PricingAndSubscriptionsPage() {
     }));
   };
 
-  const handleOpenPayment = (planId: PlanId) => {
-    setSelectedPlanId(planId);
-    setPaymentModalOpen(true);
+  const handleOpenPayment = async (planId: PlanId) => {
+    try {
+      setInitiatingPlanId(planId);
+      setFeedback('');
+
+      const token = await user?.getIdToken().catch(() => '');
+      const res = await fetch('/api/payments/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          workspaceId: user?.uid || 'guest_creator',
+          planId,
+          clientEmail: user?.email || '',
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.gatewayCheckoutUrl) {
+        // Redirect directly to the self-hosted UPI Gateway Checkout Page
+        window.location.href = data.gatewayCheckoutUrl;
+        return;
+      }
+
+      if (data.upiDeepLink) {
+        window.location.href = data.upiDeepLink;
+        return;
+      }
+
+      if (data.error) {
+        setFeedback(`⚠️ ${data.error}`);
+      }
+    } catch (err: any) {
+      console.error('Payment checkout redirect error:', err);
+      setFeedback('⚠️ Failed to launch payment gateway. Please try again.');
+    } finally {
+      setInitiatingPlanId(null);
+    }
   };
 
   const handleStartTrial = () => {
@@ -124,7 +169,7 @@ export default function PricingAndSubscriptionsPage() {
           Upgrade Your Stream Clipping Workflow
         </h1>
         <p className="text-sm text-slate-400 max-w-2xl mx-auto">
-          Start with a 14-day free trial, unlock the ₹29 intro pass, or redeem your earned DP balance. All plans use manual UPI renewal with zero auto-debit.
+          Start with a 14-day free trial, unlock the ₹29 intro pass, or redeem your earned DP balance. All payments run securely through our dedicated UPI Gateway.
         </p>
       </div>
 
@@ -154,10 +199,12 @@ export default function PricingAndSubscriptionsPage() {
         </div>
       )}
 
-      {/* Symmetrical Pricing Cards Grid (Compact 2-3 points with Read More) */}
+      {/* Symmetrical Pricing Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-stretch">
         {allCards.map((p) => {
           const isExpanded = !!expandedCards[p.id];
+          const isCurrentLoading = initiatingPlanId === p.id;
+
           return (
             <div
               key={p.id}
@@ -189,10 +236,10 @@ export default function PricingAndSubscriptionsPage() {
 
                 <div
                   onClick={() => {
-                    if (!p.isTrial) handleOpenPayment(p.id as PlanId);
+                    if (!p.isTrial && !initiatingPlanId) handleOpenPayment(p.id as PlanId);
                   }}
                   className={`pt-1 ${!p.isTrial ? 'cursor-pointer group' : ''}`}
-                  title={!p.isTrial ? `Click to subscribe for ${p.price}` : ''}
+                  title={!p.isTrial ? `Click to pay ${p.price} via Gateway` : ''}
                 >
                   <span className="text-3xl font-extrabold text-white tracking-tight tabular-nums group-hover:text-cyan-300 transition-colors">
                     {p.price}
@@ -252,11 +299,21 @@ export default function PricingAndSubscriptionsPage() {
                 ) : (
                   <button
                     type="button"
+                    disabled={Boolean(initiatingPlanId)}
                     onClick={() => handleOpenPayment(p.id as PlanId)}
-                    className="w-full rounded-xl py-2.5 text-xs font-semibold transition bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full rounded-xl py-2.5 text-xs font-semibold transition bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 text-white shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
                   >
-                    <QrCode className="w-3.5 h-3.5" />
-                    <span>Subscribe ({p.price})</span>
+                    {isCurrentLoading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Opening Gateway...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Subscribe ({p.price})</span>
+                      </>
+                    )}
                   </button>
                 )}
 
@@ -405,6 +462,13 @@ export default function PricingAndSubscriptionsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4 space-y-1.5">
+            <h4 className="text-sm font-semibold text-white">How does the payment gateway work?</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              When you click Subscribe, you are redirected to our dedicated UPI Gateway. It generates a live dynamic QR code and 1-tap mobile payment triggers for Google Pay, PhonePe, and Paytm with zero extra transaction fees.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4 space-y-1.5">
             <h4 className="text-sm font-semibold text-white">How does the ₹29 intro pass work?</h4>
             <p className="text-xs text-slate-400 leading-relaxed">
               New streamers can experience complete Pro clipping, Telegram forwarding, and 1080p exports for their first 30 days at just ₹29. No hidden terms or credit card requirement.
@@ -419,22 +483,15 @@ export default function PricingAndSubscriptionsPage() {
           </div>
 
           <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4 space-y-1.5">
-            <h4 className="text-sm font-semibold text-white">Will my card or UPI be auto-debited?</h4>
+            <h4 className="text-sm font-semibold text-white">Will my account be auto-debited?</h4>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Never. All payments are one-time UPI transfers. When your pass expires, you decide if and when to renew manually. We never store debit credentials or run recurring charges.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-white/10 bg-slate-900/60 p-4 space-y-1.5">
-            <h4 className="text-sm font-semibold text-white">How do team editor credentials work?</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              From your Team page, you can generate dedicated app credentials for your video editors. They log in directly to the mobile companion app to trim and export clips without accessing your channel credentials.
+              Never. All payments are 100% one-time UPI transfers. When your pass expires, you decide if and when to renew manually. We never store debit credentials or run recurring charges.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Affiliate / Referral Program Section (Global Cyan & Slate) */}
+      {/* Affiliate / Referral Program Section */}
       <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 sm:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -493,21 +550,14 @@ export default function PricingAndSubscriptionsPage() {
           </button>
         </div>
       </div>
-
-      {/* Production UPI Payment Modal */}
-      <UpiPaymentModal
-        isOpen={paymentModalOpen}
-        onClose={() => setPaymentModalOpen(false)}
-        workspaceId={user?.uid || 'guest_creator'}
-        workspaceName={user?.displayName || 'Creator Studio'}
-        userEmail={user?.email || ''}
-        initialPlanId={selectedPlanId}
-        onPaymentSubmitted={() => {
-          setPaymentModalOpen(false);
-          setFeedback('⚡ Payment submitted for verification! Instant access has been provisioned.');
-          setTimeout(() => setFeedback(''), 8000);
-        }}
-      />
     </div>
+  );
+}
+
+export default function PricingAndSubscriptionsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-slate-400">Loading pricing...</div>}>
+      <PricingContent />
+    </Suspense>
   );
 }

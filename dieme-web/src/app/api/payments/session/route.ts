@@ -47,6 +47,11 @@ export async function POST(req: NextRequest) {
     const paymentId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const nowIso = new Date().toISOString();
 
+    const host = req.headers.get("host") || "www.dieme.in";
+    const proto = req.headers.get("x-forwarded-proto") || "https";
+    const returnBase = `${proto}://${host}`;
+    const redirectUrl = `${returnBase}/pricing?payment=success&orderId=${orderId}`;
+
     // 1. Attempt to register session with self-hosted UPI Gateway
     const gatewayResult = await createGatewayPaymentSession({
       orderId,
@@ -55,6 +60,7 @@ export async function POST(req: NextRequest) {
       planId: selectedPlan.id,
       userEmail: finalEmail,
       customerName: wsData.name || "Dieme Creator",
+      redirectUrl,
     });
 
     const upiDeepLink = buildUpiDeepLink({

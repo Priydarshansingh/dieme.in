@@ -46,6 +46,7 @@ export async function createGatewayPaymentSession(params: {
   planId: string;
   userEmail?: string;
   customerName?: string;
+  redirectUrl?: string;
 }): Promise<{
   success: boolean;
   gatewayPaymentId?: string;
@@ -65,6 +66,9 @@ export async function createGatewayPaymentSession(params: {
         currency: "INR",
         method: "UPI",
         autoActivate: true,
+        redirectUrl: params.redirectUrl || "https://www.dieme.in/pricing?payment=success",
+        returnUrl: params.redirectUrl || "https://www.dieme.in/pricing?payment=success",
+        callbackUrl: "https://www.dieme.in/api/payments/webhook",
         customer: {
           email: params.userEmail || "",
           name: params.customerName || "Dieme Creator",
@@ -76,7 +80,7 @@ export async function createGatewayPaymentSession(params: {
           system: "digicast",
         },
       }),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!res.ok) {

@@ -37,6 +37,10 @@ export default function robots(): MetadataRoute.Robots {
         allow: [
           '/',
           '/pricing',
+          '/login',
+          '/signup',
+          '/clips',
+          '/editors',
           '/coverage',
           '/coverage/india',
           '/coverage/international',

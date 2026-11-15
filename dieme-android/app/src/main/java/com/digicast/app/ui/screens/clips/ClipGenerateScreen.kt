@@ -58,6 +58,8 @@ import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import com.digicast.app.ui.utils.PermissionHelper
+import com.digicast.app.ui.utils.WorkPermissionRequester
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -769,6 +771,8 @@ fun ClipGenerateScreen(
     var postRollSec by remember { mutableIntStateOf(15) }  // e.g. +15s
     var showLocalPlayer by remember { mutableStateOf(true) }
     var selectedTab by remember { mutableIntStateOf(0) }   // 0 = Live Chat, 1 = Trim & Timing
+    var showStoragePermissionForSave by remember { mutableStateOf(false) }
+    var showStoragePermissionForProcess by remember { mutableStateOf(false) }
 
     val filePath = clip?.localFilePath
     // Clean up any legacy mock files (<50KB) so the user gets real video playback
@@ -873,7 +877,11 @@ fun ClipGenerateScreen(
                             // 1. Download to Phone Gallery
                             Button(
                                 onClick = {
-                                    viewModel.saveClipToPublicDownloads(context, localFile.absolutePath)
+                                    if (PermissionHelper.hasStoragePermissions(context)) {
+                                        viewModel.saveClipToPublicDownloads(context, localFile.absolutePath)
+                                    } else {
+                                        showStoragePermissionForSave = true
+                                    }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                                 border = BorderStroke(1.dp, AppleSpecularBorder),
@@ -929,11 +937,15 @@ fun ClipGenerateScreen(
                         val wsId = session?.workspaceId ?: ""
                         Button(
                             onClick = {
-                                viewModel.processClip(
-                                    workspaceId = wsId,
-                                    preRollSec = preRollSec,
-                                    postRollSec = postRollSec
-                                )
+                                if (PermissionHelper.hasStoragePermissions(context)) {
+                                    viewModel.processClip(
+                                        workspaceId = wsId,
+                                        preRollSec = preRollSec,
+                                        postRollSec = postRollSec
+                                    )
+                                } else {
+                                    showStoragePermissionForProcess = true
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                             border = BorderStroke(1.dp, AppleSpecularBorder),
@@ -1475,14 +1487,18 @@ fun ClipGenerateScreen(
                         val wsId = session?.workspaceId ?: ""
                         Button(
                             onClick = {
-                                viewModel.processClip(
-                                    workspaceId = wsId,
-                                    preRollSec = preRollSec,
-                                    postRollSec = postRollSec
-                                )
-                                // Switch view back to local player to immediately preview newly re-rendered MP4
-                                showLocalPlayer = true
-                                selectedTab = 0
+                                if (PermissionHelper.hasStoragePermissions(context)) {
+                                    viewModel.processClip(
+                                        workspaceId = wsId,
+                                        preRollSec = preRollSec,
+                                        postRollSec = postRollSec
+                                    )
+                                    // Switch view back to local player to immediately preview newly re-rendered MP4
+                                    showLocalPlayer = true
+                                    selectedTab = 0
+                                } else {
+                                    showStoragePermissionForProcess = true
+                                }
                             },
                             enabled = !isProcessing,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF134E5E)),
@@ -1500,6 +1516,27 @@ fun ClipGenerateScreen(
             }
         }
     }
+
+    WorkPermissionRequester(
+        show = showStoragePermissionForSave,
+        actionName = "save clips to your device gallery",
+        onPermissionGranted = {
+            if (localFile != null) {
+                viewModel.saveClipToPublicDownloads(context, localFile.absolutePath)
+            }
+        },
+        onDismiss = { showStoragePermissionForSave = false }
+    )
+
+    WorkPermissionRequester(
+        show = showStoragePermissionForProcess,
+        actionName = "render and store stream video clips",
+        onPermissionGranted = {
+            val wsId = session?.workspaceId ?: ""
+            viewModel.processClip(workspaceId = wsId, preRollSec = preRollSec, postRollSec = postRollSec)
+        },
+        onDismiss = { showStoragePermissionForProcess = false }
+    )
 }
 
 /**

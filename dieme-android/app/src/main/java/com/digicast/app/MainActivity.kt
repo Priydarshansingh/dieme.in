@@ -8,6 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import com.digicast.app.data.repository.AuthRepository
 import com.digicast.app.ui.navigation.DigicastNavGraph
 import com.digicast.app.ui.theme.DigicastTheme
+import com.digicast.app.ui.utils.InstallPermissionPrompt
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,6 +25,7 @@ class MainActivity : ComponentActivity() {
         handleDeepLinkIntent(intent)
         setContent {
             DigicastTheme {
+                InstallPermissionPrompt()
                 DigicastNavGraph(navController = rememberNavController())
             }
         }

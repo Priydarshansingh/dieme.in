@@ -3,6 +3,7 @@ package com.digicast.app.ui.screens.onboarding
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -351,9 +352,9 @@ fun OnboardingScreen(
                                 }
                             }
                         },
-                        enabled = !isLoading && isSignInUnlocked,
+                        enabled = !isLoading,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isSignInUnlocked) DigicastAccentBlue else DigicastNavy,
+                            containerColor = DigicastAccentBlue,
                             disabledContainerColor = DigicastNavy.copy(alpha = 0.5f),
                             disabledContentColor = DigicastSlate.copy(alpha = 0.5f)
                         ),
@@ -372,23 +373,45 @@ fun OnboardingScreen(
                             Text("Connecting...", color = DigicastWhite, fontWeight = FontWeight.Bold)
                         } else {
                             Icon(
-                                imageVector = if (isSignInUnlocked) Icons.Default.Lock else Icons.Default.Lock,
+                                imageVector = Icons.Default.Lock,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (isSignInUnlocked) "Sign In to Studio" else "Sign In (Unlock Below)",
+                                text = "Sign In to Studio",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isSignInUnlocked) DigicastWhite else DigicastSlate
+                                color = DigicastWhite
                             )
                         }
                     }
 
-                    // 2. Action Button:
-                    // If locked -> "Watch Ad to Unlock Access (+24h Pass)"
-                    // If unlocked -> "Create Account on Digicast Web" (so anyone without an account can register on web)
+                    // 2. Secondary Action: Create Account on Dieme Web (Always visible)
+                    OutlinedButton(
+                        onClick = {
+                            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dieme.in/signup")).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            try {
+                                context.startActivity(browserIntent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Cannot open browser: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DigicastAccentBlue.copy(alpha = 0.8f)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastAccentBlue)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Create Account on Dieme Web (Google)", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+
+                    // 3. Optional Free Ad Unlock Pass (For devices without paid subscription)
                     if (!isSignInUnlocked) {
                         Button(
                             onClick = {
@@ -418,53 +441,36 @@ fun OnboardingScreen(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = DigicastAccentBlue
+                                containerColor = DigicastNavy
                             ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastBorder),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp)
+                                .height(46.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = DigicastWhite
+                                modifier = Modifier.size(16.dp),
+                                tint = DigicastEmerald
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (hasRegisteredAccount) "Renew 24h Studio Access" else "Unlock 24h Studio Access (15s Ad)",
+                                text = if (hasRegisteredAccount) "Renew 24h Studio Pass (15s Ad)" else "Unlock 24h Free Pass (15s Ad)",
                                 color = DigicastWhite,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
                             )
-                        }
-                    } else {
-                        // Unlocked: Direct to website signup for anyone who doesn't have an account yet
-                        OutlinedButton(
-                            onClick = {
-                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dieme.in/signup"))
-                                context.startActivity(browserIntent)
-                            },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DigicastAccentBlue),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp)
-                        ) {
-                            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp), tint = DigicastAccentBlue)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Create Account on Dieme Web", color = DigicastWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
 
                     // Subtitle explaining verification rule
                     Text(
                         text = if (!isSignInUnlocked) {
-                            "🔒 Free devices: Tap \"Watch Ad to Unlock Access\" to activate the Sign-In button and your 24h pass."
+                            "New to Dieme? Tap 'Create Account on Dieme Web' to sign up with Google. Or watch a 15s ad to activate a free 24h evaluation pass."
                         } else {
-                            "Have an account? Sign in above. New user? Tap \"Create Account on Dieme Web\" below."
+                            "Have an account? Enter your email & password above. New creator? Tap 'Create Account on Dieme Web' to register with Google."
                         },
                         color = DigicastSlate,
                         fontSize = 11.sp,

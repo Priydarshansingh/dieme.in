@@ -16,6 +16,8 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.digicast.app.ui.utils.PermissionHelper
+import com.digicast.app.ui.utils.WorkPermissionRequester
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -196,6 +198,8 @@ fun ThumbnailStudioScreen(
     var currentThumbnailUrl by remember { mutableStateOf<String?>(null) }
     var videoId by remember { mutableStateOf("") }
     var isFetchingUrl by remember { mutableStateOf(false) }
+    var showStoragePermissionForThumbnail by remember { mutableStateOf(false) }
+    var pendingImageUrlToSave by remember { mutableStateOf<String?>(null) }
 
     // ── Canvas Mark Points ──────────────────────────────────────────────────
     val markedPins = remember { mutableStateListOf<MarkedPin>() }
@@ -1472,7 +1476,15 @@ fun ThumbnailStudioScreen(
                         if (generatedImageUrl != null || currentThumbnailUrl != null) {
                             Button(
                                 onClick = {
-                                    (generatedImageUrl ?: currentThumbnailUrl)?.let { saveImageToDownloads(it) }
+                                    val targetUrl = generatedImageUrl ?: currentThumbnailUrl
+                                    if (targetUrl != null) {
+                                        if (PermissionHelper.hasStoragePermissions(context)) {
+                                            saveImageToDownloads(targetUrl)
+                                        } else {
+                                            pendingImageUrlToSave = targetUrl
+                                            showStoragePermissionForThumbnail = true
+                                        }
+                                    }
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1968,7 +1980,14 @@ fun ThumbnailStudioScreen(
                                                                 modifier = Modifier
                                                                     .clip(RoundedCornerShape(6.dp))
                                                                     .background(Color(0xFF134E5E))
-                                                                    .clickable { saveImageToDownloads(message.previewImageUrl) }
+                                                                    .clickable {
+                                                                        if (PermissionHelper.hasStoragePermissions(context)) {
+                                                                            saveImageToDownloads(message.previewImageUrl)
+                                                                        } else {
+                                                                            pendingImageUrlToSave = message.previewImageUrl
+                                                                            showStoragePermissionForThumbnail = true
+                                                                        }
+                                                                    }
                                                                     .padding(horizontal = 8.dp, vertical = 3.dp)
                                                             ) {
                                                                 Text("Download", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -2131,6 +2150,19 @@ fun ThumbnailStudioScreen(
             }
         )
     }
+
+    WorkPermissionRequester(
+        show = showStoragePermissionForThumbnail,
+        actionName = "save thumbnails to your device gallery",
+        onPermissionGranted = {
+            pendingImageUrlToSave?.let { saveImageToDownloads(it) }
+            pendingImageUrlToSave = null
+        },
+        onDismiss = {
+            showStoragePermissionForThumbnail = false
+            pendingImageUrlToSave = null
+        }
+    )
 }
 
 

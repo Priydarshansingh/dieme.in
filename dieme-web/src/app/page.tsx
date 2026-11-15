@@ -2,22 +2,34 @@ import type { Metadata } from 'next';
 import LandingPageClient from '@/components/landing/LandingPageClient';
 
 export const metadata: Metadata = {
-  title: 'Dieme — Live Stream Clipping & Creator Intelligence Platform',
+  title: 'Dieme — Live Stream Intelligence & Highlight Delivery Platform | Official Site',
   description:
-    'Real-time live streaming companion and clip highlight capture platform for YouTube creators, streamers, and video production teams.',
+    'The official Dieme platform for YouTube live streamers and video editors. Instant !clip chat capture, hardware-accelerated video trimming, AI thumbnail studio, and direct Telegram delivery.',
   keywords: [
+    'Dieme',
+    'dieme',
+    'dieme.in',
+    'dieme app',
+    'dieme live',
+    'dieme studio',
+    'dieme platform',
+    'dieme apk',
+    'dieme companion',
     'YouTube livestream clipping',
     'live stream highlight markers',
     'stream companion app',
     'video editor team workflow',
     'YouTube live broadcast clips',
     'live stream analytics',
-    'Dieme creator studio'
+    'Dieme creator studio',
   ],
+  alternates: {
+    canonical: 'https://www.dieme.in',
+  },
   openGraph: {
-    title: 'Dieme — Live Stream Clipping & Creator Intelligence Platform',
+    title: 'Dieme — Live Stream Intelligence & Highlight Delivery Platform | Official Site',
     description:
-      'The real-time live companion for YouTube creators and video production teams. Capture highlight markers, monitor chat, and publish clips instantly.',
+      'The official Dieme platform for YouTube creators and video production teams. Capture highlight markers, monitor chat, and publish clips instantly.',
     url: 'https://www.dieme.in',
     siteName: 'Dieme',
     locale: 'en_US',
@@ -25,7 +37,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Dieme — Live Stream Clipping Platform',
+    title: 'Dieme — Live Stream Intelligence Platform',
     description: 'Capture live highlight moments and collaborate with your production editors in real time.',
   },
 };

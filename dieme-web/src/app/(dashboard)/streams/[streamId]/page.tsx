@@ -392,12 +392,6 @@ export default function StreamDetailPage({ params }: { params: { streamId: strin
             >
               Launch in App →
             </a>
-            <a
-              href="/api/download/apk"
-              className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-medium transition"
-            >
-              Get APK
-            </a>
           </div>
         </div>
       </div>

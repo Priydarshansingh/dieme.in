@@ -138,7 +138,7 @@ const jsonLdSchema = {
       name: 'Dieme Live Studio',
       operatingSystem: 'Android, Web Browser',
       applicationCategory: 'MultimediaApplication',
-      downloadUrl: 'https://www.dieme.in/api/download/apk',
+      downloadUrl: 'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk',
       offers: {
         '@type': 'Offer',
         price: '0',

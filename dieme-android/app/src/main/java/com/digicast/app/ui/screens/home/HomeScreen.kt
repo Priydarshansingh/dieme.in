@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.LiveTv
+import com.digicast.app.ui.utils.WebNavigationUtil
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Refresh
@@ -309,13 +310,11 @@ fun HomeScreen(
     ) { padding ->
         val onConnectYouTube = {
             val session = signedInSession
-            val connectUrl = if (session != null) {
-                "https://www.dieme.in/api/youtube/auth?workspaceId=${session.workspaceId}&token=${session.token}&source=mobile_connect_youtube&redirect=true"
-            } else {
-                "https://www.dieme.in/settings"
-            }
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(connectUrl))
-            context.startActivity(intent)
+            WebNavigationUtil.openWebConnectYouTube(
+                context = context,
+                workspaceId = session?.workspaceId ?: "",
+                token = session?.token ?: ""
+            )
         }
 
         LazyColumn(

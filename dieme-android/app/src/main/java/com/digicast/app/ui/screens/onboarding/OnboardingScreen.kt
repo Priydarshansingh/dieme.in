@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import com.digicast.app.ui.utils.WebNavigationUtil
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -390,14 +391,7 @@ fun OnboardingScreen(
                     // 2. Secondary Action: Create Account on Dieme Web (Always visible)
                     OutlinedButton(
                         onClick = {
-                            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dieme.in/signup")).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            }
-                            try {
-                                context.startActivity(browserIntent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Cannot open browser: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
+                            WebNavigationUtil.launchBrowser(context, WebNavigationUtil.SIGNUP_WEB_URL)
                         },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = DigicastAccentBlue),
                         border = androidx.compose.foundation.BorderStroke(1.dp, DigicastAccentBlue.copy(alpha = 0.8f)),

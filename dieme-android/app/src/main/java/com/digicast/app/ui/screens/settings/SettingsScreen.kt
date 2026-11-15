@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import com.digicast.app.ui.utils.WebNavigationUtil
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -587,17 +588,21 @@ fun SettingsScreen(
                             ConnectedYouTubeCard(
                                 youtube = youtubeAccount!!,
                                 onReconnect = {
-                                    val connectUrl = "https://www.dieme.in/api/youtube/auth?workspaceId=${session.workspaceId}&token=${session.token}&source=mobile_connect_youtube&redirect=true"
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(connectUrl))
-                                    context.startActivity(intent)
+                                    WebNavigationUtil.openWebConnectYouTube(
+                                        context = context,
+                                        workspaceId = session.workspaceId,
+                                        token = session.token
+                                    )
                                 }
                             )
                         } else {
                             UnconnectedYouTubeCard(
                                 onConnect = {
-                                    val connectUrl = "https://www.dieme.in/api/youtube/auth?workspaceId=${session.workspaceId}&token=${session.token}&source=mobile_connect_youtube&redirect=true"
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(connectUrl))
-                                    context.startActivity(intent)
+                                    WebNavigationUtil.openWebConnectYouTube(
+                                        context = context,
+                                        workspaceId = session.workspaceId,
+                                        token = session.token
+                                    )
                                 }
                             )
                         }
@@ -1313,9 +1318,10 @@ private fun ConnectedYouTubeCard(
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
                 modifier = Modifier
                     .clip(RoundedCornerShape(9999.dp))
-                    .background(DigicastElectricCyan.copy(alpha = 0.1f))
-                    .border(1.dp, DigicastElectricCyan.copy(alpha = 0.25f), RoundedCornerShape(9999.dp))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .background(DigicastElectricCyan.copy(alpha = 0.12f))
+                    .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), RoundedCornerShape(9999.dp))
+                    .clickable { onReconnect() }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -1324,10 +1330,10 @@ private fun ConnectedYouTubeCard(
                         .background(DigicastElectricCyan)
                 )
                 Text(
-                    text = "Connected",
+                    text = "Connected ↗",
                     fontSize = 11.sp,
                     color = DigicastElectricCyan,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

@@ -29,6 +29,9 @@ export async function GET(req: NextRequest) {
   } else if (tokenParam) {
     idToken = tokenParam;
   } else {
+    if (searchParams.get("redirect") === "true" || req.headers.get("accept")?.includes("text/html")) {
+      return NextResponse.redirect(`${getBaseUrl(req)}/settings#youtube`);
+    }
     return NextResponse.json({ error: "Unauthorized: Missing authentication token" }, { status: 401 });
   }
 
@@ -37,6 +40,9 @@ export async function GET(req: NextRequest) {
     const decoded = await adminAuth.verifyIdToken(idToken);
     uid = decoded.uid;
   } catch {
+    if (searchParams.get("redirect") === "true" || req.headers.get("accept")?.includes("text/html")) {
+      return NextResponse.redirect(`${getBaseUrl(req)}/settings#youtube`);
+    }
     return NextResponse.json({ error: "Token verification failed" }, { status: 401 });
   }
 

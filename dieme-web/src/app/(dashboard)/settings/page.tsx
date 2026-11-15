@@ -19,16 +19,19 @@ function SettingsCard({
   description,
   children,
   iconColor = '#FFFFFF',
+  id,
 }: {
   icon: React.ElementType;
   title: string;
   description: string;
   children: React.ReactNode;
   iconColor?: string;
+  id?: string;
 }) {
   return (
     <div
-      className="glass-card rounded-2xl p-6 sm:p-7 space-y-6"
+      id={id}
+      className="glass-card rounded-2xl p-6 sm:p-7 space-y-6 scroll-mt-24"
     >
       <div className="flex items-start gap-3.5">
         <div
@@ -448,6 +451,7 @@ function SettingsContent() {
 
       {/* YouTube */}
       <SettingsCard
+        id="youtube"
         icon={Youtube}
         iconColor="#EF4444"
         title="YouTube Channel"

@@ -298,7 +298,13 @@ fun ChannelPerformanceGraph(
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(9999.dp))
+                            .background(DigicastElectricCyan.copy(alpha = 0.12f))
+                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), RoundedCornerShape(9999.dp))
+                            .clickable { onConnectYouTube() }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Box(
                             modifier = Modifier
@@ -307,10 +313,10 @@ fun ChannelPerformanceGraph(
                                 .background(DigicastElectricCyan)
                         )
                         Text(
-                            text = "Connected",
+                            text = "Connected ↗",
                             color = DigicastElectricCyan,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }

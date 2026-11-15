@@ -11,8 +11,8 @@ interface SiteFooterProps {
 
 export function SiteFooter({ onSelectProgram, className = '' }: SiteFooterProps) {
   return (
-    <footer className={`mt-24 pt-12 border-t border-white/5 text-xs text-slate-400 max-w-6xl mx-auto px-6 text-left ${className}`}>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 pb-12">
+    <footer className={`mt-24 pt-12 border-t border-white/5 text-xs text-slate-400 max-w-6xl mx-auto px-4 sm:px-6 text-left ${className}`}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8 pb-12">
         {/* Column 1: Pricing Passes */}
         <div className="space-y-2">
           <p className="font-bold text-white tracking-wide">Pricing Passes</p>

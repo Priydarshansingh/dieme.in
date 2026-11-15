@@ -223,13 +223,13 @@ function WireframeCube3D() {
 // ── 4. 3D Floating Chromatic Glass Discs (Video 01:33 - 01:38) ───────────────
 function ChromaticGlassDiscs() {
   return (
-    <div className="relative w-full h-44 sm:h-56 max-w-2xl mx-auto -mb-14 pointer-events-none overflow-visible flex items-center justify-center select-none">
+    <div className="relative w-full h-44 sm:h-56 max-w-2xl mx-auto -mb-14 pointer-events-none overflow-hidden flex items-center justify-center select-none">
       {[
-        { size: 'w-32 h-32 sm:w-44 sm:h-44', rotate: '-rotate-24', x: '-translate-x-40', delay: '0s', grad: 'from-emerald-400/30 via-teal-300/10 to-transparent' },
-        { size: 'w-36 h-36 sm:w-48 sm:h-48', rotate: '-rotate-12', x: '-translate-x-20', delay: '1s', grad: 'from-cyan-400/35 via-emerald-300/10 to-transparent' },
-        { size: 'w-40 h-40 sm:w-56 sm:h-56', rotate: 'rotate-0', x: 'translate-x-0', delay: '2s', grad: 'from-teal-300/40 via-cyan-400/15 to-transparent' },
-        { size: 'w-36 h-36 sm:w-48 sm:h-48', rotate: 'rotate-12', x: 'translate-x-20', delay: '1.5s', grad: 'from-emerald-400/35 via-teal-400/10 to-transparent' },
-        { size: 'w-32 h-32 sm:w-44 sm:h-44', rotate: 'rotate-24', x: 'translate-x-40', delay: '0.5s', grad: 'from-cyan-400/30 via-emerald-300/10 to-transparent' },
+        { size: 'w-24 h-24 sm:w-44 sm:h-44', rotate: '-rotate-24', x: '-translate-x-24 sm:-translate-x-40', delay: '0s', grad: 'from-emerald-400/30 via-teal-300/10 to-transparent' },
+        { size: 'w-28 h-28 sm:w-48 sm:h-48', rotate: '-rotate-12', x: '-translate-x-12 sm:-translate-x-20', delay: '1s', grad: 'from-cyan-400/35 via-emerald-300/10 to-transparent' },
+        { size: 'w-32 h-32 sm:w-56 sm:h-56', rotate: 'rotate-0', x: 'translate-x-0', delay: '2s', grad: 'from-teal-300/40 via-cyan-400/15 to-transparent' },
+        { size: 'w-28 h-28 sm:w-48 sm:h-48', rotate: 'rotate-12', x: 'translate-x-12 sm:translate-x-20', delay: '1.5s', grad: 'from-emerald-400/35 via-teal-400/10 to-transparent' },
+        { size: 'w-24 h-24 sm:w-44 sm:h-44', rotate: 'rotate-24', x: 'translate-x-24 sm:translate-x-40', delay: '0.5s', grad: 'from-cyan-400/30 via-emerald-300/10 to-transparent' },
       ].map((disc, idx) => (
         <div
           key={idx}
@@ -292,13 +292,13 @@ function ScrollReveal({
     if (isVisible) return 'translate-x-0 translate-y-0 scale-100 opacity-100';
     switch (direction) {
       case 'up':
-        return 'translate-y-12 opacity-0';
+        return 'translate-y-8 sm:translate-y-12 opacity-0';
       case 'down':
-        return '-translate-y-12 opacity-0';
+        return '-translate-y-8 sm:-translate-y-12 opacity-0';
       case 'left':
-        return 'translate-x-12 opacity-0';
+        return 'translate-y-6 sm:translate-y-0 sm:translate-x-12 opacity-0';
       case 'right':
-        return '-translate-x-12 opacity-0';
+        return 'translate-y-6 sm:translate-y-0 sm:-translate-x-12 opacity-0';
       case 'zoom':
         return 'scale-90 opacity-0';
       case 'fade':
@@ -578,11 +578,11 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
         <div className="relative z-10 max-w-5xl mx-auto px-6 space-y-6">
           {/* Top Tagline Pill */}
           <ScrollReveal direction="down" delay={100}>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono font-bold text-slate-300 uppercase tracking-widest shadow-inner">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <div className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] sm:text-[11px] font-mono font-bold text-slate-300 uppercase tracking-wider sm:tracking-widest shadow-inner max-w-full text-center">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping shrink-0" />
               <span>Live Companion for YouTube Creators</span>
-              <span className="text-emerald-400">&bull;</span>
-              <span className="text-emerald-400">Zero Latency Relay</span>
+              <span className="text-emerald-400 hidden sm:inline">&bull;</span>
+              <span className="text-emerald-400 hidden sm:inline">Zero Latency Relay</span>
             </div>
           </ScrollReveal>
 
@@ -1216,7 +1216,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
                         </div>
 
                         {/* Telegram Action Buttons */}
-                        <div className="pt-3 grid grid-cols-2 gap-2">
+                        <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div className="p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-center font-bold text-cyan-300 text-[11px] hover:bg-cyan-500/25 transition cursor-pointer">
                             ⚡ Open YouTube Jump
                           </div>
@@ -1464,7 +1464,10 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
 
           {/* Expanded Features Matrix Table for ALL 4 Plans */}
           {showPricingDetails && (
-            <div className="mt-10 rounded-3xl bg-[#090D16]/95 border border-white/10 p-6 sm:p-8 overflow-x-auto transition-all duration-500 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="mt-10 rounded-3xl bg-[#090D16]/95 border border-white/10 p-3 sm:p-8 overflow-x-auto transition-all duration-500 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="sm:hidden text-center text-[10px] font-mono text-emerald-400/80 mb-2.5">
+                ← Scroll table horizontally to compare →
+              </div>
               <div className="min-w-[760px]">
                 <table className="w-full text-left text-xs font-mono">
                   <thead>
@@ -1646,7 +1649,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           </ScrollReveal>
 
           {/* Countdown Clock Display */}
-          <div className="flex items-center justify-center gap-4 text-center font-mono">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 text-center font-mono max-w-full">
             {[
               { val: String(timeLeft.days).padStart(2, '0'), label: 'DAYS' },
               { val: String(timeLeft.hours).padStart(2, '0'), label: 'HOURS' },
@@ -1654,9 +1657,9 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
               { val: String(timeLeft.seconds).padStart(2, '0'), label: 'SECONDS' },
             ].map((unit, idx) => (
               <ScrollReveal key={idx} direction="up" delay={idx * 80 + 300}>
-                <div className="rounded-2xl bg-[#0D121D]/90 backdrop-blur-md border border-white/10 p-4 min-w-[72px] hover:border-emerald-400/50 hover:scale-105 transition-all shadow-xl">
-                  <div className="text-3xl sm:text-4xl font-black text-white font-mono">{unit.val}</div>
-                  <div className="text-[9px] text-slate-500 font-bold uppercase mt-1">{unit.label}</div>
+                <div className="rounded-xl sm:rounded-2xl bg-[#0D121D]/90 backdrop-blur-md border border-white/10 p-2 sm:p-4 min-w-[58px] sm:min-w-[72px] hover:border-emerald-400/50 hover:scale-105 transition-all shadow-xl">
+                  <div className="text-2xl sm:text-4xl font-black text-white font-mono">{unit.val}</div>
+                  <div className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase mt-1 tracking-wider">{unit.label}</div>
                 </div>
               </ScrollReveal>
             ))}
@@ -1757,51 +1760,52 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
 
           {/* Right: Interactive Neon Stepping Grid Graph (From Video 01:03 - 01:11) */}
           <ScrollReveal direction="right" delay={250}>
-            <div className="rounded-3xl bg-[#0B0F19] border border-white/10 p-8 shadow-2xl relative">
-              <div className="h-48 border-b border-l border-white/10 relative flex items-end">
-                {/* Neon Stepping Line */}
-                <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
+            <div className="rounded-3xl bg-[#0B0F19] border border-white/10 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
+              <div className="h-44 sm:h-48 border-b border-l border-white/10 relative flex items-end">
+                {/* Neon Stepping Line with responsive viewBox */}
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                   <path
-                    d="M 10 170 L 120 170 L 120 120 L 240 120 L 240 60 L 360 60 L 360 10 L 440 10"
+                    d="M 0 90 L 32 90 L 32 62 L 65 62 L 65 32 L 90 32 L 90 10 L 100 10"
                     fill="none"
                     stroke="#10B981"
-                    strokeWidth="3"
+                    strokeWidth="2.5"
+                    vectorEffect="non-scaling-stroke"
                     className="drop-shadow-[0_0_8px_#10B981]"
                   />
                 </svg>
 
-                {/* Milestone Pulsing Nodes */}
-                <div className="absolute left-[10px] bottom-0 -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
-                  <div className="w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] animate-pulse" />
-                  <span className="text-[10px] font-mono text-slate-400 mt-2">2021</span>
+                {/* Milestone Pulsing Nodes scaled via percentage coordinates */}
+                <div className="absolute left-[8%] bottom-[10%] -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+                  <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] animate-pulse" />
+                  <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 mt-1 sm:mt-2">2021</span>
                 </div>
-                <div className="absolute left-[120px] bottom-[50px] -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
-                  <div className="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#22D3EE] animate-pulse" />
-                  <span className="text-[10px] font-mono text-slate-400 mt-2">2023</span>
+                <div className="absolute left-[32%] bottom-[38%] -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+                  <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#22D3EE] animate-pulse" />
+                  <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 mt-1 sm:mt-2">2023</span>
                 </div>
-                <div className="absolute left-[240px] bottom-[110px] -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
-                  <div className="w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] animate-pulse" />
-                  <span className="text-[10px] font-mono text-slate-400 mt-2">2025</span>
+                <div className="absolute left-[65%] bottom-[68%] -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+                  <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10B981] animate-pulse" />
+                  <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 mt-1 sm:mt-2">2025</span>
                 </div>
-                <div className="absolute left-[360px] bottom-[160px] -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
-                  <div className="w-4 h-4 rounded-full bg-teal-300 shadow-[0_0_12px_#2DD4BF] animate-ping" />
-                  <span className="text-[10px] font-mono text-emerald-300 font-bold mt-2">Present</span>
+                <div className="absolute left-[90%] bottom-[90%] -translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-teal-300 shadow-[0_0_12px_#2DD4BF] animate-ping" />
+                  <span className="text-[9px] sm:text-[10px] font-mono text-emerald-300 font-bold mt-1 sm:mt-2">Present</span>
                 </div>
               </div>
 
               {/* Stats telemetry chips */}
-              <div className="grid grid-cols-3 gap-3 mt-8 pt-4 border-t border-white/5 font-mono text-center">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-6 sm:mt-8 pt-4 border-t border-white/5 font-mono text-center">
                 <div>
-                  <div className="text-[10px] text-slate-500">EXPERIENCE</div>
-                  <div className="text-lg font-black text-white">5+ Years</div>
+                  <div className="text-[9px] sm:text-[10px] text-slate-500">EXPERIENCE</div>
+                  <div className="text-base sm:text-lg font-black text-white">5+ Years</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500">COMMUNITY</div>
-                  <div className="text-lg font-black text-emerald-400">15,000+</div>
+                  <div className="text-[9px] sm:text-[10px] text-slate-500">COMMUNITY</div>
+                  <div className="text-base sm:text-lg font-black text-emerald-400">15,000+</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500">PAYOUT POOL</div>
-                  <div className="text-lg font-black text-cyan-400">₹4.2 Cr</div>
+                  <div className="text-[9px] sm:text-[10px] text-slate-500">PAYOUT POOL</div>
+                  <div className="text-base sm:text-lg font-black text-cyan-400">₹4.2 Cr</div>
                 </div>
               </div>
             </div>
@@ -1837,15 +1841,15 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
 
           {/* Perspective 3D Tilted Studio Dashboard Mockup */}
           <ScrollReveal direction="up" delay={250}>
-            <div className="w-full max-w-4xl mx-auto rounded-3xl bg-[#0C101A] border border-white/10 p-6 shadow-2xl relative overflow-hidden hover:border-emerald-500/30 transition-all duration-300">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+            <div className="w-full max-w-4xl mx-auto rounded-3xl bg-[#0C101A] border border-white/10 p-5 sm:p-6 shadow-2xl relative overflow-hidden hover:border-emerald-500/30 transition-all duration-300">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 border-b border-white/10 pb-4 mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-red-500/80" />
-                  <span className="h-3 w-3 rounded-full bg-yellow-500/80" />
-                  <span className="h-3 w-3 rounded-full bg-green-500/80" />
-                  <span className="text-xs font-mono text-slate-400 ml-2">studio.dieme.in/console</span>
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/80" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/80" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/80" />
+                  <span className="text-[11px] sm:text-xs font-mono text-slate-400 ml-1.5 truncate">studio.dieme.in/console</span>
                 </div>
-                <div className="text-xs font-mono font-bold text-emerald-400">4K 60FPS RELAY ACTIVE</div>
+                <div className="text-[10px] sm:text-xs font-mono font-bold text-emerald-400">4K 60FPS RELAY ACTIVE</div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left font-mono">
@@ -1932,13 +1936,13 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           <div className="divide-y divide-white/5 border-y border-white/5">
             {faqs.map((faq, idx) => (
               <ScrollReveal key={idx} direction="up" delay={idx * 60}>
-                <div className="py-5">
+                <div className="py-4 sm:py-5">
                   <button
                     onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-                    className="w-full flex items-center justify-between text-left text-sm font-bold text-white hover:text-emerald-400 transition"
+                    className="w-full min-h-[44px] py-1.5 flex items-center justify-between text-left text-sm font-bold text-white hover:text-emerald-400 transition cursor-pointer select-none"
                   >
-                    <span>{faq.q}</span>
-                    <span className="text-slate-500 text-lg font-mono">{activeFaq === idx ? '−' : '+'}</span>
+                    <span className="pr-4">{faq.q}</span>
+                    <span className="text-slate-500 text-lg font-mono flex-shrink-0">{activeFaq === idx ? '−' : '+'}</span>
                   </button>
 
                   {activeFaq === idx && (

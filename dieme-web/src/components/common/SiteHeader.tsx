@@ -14,7 +14,7 @@ export function SiteHeader({ onSelectProgram }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 inset-x-0 z-50 bg-[#06080D]/85 backdrop-blur-xl border-b border-white/5 transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
         {/* Official Dieme Brand Logo */}
         <Link href="/" className="flex items-center gap-3 group">
           <DigicastBrandLogo size="md" />
@@ -56,7 +56,7 @@ export function SiteHeader({ onSelectProgram }: SiteHeaderProps) {
         {/* Mobile Menu Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden p-2 text-slate-400 hover:text-white transition"
+          className="lg:hidden p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-white transition"
           aria-label="Toggle navigation menu"
         >
           {mobileMenuOpen ? <X className="h-6 w-6 text-white" /> : <Menu className="h-6 w-6" />}
@@ -65,31 +65,31 @@ export function SiteHeader({ onSelectProgram }: SiteHeaderProps) {
 
       {/* Mobile Navigation Dropdown */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-[#0A0D15] border-b border-white/10 px-6 py-6 space-y-4 text-sm font-medium animate-in slide-in-from-top-4 duration-300">
-          <Link href="/#hero" onClick={() => setMobileMenuOpen(false)} className="block text-white hover:text-emerald-400">
+        <div className="lg:hidden bg-[#0A0D15] border-b border-white/10 px-6 py-4 space-y-1 text-sm font-medium animate-in slide-in-from-top-4 duration-300">
+          <Link href="/#hero" onClick={() => setMobileMenuOpen(false)} className="block py-2.5 text-white hover:text-emerald-400 transition-colors">
             Home
           </Link>
-          <Link href="/#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300 hover:text-emerald-400">
+          <Link href="/#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block py-2.5 text-slate-300 hover:text-emerald-400 transition-colors">
             How It Works
           </Link>
-          <Link href="/#pricing" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300 hover:text-emerald-400">
+          <Link href="/#pricing" onClick={() => setMobileMenuOpen(false)} className="block py-2.5 text-slate-300 hover:text-emerald-400 transition-colors">
             Pricing Passes
           </Link>
-          <Link href="/#why-dieme" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300 hover:text-emerald-400">
+          <Link href="/#why-dieme" onClick={() => setMobileMenuOpen(false)} className="block py-2.5 text-slate-300 hover:text-emerald-400 transition-colors">
             Why Dieme
           </Link>
-          <Link href="/#about-us" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300 hover:text-emerald-400">
+          <Link href="/#about-us" onClick={() => setMobileMenuOpen(false)} className="block py-2.5 text-slate-300 hover:text-emerald-400 transition-colors">
             About Us
           </Link>
-          <Link href="/#faq" onClick={() => setMobileMenuOpen(false)} className="block text-slate-300 hover:text-emerald-400">
+          <Link href="/#faq" onClick={() => setMobileMenuOpen(false)} className="block py-2.5 text-slate-300 hover:text-emerald-400 transition-colors">
             FAQ
           </Link>
-          <div className="pt-4 border-t border-white/10">
+          <div className="pt-3 pb-2 border-t border-white/10">
             <Link
               href="/login"
               prefetch={false}
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full inline-flex items-center justify-center px-6 py-3 rounded-xl text-xs font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-300 hover:brightness-110 transition shadow-lg shadow-emerald-400/20"
+              className="w-full inline-flex items-center justify-center px-6 py-3.5 rounded-xl text-xs font-bold text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-300 hover:brightness-110 transition shadow-lg shadow-emerald-400/20 active:scale-[0.98]"
             >
               Sign In to Studio
             </Link>

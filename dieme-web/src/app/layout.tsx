@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Nunito } from 'next/font/google';
 import './globals.css';
 import { CookieConsent } from '@/components/common/CookieConsent';
@@ -9,6 +9,13 @@ const nunito = Nunito({
   display: 'swap',
   variable: '--font-nunito',
 });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#07080C',
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.dieme.in'),

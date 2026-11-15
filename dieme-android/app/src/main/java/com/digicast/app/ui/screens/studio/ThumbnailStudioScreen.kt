@@ -72,6 +72,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Layers
@@ -174,6 +175,144 @@ data class ThumbnailChatMessage(
     val status: String? = null
 )
 
+data class ThumbnailSession(
+    val id: String = UUID.randomUUID().toString(),
+    val title: String,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val thumbnailUrl: String? = null,
+    val generatedImageUrl: String? = null,
+    val videoId: String = "",
+    val videoUrl: String = "",
+    val messages: List<ThumbnailChatMessage> = emptyList()
+)
+
+object ThumbnailSessionStorage {
+    private const val PREFS_NAME = "thumbnail_studio_sessions_v1"
+    private const val KEY_SESSIONS = "saved_sessions"
+
+    fun sessionToJson(session: ThumbnailSession): JSONObject {
+        val obj = JSONObject()
+        obj.put("id", session.id)
+        obj.put("title", session.title)
+        obj.put("createdAt", session.createdAt)
+        obj.put("updatedAt", session.updatedAt)
+        if (session.thumbnailUrl != null) obj.put("thumbnailUrl", session.thumbnailUrl)
+        if (session.generatedImageUrl != null) obj.put("generatedImageUrl", session.generatedImageUrl)
+        obj.put("videoId", session.videoId)
+        obj.put("videoUrl", session.videoUrl)
+
+        val msgsArray = JSONArray()
+        session.messages.forEach { msg ->
+            val mObj = JSONObject()
+            mObj.put("id", msg.id)
+            mObj.put("isUser", msg.isUser)
+            mObj.put("text", msg.text)
+            mObj.put("timestamp", msg.timestamp)
+            if (msg.previewImageUrl != null) mObj.put("previewImageUrl", msg.previewImageUrl)
+            mObj.put("referenceImageCount", msg.referenceImageCount)
+            val pinsArray = JSONArray()
+            msg.pins.forEach { p ->
+                val pObj = JSONObject()
+                pObj.put("id", p.id)
+                pObj.put("xPercent", p.xPercent.toDouble())
+                pObj.put("yPercent", p.yPercent.toDouble())
+                pinsArray.put(pObj)
+            }
+            mObj.put("pins", pinsArray)
+            msgsArray.put(mObj)
+        }
+        obj.put("messages", msgsArray)
+        return obj
+    }
+
+    fun jsonToSession(obj: JSONObject): ThumbnailSession {
+        val id = obj.optString("id", UUID.randomUUID().toString())
+        val title = obj.optString("title", "Studio Session")
+        val createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+        val updatedAt = obj.optLong("updatedAt", System.currentTimeMillis())
+        val thumbnailUrl = if (obj.has("thumbnailUrl") && !obj.isNull("thumbnailUrl")) obj.getString("thumbnailUrl") else null
+        val generatedImageUrl = if (obj.has("generatedImageUrl") && !obj.isNull("generatedImageUrl")) obj.getString("generatedImageUrl") else null
+        val videoId = obj.optString("videoId", "")
+        val videoUrl = obj.optString("videoUrl", "")
+
+        val msgs = mutableListOf<ThumbnailChatMessage>()
+        val msgsArray = obj.optJSONArray("messages")
+        if (msgsArray != null) {
+            for (i in 0 until msgsArray.length()) {
+                val mObj = msgsArray.getJSONObject(i)
+                val pList = mutableListOf<MarkedPin>()
+                val pinsArray = mObj.optJSONArray("pins")
+                if (pinsArray != null) {
+                    for (j in 0 until pinsArray.length()) {
+                        val pObj = pinsArray.getJSONObject(j)
+                        pList.add(
+                            MarkedPin(
+                                id = pObj.optInt("id", j + 1),
+                                xPercent = pObj.optDouble("xPercent", 0.0).toFloat(),
+                                yPercent = pObj.optDouble("yPercent", 0.0).toFloat()
+                            )
+                        )
+                    }
+                }
+                msgs.add(
+                    ThumbnailChatMessage(
+                        id = mObj.optString("id", UUID.randomUUID().toString()),
+                        isUser = mObj.optBoolean("isUser", false),
+                        text = mObj.optString("text", ""),
+                        timestamp = mObj.optLong("timestamp", System.currentTimeMillis()),
+                        previewImageUrl = if (mObj.has("previewImageUrl") && !mObj.isNull("previewImageUrl")) mObj.getString("previewImageUrl") else null,
+                        pins = pList,
+                        referenceImageCount = mObj.optInt("referenceImageCount", 0),
+                        isGenerating = false,
+                        status = null
+                    )
+                )
+            }
+        }
+        return ThumbnailSession(
+            id = id,
+            title = title,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            thumbnailUrl = thumbnailUrl,
+            generatedImageUrl = generatedImageUrl,
+            videoId = videoId,
+            videoUrl = videoUrl,
+            messages = msgs
+        )
+    }
+
+    fun persistSessions(context: Context, sessions: List<ThumbnailSession>) {
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val arr = JSONArray()
+            sessions.take(50).forEach { s ->
+                arr.put(sessionToJson(s))
+            }
+            prefs.edit().putString(KEY_SESSIONS, arr.toString()).apply()
+        } catch (e: Exception) {
+            Log.e("ThumbnailStudio", "Failed to persist sessions: ${e.message}")
+        }
+    }
+
+    fun loadSessions(context: Context): List<ThumbnailSession> {
+        return try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val raw = prefs.getString(KEY_SESSIONS, null) ?: return emptyList()
+            val arr = JSONArray(raw)
+            val list = mutableListOf<ThumbnailSession>()
+            for (i in 0 until arr.length()) {
+                list.add(jsonToSession(arr.getJSONObject(i)))
+            }
+            list.sortedByDescending { it.updatedAt }
+        } catch (e: Exception) {
+            Log.e("ThumbnailStudio", "Failed to load sessions: ${e.message}")
+            emptyList()
+        }
+    }
+}
+
 // ── Screen Implementation ───────────────────────────────────────────────────
 
 @Composable
@@ -230,6 +369,9 @@ fun ThumbnailStudioScreen(
     // ── History & Prompt State (Empty by default) ───────────────────────────
     var promptInput by remember { mutableStateOf("") }
     var preferNewChat by remember { mutableStateOf(false) }
+    var activeSessionId by remember { mutableStateOf(UUID.randomUUID().toString()) }
+    val savedSessions = remember { mutableStateListOf<ThumbnailSession>() }
+    var selectedDrawerTab by remember { mutableIntStateOf(0) } // 0 = Past Sessions, 1 = Active Thread
     val chatMessages = remember { mutableStateListOf<ThumbnailChatMessage>() }
     var showGalleryPicker by remember { mutableStateOf(false) }
     var galleryPickerTargetIsBase by remember { mutableStateOf(false) }
@@ -304,20 +446,113 @@ fun ThumbnailStudioScreen(
         }
     }
 
+    // ── Helper: Save Current Session to Persistent History ──────────────────
+    fun saveCurrentSessionToHistory() {
+        if (chatMessages.isEmpty() && currentThumbnailUrl == null && generatedImageUrl == null) return
+
+        val firstUserMsg = chatMessages.firstOrNull { it.isUser && it.text.isNotBlank() }?.text
+        val currentTitle = when {
+            videoId.isNotBlank() -> "Video: $videoId"
+            !firstUserMsg.isNullOrBlank() -> {
+                if (firstUserMsg.length > 28) firstUserMsg.take(28) + "…" else firstUserMsg
+            }
+            urlInput.isNotBlank() -> "Link: ${urlInput.take(24)}…"
+            else -> "Session ${SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date())}"
+        }
+
+        val updatedSession = ThumbnailSession(
+            id = activeSessionId,
+            title = currentTitle,
+            updatedAt = System.currentTimeMillis(),
+            thumbnailUrl = currentThumbnailUrl,
+            generatedImageUrl = generatedImageUrl,
+            videoId = videoId,
+            videoUrl = urlInput,
+            messages = chatMessages.toList()
+        )
+
+        val idx = savedSessions.indexOfFirst { it.id == activeSessionId }
+        if (idx != -1) {
+            savedSessions[idx] = updatedSession
+        } else {
+            savedSessions.add(0, updatedSession)
+        }
+        ThumbnailSessionStorage.persistSessions(context, savedSessions.toList())
+    }
+
     // ── Helper: Start New Session ───────────────────────────────────────────
     fun startNewSession() {
-        preferNewChat = true
+        if (isGenerating) {
+            Toast.makeText(context, "Generation in progress, please wait", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 1. Save current session before wiping
+        saveCurrentSessionToHistory()
+
+        // 2. Clear past session workspace completely
+        chatMessages.clear()
         promptInput = ""
+        urlInput = ""
+        videoId = ""
+        currentThumbnailUrl = null
+        generatedImageUrl = null
         markedPins.clear()
         referenceImages.clear()
+        preferNewChat = true
+
+        // 3. Generate a fresh new session ID
+        activeSessionId = UUID.randomUUID().toString()
+
+        // 4. Initial welcome message in new chat
         chatMessages.add(
             ThumbnailChatMessage(
                 isUser = false,
-                text = "✨ Started a new revision session. Drop target pins on the canvas to describe edits.",
-                previewImageUrl = currentThumbnailUrl
+                text = "✨ Started a fresh revision session. Paste a YouTube URL or select a base thumbnail to begin.",
+                previewImageUrl = null
             )
         )
+
+        selectedDrawerTab = 0
         Toast.makeText(context, "✨ Started New Session", Toast.LENGTH_SHORT).show()
+    }
+
+    // ── Helper: Switch to a Past Session ────────────────────────────────────
+    fun switchSession(session: ThumbnailSession) {
+        if (isGenerating) {
+            Toast.makeText(context, "Please wait until generation finishes", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (activeSessionId != session.id) {
+            saveCurrentSessionToHistory()
+        }
+
+        activeSessionId = session.id
+        currentThumbnailUrl = session.thumbnailUrl
+        generatedImageUrl = session.generatedImageUrl
+        videoId = session.videoId
+        urlInput = session.videoUrl
+        markedPins.clear()
+        referenceImages.clear()
+        promptInput = ""
+        preferNewChat = false
+
+        chatMessages.clear()
+        chatMessages.addAll(session.messages)
+
+        isHistoryDrawerOpen = false
+        Toast.makeText(context, "Loaded: ${session.title}", Toast.LENGTH_SHORT).show()
+    }
+
+    // ── Helper: Delete Session ──────────────────────────────────────────────
+    fun deleteSession(sessionId: String) {
+        savedSessions.removeAll { it.id == sessionId }
+        ThumbnailSessionStorage.persistSessions(context, savedSessions.toList())
+        if (activeSessionId == sessionId) {
+            startNewSession()
+        } else {
+            Toast.makeText(context, "Session deleted", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // ── Helper: Check Dg-Images installation ────────────────────────────────
@@ -331,6 +566,9 @@ fun ThumbnailStudioScreen(
     }
 
     LaunchedEffect(Unit) {
+        val loaded = ThumbnailSessionStorage.loadSessions(context)
+        savedSessions.clear()
+        savedSessions.addAll(loaded)
         val installed = checkAppInstalled()
         isDgImagesAppInstalled = installed
         coroutineScope.launch(Dispatchers.IO) {
@@ -409,6 +647,7 @@ fun ThumbnailStudioScreen(
                                 previewImageUrl = finalUrl
                             )
                         )
+                        saveCurrentSessionToHistory()
                     }
                 } finally {
                     withContext(Dispatchers.Main) {
@@ -671,6 +910,7 @@ fun ThumbnailStudioScreen(
                 status = "Generating revision with AI engine..."
             )
         )
+        saveCurrentSessionToHistory()
 
         isGenerating = true
         generationStatusMessage = "Connecting to Dg-Images..."
@@ -798,6 +1038,7 @@ fun ThumbnailStudioScreen(
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 isGenerating = false
+                saveCurrentSessionToHistory()
             }
         }
     }
@@ -1807,19 +2048,236 @@ fun ThumbnailStudioScreen(
                                 startNewSession()
                                 isHistoryDrawerOpen = false
                             }
-                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                            .padding(horizontal = 14.dp, vertical = 11.dp)
                     ) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.Center
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text("Start New Session", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
-                    // Content: Empty State OR Stream inside Left Drawer
-                    if (chatMessages.isEmpty()) {
+                    // Two-tab Switcher: [Past Sessions (N)] | [Active Chat (M)]
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Tab 0: Past Sessions
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (selectedDrawerTab == 0) Color(0xFF0F323A) else Color.Transparent)
+                                .border(
+                                    1.dp,
+                                    if (selectedDrawerTab == 0) DigicastElectricCyan.copy(alpha = 0.5f) else Color.Transparent,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable { selectedDrawerTab = 0 }
+                                .padding(vertical = 7.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Past Sessions (${savedSessions.size})",
+                                color = if (selectedDrawerTab == 0) Color.White else DigicastSlate,
+                                fontSize = 11.sp,
+                                fontWeight = if (selectedDrawerTab == 0) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+
+                        // Tab 1: Active Chat
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (selectedDrawerTab == 1) Color(0xFF0F323A) else Color.Transparent)
+                                .border(
+                                    1.dp,
+                                    if (selectedDrawerTab == 1) DigicastElectricCyan.copy(alpha = 0.5f) else Color.Transparent,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable { selectedDrawerTab = 1 }
+                                .padding(vertical = 7.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Active Chat (${chatMessages.size})",
+                                color = if (selectedDrawerTab == 1) Color.White else DigicastSlate,
+                                fontSize = 11.sp,
+                                fontWeight = if (selectedDrawerTab == 1) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // Content: Past Sessions OR Active Chat Stream
+                    if (selectedDrawerTab == 0) {
+                        // Tab 0: Past Sessions List
+                        if (savedSessions.isEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Layers,
+                                    contentDescription = null,
+                                    tint = DigicastSlate.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "No Past Sessions Yet",
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Load a video link or drop target pins on the canvas to start generating sessions.",
+                                    color = DigicastSlate,
+                                    fontSize = 11.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(savedSessions, key = { it.id }) { session ->
+                                    val isActive = session.id == activeSessionId
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(
+                                                if (isActive) SolidColor(Color(0xFF0D2830)) else AppleDarkEdgeCardBrush
+                                            )
+                                            .border(
+                                                1.dp,
+                                                if (isActive) SolidColor(DigicastElectricCyan) else AppleSpecularBorder,
+                                                RoundedCornerShape(12.dp)
+                                            )
+                                            .clickable { switchSession(session) }
+                                            .padding(10.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            // Session Preview Thumbnail (Square)
+                                            val img = session.generatedImageUrl ?: session.thumbnailUrl
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(44.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(Color.Black.copy(alpha = 0.4f))
+                                                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (img != null) {
+                                                    AsyncImage(
+                                                        model = ImageRequest.Builder(context).data(img).crossfade(true).build(),
+                                                        contentDescription = null,
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                } else {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Layers,
+                                                        contentDescription = null,
+                                                        tint = DigicastSlate,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                            }
+
+                                            // Session Info
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = session.title,
+                                                        color = Color.White,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f, fill = false)
+                                                    )
+                                                    if (isActive) {
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(4.dp))
+                                                                .background(DigicastEmerald.copy(alpha = 0.2f))
+                                                                .border(1.dp, DigicastEmerald.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                        ) {
+                                                            Text("ACTIVE", color = DigicastEmerald, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
+                                                        }
+                                                    }
+                                                }
+
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(session.updatedAt)),
+                                                        color = DigicastSlate,
+                                                        fontSize = 10.sp
+                                                    )
+                                                    Text("•", color = DigicastSlate.copy(alpha = 0.5f), fontSize = 10.sp)
+                                                    Text(
+                                                        text = "${session.messages.size} msgs",
+                                                        color = DigicastSlate,
+                                                        fontSize = 10.sp
+                                                    )
+                                                }
+                                            }
+
+                                            // Delete Session Button
+                                            IconButton(
+                                                onClick = { deleteSession(session.id) },
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Delete Session",
+                                                    tint = DigicastSlate.copy(alpha = 0.7f),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Tab 1: Active Chat Message Stream
+                        if (chatMessages.isEmpty()) {
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -2021,6 +2479,7 @@ fun ThumbnailStudioScreen(
                 }
             }
         }
+        }
     }
 
     if (showGalleryPicker) {
@@ -2045,6 +2504,7 @@ fun ThumbnailStudioScreen(
                                     previewImageUrl = optimizedUri.toString()
                                 )
                             )
+                            saveCurrentSessionToHistory()
                         }
                     }
                 } else {

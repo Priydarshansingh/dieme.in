@@ -30,6 +30,9 @@ object ChatGptSessionManager {
     private val _preferNewChat = MutableStateFlow(true)
     val preferNewChat: StateFlow<Boolean> = _preferNewChat.asStateFlow()
 
+    private val _isChatGptConnected = MutableStateFlow(false)
+    val isChatGptConnected: StateFlow<Boolean> = _isChatGptConnected.asStateFlow()
+
     private val _sessionStatus = MutableStateFlow("ChatGPT Ready (Web Engine)")
     val sessionStatus: StateFlow<String> = _sessionStatus.asStateFlow()
 
@@ -40,6 +43,31 @@ object ChatGptSessionManager {
 
     fun setPreferNewChat(newChat: Boolean) {
         _preferNewChat.value = newChat
+    }
+
+    fun setIsChatGptConnected(connected: Boolean) {
+        _isChatGptConnected.value = connected
+    }
+
+    fun disconnect(onComplete: () -> Unit = {}) {
+        _isChatGptConnected.value = false
+        val adapter = activeAdapter
+        if (adapter != null) {
+            val cookieManager = CookieManager.getInstance()
+            cookieManager.removeAllCookies {
+                cookieManager.flush()
+                adapter.webView.clearCache(true)
+                adapter.webView.clearHistory()
+                adapter.webView.loadUrl(ChatGptWebAdapter.CHATGPT_URL)
+                onComplete()
+            }
+        } else {
+            val cookieManager = CookieManager.getInstance()
+            cookieManager.removeAllCookies {
+                cookieManager.flush()
+                onComplete()
+            }
+        }
     }
 
     suspend fun executeGeneration(

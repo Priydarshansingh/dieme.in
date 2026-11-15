@@ -104,10 +104,36 @@ class ChatGptWebAdapter(
                 super.onPageFinished(view, url)
                 CookieManager.getInstance().flush()
                 onStateChanged("ChatGPT Online")
+                checkLoginStatus()
             }
         }
 
         webView.loadUrl(CHATGPT_URL)
+    }
+
+    fun checkLoginStatus(onResult: ((Boolean) -> Unit)? = null) {
+        val cookies = CookieManager.getInstance().getCookie(CHATGPT_URL) ?: ""
+        val hasSessionCookie = cookies.contains("__Secure") || cookies.contains("session-token") || cookies.contains("_puid") || cookies.contains("oai-")
+
+        val js = """
+            (function() {
+                try {
+                    var composer = document.querySelector("#prompt-textarea, .ProseMirror, button[data-testid='send-button']");
+                    var userMsg = document.querySelector("[data-message-author-role]");
+                    var loginBtn = document.querySelector("a[href*='login'], button[data-testid*='login']");
+                    if (composer || userMsg) return true;
+                    if (loginBtn) return false;
+                    return ${hasSessionCookie};
+                } catch(e) {
+                    return ${hasSessionCookie};
+                }
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js) { res ->
+            val isLogged = res?.trim() == "true" || (hasSessionCookie && res?.trim() != "false")
+            ChatGptSessionManager.setIsChatGptConnected(isLogged)
+            onResult?.invoke(isLogged)
+        }
     }
 
     fun startNewChat(onComplete: ((Boolean) -> Unit)? = null) {

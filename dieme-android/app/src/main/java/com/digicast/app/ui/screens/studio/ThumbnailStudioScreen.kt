@@ -35,6 +35,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -313,6 +314,253 @@ object ThumbnailSessionStorage {
     }
 }
 
+// ── Dot Matrix Snake Game for Loading Screen ───────────────────────────────
+
+enum class DotSnakeDirection { UP, DOWN, LEFT, RIGHT }
+data class DotGridPoint(val x: Int, val y: Int)
+
+@Composable
+fun DotMatrixSnakeGame(
+    modifier: Modifier = Modifier,
+    elapsedSeconds: Int,
+    onExitGame: () -> Unit
+) {
+    val cols = 22
+    val rows = 12
+
+    var snake by remember {
+        mutableStateOf(
+            listOf(
+                DotGridPoint(6, 6),
+                DotGridPoint(5, 6),
+                DotGridPoint(4, 6)
+            )
+        )
+    }
+    var direction by remember { mutableStateOf(DotSnakeDirection.RIGHT) }
+    var nextDirection by remember { mutableStateOf(DotSnakeDirection.RIGHT) }
+    var food by remember { mutableStateOf(DotGridPoint(15, 6)) }
+    var score by remember { mutableIntStateOf(0) }
+
+    // Pulsing food animation
+    val infiniteTransition = rememberInfiniteTransition(label = "foodPulse")
+    val foodPulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.35f,
+        animationSpec = infiniteRepeatable(tween(400), RepeatMode.Reverse),
+        label = "foodScale"
+    )
+
+    // Game loop running on coroutines
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            delay(120L)
+            direction = nextDirection
+            val head = snake.first()
+            val (dx, dy) = when (direction) {
+                DotSnakeDirection.UP -> 0 to -1
+                DotSnakeDirection.DOWN -> 0 to 1
+                DotSnakeDirection.LEFT -> -1 to 0
+                DotSnakeDirection.RIGHT -> 1 to 0
+            }
+
+            val newX = (head.x + dx + cols) % cols
+            val newY = (head.y + dy + rows) % rows
+            val newHead = DotGridPoint(newX, newY)
+
+            if (snake.contains(newHead)) {
+                // Wrap reset on self collision
+                snake = listOf(DotGridPoint(6, 6), DotGridPoint(5, 6), DotGridPoint(4, 6))
+                direction = DotSnakeDirection.RIGHT
+                nextDirection = DotSnakeDirection.RIGHT
+                score = 0
+            } else {
+                val newSnake = mutableListOf(newHead)
+                if (newHead == food) {
+                    score++
+                    newSnake.addAll(snake)
+                    var randomFood: DotGridPoint
+                    do {
+                        randomFood = DotGridPoint((0 until cols).random(), (0 until rows).random())
+                    } while (newSnake.contains(randomFood))
+                    food = randomFood
+                } else {
+                    newSnake.addAll(snake.dropLast(1))
+                }
+                snake = newSnake
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFF030D12))
+            .pointerInput(Unit) {
+                var totalDragX = 0f
+                var totalDragY = 0f
+                detectDragGestures(
+                    onDragStart = { totalDragX = 0f; totalDragY = 0f },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        totalDragX += dragAmount.x
+                        totalDragY += dragAmount.y
+                    },
+                    onDragEnd = {
+                        if (kotlin.math.abs(totalDragX) > kotlin.math.abs(totalDragY)) {
+                            if (totalDragX > 20f && direction != DotSnakeDirection.LEFT) nextDirection = DotSnakeDirection.RIGHT
+                            else if (totalDragX < -20f && direction != DotSnakeDirection.RIGHT) nextDirection = DotSnakeDirection.LEFT
+                        } else {
+                            if (totalDragY > 20f && direction != DotSnakeDirection.UP) nextDirection = DotSnakeDirection.DOWN
+                            else if (totalDragY < -20f && direction != DotSnakeDirection.DOWN) nextDirection = DotSnakeDirection.UP
+                        }
+                    }
+                )
+            }
+    ) {
+        // Retro Dot Matrix Canvas
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(10.dp)
+        ) {
+            val cellW = size.width / cols
+            val cellH = size.height / rows
+            val baseRadius = (cellW.coerceAtMost(cellH) * 0.28f)
+
+            // 1. Ambient Background Dots
+            for (c in 0 until cols) {
+                for (r in 0 until rows) {
+                    val center = Offset(c * cellW + cellW / 2f, r * cellH + cellH / 2f)
+                    drawCircle(
+                        color = Color(0x1800F0FF),
+                        radius = baseRadius * 0.65f,
+                        center = center
+                    )
+                }
+            }
+
+            // 2. Food Target Pellet (Pulsing glowing amber)
+            val foodCenter = Offset(food.x * cellW + cellW / 2f, food.y * cellH + cellH / 2f)
+            drawCircle(
+                color = Color(0xFFFFB703),
+                radius = baseRadius * foodPulseScale,
+                center = foodCenter
+            )
+
+            // 3. Snake Body Dots
+            snake.forEachIndexed { index, pt ->
+                val center = Offset(pt.x * cellW + cellW / 2f, pt.y * cellH + cellH / 2f)
+                val isHead = index == 0
+                drawCircle(
+                    color = if (isHead) Color(0xFF00F0FF) else Color(0xFF2DD4BF),
+                    radius = if (isHead) baseRadius * 1.3f else baseRadius,
+                    center = center
+                )
+            }
+        }
+
+        // Top HUD Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .align(Alignment.TopCenter),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFF0F323A))
+                        .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text("SCORE: $score", color = DigicastElectricCyan, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                }
+                Text("Cooking AI (T+${elapsedSeconds}s)", color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.12f))
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                    .clickable { onExitGame() }
+                    .padding(horizontal = 9.dp, vertical = 4.dp)
+            ) {
+                Text("Exit ✕", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // Minimal directional pad at bottom-right for quick one-thumb taps
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.15f))
+                    .clickable { if (direction != DotSnakeDirection.DOWN) nextDirection = DotSnakeDirection.UP },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("▲", color = Color.White, fontSize = 10.sp)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.15f))
+                        .clickable { if (direction != DotSnakeDirection.RIGHT) nextDirection = DotSnakeDirection.LEFT },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("◀", color = Color.White, fontSize = 10.sp)
+                }
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.15f))
+                        .clickable { if (direction != DotSnakeDirection.UP) nextDirection = DotSnakeDirection.DOWN },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("▼", color = Color.White, fontSize = 10.sp)
+                }
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.15f))
+                        .clickable { if (direction != DotSnakeDirection.LEFT) nextDirection = DotSnakeDirection.RIGHT },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("▶", color = Color.White, fontSize = 10.sp)
+                }
+            }
+        }
+
+        // Bottom Controls Hint
+        Text(
+            text = "Swipe canvas or tap arrows to steer snake",
+            color = Color.White.copy(alpha = 0.45f),
+            fontSize = 9.sp,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 6.dp)
+        )
+    }
+}
+
 // ── Screen Implementation ───────────────────────────────────────────────────
 
 @Composable
@@ -378,6 +626,7 @@ fun ThumbnailStudioScreen(
 
     // ── Generation State ────────────────────────────────────────────────────
     var isGenerating by remember { mutableStateOf(false) }
+    var isSnakeGameActive by remember { mutableStateOf(false) }
     var generationStatusMessage by remember { mutableStateOf("Connecting to Dg-Images...") }
     var generatedImageUrl by remember { mutableStateOf<String?>(null) }
     var isDgImagesAppInstalled by remember { mutableStateOf(false) }
@@ -443,6 +692,7 @@ fun ThumbnailStudioScreen(
             }
         } else {
             generationElapsedSeconds = 0
+            isSnakeGameActive = false
         }
     }
 
@@ -1517,155 +1767,187 @@ fun ThumbnailStudioScreen(
 
                                 // ── CHATGPT-STYLE GENERATING ANIMATION OVERLAY ───────
                                 if (isGenerating) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(Color(0xD9030A0D))
-                                    ) {
-                                        // 1. Moving shimmer sweep & horizontal laser scan line
-                                        Canvas(modifier = Modifier.fillMaxSize()) {
-                                            val w = size.width
-                                            val h = size.height
-
-                                            // Diagonal shimmer beam
-                                            val shimmerX = shimmerOffset * w
-                                            val shimmerBrush = Brush.linearGradient(
-                                                colors = listOf(
-                                                    Color.Transparent,
-                                                    Color(0x3300F0FF),
-                                                    Color(0x882DD4BF),
-                                                    Color(0x3300F0FF),
-                                                    Color.Transparent
-                                                ),
-                                                start = Offset(shimmerX - 180f, 0f),
-                                                end = Offset(shimmerX + 180f, h)
-                                            )
-                                            drawRect(brush = shimmerBrush)
-
-                                            // Horizontal neon laser scan line
-                                            val laserY = scanY * h
-                                            val laserGlow = Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color.Transparent,
-                                                    Color(0x5500F0FF),
-                                                    Color(0xEE2DD4BF),
-                                                    Color(0x5500F0FF),
-                                                    Color.Transparent
-                                                ),
-                                                startY = (laserY - 18f).coerceAtLeast(0f),
-                                                endY = (laserY + 18f).coerceAtMost(h)
-                                            )
-                                            drawRect(
-                                                brush = laserGlow,
-                                                topLeft = Offset(0f, (laserY - 18f).coerceAtLeast(0f)),
-                                                size = androidx.compose.ui.geometry.Size(w, 36f)
-                                            )
-                                        }
-
-                                        // 2. Central Glassmorphic Status HUD Card
+                                    if (isSnakeGameActive) {
+                                        DotMatrixSnakeGame(
+                                            modifier = Modifier.fillMaxSize(),
+                                            elapsedSeconds = generationElapsedSeconds,
+                                            onExitGame = { isSnakeGameActive = false }
+                                        )
+                                    } else {
                                         Box(
                                             modifier = Modifier
-                                                .align(Alignment.Center)
-                                                .fillMaxWidth(0.88f)
-                                                .clip(RoundedCornerShape(18.dp))
-                                                .background(
-                                                    Brush.verticalGradient(
-                                                        listOf(
-                                                            Color(0xF5081C24),
-                                                            Color(0xF9041016)
-                                                        )
-                                                    )
-                                                )
-                                                .border(1.dp, DigicastElectricCyan.copy(alpha = borderPulseAlpha), RoundedCornerShape(18.dp))
-                                                .padding(horizontal = 18.dp, vertical = 14.dp),
-                                            contentAlignment = Alignment.Center
+                                                .fillMaxSize()
+                                                .background(Color(0xD9030A0D))
+                                                .clickable { isSnakeGameActive = true }
                                         ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                // Rotating neural spark icon
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(42.dp)
-                                                        .clip(CircleShape)
-                                                        .background(
-                                                            Brush.sweepGradient(
-                                                                listOf(
-                                                                    Color(0xFF00F0FF),
-                                                                    Color(0xFF10B981),
-                                                                    Color(0xFF0F766E),
-                                                                    Color(0xFF00F0FF)
-                                                                )
+                                            // 1. Moving shimmer sweep & horizontal laser scan line
+                                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                                val w = size.width
+                                                val h = size.height
+
+                                                // Diagonal shimmer beam
+                                                val shimmerX = shimmerOffset * w
+                                                val shimmerBrush = Brush.linearGradient(
+                                                    colors = listOf(
+                                                        Color.Transparent,
+                                                        Color(0x3300F0FF),
+                                                        Color(0x882DD4BF),
+                                                        Color(0x3300F0FF),
+                                                        Color.Transparent
+                                                    ),
+                                                    start = Offset(shimmerX - 180f, 0f),
+                                                    end = Offset(shimmerX + 180f, h)
+                                                )
+                                                drawRect(brush = shimmerBrush)
+
+                                                // Horizontal neon laser scan line
+                                                val laserY = scanY * h
+                                                val laserGlow = Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.Transparent,
+                                                        Color(0x5500F0FF),
+                                                        Color(0xEE2DD4BF),
+                                                        Color(0x5500F0FF),
+                                                        Color.Transparent
+                                                    ),
+                                                    startY = (laserY - 18f).coerceAtLeast(0f),
+                                                    endY = (laserY + 18f).coerceAtMost(h)
+                                                )
+                                                drawRect(
+                                                    brush = laserGlow,
+                                                    topLeft = Offset(0f, (laserY - 18f).coerceAtLeast(0f)),
+                                                    size = androidx.compose.ui.geometry.Size(w, 36f)
+                                                )
+                                            }
+
+                                            // 2. Central Glassmorphic Status HUD Card
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.Center)
+                                                    .fillMaxWidth(0.88f)
+                                                    .clip(RoundedCornerShape(18.dp))
+                                                    .background(
+                                                        Brush.verticalGradient(
+                                                            listOf(
+                                                                Color(0xF5081C24),
+                                                                Color(0xF9041016)
                                                             )
                                                         )
-                                                        .graphicsLayer { rotationZ = sparkAngle },
-                                                    contentAlignment = Alignment.Center
+                                                    )
+                                                    .border(1.dp, DigicastElectricCyan.copy(alpha = borderPulseAlpha), RoundedCornerShape(18.dp))
+                                                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Column(
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                                 ) {
+                                                    // Rotating neural spark icon
                                                     Box(
                                                         modifier = Modifier
-                                                            .size(34.dp)
+                                                            .size(42.dp)
                                                             .clip(CircleShape)
-                                                            .background(Color(0xFF041014)),
+                                                            .background(
+                                                                Brush.sweepGradient(
+                                                                    listOf(
+                                                                        Color(0xFF00F0FF),
+                                                                        Color(0xFF10B981),
+                                                                        Color(0xFF0F766E),
+                                                                        Color(0xFF00F0FF)
+                                                                    )
+                                                                )
+                                                            )
+                                                            .graphicsLayer { rotationZ = sparkAngle },
                                                         contentAlignment = Alignment.Center
                                                     ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.AutoAwesome,
-                                                            contentDescription = null,
-                                                            tint = DigicastElectricCyan,
-                                                            modifier = Modifier.size(18.dp)
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(34.dp)
+                                                                .clip(CircleShape)
+                                                                .background(Color(0xFF041014)),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.AutoAwesome,
+                                                                contentDescription = null,
+                                                                tint = DigicastElectricCyan,
+                                                                modifier = Modifier.size(18.dp)
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Text(
+                                                        text = "ChatGPT Generating 1080p Canvas",
+                                                        color = Color.White,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        letterSpacing = (-0.2).sp
+                                                    )
+
+                                                    val dynamicStatus = if (generationStatusMessage.isNotBlank() && generationStatusMessage != "Connecting to Dg-Images...") {
+                                                        generationStatusMessage
+                                                    } else {
+                                                        when {
+                                                            generationElapsedSeconds < 4 -> "🧠 Analyzing reference pins & character pose..."
+                                                            generationElapsedSeconds < 8 -> "⚡ Uploading reference image to ChatGPT Engine..."
+                                                            generationElapsedSeconds < 24 -> "✨ Synthesizing photorealistic character in 1080p..."
+                                                            else -> "🎨 Polishing specular highlights & composition..."
+                                                        }
+                                                    }
+
+                                                    Text(
+                                                        text = dynamicStatus,
+                                                        color = DigicastElectricCyan,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        textAlign = TextAlign.Center,
+                                                        maxLines = 2
+                                                    )
+
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(3.dp)
+                                                            .clip(RoundedCornerShape(9999.dp))
+                                                            .background(Color.White.copy(alpha = 0.1f))
+                                                    ) {
+                                                        LinearProgressIndicator(
+                                                            modifier = Modifier.fillMaxSize(),
+                                                            color = DigicastElectricCyan,
+                                                            trackColor = Color.Transparent
                                                         )
                                                     }
-                                                }
 
-                                                Text(
-                                                    text = "ChatGPT Generating 1080p Canvas",
-                                                    color = Color.White,
-                                                    fontSize = 13.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    letterSpacing = (-0.2).sp
-                                                )
-
-                                                val dynamicStatus = if (generationStatusMessage.isNotBlank() && generationStatusMessage != "Connecting to Dg-Images...") {
-                                                    generationStatusMessage
-                                                } else {
-                                                    when {
-                                                        generationElapsedSeconds < 4 -> "🧠 Analyzing reference pins & character pose..."
-                                                        generationElapsedSeconds < 8 -> "⚡ Uploading reference image to ChatGPT Engine..."
-                                                        generationElapsedSeconds < 24 -> "✨ Synthesizing photorealistic character in 1080p..."
-                                                        else -> "🎨 Polishing specular highlights & composition..."
+                                                    // Interactive Game Launcher Pill
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(9999.dp))
+                                                            .background(Color(0xFF0F323A))
+                                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(9999.dp))
+                                                            .clickable { isSnakeGameActive = true }
+                                                            .padding(horizontal = 12.dp, vertical = 5.dp)
+                                                    ) {
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                        ) {
+                                                            Text("🕹️", fontSize = 11.sp)
+                                                            Text(
+                                                                "Tap to play Dot Snake while waiting",
+                                                                color = DigicastElectricCyan,
+                                                                fontSize = 10.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
                                                     }
-                                                }
 
-                                                Text(
-                                                    text = dynamicStatus,
-                                                    color = DigicastElectricCyan,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    textAlign = TextAlign.Center,
-                                                    maxLines = 2
-                                                )
-
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(3.dp)
-                                                        .clip(RoundedCornerShape(9999.dp))
-                                                        .background(Color.White.copy(alpha = 0.1f))
-                                                ) {
-                                                    LinearProgressIndicator(
-                                                        modifier = Modifier.fillMaxSize(),
-                                                        color = DigicastElectricCyan,
-                                                        trackColor = Color.Transparent
+                                                    Text(
+                                                        text = "Elapsed: ${generationElapsedSeconds}s • 127.0.0.1:5488",
+                                                        color = DigicastSlate,
+                                                        fontSize = 10.sp,
+                                                        fontFamily = FontFamily.Monospace
                                                     )
                                                 }
-
-                                                Text(
-                                                    text = "Elapsed: ${generationElapsedSeconds}s • 127.0.0.1:5488",
-                                                    color = DigicastSlate,
-                                                    fontSize = 10.sp,
-                                                    fontFamily = FontFamily.Monospace
-                                                )
                                             }
                                         }
                                     }

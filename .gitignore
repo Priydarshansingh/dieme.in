@@ -16,6 +16,7 @@ build/
 */*/build/
 *.apk
 !download/digicast-app-latest.apk
+!download/dieme-app-latest.apk
 !download/dg-images-latest.apk
 *.aab
 *.jks

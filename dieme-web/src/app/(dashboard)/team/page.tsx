@@ -486,7 +486,7 @@ export default function TeamPage() {
                 <h2 className="font-bold text-white">My Mobile App Login (Creator)</h2>
               </div>
               <p className="text-sm text-slate-400">
-                Set your mobile app password to log in directly into the Digicast mobile app with your email.
+                Set your mobile app password to log in directly into the Dieme mobile app with your email.
               </p>
             </div>
             <span

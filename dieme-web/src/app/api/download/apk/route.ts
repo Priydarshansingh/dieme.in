@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   // Default: Dieme Core / Live Studio Android App
   return NextResponse.redirect(
-    'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/digicast-app-latest.apk',
+    'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk',
     307
   );
 }

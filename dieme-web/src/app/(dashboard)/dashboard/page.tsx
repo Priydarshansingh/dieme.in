@@ -345,15 +345,15 @@ function DashboardContent() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <a
-            href="https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/digicast-app-latest.apk"
+            href="https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk"
             target="_blank"
             rel="noopener noreferrer"
-            download="digicast-app-latest.apk"
+            download="dieme-app-latest.apk"
             className="flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl border transition shadow-sm bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/20"
             title="Download latest Dieme Studio Android APK"
           >
             <Smartphone className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <span>Download Android App</span>
+            <span>Download Dieme App</span>
             <Download className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
           </a>
 
@@ -377,32 +377,46 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Official Android Companion App Callout */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 border border-cyan-500/20 backdrop-blur-xl">
+      {/* Official Android Companion Apps Callout */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 border border-cyan-500/20 backdrop-blur-xl">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0">
             <Smartphone className="w-5 h-5 text-cyan-400" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-white">Dieme Studio Companion App (v1.0.0)</h3>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">LATEST APK</span>
+              <h3 className="text-sm font-bold text-white">Dieme Studio Companion Apps</h3>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">LATEST APKs</span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Live stream intelligence, clutch moments capture, on-device trimmer, Creator Wallet &amp; 24h pass.
+              Live stream intelligence, clutch moments capture, on-device trimmer, plus optional AI Thumbnail generator.
             </p>
           </div>
         </div>
-        <a
-          href="https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/digicast-app-latest.apk"
-          target="_blank"
-          rel="noopener noreferrer"
-          download="digicast-app-latest.apk"
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-cyan-400 hover:bg-cyan-300 transition-all shadow-md shrink-0"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>Download APK (~30MB)</span>
-        </a>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <a
+            href="https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk"
+            target="_blank"
+            rel="noopener noreferrer"
+            download="dieme-app-latest.apk"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-cyan-400 hover:bg-cyan-300 transition-all shadow-md"
+            title="Download Dieme Studio Live Clipping APK"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Dieme App (~43MB)</span>
+          </a>
+          <a
+            href="https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk"
+            target="_blank"
+            rel="noopener noreferrer"
+            download="dg-images-latest.apk"
+            className="flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/15 transition-all shadow-sm"
+            title="Download AI Thumbnail Generator APK"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>Thumbnail App (~22MB)</span>
+          </a>
+        </div>
       </div>
 
       {syncFeedback && (

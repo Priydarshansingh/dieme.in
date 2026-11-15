@@ -27,53 +27,57 @@ import { auth, db } from '@/lib/firebase/client';
 //   /workspaces/{uid}          (workspace ID = owner UID for simplicity)
 //   /workspaces/{uid}/members/{uid}
 async function provisionNewUser(user: User, passwordToStore?: string) {
-  const userRef = doc(db, 'users', user.uid);
-  const snap = await getDoc(userRef);
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const snap = await getDoc(userRef);
 
-  const workspaceId = user.uid; // personal workspace ID = owner UID
+    const workspaceId = user.uid; // personal workspace ID = owner UID
 
-  if (!snap.exists()) {
-    // 1. User document
-    await setDoc(userRef, {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName || user.email?.split('@')[0] || 'Creator',
-      photoURL: user.photoURL || '',
-      defaultWorkspaceId: workspaceId,
-      appPassword: passwordToStore || '',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    if (!snap.exists()) {
+      // 1. User document
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || user.email?.split('@')[0] || 'Creator',
+        photoURL: user.photoURL || '',
+        defaultWorkspaceId: workspaceId,
+        appPassword: passwordToStore || '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
 
-    // 2. Workspace document
-    const wsRef = doc(db, 'workspaces', workspaceId);
-    await setDoc(wsRef, {
-      id: workspaceId,
-      name: `${user.displayName ?? user.email?.split('@')[0] ?? 'Creator'}'s Studio`,
-      ownerUid: user.uid,
-      plan: 'free_trial',
-      telegramEnabled: false,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+      // 2. Workspace document
+      const wsRef = doc(db, 'workspaces', workspaceId);
+      await setDoc(wsRef, {
+        id: workspaceId,
+        name: `${user.displayName ?? user.email?.split('@')[0] ?? 'Creator'}'s Studio`,
+        ownerUid: user.uid,
+        plan: 'free_trial',
+        telegramEnabled: false,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
 
-    // 3. Member record
-    const memberRef = doc(collection(db, 'workspaces', workspaceId, 'members'), user.uid);
-    await setDoc(memberRef, {
-      uid: user.uid,
-      role: 'owner',
-      email: user.email,
-      displayName: user.displayName || user.email?.split('@')[0] || 'Creator',
-      photoURL: user.photoURL || '',
-      telegramUpload: true,
-      appPassword: passwordToStore || '',
-      joinedAt: serverTimestamp(),
-    });
-  } else if (passwordToStore) {
-    // Update stored password reference for visual credential inspection in dashboard
-    await setDoc(userRef, { appPassword: passwordToStore }, { merge: true });
-    const memberRef = doc(collection(db, 'workspaces', workspaceId, 'members'), user.uid);
-    await setDoc(memberRef, { appPassword: passwordToStore }, { merge: true });
+      // 3. Member record
+      const memberRef = doc(collection(db, 'workspaces', workspaceId, 'members'), user.uid);
+      await setDoc(memberRef, {
+        uid: user.uid,
+        role: 'owner',
+        email: user.email,
+        displayName: user.displayName || user.email?.split('@')[0] || 'Creator',
+        photoURL: user.photoURL || '',
+        telegramUpload: true,
+        appPassword: passwordToStore || '',
+        joinedAt: serverTimestamp(),
+      });
+    } else if (passwordToStore) {
+      // Update stored password reference for visual credential inspection in dashboard
+      await setDoc(userRef, { appPassword: passwordToStore }, { merge: true });
+      const memberRef = doc(collection(db, 'workspaces', workspaceId, 'members'), user.uid);
+      await setDoc(memberRef, { appPassword: passwordToStore }, { merge: true });
+    }
+  } catch (e) {
+    console.warn('[useAuth] User provision notice:', e);
   }
 }
 
@@ -92,6 +96,7 @@ export function useAuth() {
       setLoading(false);
 
       if (u) {
+        setAuthError(null);
         // Provision in background without blocking initial render or transitions
         provisionNewUser(u).catch((e) => {
           console.warn('[useAuth] Background user provision error:', e);
@@ -131,20 +136,21 @@ export function useAuth() {
       const provider = new GoogleAuthProvider();
       provider.addScope('email');
       provider.addScope('profile');
+      provider.setCustomParameters({ prompt: 'select_account' });
       const cred = await signInWithPopup(auth, provider);
       if (cred.user) {
-        await provisionNewUser(cred.user);
+        setAuthError(null);
+        provisionNewUser(cred.user).catch(() => {});
       }
     } catch (err: any) {
-      console.error('[useAuth] Google Sign-In failed:', err);
+      console.warn('[useAuth] Google Sign-In notice:', err?.code, err?.message);
       if (err?.code === 'auth/unauthorized-domain') {
         setAuthError(
           'This domain is not authorized in Firebase. Add your Vercel domain in Firebase Console → Authentication → Settings → Authorized domains.'
         );
-      } else if (err?.code === 'auth/popup-closed-by-user') {
-        setAuthError('Sign-in popup was closed before completing.');
-      } else if (err?.code === 'auth/cancelled-popup-request') {
-        // Ignored
+      } else if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        // Dismiss safely without flashing an error box when user closes the popup
+        setAuthError(null);
       } else {
         setAuthError(err?.message || 'Failed to sign in with Google. Please try again.');
       }
@@ -160,10 +166,11 @@ export function useAuth() {
       const cleanEmail = email.trim().toLowerCase();
       const cred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
       if (cred.user) {
-        await provisionNewUser(cred.user, pass);
+        setAuthError(null);
+        provisionNewUser(cred.user, pass).catch(() => {});
       }
     } catch (err: any) {
-      console.error('[useAuth] Email Sign-In failed:', err);
+      console.warn('[useAuth] Email Sign-In notice:', err?.code, err?.message);
       if (err?.code === 'auth/invalid-credential' || err?.code === 'auth/wrong-password' || err?.code === 'auth/user-not-found') {
         setAuthError('Incorrect email or password. Please verify and try again.');
       } else if (err?.code === 'auth/invalid-email') {

@@ -1,162 +1,101 @@
-  # Dieme — YouTube Creators Platform & Stream Intelligence 🎬⚡
+ # Dieme — Stream Intelligence & Highlight Delivery Platform
 
-Official repository for the **Dieme Web Portal** (`dieme-web`) and **Dieme Native Android App** (`dieme-android`).
+Official open-source distribution repository for Dieme extensions, companion mobile releases, and stream asset packages.
 
-🔗 **Decoupled Backend & God Panel Repo:** [https://github.com/Priydarshansingh/dieme-backend](https://github.com/Priydarshansingh/dieme-backend)  
-📦 **Official Extensions & Assets Repo:** [https://github.com/Priydarshansingh/dieme.in](https://github.com/Priydarshansingh/dieme.in)
-
----
-
-## 🌟 What is Dieme?
-
-**Dieme** is an all-in-one highlight capture, stream intelligence, and creator monetization ecosystem designed for YouTube livestreamers, video creators, and professional editors.
-
-It combines a local-first **Android App** (for on-device live chat analysis and lossless video trimming) with a high-performance **Web Dashboard** (for editor matchmaking, asset downloads, public leaderboards, in-app currency, and subscription management).
+- **Web Portal:** [https://www.dieme.in](https://www.dieme.in)
+- **Documentation:** [HOW_TO_USE.md](HOW_TO_USE.md)
+- **Dieme Live Studio App:** [`download/dieme-app-latest.apk`](download/dieme-app-latest.apk)
+- **Dg-Images AI Companion App:** [`download/dg-images-latest.apk`](download/dg-images-latest.apk)
 
 ---
 
-## 🏛️ System Architecture & Service Topology
+## Overview
 
-```mermaid
-flowchart TD
-    subgraph Clients["1. User & Creator Facing"]
-        WebClient["Desktop / Web Creators<br/>(dieme.in)"]
-        MobileApp["Android Mobile App<br/>(Digicast Companion)"]
-    end
+Dieme is an integrated stream intelligence platform designed for YouTube live broadcasters and video editing teams. It captures chat-triggered stream markers, indexes broadcast moments in real time, and handles on-device trimming so editors receive clips without waiting for multi-hour stream archives to process. It pairs with the **Dg-Images** companion app for on-device AI thumbnail generation and inpainting.
 
-    subgraph CorePlatform["2. Main Creator Platform (Full-Stack)"]
-        DiemeWeb["dieme-web (www.dieme.in)<br/>• Next.js App & UI<br/>• Creator APIs (/api/payments, /api/youtube)<br/>• Mobile App Sync API (/api/mobile)<br/>• Nightbot & Telegram Webhooks"]
-    end
-
-    subgraph PaymentGateway["3. Sovereign Gateway (Render)"]
-        PayGateway["digicast-pay (payments.dieme.in)<br/>• UPI Session Engine<br/>• Dynamic QR Generation<br/>• Bank SMS & Gmail Verification<br/>• Instant HMAC Webhooks"]
-    end
-
-    subgraph AdminBackend["4. Platform Superadmin & Ops"]
-        DiemeBackend["dieme-backend (digicast-backend.vercel.app)<br/>• GodPanel Superadmin Hub<br/>• Dual-Currency Ledger (DP / D-Coins)<br/>• Ad Network Analytics (AdMob, Unity, Start.io)<br/>• Groq AI Bot Training & Telemetry"]
-    end
-
-    subgraph Database["Shared Cloud Database"]
-        Firestore["Google Cloud Firestore<br/>(Users, Workspaces, Passes, Ledger)"]
-    end
-
-    WebClient -->|Browse & Pay| DiemeWeb
-    MobileApp -->|Sync & Auth API| DiemeWeb
-    DiemeWeb -->|Create Session| PayGateway
-    PayGateway -->|Instant Webhook| DiemeWeb
-    DiemeWeb <-->|Read & Write Data| Firestore
-    DiemeBackend <-->|Admin Control & Overwrite| Firestore
 ```
-
-### Component Breakdown
-1. **`dieme-web` (`https://www.dieme.in`)**: The primary full-stack Next.js application hosting creator dashboards, clip management, and core user-facing API routes (`/api/payments/session`, `/api/youtube/*`, `/api/mobile/*`).
-2. **`digicast-pay` (`https://payments.dieme.in`)**: The sovereign UPI payment engine running on Render, isolated from user traffic spikes. Generates pre-coded UPI QR codes and dispatches verified payment webhooks.
-3. **`dieme-backend` (`https://digicast-backend.vercel.app`)**: The administrative node hosting the pitch-black **GodPanel** superadmin portal, Groq AI support training, dual-currency ledger audits, and ad revenue tracking.
-4. **Shared Firestore Database**: Both `dieme-web` and `dieme-backend` connect to the same Firebase Firestore instance, ensuring instant real-time synchronization across desktop, mobile, and administrative views.
-
----
-
-## ✨ Full Working Features & Modules
-
-### 1. 🎬 Editor Showcase & Portfolio Profiles (`/editors`)
-- Dedicated showcase gallery for video editors.
-- Filter by category: **Gaming Montages**, **YouTube Shorts / Reels**, and **Long-Form IRL Vlogs**.
-- Video portfolio embed modals with direct YouTube / Drive playback.
-- Turnaround time indicators and transparent rate cards (₹ per short / ₹ per long-form min).
-- **"+ Register as Editor"** self-onboarding modal for creators to publish their editing reels.
-
-### 2. 🏆 Public Ratings & Leaderboards (`/leaderboard`)
-- Top 3 Podium Cards (#1 Gold, #2 Silver, #3 Bronze) showcasing top-rated video editors.
-- Complete rankings table with average star ratings (1.0 to 5.0), verified job counts, and reputation credits.
-- Mathematical composite scoring formula:
-  $$\text{Composite Score} = (\text{Star Rating} \times 20) + (\text{Review Count} \times 2) + \text{Reputation Credits}$$
-
-### 3. 🤖 Streamer AI Matchmaker Bot (`/matchmaker`)
-- Interactive AI chat assistant for streamers seeking tailored video editors.
-- Preset prompts:
-  - *"Need a fast-paced Valorant montage editor with 24h delivery under ₹400"*
-  - *"Looking for a narrative storytelling editor for my 3-hour IRL stream VOD"*
-  - *"Need quick YouTube shorts cutter with meme sound effects under 12 hours"*
-- Evaluates editor database and dynamically returns **4 to 5 tailored Editor Match Cards** with match percentages (e.g., 98% Match), key strengths, sample reels, rates, and direct hire actions.
-
-### 4. 🎨 Live Stream Assets Marketplace (`/assets`)
-- Ready-to-use stream graphics for OBS Studio and Streamlabs across 4 curated categories:
-  1. **Facecam Overlays:** Neon Cyberpunk animated webcam borders, Minimal Titanium audio visualizer borders (`.webm`).
-  2. **Green Screen FX:** Chroma-key ready 3D YouTube subscribe buttons, Glitch intermission scene transitions (`.mp4`).
-  3. **Custom Video Frames:** Esports tactical stream HUDs, Dual-camera talk-show split layouts (`.png`).
-  4. **Live Frame Photos:** Lo-Fi studio backgrounds, Cyberpunk intermission "Stream Starting Soon" cards (`.jpg`).
-- Built-in preview modal and step-by-step OBS Studio setup guide.
-
-### 5. 💎 Dual Virtual Currency System ("D" & "DP") (`/wallet`)
-- **Conversion Formula:**
-  $$\mathbf{10\text{ D Coins} = 1\text{ DP} = ₹1\text{ INR}}$$
-- **D-Coins:** Micro-currency earned by watching sponsored ads (+5 D-Coins) or completing social growth tasks.
-- **DP (Dieme Points):** Main purchasing currency. 1 DP = ₹1 INR.
-- **In-App Feature Unlocks:** Users can spend DP balance directly to unlock **Permanent Watermark Removal** (29 DP) or subscribe to plans without credit cards.
-- **Withdrawal Restriction:** Enforced by code and policy — balances cannot be withdrawn to external bank accounts.
-
-### 6. 📋 Task-Based Earning Hub (`/wallet` & Backend Queue)
-- Users without cash can earn app balance by completing custom tasks:
-  - *Find 1 Client for Website Development* &rarr; **Earn 50 DP (₹50)**
-  - *Post Live Stream Clipping Showcase on Twitter / YouTube* &rarr; **Earn 150 D-Coins (15 DP)**
-  - *Refer 3 Livestream Editors* &rarr; **Earn 100 DP (₹100)**
-- Task proof submission modal (URL and applicant notes) reviewed directly by admins in the God Panel.
-
-### 7. 📺 Ad-Supported Free Tier (24h Pass) (`/wallet`)
-- Free users can access premium live intelligence and on-device clipping by watching sponsored video ads.
-- Watching 1 verified ad grants **24 hours of uninterrupted Pro access** + 5 bonus D-Coins.
-- Cryptographically verified on the backend via nonced session tokens.
-
-### 8. 💳 Transparent Subscription Plans & Monetization (`/pricing`)
-- **14-Day Free Trial:** Full feature access with zero payment details + **10-day trial credits**.
-- **Introductory Offer (Month 1):** Only **₹29** for the first 30 days.
-- **Standard Monthly Plan:** **₹149 / month**.
-- **Quarterly Plan (Save ~10%):** **₹449 / 3 months** + 50 bonus D-Coins.
-- **Annual VIP Plan (Save ~45%):** **₹999 / year** (~₹83/month) + 200 bonus D-Coins.
-- **Primary Revenue Milestone Tracker:** 50 Paying Users @ ~₹150/mo = **₹7,500 monthly run-rate**.
-- **Dual Payment Option:** Subscribe via real INR (Razorpay) OR with in-app DP balance earned from tasks!
-
-### 9. 🎁 15% Lifetime Affiliate Program (`/pricing`)
-- Custom shareable referral links (`/login?ref=REF_...`).
-- Earn a **15% Lifetime Recurring Commission** on all subscription spending from referred streamers, automatically credited as DP into your wallet.
-
----
-
-## 📱 Dieme Android App (`dieme-android`)
-
-Native Android mobile application built with **Kotlin, Jetpack Compose, Room (SQLite), and WorkManager**:
-- **Foreground Service Live Chat Capture:** Continuous local YouTube chat capture with persistent notification.
-- **On-Device Trimming:** yt-dlp + FFmpeg video extraction running locally on the device for privacy.
-- **Mobile Wallet & Ad Rewards:** Native integration with backend API for balance checking and claiming 24h ad-watch passes.
-- **Editor Discovery:** Discover top video editors directly on mobile.
-- **Build Output:** Compiled debug APK generated at [`build output/app-debug.apk`](build output/app-debug.apk).
-
----
-
-## 🚀 Running the Frontend Locally
-
-```bash
-# Install frontend dependencies
-npm install
-
-# Run Next.js creator portal on http://localhost:3000
-npm run dev
-
-# Run full multi-phase verification test suite
-node scripts/test-all-phases.js
+YouTube Live Broadcast
+        │
+        ├──> Nightbot / Stream Chat (!clip marker)
+        │            │
+        │            ▼
+        │     Dieme Webhook API (Indexed Timestamps)
+        │            │
+        ▼            ▼
+Dieme Live Studio App (Android) <───> Dg-Images AI Companion (Android)
+        │                                     │
+        ├──> Local Hardware Video Trimming     └──> Local Inpainting & Canvas
+        └──> Direct MP4 & Telegram Delivery
 ```
 
 ---
 
-## 🛠️ Building the Android App
+## Official Android Applications
 
-```bash
-cd dieme-android
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-./gradlew assembleDebug copyDebugApkToBuildOutput
+Dieme provides two official native Android applications that work together seamlessly on your device.
+
+| Application | Role | Version | Format | Size | Direct Download |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Dieme Live Studio** | Core Stream & Clip Companion | `v1.0.0` | `.apk` | ~43 MB | [📥 Download Dieme APK](download/dieme-app-latest.apk) |
+| **Dg-Images AI Studio** | Local AI Thumbnail Companion | `v1.0.0` | `.apk` | ~22 MB | [📥 Download Dg-Images APK](download/dg-images-latest.apk) |
+
+### Key Capabilities
+
+#### 1. Dieme Live Studio (`com.digicast.app`)
+- **Chat Capture:** Listens to live chat commands (`!clip`) and marks exact broadcast timestamps.
+- **On-Device Trimming:** Uses device hardware acceleration to extract 1080p60 clips without consuming cloud rendering quotas.
+- **Sovereign Payment Verification:** Integrated with UPI payment observation for instant membership upgrades and pass management.
+- **Telegram Dispatch:** Auto-forwards rendered clips directly to designated Telegram editor groups.
+
+#### 2. Dg-Images AI Thumbnail Studio (`com.digicast.dgimages`)
+- **Local AI Daemon:** Runs on device port 5488 to provide AI inpainting and thumbnail generative services directly to Dieme Studio.
+- **ChatGPT Canvas Integration:** Automated authenticated session runner for iterative prompt revisions.
+- **Pinpoint Coordinate Revisions:** Inpaints marked regions while preserving existing typography, logos, and channel branding.
+- **Direct 1080p Export:** Saves finalized thumbnails directly to device gallery (`Downloads/Dieme/Thumbnails`).
+
+---
+
+## Extension Modules (`.dcast`)
+
+Dieme supports modular extensions for creators who require specialized stream extraction or encoding workflows.
+
+| Package | Identifier | Version | Description |
+| :--- | :--- | :--- | :--- |
+| **YouTube Downloader** | `com.digicast.ext.youtubedl` | `1.0.0` | Extracts live stream video and audio up to 4K resolution. |
+| **FFmpeg Trimmer** | `com.digicast.ext.ffmpeg` | `1.0.0` | Frame-accurate, lossless cutter for rapid MP4 export. |
+| **Clip Engine Suite** | `com.digicast.ext.clipengine` | `1.0.0` | Integrated bundle combining extraction and trimming pipelines. |
+| **DGImages Bridge** | `com.digicast.ext.dgimages` | `1.0.0` | Hardware canvas engine for automated thumbnail generation. |
+
+Full installation details and file association steps are documented in [HOW_TO_USE.md](HOW_TO_USE.md).
+
+---
+
+## Repository Structure
+
+```
+├── download/
+│   ├── digicast-app-latest.apk    # Dieme Live Studio companion APK (~43 MB)
+│   └── dg-images-latest.apk       # Dg-Images AI thumbnail studio APK (~22 MB)
+├── extensions/
+│   ├── com.digicast.ext.clipengine.dcast
+│   ├── com.digicast.ext.dgimages.dcast
+│   ├── com.digicast.ext.ffmpeg.dcast
+│   └── com.digicast.ext.youtubedl.dcast
+├── extensions.json                # Public extension catalog registry
+├── HOW_TO_USE.md                  # Extension installation & setup guide
+└── README.md                      # Platform overview & public specifications
 ```
 
 ---
 
-## 📄 License
-Open Creator License &copy; 2026 Dieme Ecosystem. All rights reserved.
+## Security & Verification
+
+- All published binaries in this repository are compiled directly from source and verified for distribution.
+- Extensions execute locally on the creator's device and do not transmit video streams or credentials to external clusters.
+- For platform terms and privacy guidelines, refer to [https://www.dieme.in/privacy](https://www.dieme.in/privacy).
+
+---
+
+## License
+
+This repository is distributed under the Open Creator Community License. See individual module headers for specific component licensing.

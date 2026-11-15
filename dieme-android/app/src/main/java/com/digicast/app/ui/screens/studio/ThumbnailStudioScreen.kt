@@ -76,6 +76,8 @@ import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SmartDisplay
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -85,6 +87,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -124,6 +127,8 @@ import com.digicast.app.ui.screens.settings.ExtensionViewModel
 import com.digicast.app.ui.theme.AppleDarkEdgeCardBrush
 import com.digicast.app.ui.theme.AppleDarkEdgePillBrush
 import com.digicast.app.ui.theme.AppleSpecularBorder
+import com.digicast.app.ui.theme.DigicastAccentBlue
+import com.digicast.app.ui.theme.DigicastAmber
 import com.digicast.app.ui.theme.DigicastDeepNavy
 import com.digicast.app.ui.theme.DigicastElectricCyan
 import com.digicast.app.ui.theme.DigicastEmerald
@@ -230,6 +235,7 @@ fun ThumbnailStudioScreen(
     var generationStatusMessage by remember { mutableStateOf("Connecting to Dg-Images...") }
     var generatedImageUrl by remember { mutableStateOf<String?>(null) }
     var isDgImagesAppInstalled by remember { mutableStateOf(false) }
+    var showDgImagesDownloadDialog by remember { mutableStateOf(false) }
 
     val loadedExtension by extensionViewModel.loadedImageStudio.collectAsState()
 
@@ -624,9 +630,10 @@ fun ThumbnailStudioScreen(
 
         isDgImagesAppInstalled = checkAppInstalled()
         if (!isDgImagesAppInstalled) {
+            showDgImagesDownloadDialog = true
             Toast.makeText(
                 context,
-                "Dg-Images companion app is not installed. Please install Dg-Images.",
+                "Dg-Images companion app is not installed. Please download Dg-Images to enable AI revisions.",
                 Toast.LENGTH_LONG
             ).show()
             return
@@ -847,23 +854,37 @@ fun ThumbnailStudioScreen(
                         )
                     }
 
-                    // Right: Clean normal indicator light (no rounded extra button needed)
+                    // Right: Clean companion indicator pill (interactive if companion missing)
                     val isBridgeReady = isDgImagesAppInstalled && (loadedExtension != null || extensionViewModel.getImageStudio() != null)
-                    val statusDotColor = if (isBridgeReady) Color(0xFF10B981) else Color(0xFFEF4444)
+                    val statusDotColor = if (isBridgeReady) Color(0xFF10B981) else Color(0xFFF59E0B)
 
-                    Box(
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier
-                            .padding(end = 6.dp)
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(statusDotColor)
-                            .drawBehind {
-                                drawCircle(
-                                    color = statusDotColor.copy(alpha = 0.45f),
-                                    radius = size.minDimension * 0.95f
-                                )
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(statusDotColor.copy(alpha = 0.12f))
+                            .border(1.dp, statusDotColor.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                            .clickable {
+                                if (!isBridgeReady) {
+                                    showDgImagesDownloadDialog = true
+                                }
                             }
-                    )
+                            .padding(horizontal = 9.dp, vertical = 4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(statusDotColor)
+                        )
+                        Text(
+                            text = if (isBridgeReady) "Connected" else "Get Companion App 📥",
+                            color = statusDotColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             },
         ) { paddingValues ->
@@ -874,6 +895,60 @@ fun ThumbnailStudioScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // ── 0. Dg-Images Companion Banner (When not installed)
+                if (!isDgImagesAppInstalled) {
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            color = DigicastNavy,
+                            border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.45f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFF59E0B).copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Palette,
+                                        contentDescription = null,
+                                        tint = Color(0xFFF59E0B),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Dg-Images Companion Required",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Install Dg-Images to enable local AI inpainting and generate YouTube thumbnails.",
+                                        color = DigicastSlate,
+                                        fontSize = 11.sp,
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                                Button(
+                                    onClick = { showDgImagesDownloadDialog = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text("Download", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
                 // ── 1. YouTube Link Input Capsule (Cleanable & Empty by Default)
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1964,6 +2039,94 @@ fun ThumbnailStudioScreen(
                     } else {
                         Toast.makeText(context, "Maximum 2 reference images allowed", Toast.LENGTH_SHORT).show()
                     }
+                }
+            }
+        )
+    }
+
+    if (showDgImagesDownloadDialog) {
+        AlertDialog(
+            onDismissRequest = { showDgImagesDownloadDialog = false },
+            containerColor = DigicastNavy,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(DigicastElectricCyan.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Palette,
+                            contentDescription = null,
+                            tint = DigicastElectricCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Text(
+                        text = "Download Dg-Images",
+                        color = Color.White,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Dieme Thumbnail Studio pairs with the Dg-Images companion app to run on-device AI inpainting and canvas revisions without uploading your full stream to external servers.",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+                    Text(
+                        text = "• On-device local AI daemon (Port 5488)\n• ChatGPT web canvas integration\n• High-fidelity 1080p thumbnail export",
+                        color = DigicastSlate,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val downloadIntent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://www.dieme.in/api/download/apk?app=dg-images")
+                        ).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                        try {
+                            context.startActivity(downloadIntent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Cannot open download link: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                        showDgImagesDownloadDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Download APK (~22 MB)", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        isDgImagesAppInstalled = checkAppInstalled()
+                        showDgImagesDownloadDialog = false
+                    }
+                ) {
+                    Text("Check Status", color = DigicastSlate)
                 }
             }
         )

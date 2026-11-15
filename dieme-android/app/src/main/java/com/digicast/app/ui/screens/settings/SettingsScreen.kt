@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Group
@@ -158,6 +159,16 @@ fun SettingsScreen(
 
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showUpgradeDialog by remember { mutableStateOf(false) }
+
+    fun checkDgImagesInstalled(): Boolean {
+        return try {
+            context.packageManager.getPackageInfo("com.digicast.dgimages", 0)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+    var isDgImagesInstalled by remember { mutableStateOf(checkDgImagesInstalled()) }
 
     // Duolingo Anime Avatar Studio State
     var showAvatarPicker by remember { mutableStateOf(false) }
@@ -597,6 +608,15 @@ fun SettingsScreen(
                         NightbotCommandCard(
                             workspaceId = session.workspaceId,
                             context = context
+                        )
+                    }
+
+                    // 4c. Official Dieme Apps & Companions
+                    item(key = "official_apps_section") {
+                        OfficialAppsCard(
+                            context = context,
+                            isDgImagesInstalled = isDgImagesInstalled,
+                            onRefreshStatus = { isDgImagesInstalled = checkDgImagesInstalled() }
                         )
                     }
 
@@ -2229,6 +2249,298 @@ private fun SecurityCard(context: Context) {
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
+        }
+    }
+}
+
+@Composable
+private fun OfficialAppsCard(
+    context: Context,
+    isDgImagesInstalled: Boolean,
+    onRefreshStatus: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = DigicastCardSurface),
+        border = BorderStroke(1.dp, DigicastBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Header Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SmartDisplay,
+                        contentDescription = null,
+                        tint = DigicastAccentBlue,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "OFFICIAL DIEME APPS & COMPANIONS",
+                        color = DigicastSlate,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
+
+                IconButton(
+                    onClick = onRefreshStatus,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh App Status",
+                        tint = DigicastSlate,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            // App 1: Dieme Live Studio (Core APK)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = DigicastSurface,
+                border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(DigicastAccentBlue.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SmartDisplay,
+                                    contentDescription = null,
+                                    tint = DigicastAccentBlue,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Dieme Live Studio",
+                                    color = DigicastWhite,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "com.digicast.app • v1.0.0",
+                                    color = DigicastSlate,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        // Status Badge
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(DigicastEmerald.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "ACTIVE APP",
+                                color = DigicastEmerald,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Core stream companion: Nightbot !clip capture, local hardware trimming, Telegram dispatch, and UPI subscription management.",
+                        color = DigicastSlate,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+
+                    Button(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dieme.in/api/download/apk")).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Cannot open download link: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = DigicastSurfaceFloating),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, DigicastBorder)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = null,
+                            tint = DigicastWhite,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Download Dieme APK (~43 MB)",
+                            color = DigicastWhite,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // App 2: Dg-Images Thumbnail Studio (Companion APK)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = DigicastSurface,
+                border = BorderStroke(1.dp, if (isDgImagesInstalled) DigicastBorder.copy(alpha = 0.5f) else Color(0xFFF59E0B).copy(alpha = 0.4f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF8B5CF6).copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Palette,
+                                    contentDescription = null,
+                                    tint = Color(0xFFA78BFA),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Dg-Images AI Studio",
+                                    color = DigicastWhite,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "com.digicast.dgimages • Companion",
+                                    color = DigicastSlate,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        // Status Badge
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isDgImagesInstalled) DigicastEmerald.copy(alpha = 0.15f) else Color(0xFFF59E0B).copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = if (isDgImagesInstalled) "CONNECTED" else "NOT INSTALLED",
+                                color = if (isDgImagesInstalled) DigicastEmerald else Color(0xFFF59E0B),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Local AI companion: On-device image inpainting daemon, ChatGPT-canvas bridge, pinpoint coordinate editing, and 1080p thumbnail export.",
+                        color = DigicastSlate,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (isDgImagesInstalled) {
+                            Button(
+                                onClick = {
+                                    val launchIntent = context.packageManager.getLaunchIntentForPackage("com.digicast.dgimages")
+                                    if (launchIntent != null) {
+                                        launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                        context.startActivity(launchIntent)
+                                    } else {
+                                        Toast.makeText(context, "Dg-Images is running in background daemon mode", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = DigicastSurfaceFloating),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, DigicastBorder)
+                            ) {
+                                Text("Open App", color = DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dieme.in/api/download/apk?app=dg-images")).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Cannot open download link: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (isDgImagesInstalled) DigicastSurfaceFloating else DigicastAccentBlue),
+                            shape = RoundedCornerShape(8.dp),
+                            border = if (isDgImagesInstalled) BorderStroke(1.dp, DigicastBorder) else null
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                tint = DigicastWhite,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isDgImagesInstalled) "Re-download APK" else "Download APK (~22 MB)",
+                                color = DigicastWhite,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -4,7 +4,7 @@ Official open-source distribution repository for Dieme extensions, companion mob
 
 - **Web Portal:** [https://www.dieme.in](https://www.dieme.in)
 - **Documentation:** [HOW_TO_USE.md](HOW_TO_USE.md)
-- **Dieme Live Studio App:** [`download/digicast-app-latest.apk`](download/digicast-app-latest.apk)
+- **Dieme Live Studio App:** [`download/dieme-app-latest.apk`](download/dieme-app-latest.apk)
 - **Dg-Images AI Companion App:** [`download/dg-images-latest.apk`](download/dg-images-latest.apk)
 
 ---
@@ -36,7 +36,7 @@ Dieme provides two official native Android applications that work together seaml
 
 | Application | Role | Version | Format | Size | Direct Download |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Dieme Live Studio** | Core Stream & Clip Companion | `v1.0.0` | `.apk` | ~43 MB | [📥 Download Dieme APK](download/digicast-app-latest.apk) |
+| **Dieme Live Studio** | Core Stream & Clip Companion | `v1.0.0` | `.apk` | ~43 MB | [📥 Download Dieme APK](download/dieme-app-latest.apk) |
 | **Dg-Images AI Studio** | Local AI Thumbnail Companion | `v1.0.0` | `.apk` | ~22 MB | [📥 Download Dg-Images APK](download/dg-images-latest.apk) |
 
 ### Key Capabilities

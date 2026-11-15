@@ -52,6 +52,10 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.CircularProgressIndicator
+import com.digicast.dgimages.util.AppUpdateManager
+import com.digicast.dgimages.util.DgUpdateInfo
+import com.digicast.dgimages.util.DgUpdateCheckResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -130,10 +134,71 @@ fun DgImagesDashboard() {
     var logoTapCount by remember { mutableIntStateOf(0) }
     var lastTapTimestamp by remember { mutableLongStateOf(0L) }
 
+    // In-app update states
+    var activeUpdateDialog by remember { mutableStateOf<DgUpdateInfo?>(null) }
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var updateStatusMessage by remember { mutableStateOf<String?>(null) }
+    var dismissedAutoUpdateThisSession by remember { mutableStateOf(false) }
+
+    val currentVersionName = remember { AppUpdateManager.getCurrentVersionName(context) }
+    val currentVersionCode = remember { AppUpdateManager.getCurrentVersionCode(context) }
+
+    val onTriggerCheckUpdates: () -> Unit = {
+        coroutineScope.launch {
+            isCheckingUpdate = true
+            updateStatusMessage = null
+            val result = AppUpdateManager.checkForUpdates(context)
+            isCheckingUpdate = false
+            when (result) {
+                is DgUpdateCheckResult.UpToDate -> {
+                    updateStatusMessage = "You are on the latest version • All good (v${result.currentVersionName})"
+                    Toast.makeText(context, "App is up to date!", Toast.LENGTH_SHORT).show()
+                }
+                is DgUpdateCheckResult.UpdateAvailable -> {
+                    activeUpdateDialog = result.updateInfo
+                }
+                is DgUpdateCheckResult.Error -> {
+                    updateStatusMessage = "Check failed: ${result.message}"
+                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         DevAccessManager.init(context)
         ImageInpaintEngine.loadCachedJobs(context)
         webAdapter?.checkLoginStatus()
+
+        // Background update check on app launch
+        if (!dismissedAutoUpdateThisSession) {
+            val result = AppUpdateManager.checkForUpdates(context)
+            if (result is DgUpdateCheckResult.UpdateAvailable) {
+                if (AppUpdateManager.shouldShowAutoPrompt(context, result.updateInfo.versionCode)) {
+                    activeUpdateDialog = result.updateInfo
+                }
+            }
+        }
+    }
+
+    // Active update dialog
+    if (activeUpdateDialog != null) {
+        AppUpdateDialog(
+            updateInfo = activeUpdateDialog!!,
+            onUpdate = {
+                AppUpdateManager.launchUpdateDownload(context, activeUpdateDialog!!.downloadUrl)
+            },
+            onClose = {
+                dismissedAutoUpdateThisSession = true
+                activeUpdateDialog = null
+            },
+            onSkip24Hours = {
+                AppUpdateManager.skipUpdateFor24Hours(context, activeUpdateDialog!!.versionCode)
+                dismissedAutoUpdateThisSession = true
+                activeUpdateDialog = null
+                Toast.makeText(context, "Update reminder paused for 24 hours", Toast.LENGTH_SHORT).show()
+            }
+        )
     }
 
     val latestJob = recentJobs.firstOrNull()
@@ -413,6 +478,10 @@ fun DgImagesDashboard() {
             if (!hasDevAccess && isChatGptConnected) {
                 NormalUserOverlay(
                     context = context,
+                    currentVersionName = currentVersionName,
+                    isCheckingUpdate = isCheckingUpdate,
+                    updateStatusMessage = updateStatusMessage,
+                    onTriggerCheckUpdates = onTriggerCheckUpdates,
                     onLogoTap = { onLogoClicked() },
                     onDisconnect = {
                         ChatGptSessionManager.disconnect {
@@ -584,6 +653,10 @@ fun DgImagesDashboard() {
 @Composable
 fun NormalUserOverlay(
     context: Context,
+    currentVersionName: String,
+    isCheckingUpdate: Boolean,
+    updateStatusMessage: String?,
+    onTriggerCheckUpdates: () -> Unit,
     onLogoTap: () -> Unit,
     onDisconnect: () -> Unit
 ) {
@@ -785,7 +858,7 @@ fun NormalUserOverlay(
                 }
             }
 
-            // Downside: dieme.in website link & engine info
+            // Downside: dieme.in website link, update checker & engine info
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -793,40 +866,110 @@ fun NormalUserOverlay(
                     .fillMaxWidth()
                     .padding(bottom = 12.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.05f))
-                        .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                        .clickable {
-                            try {
-                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://dieme.in"))
-                                context.startActivity(browserIntent)
-                            } catch (_: Exception) {}
-                        }
-                        .padding(horizontal = 18.dp, vertical = 9.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                // If update check returned a message, show status pill
+                if (updateStatusMessage != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(DgEmerald.copy(alpha = 0.12f))
+                            .border(1.dp, DgEmerald.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Language,
-                            contentDescription = null,
-                            tint = DgElectricCyan,
-                            modifier = Modifier.size(15.dp)
-                        )
                         Text(
-                            text = "dieme.in ↗",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
+                            text = updateStatusMessage,
+                            color = DgEmerald,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
                 }
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Check for Updates Action Pill
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                            .clickable(enabled = !isCheckingUpdate) {
+                                onTriggerCheckUpdates()
+                            }
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isCheckingUpdate) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(12.dp),
+                                    strokeWidth = 2.dp,
+                                    color = DgElectricCyan
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    tint = DgElectricCyan,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                            Text(
+                                text = if (isCheckingUpdate) "Checking..." else "v$currentVersionName • Updates",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    // Website link
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                            .clickable {
+                                try {
+                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://dieme.in"))
+                                    context.startActivity(browserIntent)
+                                } catch (_: Exception) {}
+                            }
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Language,
+                                contentDescription = null,
+                                tint = DgElectricCyan,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "dieme.in ↗",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+
                 Text(
-                    text = "Dieme Studio • Background IPC Engine v1.0",
+                    text = "Dieme Studio • Background IPC Engine v$currentVersionName",
                     color = DgMuted,
                     fontSize = 10.sp
                 )

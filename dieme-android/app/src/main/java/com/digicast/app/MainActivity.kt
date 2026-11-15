@@ -9,6 +9,7 @@ import com.digicast.app.data.repository.AuthRepository
 import com.digicast.app.ui.navigation.DigicastNavGraph
 import com.digicast.app.ui.theme.DigicastTheme
 import com.digicast.app.ui.utils.InstallPermissionPrompt
+import com.digicast.app.ui.utils.AppUpdatePrompt
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,6 +27,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             DigicastTheme {
                 InstallPermissionPrompt()
+                AppUpdatePrompt()
                 DigicastNavGraph(navController = rememberNavController())
             }
         }

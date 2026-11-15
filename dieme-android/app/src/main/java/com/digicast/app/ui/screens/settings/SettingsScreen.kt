@@ -8,6 +8,11 @@ import android.net.Uri
 import android.widget.Toast
 import com.digicast.app.ui.utils.WebNavigationUtil
 import androidx.compose.ui.text.font.FontFamily
+import com.digicast.app.util.AppUpdateManager
+import com.digicast.app.util.AppUpdateInfo
+import com.digicast.app.util.UpdateCheckResult
+import com.digicast.app.ui.components.AppUpdateDialog
+import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -2265,6 +2270,31 @@ private fun OfficialAppsCard(
     isDgImagesInstalled: Boolean,
     onRefreshStatus: () -> Unit
 ) {
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var updateStatusMessage by remember { mutableStateOf<String?>(null) }
+    var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+    val currentVersionName = remember { AppUpdateManager.getCurrentVersionName(context) }
+    val currentVersionCode = remember { AppUpdateManager.getCurrentVersionCode(context) }
+
+    // Display update dialog if an update is found
+    if (availableUpdate != null) {
+        AppUpdateDialog(
+            updateInfo = availableUpdate!!,
+            onUpdate = {
+                AppUpdateManager.launchUpdateDownload(context, availableUpdate!!.downloadUrl)
+            },
+            onClose = {
+                availableUpdate = null
+            },
+            onSkip24Hours = {
+                AppUpdateManager.skipUpdateFor24Hours(context, availableUpdate!!.versionCode)
+                availableUpdate = null
+                Toast.makeText(context, "Update reminder paused for 24 hours", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -2322,7 +2352,7 @@ private fun OfficialAppsCard(
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -2335,9 +2365,9 @@ private fun OfficialAppsCard(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(DigicastAccentBlue.copy(alpha = 0.15f)),
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(DigicastAccentBlue.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -2355,7 +2385,7 @@ private fun OfficialAppsCard(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "com.digicast.app • v1.0.0",
+                                    text = "com.digicast.app • v$currentVersionName (Build $currentVersionCode)",
                                     color = DigicastSlate,
                                     fontSize = 11.sp
                                 )
@@ -2385,35 +2415,111 @@ private fun OfficialAppsCard(
                         lineHeight = 16.sp
                     )
 
-                    Button(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dieme.in/api/download/apk")).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            }
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Cannot open download link: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        },
+                    // Inline Status Pill if checked
+                    if (updateStatusMessage != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(DigicastEmerald.copy(alpha = 0.12f))
+                                .border(1.dp, DigicastEmerald.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = updateStatusMessage!!,
+                                color = DigicastEmerald,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    // Action buttons: Check for Updates & Download APK
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = DigicastSurfaceFloating),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, DigicastBorder)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = null,
-                            tint = DigicastWhite,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Download Dieme APK (~43 MB)",
-                            color = DigicastWhite,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    isCheckingUpdate = true
+                                    updateStatusMessage = null
+                                    val result = AppUpdateManager.checkForUpdates(context)
+                                    isCheckingUpdate = false
+                                    when (result) {
+                                        is UpdateCheckResult.UpToDate -> {
+                                            updateStatusMessage = "You are on the latest version • All good (v${result.currentVersionName})"
+                                            Toast.makeText(context, "App is up to date!", Toast.LENGTH_SHORT).show()
+                                        }
+                                        is UpdateCheckResult.UpdateAvailable -> {
+                                            availableUpdate = result.updateInfo
+                                        }
+                                        is UpdateCheckResult.Error -> {
+                                            updateStatusMessage = "Check failed: ${result.message}"
+                                            Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = !isCheckingUpdate,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = DigicastAccentBlue.copy(alpha = 0.2f)),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, DigicastAccentBlue.copy(alpha = 0.5f))
+                        ) {
+                            if (isCheckingUpdate) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                    color = DigicastWhite
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    tint = DigicastWhite,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isCheckingUpdate) "Checking..." else "Check for Updates",
+                                color = DigicastWhite,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dieme.in/api/download/apk")).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Cannot open download link: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = DigicastSurfaceFloating),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, DigicastBorder)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                tint = DigicastWhite,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Download APK",
+                                color = DigicastWhite,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }

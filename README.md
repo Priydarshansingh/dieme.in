@@ -4,13 +4,14 @@ Official open-source distribution repository for Dieme extensions, companion mob
 
 - **Web Portal:** [https://www.dieme.in](https://www.dieme.in)
 - **Documentation:** [HOW_TO_USE.md](HOW_TO_USE.md)
-- **Android App:** [`download/digicast-app-latest.apk`](download/digicast-app-latest.apk)
+- **Dieme Live Studio App:** [`download/digicast-app-latest.apk`](download/digicast-app-latest.apk)
+- **Dg-Images AI Companion App:** [`download/dg-images-latest.apk`](download/dg-images-latest.apk)
 
 ---
 
 ## Overview
 
-Dieme is an integrated stream intelligence platform designed for YouTube live broadcasters and video editing teams. It captures chat-triggered stream markers, indexes broadcast moments in real time, and handles on-device trimming so editors receive clips without waiting for multi-hour stream archives to process.
+Dieme is an integrated stream intelligence platform designed for YouTube live broadcasters and video editing teams. It captures chat-triggered stream markers, indexes broadcast moments in real time, and handles on-device trimming so editors receive clips without waiting for multi-hour stream archives to process. It pairs with the **Dg-Images** companion app for on-device AI thumbnail generation and inpainting.
 
 ```
 YouTube Live Broadcast
@@ -21,27 +22,36 @@ YouTube Live Broadcast
         │     Dieme Webhook API (Indexed Timestamps)
         │            │
         ▼            ▼
-Dieme Companion App (Android)
-        │
-        ├──> Local Hardware-Accelerated Video Extraction
-        └──> Direct MP4 Export & Telegram Delivery
+Dieme Live Studio App (Android) <───> Dg-Images AI Companion (Android)
+        │                                     │
+        ├──> Local Hardware Video Trimming     └──> Local Inpainting & Canvas
+        └──> Direct MP4 & Telegram Delivery
 ```
 
 ---
 
-## Android Companion App
+## Official Android Applications
 
-The companion app runs on Android devices to handle stream monitoring, clip rendering, and direct editor forwarding.
+Dieme provides two official native Android applications that work together seamlessly on your device.
 
-| Asset | Version | Format | Size | Download |
-| :--- | :--- | :--- | :--- | :--- |
-| **Dieme Studio Companion** | `v1.0.0 (Latest)` | `.apk` | ~42 MB | [📥 Download Latest APK](download/digicast-app-latest.apk) |
+| Application | Role | Version | Format | Size | Direct Download |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Dieme Live Studio** | Core Stream & Clip Companion | `v1.0.0` | `.apk` | ~43 MB | [📥 Download Dieme APK](download/digicast-app-latest.apk) |
+| **Dg-Images AI Studio** | Local AI Thumbnail Companion | `v1.0.0` | `.apk` | ~22 MB | [📥 Download Dg-Images APK](download/dg-images-latest.apk) |
 
 ### Key Capabilities
+
+#### 1. Dieme Live Studio (`com.digicast.app`)
 - **Chat Capture:** Listens to live chat commands (`!clip`) and marks exact broadcast timestamps.
 - **On-Device Trimming:** Uses device hardware acceleration to extract 1080p60 clips without consuming cloud rendering quotas.
 - **Sovereign Payment Verification:** Integrated with UPI payment observation for instant membership upgrades and pass management.
 - **Telegram Dispatch:** Auto-forwards rendered clips directly to designated Telegram editor groups.
+
+#### 2. Dg-Images AI Thumbnail Studio (`com.digicast.dgimages`)
+- **Local AI Daemon:** Runs on device port 5488 to provide AI inpainting and thumbnail generative services directly to Dieme Studio.
+- **ChatGPT Canvas Integration:** Automated authenticated session runner for iterative prompt revisions.
+- **Pinpoint Coordinate Revisions:** Inpaints marked regions while preserving existing typography, logos, and channel branding.
+- **Direct 1080p Export:** Saves finalized thumbnails directly to device gallery (`Downloads/Dieme/Thumbnails`).
 
 ---
 
@@ -64,7 +74,8 @@ Full installation details and file association steps are documented in [HOW_TO_U
 
 ```
 ├── download/
-│   └── digicast-app-latest.apk    # Latest stable Android companion APK
+│   ├── digicast-app-latest.apk    # Dieme Live Studio companion APK (~43 MB)
+│   └── dg-images-latest.apk       # Dg-Images AI thumbnail studio APK (~22 MB)
 ├── extensions/
 │   ├── com.digicast.ext.clipengine.dcast
 │   ├── com.digicast.ext.dgimages.dcast

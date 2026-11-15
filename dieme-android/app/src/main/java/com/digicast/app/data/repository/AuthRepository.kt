@@ -35,7 +35,8 @@ data class UserSession(
     val token: String,
     val subscriptionStatus: String = "trial",
     val plan: String = "free_trial",
-    val daysRemaining: Int = 14
+    val daysRemaining: Int = 14,
+    val createdAtMs: Long = 0L
 )
 
 data class GamerAvatarDto(
@@ -109,6 +110,7 @@ class AuthRepository @Inject constructor(
         private const val KEY_SUB_STATUS = "auth_sub_status"
         private const val KEY_SUB_PLAN = "auth_sub_plan"
         private const val KEY_SUB_DAYS = "auth_sub_days"
+        private const val KEY_CREATED_AT = "auth_created_at_ms"
         private const val KEY_SIGNED_OUT = "auth_signed_out_explicitly"
         private const val KEY_IS_DEMO = "auth_is_demo"
         private const val KEY_ONE_DAY_PASS_EXPIRES_AT = "auth_one_day_pass_expires_at"
@@ -588,7 +590,8 @@ class AuthRepository @Inject constructor(
                     token = token,
                     subscriptionStatus = prefs.getString(KEY_SUB_STATUS, "trial") ?: "trial",
                     plan = prefs.getString(KEY_SUB_PLAN, "free_trial") ?: "free_trial",
-                    daysRemaining = prefs.getInt(KEY_SUB_DAYS, 14)
+                    daysRemaining = prefs.getInt(KEY_SUB_DAYS, 14),
+                    createdAtMs = prefs.getLong(KEY_CREATED_AT, 0L)
                 )
                 _authState.value = AuthState.SignedIn(session)
                 scope.launch { syncWorkspaceData() }
@@ -669,6 +672,17 @@ class AuthRepository @Inject constructor(
             val finalPlan = if (hasActiveAdPass && rawPlan != "pro" && rawPlan != "studio") "1_day_pass" else rawPlan
             val finalDays = if (hasActiveAdPass && rawDays <= 0) 1 else rawDays
 
+            val rawCreatedAt = s.optString("createdAt").ifBlank { subObj?.optString("createdAt") ?: "" }
+            val parsedCreatedAtMs = if (rawCreatedAt.isNotBlank()) {
+                try {
+                    java.time.Instant.parse(rawCreatedAt).toEpochMilli()
+                } catch (e: Exception) {
+                    prefs.getLong(KEY_CREATED_AT, System.currentTimeMillis())
+                }
+            } else {
+                prefs.getLong(KEY_CREATED_AT, System.currentTimeMillis())
+            }
+
             val session = UserSession(
                 uid = s.getString("uid"),
                 email = s.getString("email"),
@@ -680,7 +694,8 @@ class AuthRepository @Inject constructor(
                 token = s.getString("token"),
                 subscriptionStatus = finalSubStatus,
                 plan = finalPlan,
-                daysRemaining = finalDays
+                daysRemaining = finalDays,
+                createdAtMs = parsedCreatedAtMs
             )
 
             saveRealSession(session)
@@ -833,6 +848,18 @@ class AuthRepository @Inject constructor(
                         plan = subObj.optString("plan", updated.plan),
                         daysRemaining = subObj.optInt("daysRemaining", updated.daysRemaining)
                     )
+                }
+                val wsCreatedAt = wsObj?.optString("createdAt") ?: subObj?.optString("createdAt") ?: ""
+                if (wsCreatedAt.isNotBlank()) {
+                    try {
+                        val parsedMs = java.time.Instant.parse(wsCreatedAt).toEpochMilli()
+                        if (parsedMs > 0L) {
+                            updated = updated.copy(createdAtMs = parsedMs)
+                            prefs.edit().putLong(KEY_CREATED_AT, parsedMs).apply()
+                        }
+                    } catch (e: Exception) {
+                        // ignore parse error
+                    }
                 }
                 val userObj = json.optJSONObject("user")
                 if (userObj != null) {
@@ -1594,6 +1621,7 @@ class AuthRepository @Inject constructor(
             .putString(KEY_SUB_STATUS, session.subscriptionStatus)
             .putString(KEY_SUB_PLAN, session.plan)
             .putInt(KEY_SUB_DAYS, session.daysRemaining)
+            .putLong(KEY_CREATED_AT, session.createdAtMs)
             .apply()
 
         val isPassActive = isOneDayPassActive()

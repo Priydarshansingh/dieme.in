@@ -317,6 +317,7 @@ export async function POST(req: NextRequest) {
         refreshToken: refreshToken || "",
         expiresIn: Number(refreshedAuthData.expiresIn) || 3600,
         subscription: activeSub,
+        createdAt: finalWsData?.createdAt || new Date().toISOString(),
       },
       message: "Signed in successfully"
     });

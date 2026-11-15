@@ -266,35 +266,37 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Status Pill (IDLE vs LIVE)
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(9999.dp))
-                            .background(if (isUserLive) DigicastLiveRed.copy(alpha = 0.15f) else Color(0x18FFFFFF))
-                            .border(
-                                1.dp,
-                                if (isUserLive) DigicastLiveRed.copy(alpha = 0.5f) else Color(0x33FFFFFF),
-                                RoundedCornerShape(9999.dp)
-                            )
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    // Status Pill (Only shown when LIVE, IDLE pill is completely removed)
+                    if (isUserLive) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(9999.dp))
+                                .background(DigicastLiveRed.copy(alpha = 0.15f))
+                                .border(
+                                    1.dp,
+                                    DigicastLiveRed.copy(alpha = 0.5f),
+                                    RoundedCornerShape(9999.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isUserLive) DigicastLiveRed else DigicastElectricCyan)
-                            )
-                            Text(
-                                text = if (isUserLive) "LIVE" else "IDLE",
-                                color = if (isUserLive) DigicastLiveRed else DigicastSlate,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.5.sp
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(DigicastLiveRed)
+                                )
+                                Text(
+                                    text = "LIVE",
+                                    color = DigicastLiveRed,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
                         }
                     }
 
@@ -580,6 +582,7 @@ fun HomeScreen(
         Access24hGateDialog(
             session = signedInSession,
             authRepository = viewModel.authRepository,
+            onDismiss = { show24hGate = false },
             onUnlocked = {
                 show24hGate = false
                 viewModel.syncData()

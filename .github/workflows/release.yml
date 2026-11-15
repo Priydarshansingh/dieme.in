@@ -1,4 +1,4 @@
-name: Release Dieme Extensions
+name: Release Dieme Suite & Mobile APKs
 
 on:
   push:
@@ -20,6 +20,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            download/dieme-app-latest.apk
+            download/dg-images-latest.apk
+            download/digicast-app-latest.apk
+            download/dieme-suite-complete.zip
             extensions/*.dcast
             extensions.json
           generate_release_notes: true

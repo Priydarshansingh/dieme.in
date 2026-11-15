@@ -6,6 +6,8 @@ Official open-source distribution repository for Dieme extensions, companion mob
 - **Documentation:** [HOW_TO_USE.md](HOW_TO_USE.md)
 - **Dieme Live Studio App:** [`download/dieme-app-latest.apk`](download/dieme-app-latest.apk)
 - **Dg-Images AI Companion App:** [`download/dg-images-latest.apk`](download/dg-images-latest.apk)
+- **Complete Dieme Suite Bundle (.ZIP):** [`download/dieme-suite-complete.zip`](download/dieme-suite-complete.zip)
+- **GitHub Official Releases:** [Releases Page](https://github.com/Priydarshansingh/dieme.in/releases)
 
 ---
 
@@ -38,6 +40,7 @@ Dieme provides two official native Android applications that work together seaml
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Dieme Live Studio** | Core Stream & Clip Companion | `v1.0.0` | `.apk` | ~43 MB | [📥 Download Dieme APK](download/dieme-app-latest.apk) |
 | **Dg-Images AI Studio** | Local AI Thumbnail Companion | `v1.0.0` | `.apk` | ~22 MB | [📥 Download Dg-Images APK](download/dg-images-latest.apk) |
+| **Complete Dieme Suite Bundle** | All APKs + Extensions + Guides | `v1.1.0` | `.zip` | ~89 MB | [📦 Download Suite ZIP](download/dieme-suite-complete.zip) |
 
 ### Key Capabilities
 
@@ -74,8 +77,10 @@ Full installation details and file association steps are documented in [HOW_TO_U
 
 ```
 ├── download/
-│   ├── digicast-app-latest.apk    # Dieme Live Studio companion APK (~43 MB)
-│   └── dg-images-latest.apk       # Dg-Images AI thumbnail studio APK (~22 MB)
+│   ├── dieme-app-latest.apk        # Dieme Live Studio companion APK (~43 MB)
+│   ├── dg-images-latest.apk        # Dg-Images AI thumbnail studio APK (~22 MB)
+│   ├── digicast-app-latest.apk     # Digicast distribution APK (~43 MB)
+│   └── dieme-suite-complete.zip    # Complete suite bundle: APKs + extensions + docs (~89 MB)
 ├── extensions/
 │   ├── com.digicast.ext.clipengine.dcast
 │   ├── com.digicast.ext.dgimages.dcast

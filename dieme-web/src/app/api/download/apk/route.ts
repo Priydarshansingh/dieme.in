@@ -12,6 +12,14 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // If user requests complete zip bundle
+  if (app === 'zip' || app === 'bundle' || app === 'all' || app === 'suite') {
+    return NextResponse.redirect(
+      'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-suite-complete.zip',
+      307
+    );
+  }
+
   // Default: Dieme Core / Live Studio Android App
   return NextResponse.redirect(
     'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk',

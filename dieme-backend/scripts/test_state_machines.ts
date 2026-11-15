@@ -117,7 +117,7 @@ async function runLedgerTests() {
     currency: 'D_COIN',
     amount: 30,
     type: 'CREDIT',
-    source: 'TASK_COMPLETION',
+    source: 'TASK_REWARD',
     description: 'Test Task Reward',
   });
 

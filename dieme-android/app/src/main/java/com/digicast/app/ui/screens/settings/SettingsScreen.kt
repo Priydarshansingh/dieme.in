@@ -2492,7 +2492,7 @@ private fun OfficialAppsCard(
 
                         Button(
                             onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dieme.in/api/download/apk")).apply {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk")).apply {
                                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                                 }
                                 try {
@@ -2622,7 +2622,7 @@ private fun OfficialAppsCard(
 
                         Button(
                             onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dieme.in/api/download/apk?app=dg-images")).apply {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk")).apply {
                                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                                 }
                                 try {

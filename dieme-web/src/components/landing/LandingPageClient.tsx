@@ -28,7 +28,6 @@ import {
   Cpu,
   Clock,
   Star,
-  Download,
   Send,
   Eye,
   CheckCircle,
@@ -611,9 +610,9 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
             </p>
           </ScrollReveal>
 
-          {/* Hero Action Buttons: Start Pass & Download Apps */}
+          {/* Single Action Button (Free 24h Pass Removed) */}
           <ScrollReveal direction="up" delay={400}>
-            <div className="pt-4 flex flex-wrap items-center justify-center gap-3">
+            <div className="pt-4 flex items-center justify-center">
               <Link
                 href="/login"
                 prefetch={false}
@@ -621,13 +620,6 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
               >
                 <span>Start Studio Pass</span>
                 <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <Link
-                href="/api/download/apk"
-                className="px-8 py-4 rounded-full text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 hover:scale-105 transition-all duration-200 flex items-center gap-2 shadow-lg shadow-emerald-500/10"
-              >
-                <Download className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Download App (APK)</span>
               </Link>
             </div>
           </ScrollReveal>

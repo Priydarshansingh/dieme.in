@@ -160,7 +160,7 @@ object AppUpdateManager {
                 versionName = dgObj.optString("versionName", "1.0.0"),
                 minSupportedVersionCode = dgObj.optInt("minSupportedVersionCode", 1),
                 releaseNotes = dgObj.optString("releaseNotes", "New performance and feature updates."),
-                downloadUrl = dgObj.optString("downloadUrl", "https://www.dieme.in/api/download/thumbnail"),
+                downloadUrl = dgObj.optString("downloadUrl", "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk"),
                 releaseDate = dgObj.optString("releaseDate", "")
             )
         } catch (e: Exception) {

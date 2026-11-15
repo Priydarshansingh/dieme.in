@@ -7,7 +7,8 @@ const VERSION_METADATA = {
     minSupportedVersionCode: 1,
     releaseNotes:
       '• Retro dot-matrix canvas mini-game while generating thumbnails\n• Saved thumbnail history & past chat reachability\n• Native UPI gateway direct launch\n• Real-time in-app update checker with 24h snooze',
-    downloadUrl: 'https://www.dieme.in/api/download/apk',
+    downloadUrl:
+      'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk',
     releaseDate: '2026-11-15',
     publishedAt: '2026-11-15T14:00:00Z',
   },
@@ -17,7 +18,8 @@ const VERSION_METADATA = {
     minSupportedVersionCode: 1,
     releaseNotes:
       '• Secure normal user background overlay & ChatGPT privacy barrier\n• Developer passcode bypass\n• Direct redirect to Dieme Web Thumbnail creator\n• In-app update system with 24h snooze',
-    downloadUrl: 'https://www.dieme.in/api/download/thumbnail',
+    downloadUrl:
+      'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk',
     releaseDate: '2026-11-15',
     publishedAt: '2026-11-15T14:00:00Z',
   },

@@ -160,7 +160,7 @@ object AppUpdateManager {
                 versionName = diemeObj.optString("versionName", "1.0.0"),
                 minSupportedVersionCode = diemeObj.optInt("minSupportedVersionCode", 1),
                 releaseNotes = diemeObj.optString("releaseNotes", "New performance and feature updates."),
-                downloadUrl = diemeObj.optString("downloadUrl", "https://www.dieme.in/api/download/apk"),
+                downloadUrl = diemeObj.optString("downloadUrl", "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk"),
                 releaseDate = diemeObj.optString("releaseDate", "")
             )
         } catch (e: Exception) {

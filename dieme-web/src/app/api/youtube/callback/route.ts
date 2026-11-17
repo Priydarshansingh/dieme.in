@@ -17,9 +17,10 @@ export async function GET(req: NextRequest) {
   const baseUrl = getBaseUrl(req);
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
   const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
+  // Strictly match the registered redirect URI used during authorization
   const redirectUri = isLocalhost
     ? "http://localhost:3000/api/youtube/callback"
-    : (process.env.YOUTUBE_REDIRECT_URI || "https://digicast-web.vercel.app/api/youtube/callback");
+    : "https://digicast-web.vercel.app/api/youtube/callback";
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
@@ -311,13 +312,13 @@ export async function GET(req: NextRequest) {
     const returnBase = decodedState?.origin || baseUrl;
 
     if (trialBypassTriggered) {
-      if (decodedState.source === "mobile_connect_youtube" || decodedState.source === "mobile") {
+      if (decodedState?.source === "mobile_connect_youtube" || decodedState?.source === "mobile" || decodedState?.source === "mobile_android") {
         return NextResponse.redirect(`digicast://youtube-connected?status=error&error=trial_already_claimed&channel=${encodeURIComponent(channelName)}`);
       }
       return NextResponse.redirect(`${returnBase}/settings?tab=subscription&error=trial_already_claimed&channel=${encodeURIComponent(channelName)}`);
     }
 
-    if (decodedState.source === "mobile_connect_youtube" || decodedState.source === "mobile") {
+    if (decodedState?.source === "mobile_connect_youtube" || decodedState?.source === "mobile" || decodedState?.source === "mobile_android") {
       return NextResponse.redirect(`digicast://youtube-connected?status=success&channel=${encodeURIComponent(channelName)}`);
     }
 
@@ -325,7 +326,7 @@ export async function GET(req: NextRequest) {
 
   } catch (err: any) {
     console.error("[youtube-callback-error]", err);
-    if (decodedState?.source === "mobile_connect_youtube" || decodedState?.source === "mobile") {
+    if (decodedState?.source === "mobile_connect_youtube" || decodedState?.source === "mobile" || decodedState?.source === "mobile_android") {
       return NextResponse.redirect(`digicast://youtube-connected?status=error&error=${encodeURIComponent(err.message || "connection_failed")}`);
     }
     const returnBase = decodedState?.origin || baseUrl;

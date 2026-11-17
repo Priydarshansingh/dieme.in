@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
     // 2. Generate Google OAuth URL for YouTube API
     const clientId = process.env.YOUTUBE_CLIENT_ID;
-    const redirectUri = process.env.YOUTUBE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_APP_URL}/api/workspaces/youtube/callback`;
+    const redirectUri = "https://digicast-web.vercel.app/api/youtube/callback";
 
     if (!clientId) {
       return NextResponse.json({ error: 'YouTube client ID not configured on server' }, { status: 500 });

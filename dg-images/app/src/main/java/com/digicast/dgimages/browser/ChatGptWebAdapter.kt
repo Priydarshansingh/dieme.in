@@ -192,7 +192,7 @@ class ChatGptWebAdapter(
                                 editor.dispatchEvent(pasteEvt);
                             }
                         } catch(e) {}
-                        setTimeout(function() { pasteFileAt(idx + 1); }, 350);
+                        setTimeout(function() { pasteFileAt(idx + 1); }, 600);
                     }
 
                     pasteFileAt(0);
@@ -205,8 +205,12 @@ class ChatGptWebAdapter(
         webView.evaluateJavascript(js) { res ->
             Handler(Looper.getMainLooper()).postDelayed({
                 onComplete?.invoke(res?.trim() == "true")
-            }, files.size * 400L + 800L)
+            }, files.size * 600L + 1200L)
         }
+    }
+
+    fun clearPendingFiles() {
+        this.pendingFiles = emptyList()
     }
 
     fun checkAttachmentsReady(callback: (Boolean) -> Unit) {
@@ -301,6 +305,23 @@ class ChatGptWebAdapter(
         }
     }
 
+    fun getAssistantTurnCount(callback: (Int) -> Unit) {
+        val js = """
+            (function() {
+                try {
+                    var turns = document.querySelectorAll("div[data-message-author-role='assistant']");
+                    return turns.length;
+                } catch(e) {
+                    return 0;
+                }
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js) { res ->
+            val count = res?.trim('"', ' ')?.toIntOrNull() ?: 0
+            callback(count)
+        }
+    }
+
     fun getExistingAssistantImageUrls(callback: (List<String>) -> Unit) {
         val js = """
             (function() {
@@ -350,61 +371,71 @@ class ChatGptWebAdapter(
         }
     }
 
-    fun captureGeneratedImage(excludeUrls: List<String> = emptyList(), callback: (String?) -> Unit) {
+    fun captureGeneratedImage(
+        initialTurnCount: Int = 0,
+        excludeUrls: List<String> = emptyList(),
+        callback: (String?) -> Unit
+    ) {
         val excludeJson = org.json.JSONArray(excludeUrls).toString()
         val js = """
             (function() {
                 try {
-                    // Auto-scroll transcript container to bottom so virtualized turns & images are rendered
+                    // 1. Auto-scroll transcript container to bottom so turns & images render
                     var scroller = document.querySelector("[class*='scroll-container'], [class*='scrollContainer'], main, div[role='region']");
                     if (scroller) {
                         scroller.scrollTop = scroller.scrollHeight;
                     }
 
-                    // Check if generation is still active (Stop button visible or Creating image progress visible)
-                    var stopBtn = document.querySelector("button[data-testid='stop-button'], button[aria-label*='Stop' i]");
+                    // 2. Check if generation is still active
+                    var stopBtn = document.querySelector(
+                        "button[data-testid='stop-button'], button[aria-label*='Stop' i], [data-icon='stop'], button:has(svg rect), [class*='result-streaming'], [class*='streaming']"
+                    );
                     var bodyText = document.body.innerText || "";
-                    if (stopBtn || bodyText.indexOf("Creating image") !== -1) {
+                    if (stopBtn || bodyText.indexOf("Creating image") !== -1 || bodyText.indexOf("Thinking") !== -1) {
+                        return "GENERATING";
+                    }
+
+                    // 3. Find all assistant turns
+                    var assistantTurns = Array.from(document.querySelectorAll("div[data-message-author-role='assistant']"));
+                    if (assistantTurns.length <= $initialTurnCount) {
                         return "GENERATING";
                     }
 
                     var excludeList = $excludeJson;
                     var excludeSet = new Set(excludeList);
 
-                    // Target assistant generated image candidates
-                    var assistantImgs = Array.from(document.querySelectorAll(
-                        "img[alt*='Generated' i], " +
-                        "img[alt*='Created' i], " +
-                        "img[src*='oaiusercontent.com'], " +
-                        ".markdown img"
-                    )).filter(function(img) {
-                        if (img.getAttribute('alt') === 'User attachment') return false;
-                        if (img.closest("[class*='user-message']")) return false;
-                        if (img.closest("[class*='composer-attachment']")) return false;
-                        var src = img.currentSrc || img.src || '';
-                        if (!src) return false;
-                        if (excludeSet.has(src)) return false;
-                        return true;
-                    });
-
-                    // If no explicit alt='Generated', find any blob/url img not in user-message
-                    if (assistantImgs.length === 0) {
-                        var candidateImgs = Array.from(document.querySelectorAll("img")).filter(function(img) {
+                    // 4. Look strictly inside the NEW assistant turn(s)
+                    var newTurns = assistantTurns.slice($initialTurnCount);
+                    var targetImgs = [];
+                    for (var t = 0; t < newTurns.length; t++) {
+                        var turn = newTurns[t];
+                        var imgs = Array.from(turn.querySelectorAll("img")).filter(function(img) {
                             if (img.getAttribute('alt') === 'User attachment') return false;
-                            if (img.closest("[class*='user-message']")) return false;
+                            if (img.closest("[data-message-author-role='user']")) return false;
                             if (img.closest("[class*='composer-attachment']")) return false;
                             var src = img.currentSrc || img.src || '';
                             if (!src) return false;
                             if (excludeSet.has(src)) return false;
-                            return (img.naturalWidth && img.naturalWidth > 400);
+                            return true;
                         });
-                        if (candidateImgs.length > 0) {
-                            assistantImgs = candidateImgs;
+                        for (var k = 0; k < imgs.length; k++) {
+                            targetImgs.push(imgs[k]);
                         }
                     }
 
-                    if (assistantImgs.length === 0) return null;
-                    var lastImg = assistantImgs[assistantImgs.length - 1];
+                    if (targetImgs.length === 0) {
+                        // Check if still generating or loading placeholders
+                        if (stopBtn || bodyText.indexOf("Creating image") !== -1) {
+                            return "GENERATING";
+                        }
+                        var hasPlaceholder = newTurns.some(function(turn) {
+                            return turn.querySelector("[role='progressbar'], .animate-pulse, [class*='loading']");
+                        });
+                        if (hasPlaceholder) return "GENERATING";
+                        return null;
+                    }
+
+                    var lastImg = targetImgs[targetImgs.length - 1];
 
                     // Verify image has loaded
                     if (!lastImg.complete || (lastImg.naturalWidth && lastImg.naturalWidth < 100)) {

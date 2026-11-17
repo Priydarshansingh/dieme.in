@@ -62,9 +62,10 @@ export async function GET(req: NextRequest) {
 
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
   const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
+  // Always use the authorized redirect URI registered in Google Cloud Console
   const redirectUri = isLocalhost
     ? "http://localhost:3000/api/youtube/callback"
-    : (process.env.YOUTUBE_REDIRECT_URI || "https://digicast-web.vercel.app/api/youtube/callback");
+    : "https://digicast-web.vercel.app/api/youtube/callback";
   const clientId = process.env.YOUTUBE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
 
   if (!clientId) {

@@ -217,13 +217,18 @@ object ChatGptSessionManager {
                 }
             }
 
-            // Record existing assistant images before prompt submission
+            // Record assistant turn count and existing images prior to generation
+            val initialTurnCount = suspendCancellableCoroutine<Int> { cont ->
+                adapter.getAssistantTurnCount { count ->
+                    if (cont.isActive) cont.resume(count)
+                }
+            }
             val existingUrls = suspendCancellableCoroutine<List<String>> { cont ->
                 adapter.getExistingAssistantImageUrls { urls ->
                     if (cont.isActive) cont.resume(urls)
                 }
             }
-            Log.i(TAG, "🔍 Recorded ${existingUrls.size} existing assistant image(s) prior to generation")
+            Log.i(TAG, "🔍 Initial state: turnCount=$initialTurnCount, existingImages=${existingUrls.size}")
 
             // 3. Inject prompt & submit
             _sessionStatus.value = "Submitting prompt: \"${prompt.take(30)}...\""
@@ -233,9 +238,11 @@ object ChatGptSessionManager {
                 }
             }
 
-            // 4. Poll for generated image from ChatGPT (excluding prior images)
+            // 4. Poll for generated image strictly from the NEW assistant turn
             _sessionStatus.value = "Generating thumbnail with ChatGPT..."
-            val capturedRaw = pollForGeneratedImage(adapter, existingUrls)
+            val capturedRaw = pollForGeneratedImage(adapter, initialTurnCount, existingUrls)
+
+            adapter.clearPendingFiles()
 
             if (!capturedRaw.isNullOrBlank()) {
                 val savedUrl = saveGeneratedResultToCache(context, capturedRaw)
@@ -274,13 +281,17 @@ object ChatGptSessionManager {
         }
     }
 
-    private suspend fun pollForGeneratedImage(adapter: ChatGptWebAdapter, excludeUrls: List<String>): String? {
+    private suspend fun pollForGeneratedImage(
+        adapter: ChatGptWebAdapter,
+        initialTurnCount: Int,
+        excludeUrls: List<String>
+    ): String? {
         // Poll for up to 90 seconds (30 attempts x 3000ms)
         for (i in 0 until 30) {
             delay(3000)
             _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
             val result = suspendCancellableCoroutine<String?> { cont ->
-                adapter.captureGeneratedImage(excludeUrls) { imgResult ->
+                adapter.captureGeneratedImage(initialTurnCount, excludeUrls) { imgResult ->
                     if (cont.isActive) cont.resume(imgResult)
                 }
             }

@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
   const redirectUri = isLocalhost
     ? "http://localhost:3000/api/youtube/callback"
-    : (process.env.YOUTUBE_REDIRECT_URI || "https://digicast-web.vercel.app/api/youtube/callback");
+    : "https://digicast-web.vercel.app/api/youtube/callback";
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.YOUTUBE_CLIENT_ID;
 
   if (!clientId) {

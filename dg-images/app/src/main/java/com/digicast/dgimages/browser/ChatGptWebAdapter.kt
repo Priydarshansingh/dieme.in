@@ -402,19 +402,35 @@ class ChatGptWebAdapter(
                         "button[data-testid='stop-button'], button[aria-label*='Stop' i], [data-icon='stop'], button:has(svg rect), [class*='result-streaming'], [class*='streaming']"
                     );
                     var bodyText = document.body.innerText || "";
-                    if (stopBtn || bodyText.indexOf("Creating image") !== -1 || bodyText.indexOf("Thinking") !== -1) {
-                        return "GENERATING";
-                    }
+                    var isWorking = stopBtn ||
+                        bodyText.indexOf("Creating image") !== -1 ||
+                        bodyText.indexOf("Thinking") !== -1 ||
+                        bodyText.indexOf("Generating") !== -1 ||
+                        document.querySelector("[role='progressbar'], .animate-spin, .animate-pulse, [class*='result-streaming']");
 
                     var excludeList = $excludeJson;
                     var excludeSet = new Set(excludeList);
 
-                    // 3. Find candidate images outside composer & form
+                    // 3. Find candidate images strictly within ASSISTANT responses
+                    // Exclude any user prompt attachments, composer previews, or avatars
                     var allImgs = Array.from(document.querySelectorAll(
-                        "main img, article img, div[class*='conversation'] img, [class*='turn'] img, img[alt*='Generated' i], img[src*='oaiusercontent.com']"
+                        "[data-message-author-role='assistant'] img, article[data-testid*='assistant'] img, [class*='agent-turn'] img, [class*='assistant'] img"
                     ));
 
+                    // If assistant turn has no explicit author role attribute, check main/article but filter out user containers
+                    if (allImgs.length === 0) {
+                        allImgs = Array.from(document.querySelectorAll("main img, article img, div[class*='conversation'] img")).filter(function(img) {
+                            if (img.closest("[data-message-author-role='user']")) return false;
+                            if (img.closest("[class*='user-turn']")) return false;
+                            if (img.closest("[data-testid*='turn-user']")) return false;
+                            return true;
+                        });
+                    }
+
                     var targetImgs = allImgs.filter(function(img) {
+                        if (img.closest("[data-message-author-role='user']")) return false;
+                        if (img.closest("[class*='user-turn']")) return false;
+                        if (img.closest("[data-testid*='turn-user']")) return false;
                         if (img.getAttribute('alt') === 'User attachment') return false;
                         if (img.closest("[class*='composer-attachment']")) return false;
                         if (img.closest("form")) return false;
@@ -422,38 +438,49 @@ class ChatGptWebAdapter(
                         var src = img.currentSrc || img.src || '';
                         if (!src) return false;
                         if (excludeSet.has(src)) return false;
-                        if (img.naturalWidth && img.naturalWidth < 120) return false;
+                        if (img.naturalWidth && img.naturalWidth < 180) return false;
                         return true;
                     });
 
                     if (targetImgs.length === 0) {
-                        var hasPlaceholder = document.querySelector("[role='progressbar'], .animate-pulse, [class*='loading']");
-                        if (hasPlaceholder || bodyText.indexOf("Creating image") !== -1 || bodyText.indexOf("Thinking") !== -1) {
+                        if (isWorking) {
                             return "GENERATING";
                         }
                         return null;
                     }
 
-                    var lastImg = targetImgs[targetImgs.length - 1];
+                    // If still actively streaming/generating, do not capture prematurely
+                    if (isWorking) {
+                        return "GENERATING";
+                    }
 
-                    // Verify image has loaded
-                    if (!lastImg.complete || (lastImg.naturalWidth && lastImg.naturalWidth < 120)) {
+                    // Sort by area (width * height) descending so the full 1080p canvas takes priority over small thumbnails
+                    targetImgs.sort(function(a, b) {
+                        var areaA = (a.naturalWidth || 0) * (a.naturalHeight || 0);
+                        var areaB = (b.naturalWidth || 0) * (b.naturalHeight || 0);
+                        return areaB - areaA;
+                    });
+
+                    var bestImg = targetImgs[0];
+
+                    // Verify image has finished loading
+                    if (!bestImg.complete || (bestImg.naturalWidth && bestImg.naturalWidth < 180)) {
                         return "LOADING";
                     }
 
                     try {
                         var canvas = document.createElement('canvas');
-                        canvas.width = lastImg.naturalWidth || lastImg.width || 1280;
-                        canvas.height = lastImg.naturalHeight || lastImg.height || 720;
+                        canvas.width = bestImg.naturalWidth || bestImg.width || 1280;
+                        canvas.height = bestImg.naturalHeight || bestImg.height || 720;
                         var ctx = canvas.getContext('2d');
-                        ctx.drawImage(lastImg, 0, 0);
+                        ctx.drawImage(bestImg, 0, 0);
                         var dUrl = canvas.toDataURL('image/jpeg', 0.95);
                         if (dUrl && dUrl.length > 200) {
                             return dUrl;
                         }
                     } catch(e) {}
 
-                    return lastImg.currentSrc || lastImg.src || null;
+                    return bestImg.currentSrc || bestImg.src || null;
                 } catch(e) {
                     return null;
                 }

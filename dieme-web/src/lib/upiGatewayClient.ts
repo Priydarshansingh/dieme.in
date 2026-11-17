@@ -215,6 +215,33 @@ export async function activateSubscriptionForPayment(
     updatedAt: nowIso,
   });
 
+  // 1b. Update User document for owner so user-level profile & claims reflect active plan immediately
+  const ownerId = wsData.ownerId || wsData.ownerUid;
+  if (ownerId) {
+    try {
+      await adminDb.collection("users").doc(ownerId).set({
+        plan: assignedPlan,
+        subscriptionTier: assignedPlan,
+        subscription: assignedPlan,
+        subscriptionStatus: "active",
+        isPro: true,
+        activeTier: assignedPlan,
+        subscriptionExpiresAt: activatedUntil,
+        lastPaymentAt: nowIso,
+        updatedAt: nowIso,
+      }, { merge: true });
+
+      await adminDb.doc(`workspaces/${workspaceId}/members/${ownerId}`).set({
+        plan: assignedPlan,
+        role: "owner",
+        status: "active",
+        updatedAt: nowIso,
+      }, { merge: true });
+    } catch (userUpdateErr) {
+      console.warn("[activateSubscriptionForPayment] Failed to update user record:", userUpdateErr);
+    }
+  }
+
   // 2. Update global payment record
   const paymentRef = adminDb.collection("payments").doc(paymentId);
   const paymentDoc = await paymentRef.get();

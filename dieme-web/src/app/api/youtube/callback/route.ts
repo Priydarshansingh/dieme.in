@@ -34,9 +34,7 @@ export async function GET(req: NextRequest) {
   const fallbackRedirectUri = process.env.YOUTUBE_REDIRECT_URI || (
     isLocalhost
       ? "http://localhost:3000/api/youtube/callback"
-      : host.includes("dieme.in")
-        ? `https://${host}/api/youtube/callback`
-        : "https://digicast-web.vercel.app/api/youtube/callback"
+      : "https://digicast-web.vercel.app/api/youtube/callback"
   );
   if (error || !code) {
     return NextResponse.json({ error: error || "Authorization error or missing code" }, { status: 400 });

@@ -224,7 +224,12 @@ object ChatGptSessionManager {
                 adapter.getExistingAssistantImageUrls { urls ->
                     if (cont.isActive) cont.resume(urls)
                 }
-            }
+            }.toMutableList()
+
+            // Also exclude the base image and reference URLs if they are web URLs
+            if (baseImageUrl.startsWith("http")) existingUrls.add(baseImageUrl)
+            referenceImageUrls.forEach { if (it.startsWith("http")) existingUrls.add(it) }
+
             Log.i(TAG, "🔍 Initial state: turnCount=$initialTurnCount, existingImages=${existingUrls.size}")
 
             // 3. Inject prompt & submit

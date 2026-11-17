@@ -59,12 +59,15 @@ export async function GET(req: NextRequest) {
   const origin = getBaseUrl(req);
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
   const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
+  
+  // Use explicitly configured redirect URI, or default to the verified Google Cloud registered callback:
+  // https://digicast-web.vercel.app/api/youtube/callback
+  // Note: Once https://www.dieme.in/api/youtube/callback is added to Google Cloud Console,
+  // set YOUTUBE_REDIRECT_URI in Vercel to use it directly.
   const redirectUri = process.env.YOUTUBE_REDIRECT_URI || (
     isLocalhost
       ? "http://localhost:3000/api/youtube/callback"
-      : host.includes("dieme.in")
-        ? `https://${host}/api/youtube/callback`
-        : "https://digicast-web.vercel.app/api/youtube/callback"
+      : "https://digicast-web.vercel.app/api/youtube/callback"
   );
 
   // Pass workspaceId, uid, source, originating domain, and exact redirectUri via state variable

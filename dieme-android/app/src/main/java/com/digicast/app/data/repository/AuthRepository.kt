@@ -538,8 +538,29 @@ class AuthRepository @Inject constructor(
             val raw = response.body?.string() ?: "{}"
             val json = JSONObject(raw)
 
-            if (json.optBoolean("isPaid", false) || json.optString("status") == "approved") {
-                activateOneDayPass(fromAd = false)
+            val isApproved = json.optBoolean("isPaid", false) || json.optString("status") == "approved" || json.optBoolean("isApproved", false)
+            if (isApproved) {
+                val approvedPlan = json.optString("planId", "pro").ifBlank { "pro" }
+                prefs.edit()
+                    .putString(KEY_SUB_STATUS, "active")
+                    .putString(KEY_SUB_PLAN, approvedPlan)
+                    .putInt(KEY_SUB_DAYS, 30)
+                    .apply()
+
+                val current = _authState.value
+                if (current is AuthState.SignedIn) {
+                    val updatedSession = current.session.copy(
+                        subscriptionStatus = "active",
+                        plan = approvedPlan,
+                        daysRemaining = 30
+                    )
+                    _authState.value = AuthState.SignedIn(updatedSession)
+                    scope.launch {
+                        try {
+                            syncWorkspaceData()
+                        } catch (_: Exception) {}
+                    }
+                }
             }
 
             Result.success(json)

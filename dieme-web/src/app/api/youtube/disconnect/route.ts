@@ -116,20 +116,33 @@ async function handleDisconnect(req: NextRequest) {
       channelId: null,
       channelName: null,
       channelThumbnail: null,
+      primaryYoutubeChannelId: null,
       updatedAt: new Date().toISOString(),
     }, { merge: true });
 
-    // 3. Mark any currently live streams as ended
-    const liveStreamsSnap = await adminDb
+    // 3. Purge all streams in this workspace so no stream data or history from the disconnected channel leaks
+    const allStreamsSnap = await adminDb
       .collection(col.streams(workspaceId))
-      .where('status', '==', 'live')
       .get();
 
-    for (const sDoc of liveStreamsSnap.docs) {
-      await sDoc.ref.update({
-        status: 'ended',
-        updatedAt: new Date().toISOString(),
-      }).catch(() => {});
+    const purgeBatch = adminDb.batch();
+    for (const sDoc of allStreamsSnap.docs) {
+      purgeBatch.delete(sDoc.ref);
+    }
+    if (!allStreamsSnap.empty) {
+      await purgeBatch.commit().catch(() => {});
+    }
+
+    // Also purge streams under callerUid workspace if different
+    if (callerUid !== workspaceId) {
+      const callerStreamsSnap = await adminDb.collection(col.streams(callerUid)).get();
+      const callerBatch = adminDb.batch();
+      for (const cs of callerStreamsSnap.docs) {
+        callerBatch.delete(cs.ref);
+      }
+      if (!callerStreamsSnap.empty) {
+        await callerBatch.commit().catch(() => {});
+      }
     }
 
     return NextResponse.json({

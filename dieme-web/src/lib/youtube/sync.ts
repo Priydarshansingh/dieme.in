@@ -68,25 +68,65 @@ export interface SyncYouTubeResult {
 /**
  * Synchronizes active live broadcasts and recent video streams for a workspace.
  */
-export async function syncWorkspaceYouTubeStreams(workspaceId: string): Promise<SyncYouTubeResult> {
+export async function syncWorkspaceYouTubeStreams(
+  workspaceId: string,
+  targetChannelId?: string
+): Promise<SyncYouTubeResult> {
   try {
     // 1. Fetch connected YouTube account strictly for this workspace (strict tenant isolation)
-    const accountsSnap = await adminDb
-      .collection(col.youtube(workspaceId))
-      .where('connectionStatus', '==', 'connected')
-      .limit(1)
-      .get();
+    const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
+    const wsData = wsDoc.data() || {};
+    const resolvedTargetId = targetChannelId || wsData.channelId || wsData.primaryYoutubeChannelId;
 
-    if (accountsSnap.empty) {
+    let accountDoc: any = null;
+    if (resolvedTargetId) {
+      const explicitDoc = await adminDb.doc(col.youtubeAccount(workspaceId, resolvedTargetId)).get();
+      if (explicitDoc.exists && explicitDoc.data()?.connectionStatus === 'connected') {
+        accountDoc = explicitDoc;
+      }
+    }
+
+    if (!accountDoc) {
+      const accountsSnap = await adminDb
+        .collection(col.youtube(workspaceId))
+        .where('connectionStatus', '==', 'connected')
+        .limit(1)
+        .get();
+      if (!accountsSnap.empty) {
+        accountDoc = accountsSnap.docs[0];
+      }
+    }
+
+    if (!accountDoc) {
       return { success: false, syncedCount: 0, error: 'No connected YouTube channel found for this workspace' };
     }
 
-    const accountData = accountsSnap.docs[0].data();
-    const channelId = accountData.channelId || accountsSnap.docs[0].id;
+    const accountData = accountDoc.data();
+    const channelId = accountData.channelId || accountDoc.id;
     const token = await getValidAccessToken(workspaceId, accountData);
 
     if (!token) {
       return { success: false, syncedCount: 0, error: 'Could not obtain valid YouTube token' };
+    }
+
+    // ── PURGE ANY STALE STREAMS BELONGING TO DIFFERENT CHANNELS ─────────────
+    try {
+      const existingStreams = await adminDb.collection(col.streams(workspaceId)).get();
+      const purgeBatch = adminDb.batch();
+      let purgeCount = 0;
+      for (const sDoc of existingStreams.docs) {
+        const sData = sDoc.data();
+        if (sData.channelId && sData.channelId !== channelId) {
+          purgeBatch.delete(sDoc.ref);
+          purgeCount++;
+        }
+      }
+      if (purgeCount > 0) {
+        await purgeBatch.commit().catch(() => {});
+        console.log(`[youtube-sync] Purged ${purgeCount} stale streams from previous channel(s)`);
+      }
+    } catch (purgeErr) {
+      console.warn('[youtube-sync] purge check non-fatal warning:', purgeErr);
     }
 
     let syncedCount = 0;

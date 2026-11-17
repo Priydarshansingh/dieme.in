@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
       `response_type=code&` +
       `scope=${encodeURIComponent(scopes)}&` +
       `access_type=offline&` +
-      `prompt=consent&` +
+      `prompt=${encodeURIComponent('consent select_account')}&` +
       `state=${encodeURIComponent(state)}`;
 
     return NextResponse.json({ url: oauthUrl });

@@ -269,7 +269,7 @@ fun StreamsScreen(
 
             // ── 2. Deep Teal Silk Category Filter Pills ───────────────────────────
             item {
-                val categories = listOf("All Streams", "Live Now", "Past Streams", "Free Fire")
+                val categories = listOf("All Streams", "Live Now", "Past Streams", "Highlights")
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

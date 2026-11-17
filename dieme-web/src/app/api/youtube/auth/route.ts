@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
     response_type: "code",
     scope: YOUTUBE_SCOPES.join(" "),
     access_type: "offline",
-    prompt: "consent", // Force refresh token generation
+    prompt: "consent select_account", // Force account picker & refresh token generation
     state,
   });
 

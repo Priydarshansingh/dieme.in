@@ -403,7 +403,7 @@ fun StreamDetailScreen(
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = MetricFormatter.cleanText(stream?.title).ifBlank { "FREE FIRE INDIA LIVE | Playing With Friends" },
+                        text = MetricFormatter.cleanText(stream?.title).ifBlank { "Live Broadcast" },
                         color = DigicastWhite,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,

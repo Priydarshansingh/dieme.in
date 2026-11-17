@@ -77,46 +77,42 @@ export async function GET(req: NextRequest) {
       console.warn("[youtube/status] workspace read note:", wsErr);
     }
 
-    // 2. Fetch Connected YouTube Channel
+    // 2. Fetch Connected YouTube Channel strictly respecting connectionStatus
     let youtubeAccount: any = null;
     try {
-      // Direct workspace query
-      let ytSnap = await adminDb
-        .collection(col.youtube(actualWorkspaceId))
-        .where("connectionStatus", "==", "connected")
-        .limit(1)
-        .get();
-
-      if (ytSnap.empty) {
-        ytSnap = await adminDb
+      if (wsData.youtubeConnected !== false) {
+        let ytSnap = await adminDb
           .collection(col.youtube(actualWorkspaceId))
+          .where("connectionStatus", "==", "connected")
           .limit(1)
           .get();
-      }
 
-      // Check caller UID workspace if different
-      if (ytSnap.empty && caller?.uid && caller.uid !== actualWorkspaceId) {
-        const callerYtSnap = await adminDb
-          .collection(col.youtube(caller.uid))
-          .limit(1)
-          .get();
-        if (!callerYtSnap.empty) {
-          ytSnap = callerYtSnap;
+        if (ytSnap.empty && caller?.uid && caller.uid !== actualWorkspaceId) {
+          const callerYtSnap = await adminDb
+            .collection(col.youtube(caller.uid))
+            .where("connectionStatus", "==", "connected")
+            .limit(1)
+            .get();
+          if (!callerYtSnap.empty) {
+            ytSnap = callerYtSnap;
+          }
         }
-      }
 
-      if (!ytSnap.empty) {
-        const doc = ytSnap.docs[0];
-        const data = doc.data();
-        youtubeAccount = {
-          id: doc.id,
-          channelId: data.channelId || doc.id,
-          channelName: data.channelName || "Connected YouTube Channel",
-          channelThumbnail: data.channelThumbnail || "",
-          connectionStatus: data.connectionStatus || "connected",
-          connectedAt: data.connectedAt || null,
-          workspaceId: actualWorkspaceId,
-        };
+        if (!ytSnap.empty) {
+          const doc = ytSnap.docs[0];
+          const data = doc.data();
+          if (data.connectionStatus === "connected") {
+            youtubeAccount = {
+              id: doc.id,
+              channelId: data.channelId || doc.id,
+              channelName: data.channelName || wsData.channelName || "Connected YouTube Channel",
+              channelThumbnail: data.channelThumbnail || wsData.channelThumbnail || "",
+              connectionStatus: "connected",
+              connectedAt: data.connectedAt || null,
+              workspaceId: actualWorkspaceId,
+            };
+          }
+        }
       }
     } catch (ytErr) {
       console.warn("[youtube/status] youtube query note:", ytErr);

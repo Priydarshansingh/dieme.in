@@ -1011,7 +1011,7 @@ fun ClipGenerateScreen(
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        text = MetricFormatter.cleanText(stream?.title).ifBlank { "FREE FIRE INDIA LIVE | Playing With Friends" },
+                        text = MetricFormatter.cleanText(stream?.title).ifBlank { "Live Broadcast" },
                         color = DigicastWhite,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,

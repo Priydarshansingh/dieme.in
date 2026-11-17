@@ -17,6 +17,7 @@ build/
 *.apk
 !download/digicast-app-latest.apk
 !download/dieme-app-latest.apk
+!download/dieme-live-studio-latest.apk
 !download/dg-images-latest.apk
 *.aab
 *.jks
@@ -41,3 +42,5 @@ typeui-main.zip
 
 Upi Open Source/
 .playwright-mcp/
+*.mp4
+/dieme-suite-complete.zip

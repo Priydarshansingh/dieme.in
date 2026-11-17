@@ -131,6 +131,7 @@ function DashboardContent() {
       // 1. Fetch streams from authoritative server API
       let allStreams: StreamDoc[] = [];
       let activeLive: StreamDoc | null = null;
+      let streamApiSucceeded = false;
       try {
         const streamsRes = await fetch(`/api/streams?workspaceId=${wid}`, { headers });
         if (streamsRes.ok) {
@@ -138,21 +139,31 @@ function DashboardContent() {
           if (Array.isArray(data.streams)) {
             allStreams = data.streams;
             activeLive = data.activeLiveStream || allStreams.find((s) => s.status === 'live') || null;
+            streamApiSucceeded = true;
           }
         }
       } catch (streamApiErr) {
         console.warn('[dashboard] /api/streams fallback note:', streamApiErr);
       }
 
-      // If server API returned empty or failed, fallback to client firestore attempt
-      if (allStreams.length === 0) {
+      // If server API network failed, fallback to client firestore attempt (strictly scoped to workspace active channel)
+      if (!streamApiSucceeded) {
         try {
-          const streamsSnap = await getDocs(
-            query(collection(db, 'workspaces', wid, 'streams'), limit(30))
-          );
-          allStreams = streamsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as StreamDoc));
-          allStreams.sort((a, b) => parseDate(b.startedAt).getTime() - parseDate(a.startedAt).getTime());
-          activeLive = allStreams.find((s) => s.status === 'live') || null;
+          const wsSnap = await getDoc(doc(db, 'workspaces', wid));
+          const wsData = wsSnap.data() || {};
+          const activeChId = wsData.channelId || wsData.primaryYoutubeChannelId;
+          const isYtConnected = wsData.youtubeConnected === true;
+
+          if (isYtConnected && activeChId) {
+            const streamsSnap = await getDocs(
+              query(collection(db, 'workspaces', wid, 'streams'), limit(30))
+            );
+            allStreams = streamsSnap.docs
+              .map((d) => ({ id: d.id, ...d.data() } as any))
+              .filter((s) => s.channelId === activeChId);
+            allStreams.sort((a, b) => parseDate(b.startedAt).getTime() - parseDate(a.startedAt).getTime());
+            activeLive = allStreams.find((s) => s.status === 'live') || null;
+          }
         } catch {
           // ignore
         }

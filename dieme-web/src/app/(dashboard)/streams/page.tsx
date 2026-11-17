@@ -95,25 +95,37 @@ function StreamsContent() {
       if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
 
       let list: StreamDoc[] = [];
+      let streamApiSucceeded = false;
       try {
         const res = await fetch(`/api/streams?workspaceId=${wid}`, { headers });
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data.streams)) {
             list = data.streams;
+            streamApiSucceeded = true;
           }
         }
       } catch (streamApiErr) {
         console.warn('[streams] api fallback note:', streamApiErr);
       }
 
-      if (list.length === 0) {
+      // If server API network failed, fallback to client firestore attempt (strictly scoped to workspace active channel)
+      if (!streamApiSucceeded) {
         try {
-          const snap = await getDocs(
-            query(collection(db, 'workspaces', wid, 'streams'), limit(50))
-          );
-          list = snap.docs.map(d => ({ id: d.id, ...d.data() } as StreamDoc));
-          list.sort((a, b) => parseDate(b.startedAt).getTime() - parseDate(a.startedAt).getTime());
+          const wsSnap = await getDoc(doc(db, 'workspaces', wid));
+          const wsData = wsSnap.data() || {};
+          const activeChId = wsData.channelId || wsData.primaryYoutubeChannelId;
+          const isYtConnected = wsData.youtubeConnected === true;
+
+          if (isYtConnected && activeChId) {
+            const snap = await getDocs(
+              query(collection(db, 'workspaces', wid, 'streams'), limit(50))
+            );
+            list = snap.docs
+              .map(d => ({ id: d.id, ...d.data() } as any))
+              .filter(s => s.channelId === activeChId);
+            list.sort((a, b) => parseDate(b.startedAt).getTime() - parseDate(a.startedAt).getTime());
+          }
         } catch {
           // ignore
         }

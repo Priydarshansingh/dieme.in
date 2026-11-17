@@ -53,10 +53,11 @@ export async function GET(req: NextRequest) {
       actualWorkspaceId = callerUid;
     }
 
-    // Verify access
+    // Verify access & resolve connected YouTube channel
+    let wsData: any = {};
     const wsDoc = await adminDb.doc(col.workspace(actualWorkspaceId)).get();
     if (wsDoc.exists) {
-      const wsData = wsDoc.data() || {};
+      wsData = wsDoc.data() || {};
       const isOwner = wsData.ownerUid === callerUid || wsData.ownerId === callerUid || actualWorkspaceId === callerUid;
       if (!isOwner) {
         const memberDoc = await adminDb.doc(col.member(actualWorkspaceId, callerUid)).get();
@@ -64,6 +65,37 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
       }
+    }
+
+    // Resolve active connected channel for this workspace (strict tenant & channel isolation)
+    let activeChannelId: string | null = wsData.channelId || wsData.primaryYoutubeChannelId || null;
+    let isYoutubeConnected: boolean = wsData.youtubeConnected === true;
+
+    if (!activeChannelId || !isYoutubeConnected) {
+      try {
+        const ytAccountSnap = await adminDb
+          .collection(col.youtube(actualWorkspaceId))
+          .where('connectionStatus', '==', 'connected')
+          .limit(1)
+          .get();
+        if (!ytAccountSnap.empty) {
+          activeChannelId = ytAccountSnap.docs[0].data().channelId || ytAccountSnap.docs[0].id;
+          isYoutubeConnected = true;
+        }
+      } catch (err) {
+        console.warn('[streams GET] youtube account lookup warning:', err);
+      }
+    }
+
+    // If channel is not connected or disconnected, return empty streams to prevent data leakage
+    if (!isYoutubeConnected || !activeChannelId) {
+      return NextResponse.json({
+        success: true,
+        workspaceId: actualWorkspaceId,
+        totalCount: 0,
+        activeLiveStream: null,
+        streams: [],
+      });
     }
 
     // If specific streamId requested, return that stream directly
@@ -182,7 +214,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const streams = streamsSnap.docs.map((docSnap) => {
+    // Filter strictly by activeChannelId to prevent any stream leakage across channel switches
+    const validDocs = streamsSnap.docs.filter((docSnap) => {
+      const d = docSnap.data();
+      if (activeChannelId && d.channelId && d.channelId !== activeChannelId) {
+        docSnap.ref.delete().catch(() => {});
+        return false;
+      }
+      return true;
+    });
+
+    const streams = validDocs.map((docSnap) => {
       const d = docSnap.data();
       let startedAtMs = Date.now();
       if (d.startedAt?._seconds) {

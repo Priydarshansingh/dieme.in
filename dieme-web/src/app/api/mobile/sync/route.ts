@@ -142,23 +142,38 @@ export async function GET(req: NextRequest) {
     }
 
     // 2. Fetch and synchronize YouTube live broadcasts and streams
-    try {
-      const { syncWorkspaceYouTubeStreams } = await import("@/lib/youtube/sync");
-      await syncWorkspaceYouTubeStreams(actualWorkspaceId);
-    } catch (syncErr) {
-      console.warn("[mobile/sync] YouTube auto-sync warning:", syncErr);
+    const activeChannelId = wsData.channelId || wsData.primaryYoutubeChannelId || null;
+    const isYoutubeConnected = wsData.youtubeConnected === true && Boolean(activeChannelId);
+
+    if (isYoutubeConnected) {
+      try {
+        const { syncWorkspaceYouTubeStreams } = await import("@/lib/youtube/sync");
+        await syncWorkspaceYouTubeStreams(actualWorkspaceId, activeChannelId!);
+      } catch (syncErr) {
+        console.warn("[mobile/sync] YouTube auto-sync warning:", syncErr);
+      }
     }
 
     let activeStream: any = null;
     let streams: any[] = [];
-    try {
-      const streamsSnap = await adminDb
-        .collection(col.streams(actualWorkspaceId))
-        .orderBy("startedAt", "desc")
-        .limit(30)
-        .get();
+    if (isYoutubeConnected && activeChannelId) {
+      try {
+        const streamsSnap = await adminDb
+          .collection(col.streams(actualWorkspaceId))
+          .orderBy("startedAt", "desc")
+          .limit(30)
+          .get();
 
-      streams = streamsSnap.docs.map(doc => {
+        const validDocs = streamsSnap.docs.filter(doc => {
+          const d = doc.data();
+          if (activeChannelId && d.channelId && d.channelId !== activeChannelId) {
+            doc.ref.delete().catch(() => {});
+            return false;
+          }
+          return true;
+        });
+
+        streams = validDocs.map(doc => {
         const d = doc.data();
         let startedAtMs = Date.now();
         if (d.startedAt?._seconds) {
@@ -189,8 +204,9 @@ export async function GET(req: NextRequest) {
         };
       });
       activeStream = streams.find((s: any) => s.status === 'live') || streams[0] || null;
-    } catch (streamErr) {
-      console.warn("[mobile/sync] Stream fetch warning:", streamErr);
+      } catch (streamErr) {
+        console.warn("[mobile/sync] Stream fetch warning:", streamErr);
+      }
     }
 
     // 3. Fetch recent clip markers for this workspace

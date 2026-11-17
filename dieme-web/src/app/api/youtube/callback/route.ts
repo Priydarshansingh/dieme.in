@@ -282,11 +282,59 @@ export async function GET(req: NextRequest) {
         lastSeenAt: new Date().toISOString(),
       });
 
-      await wsRef.update({
+      await wsRef.set({
+        youtubeConnected: true,
+        channelId,
+        channelName,
+        channelThumbnail,
         primaryYoutubeChannelId: channelId,
         trialBypassDetected: false,
-      });
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
     }
+
+    // ── 4. PURGE STALE ACCOUNTS & OLD STREAMS TO PREVENT DATA LEAKAGE ─────────
+    // Remove any previous YouTube account docs that do not match the new channel
+    try {
+      const prevAccountsSnap = await adminDb.collection(col.youtube(workspaceId)).get();
+      for (const prevDoc of prevAccountsSnap.docs) {
+        if (prevDoc.id !== channelId) {
+          await prevDoc.ref.delete().catch(() => {});
+        }
+      }
+    } catch (prevErr) {
+      console.warn("[youtube-callback] Error purging previous account docs:", prevErr);
+    }
+
+    // Purge any streams in this workspace that belonged to a different channel
+    try {
+      const existingStreamsSnap = await adminDb.collection(col.streams(workspaceId)).get();
+      const purgeBatch = adminDb.batch();
+      let purgeCount = 0;
+      for (const sDoc of existingStreamsSnap.docs) {
+        const sData = sDoc.data();
+        if (sData.channelId && sData.channelId !== channelId) {
+          purgeBatch.delete(sDoc.ref);
+          purgeCount++;
+        }
+      }
+      if (purgeCount > 0) {
+        await purgeBatch.commit().catch(() => {});
+        console.log(`[youtube-callback] Cleaned up ${purgeCount} stale streams from previous channel`);
+      }
+    } catch (streamPurgeErr) {
+      console.warn("[youtube-callback] Error purging old channel streams:", streamPurgeErr);
+    }
+
+    // Also update workspace to ensure live channel metadata is active
+    await wsRef.set({
+      youtubeConnected: true,
+      channelId,
+      channelName,
+      channelThumbnail,
+      primaryYoutubeChannelId: channelId,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
 
     await adminDb.doc(col.youtubeAccount(workspaceId, channelId)).set({
       id: channelId,
@@ -304,7 +352,7 @@ export async function GET(req: NextRequest) {
     // Automatically trigger immediate stream sync so live broadcasts and thumbnails appear at once
     try {
       const { syncWorkspaceYouTubeStreams } = await import("@/lib/youtube/sync");
-      await syncWorkspaceYouTubeStreams(workspaceId);
+      await syncWorkspaceYouTubeStreams(workspaceId, channelId);
     } catch (syncErr) {
       console.warn("[youtube-callback] Post-connection sync non-fatal warning:", syncErr);
     }

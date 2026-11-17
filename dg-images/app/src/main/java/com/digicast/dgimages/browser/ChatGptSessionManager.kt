@@ -104,12 +104,9 @@ object ChatGptSessionManager {
         }
 
         if (adapter == null) {
-            Log.w(TAG, "⚠️ activeAdapter still null; falling back to local ImageInpaintEngine")
-            return@withContext ImageInpaintEngine.processInpaintTask(
-                context = context,
-                baseImageUrl = baseImageUrl,
-                maskPointsJson = maskPointsJson,
-                prompt = prompt
+            Log.w(TAG, "⚠️ activeAdapter is null; Dg-Images ChatGPT engine is not active")
+            return@withContext Result.failure(
+                IllegalStateException("Dg-Images ChatGPT engine is not active. Please open Dg-Images and ensure ChatGPT is signed in.")
             )
         }
 

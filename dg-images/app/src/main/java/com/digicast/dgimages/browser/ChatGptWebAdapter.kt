@@ -139,13 +139,21 @@ class ChatGptWebAdapter(
     fun startNewChat(onComplete: ((Boolean) -> Unit)? = null) {
         val js = """
             (function() {
-                var newBtn = document.querySelector("a[href='/'], button[aria-label*='New chat' i], a[aria-label*='New chat' i]");
-                if (newBtn) {
-                    newBtn.click();
+                try {
+                    var newBtn = Array.from(document.querySelectorAll("button, a")).find(function(el) {
+                        var text = (el.innerText || el.getAttribute('aria-label') || '').toLowerCase().trim();
+                        return text === 'new chat' || text.indexOf('new chat') !== -1;
+                    });
+                    if (newBtn) {
+                        newBtn.click();
+                        return true;
+                    }
+                    window.location.href = 'https://chatgpt.com/';
+                    return true;
+                } catch(e) {
+                    window.location.href = 'https://chatgpt.com/';
                     return true;
                 }
-                window.location.href = 'https://chatgpt.com/';
-                return true;
             })();
         """.trimIndent()
         webView.evaluateJavascript(js) { res ->
@@ -165,37 +173,36 @@ class ChatGptWebAdapter(
                     var count = window.DgImagesJs ? window.DgImagesJs.getPendingFilesCount() : 0;
                     if (count <= 0) return false;
 
-                    var editor = document.querySelector(".ProseMirror, [contenteditable='true'], textarea, #prompt-textarea") || document.body;
-                    if (!editor) return false;
+                    var fileInput = document.querySelector('input[type="file"][multiple]') ||
+                                    document.querySelector('input[type="file"][accept*="image"]') ||
+                                    document.querySelector('input[type="file"]');
+                    if (!fileInput) return false;
 
-                    editor.focus();
-
-                    function pasteFileAt(idx) {
-                        if (idx >= count) return;
-                        try {
-                            var b64 = window.DgImagesJs.getPendingFileBase64(idx);
-                            var name = window.DgImagesJs.getPendingFileName(idx);
-                            var mime = window.DgImagesJs.getPendingFileMime(idx) || 'image/jpeg';
-                            if (b64 && b64.length > 0) {
-                                var binary = atob(b64);
-                                var bytes = new Uint8Array(binary.length);
-                                for (var j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
-                                var blob = new Blob([bytes], { type: mime });
-                                var file = new File([blob], name, { type: mime, lastModified: Date.now() });
-                                var dt = new DataTransfer();
-                                dt.items.add(file);
-                                var pasteEvt = new ClipboardEvent('paste', {
-                                    bubbles: true,
-                                    cancelable: true,
-                                    clipboardData: dt
-                                });
-                                editor.dispatchEvent(pasteEvt);
-                            }
-                        } catch(e) {}
-                        setTimeout(function() { pasteFileAt(idx + 1); }, 600);
+                    var dt = new DataTransfer();
+                    for (var i = 0; i < count; i++) {
+                        var b64 = window.DgImagesJs.getPendingFileBase64(i);
+                        var name = window.DgImagesJs.getPendingFileName(i);
+                        var mime = window.DgImagesJs.getPendingFileMime(i) || 'image/jpeg';
+                        if (b64 && b64.length > 0) {
+                            var binary = atob(b64);
+                            var bytes = new Uint8Array(binary.length);
+                            for (var j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+                            var blob = new Blob([bytes], { type: mime });
+                            var file = new File([blob], name, { type: mime, lastModified: Date.now() });
+                            dt.items.add(file);
+                        }
                     }
 
-                    pasteFileAt(0);
+                    if (dt.items.length === 0) return false;
+
+                    var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files');
+                    if (desc && desc.set) {
+                        desc.set.call(fileInput, dt.files);
+                    } else {
+                        fileInput.files = dt.files;
+                    }
+                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    fileInput.dispatchEvent(new Event('input', { bubbles: true }));
                     return true;
                 } catch(e) {
                     return false;
@@ -205,7 +212,7 @@ class ChatGptWebAdapter(
         webView.evaluateJavascript(js) { res ->
             Handler(Looper.getMainLooper()).postDelayed({
                 onComplete?.invoke(res?.trim() == "true")
-            }, files.size * 600L + 1200L)
+            }, 1000L)
         }
     }
 
@@ -287,10 +294,12 @@ class ChatGptWebAdapter(
                     editor.dispatchEvent(new Event('change', { bubbles: true }));
 
                     setTimeout(function() {
-                        var sendBtn = document.querySelector("button[data-testid='send-button'], button[aria-label*='Send' i], button[aria-label*='Submit' i]");
+                        var sendBtn = document.querySelector("button[aria-label*='Send' i], button[data-testid='send-button'], button[aria-label*='Submit' i]");
                         if (sendBtn) {
                             sendBtn.removeAttribute('disabled');
                             sendBtn.click();
+                        } else {
+                            editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true }));
                         }
                     }, 800);
 
@@ -309,7 +318,7 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    var turns = document.querySelectorAll("div[data-message-author-role='assistant']");
+                    var turns = document.querySelectorAll("div[data-message-author-role='assistant'], article, [data-testid*='turn'], [class*='turn-action-controls']");
                     return turns.length;
                 } catch(e) {
                     return 0;
@@ -326,22 +335,24 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    var userContainers = document.querySelectorAll("div[data-message-author-role='user'], #prompt-textarea, [data-testid*='attachment']");
+                    var userContainers = document.querySelectorAll("div[data-message-author-role='user'], #prompt-textarea, [data-testid*='attachment'], [class*='composer-attachment'], form");
                     var userImgs = new Set();
                     userContainers.forEach(function(c) {
                         c.querySelectorAll("img").forEach(function(i) { userImgs.add(i); });
                     });
 
-                    var assistantImgs = Array.from(document.querySelectorAll(
-                        "div[data-message-author-role='assistant'] img, " +
-                        "[data-testid*='conversation-turn']:not(:has([data-message-author-role='user'])) img, " +
-                        "img[alt*='Generated' i], " +
-                        "img[src*='oaiusercontent.com']"
+                    var allImgs = Array.from(document.querySelectorAll(
+                        "main img, article img, div[class*='conversation'] img, [class*='turn'] img, img[alt*='Generated' i], img[src*='oaiusercontent.com']"
                     )).filter(function(img) {
-                        return !userImgs.has(img);
+                        if (userImgs.has(img)) return false;
+                        if (img.getAttribute('alt') === 'User attachment') return false;
+                        if (img.closest("[class*='composer-attachment']")) return false;
+                        if (img.closest("form")) return false;
+                        if (img.closest("[class*='avatar']")) return false;
+                        return true;
                     });
 
-                    var urls = assistantImgs.map(function(img) {
+                    var urls = allImgs.map(function(img) {
                         return img.currentSrc || img.src || '';
                     }).filter(Boolean);
 
@@ -395,50 +406,38 @@ class ChatGptWebAdapter(
                         return "GENERATING";
                     }
 
-                    // 3. Find all assistant turns
-                    var assistantTurns = Array.from(document.querySelectorAll("div[data-message-author-role='assistant']"));
-                    if (assistantTurns.length <= $initialTurnCount) {
-                        return "GENERATING";
-                    }
-
                     var excludeList = $excludeJson;
                     var excludeSet = new Set(excludeList);
 
-                    // 4. Look strictly inside the NEW assistant turn(s)
-                    var newTurns = assistantTurns.slice($initialTurnCount);
-                    var targetImgs = [];
-                    for (var t = 0; t < newTurns.length; t++) {
-                        var turn = newTurns[t];
-                        var imgs = Array.from(turn.querySelectorAll("img")).filter(function(img) {
-                            if (img.getAttribute('alt') === 'User attachment') return false;
-                            if (img.closest("[data-message-author-role='user']")) return false;
-                            if (img.closest("[class*='composer-attachment']")) return false;
-                            var src = img.currentSrc || img.src || '';
-                            if (!src) return false;
-                            if (excludeSet.has(src)) return false;
-                            return true;
-                        });
-                        for (var k = 0; k < imgs.length; k++) {
-                            targetImgs.push(imgs[k]);
-                        }
-                    }
+                    // 3. Find candidate images outside composer & form
+                    var allImgs = Array.from(document.querySelectorAll(
+                        "main img, article img, div[class*='conversation'] img, [class*='turn'] img, img[alt*='Generated' i], img[src*='oaiusercontent.com']"
+                    ));
+
+                    var targetImgs = allImgs.filter(function(img) {
+                        if (img.getAttribute('alt') === 'User attachment') return false;
+                        if (img.closest("[class*='composer-attachment']")) return false;
+                        if (img.closest("form")) return false;
+                        if (img.closest("[class*='avatar']")) return false;
+                        var src = img.currentSrc || img.src || '';
+                        if (!src) return false;
+                        if (excludeSet.has(src)) return false;
+                        if (img.naturalWidth && img.naturalWidth < 120) return false;
+                        return true;
+                    });
 
                     if (targetImgs.length === 0) {
-                        // Check if still generating or loading placeholders
-                        if (stopBtn || bodyText.indexOf("Creating image") !== -1) {
+                        var hasPlaceholder = document.querySelector("[role='progressbar'], .animate-pulse, [class*='loading']");
+                        if (hasPlaceholder || bodyText.indexOf("Creating image") !== -1 || bodyText.indexOf("Thinking") !== -1) {
                             return "GENERATING";
                         }
-                        var hasPlaceholder = newTurns.some(function(turn) {
-                            return turn.querySelector("[role='progressbar'], .animate-pulse, [class*='loading']");
-                        });
-                        if (hasPlaceholder) return "GENERATING";
                         return null;
                     }
 
                     var lastImg = targetImgs[targetImgs.length - 1];
 
                     // Verify image has loaded
-                    if (!lastImg.complete || (lastImg.naturalWidth && lastImg.naturalWidth < 100)) {
+                    if (!lastImg.complete || (lastImg.naturalWidth && lastImg.naturalWidth < 120)) {
                         return "LOADING";
                     }
 

@@ -424,33 +424,52 @@ fun DotMatrixSnakeGame(
                 )
             }
     ) {
-        // Retro Dot Matrix Canvas
+        // Retro Dot Matrix Canvas with clear, uncluttered view
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(10.dp)
+                .padding(12.dp)
         ) {
             val cellW = size.width / cols
             val cellH = size.height / rows
             val baseRadius = (cellW.coerceAtMost(cellH) * 0.28f)
 
-            // 1. Ambient Background Dots
+            // 1. Subtle, small background guide dots (clean, no clutter)
             for (c in 0 until cols) {
                 for (r in 0 until rows) {
                     val center = Offset(c * cellW + cellW / 2f, r * cellH + cellH / 2f)
                     drawCircle(
-                        color = Color(0x1800F0FF),
-                        radius = baseRadius * 0.65f,
+                        color = Color(0x0AFFFFFF),
+                        radius = baseRadius * 0.25f,
                         center = center
                     )
                 }
             }
 
-            // 2. Food Target Pellet (Pulsing glowing amber)
+            // 2. Food Target Pellet ("The Dot") - Highly prominent glowing neon cyan
             val foodCenter = Offset(food.x * cellW + cellW / 2f, food.y * cellH + cellH / 2f)
+            // Outer pulsing glow
             drawCircle(
-                color = Color(0xFFFFB703),
-                radius = baseRadius * foodPulseScale,
+                color = Color(0x4000F0FF),
+                radius = baseRadius * 2.4f * foodPulseScale,
+                center = foodCenter
+            )
+            // Middle ring
+            drawCircle(
+                color = Color(0x9000F0FF),
+                radius = baseRadius * 1.5f * foodPulseScale,
+                center = foodCenter
+            )
+            // Core solid dot
+            drawCircle(
+                color = Color(0xFF00F0FF),
+                radius = baseRadius * 1.1f,
+                center = foodCenter
+            )
+            // Center white spark
+            drawCircle(
+                color = Color.White,
+                radius = baseRadius * 0.45f,
                 center = foodCenter
             )
 
@@ -459,111 +478,12 @@ fun DotMatrixSnakeGame(
                 val center = Offset(pt.x * cellW + cellW / 2f, pt.y * cellH + cellH / 2f)
                 val isHead = index == 0
                 drawCircle(
-                    color = if (isHead) Color(0xFF00F0FF) else Color(0xFF2DD4BF),
-                    radius = if (isHead) baseRadius * 1.3f else baseRadius,
+                    color = if (isHead) Color.White else Color(0xFF00F0FF),
+                    radius = if (isHead) baseRadius * 1.3f else baseRadius * 0.95f,
                     center = center
                 )
             }
         }
-
-        // Top HUD Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp)
-                .align(Alignment.TopCenter),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFF0F323A))
-                        .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text("SCORE: $score", color = DigicastElectricCyan, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
-                }
-                Text("Cooking AI (T+${elapsedSeconds}s)", color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
-                    .clickable { onExitGame() }
-                    .padding(horizontal = 9.dp, vertical = 4.dp)
-            ) {
-                Text("Exit ✕", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        // Minimal directional pad at bottom-right for quick one-thumb taps
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.15f))
-                    .clickable { if (direction != DotSnakeDirection.DOWN) nextDirection = DotSnakeDirection.UP },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("▲", color = Color.White, fontSize = 10.sp)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.15f))
-                        .clickable { if (direction != DotSnakeDirection.RIGHT) nextDirection = DotSnakeDirection.LEFT },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("◀", color = Color.White, fontSize = 10.sp)
-                }
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.15f))
-                        .clickable { if (direction != DotSnakeDirection.UP) nextDirection = DotSnakeDirection.DOWN },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("▼", color = Color.White, fontSize = 10.sp)
-                }
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.15f))
-                        .clickable { if (direction != DotSnakeDirection.LEFT) nextDirection = DotSnakeDirection.RIGHT },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("▶", color = Color.White, fontSize = 10.sp)
-                }
-            }
-        }
-
-        // Bottom Controls Hint
-        Text(
-            text = "Swipe canvas or tap arrows to steer snake",
-            color = Color.White.copy(alpha = 0.45f),
-            fontSize = 9.sp,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 6.dp)
-        )
     }
 }
 
@@ -906,10 +826,16 @@ fun ThumbnailStudioScreen(
                         hqUrl
                     }
                     withContext(Dispatchers.Main) {
+                        saveCurrentSessionToHistory()
+                        chatMessages.clear()
+                        activeSessionId = UUID.randomUUID().toString()
+
                         currentThumbnailUrl = finalUrl
                         originalSourceThumbnailUrl = finalUrl
                         generatedImageUrl = null
                         markedPins.clear()
+                        referenceImages.clear()
+                        promptInput = ""
                         preferNewChat = true
                         chatMessages.add(
                             ThumbnailChatMessage(
@@ -1290,6 +1216,7 @@ fun ThumbnailStudioScreen(
                     markedPins.clear()
                     // Keep preferNewChat true so every thumbnail generation task gets a clean ChatGPT thread!
                     preferNewChat = true
+                    isHistoryDrawerOpen = false
                     Toast.makeText(context, "Thumbnail generated by Dg-Images!", Toast.LENGTH_SHORT).show()
                 } else {
                     val errorMsg = ThumbnailChatMessage(
@@ -1323,6 +1250,7 @@ fun ThumbnailStudioScreen(
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 isGenerating = false
+                isHistoryDrawerOpen = false
                 saveCurrentSessionToHistory()
             }
         }
@@ -1706,7 +1634,7 @@ fun ThumbnailStudioScreen(
                             if (currentThumbnailUrl != null) {
                                 AsyncImage(
                                     model = ImageRequest.Builder(context)
-                                        .data(generatedImageUrl ?: currentThumbnailUrl)
+                                        .data(currentThumbnailUrl ?: generatedImageUrl)
                                         .crossfade(true)
                                         .memoryCachePolicy(CachePolicy.DISABLED)
                                         .diskCachePolicy(CachePolicy.DISABLED)
@@ -2931,29 +2859,28 @@ fun ThumbnailStudioScreen(
                 }
             }
 
-            // 3. Bottom Bar: Progress bar, Dynamic status, Footnote
-            Column(
+            // 3. Bottom Bar: Single Clean Sleek Progress Loader
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color(0xFF030712).copy(alpha = 0.95f),
-                            Color(0xFF030712)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color(0xFF030712).copy(alpha = 0.95f),
+                                Color(0xFF030712)
+                            )
                         )
                     )
-                )
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(horizontal = 24.dp, vertical = 20.dp),
+                contentAlignment = Alignment.Center
             ) {
-                // Sleek animated gradient progress bar
+                // Single sleek animated gradient progress bar
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(3.dp)
+                        .height(3.5.dp)
                         .clip(RoundedCornerShape(2.dp))
                         .background(Color.White.copy(alpha = 0.12f))
                 ) {
@@ -2973,35 +2900,6 @@ fun ThumbnailStudioScreen(
                             )
                     )
                 }
-
-                // Dynamic generation phase message
-                val displayStatus = if (generationStatusMessage.isNotBlank() && generationStatusMessage != "Connecting to Dg-Images...") {
-                    generationStatusMessage
-                } else {
-                    when {
-                        generationElapsedSeconds < 4 -> "🧠 Analyzing reference pins & character pose..."
-                        generationElapsedSeconds < 8 -> "⚡ Uploading reference image to ChatGPT Engine..."
-                        generationElapsedSeconds < 24 -> "✨ Synthesizing photorealistic character in 1080p..."
-                        else -> "🎨 Polishing specular highlights & composition..."
-                    }
-                }
-
-                Text(
-                    text = displayStatus,
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Text(
-                    text = "Swipe to steer snake while waiting • Screen dismisses when ready",
-                    color = Color.White.copy(alpha = 0.45f),
-                    fontSize = 11.sp,
-                    textAlign = TextAlign.Center
-                )
             }
         }
     }

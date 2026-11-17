@@ -131,6 +131,34 @@ class DgImagesHttpDaemon(
                         }
                     }
 
+                    method == "POST" && path == "/v1/eval" -> {
+                        val bodyBytes = ByteArray(contentLength)
+                        var bytesRead = 0
+                        while (bytesRead < contentLength) {
+                            val count = rawInput.read(bodyBytes, bytesRead, contentLength - bytesRead)
+                            if (count == -1) break
+                            bytesRead += count
+                        }
+                        val jsCode = String(bodyBytes, 0, bytesRead, Charsets.UTF_8)
+                        val adapter = com.digicast.dgimages.browser.ChatGptSessionManager.activeAdapter
+                        if (adapter != null) {
+                            val latch = java.util.concurrent.CountDownLatch(1)
+                            var evalResult = ""
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                adapter.webView.evaluateJavascript(jsCode) { res ->
+                                    evalResult = res ?: ""
+                                    latch.countDown()
+                                }
+                            }
+                            latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+                            sendResponse(writer, 200, "application/json", JSONObject().apply {
+                                put("result", evalResult)
+                            }.toString())
+                        } else {
+                            sendResponse(writer, 503, "application/json", "{\"error\":\"No active adapter\"}")
+                        }
+                    }
+
                     method == "POST" && (path == "/v1/thumbnail/generate" || path == "/generate") -> {
                         // Read exactly contentLength bytes directly from rawInput without buffer corruption
                         val bodyBytes = ByteArray(contentLength)

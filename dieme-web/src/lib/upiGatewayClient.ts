@@ -277,6 +277,18 @@ export async function activateSubscriptionForPayment(
     .doc(`workspaces/${workspaceId}/payments/${paymentId}`)
     .set(updatedPayment, { merge: true });
 
+  // 4. Automatically credit referral commission if user was referred
+  try {
+    const { creditReferralCommission } = await import("@/lib/referrals/service");
+    await creditReferralCommission({
+      workspaceId,
+      paymentAmountINR: amount,
+      paymentId,
+    });
+  } catch (refErr) {
+    console.warn("[activateSubscriptionForPayment] Non-fatal referral commission notice:", refErr);
+  }
+
   return {
     success: true,
     plan: assignedPlan,

@@ -34,6 +34,8 @@ async function provisionNewUser(user: User, passwordToStore?: string) {
     const workspaceId = user.uid; // personal workspace ID = owner UID
 
     if (!snap.exists()) {
+      const ownRefCode = `REF_${user.uid.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`;
+
       // 1. User document
       await setDoc(userRef, {
         uid: user.uid,
@@ -42,9 +44,20 @@ async function provisionNewUser(user: User, passwordToStore?: string) {
         photoURL: user.photoURL || '',
         defaultWorkspaceId: workspaceId,
         appPassword: passwordToStore || '',
+        onboardingCompleted: false,
+        policyAcceptedAt: null,
+        referralCode: ownRefCode,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+
+      // Index referral code
+      await setDoc(doc(db, 'referral_codes', ownRefCode), {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || user.email?.split('@')[0] || 'Creator',
+        createdAt: serverTimestamp(),
+      }, { merge: true });
 
       // 2. Workspace document
       const wsRef = doc(db, 'workspaces', workspaceId);

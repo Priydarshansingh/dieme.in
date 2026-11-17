@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -43,11 +43,41 @@ function PricingContent() {
   const [initiatingPlanId, setInitiatingPlanId] = useState<string | null>(null);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
 
-  const referralCode = `REF_${uid.slice(0, 6).toUpperCase()}`;
+  const [referralStats, setReferralStats] = useState({
+    referralCode: `REF_${uid.slice(0, 6).toUpperCase()}`,
+    referralLink: '',
+    referredCount: 0,
+    lifetimeCommissionINR: 0,
+    creditedToWalletDP: 0,
+    commissionPercent: 15,
+    streamers: [] as Array<{
+      id: string;
+      email: string;
+      status: string;
+      createdAt: string;
+      commissionINR: number;
+    }>,
+  });
+
+  useEffect(() => {
+    if (uid && uid !== 'guest_creator') {
+      fetch(`/api/referrals/stats?uid=${encodeURIComponent(uid)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d && typeof d.referredCount === 'number') {
+            setReferralStats(d);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [uid]);
+
+  const referralCode = referralStats.referralCode || `REF_${uid.slice(0, 6).toUpperCase()}`;
   const referralLink =
-    typeof window !== 'undefined'
+    referralStats.referralLink ||
+    (typeof window !== 'undefined'
       ? `${window.location.origin}/login?ref=${referralCode}`
-      : `https://www.dieme.in/login?ref=${referralCode}`;
+      : `https://www.dieme.in/login?ref=${referralCode}`);
 
   const allCards = [
     {
@@ -500,7 +530,7 @@ function PricingContent() {
               <h3 className="text-lg font-bold text-white">Affiliate &amp; Creator Referral Program</h3>
             </div>
             <p className="text-xs text-slate-400 mt-1">
-              Invite streamers to Digicast. Earn a <strong className="text-white">15% Lifetime Commission</strong> on every subscription pass they purchase, credited directly as DP into your wallet.
+              Invite streamers to Digicast. Earn a <strong className="text-white">{referralStats.commissionPercent}% Lifetime Commission</strong> on every subscription pass they purchase, credited directly as DP into your wallet.
             </p>
           </div>
 
@@ -515,20 +545,20 @@ function PricingContent() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="rounded-xl border border-white/10 bg-slate-950 p-4 space-y-1">
             <span className="text-xs text-slate-400">Referred Streamers</span>
-            <p className="text-2xl font-bold text-white">12 Streamers</p>
+            <p className="text-2xl font-bold text-white">{referralStats.referredCount} Streamers</p>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-slate-950 p-4 space-y-1">
             <span className="text-xs text-slate-400">Lifetime Commission Earned</span>
             <p className="text-2xl font-bold text-white">
-              ₹640 <span className="text-sm font-semibold text-cyan-400">INR</span>
+              ₹{referralStats.lifetimeCommissionINR} <span className="text-sm font-semibold text-cyan-400">INR</span>
             </p>
           </div>
 
           <div className="rounded-xl border border-white/10 bg-slate-950 p-4 space-y-1">
             <span className="text-xs text-slate-400">Credited to Wallet</span>
             <p className="text-2xl font-bold text-white">
-              640 <span className="text-sm font-semibold text-cyan-400">DP</span>
+              {referralStats.creditedToWalletDP} <span className="text-sm font-semibold text-cyan-400">DP</span>
             </p>
           </div>
         </div>
@@ -549,6 +579,31 @@ function PricingContent() {
             <span>{copiedLink ? 'Copied Link!' : 'Copy Referral Link'}</span>
           </button>
         </div>
+
+        {/* Live List of Referred Streamers */}
+        {referralStats.streamers.length > 0 && (
+          <div className="pt-3 border-t border-white/5 space-y-2">
+            <span className="text-xs font-bold text-slate-300">Referred Streamers ({referralStats.streamers.length})</span>
+            <div className="divide-y divide-white/5 rounded-xl border border-white/10 bg-slate-950 overflow-hidden">
+              {referralStats.streamers.map((s) => (
+                <div key={s.id} className="flex items-center justify-between p-3 text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-2 h-2 rounded-full ${s.status === 'converted' ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                    <span className="font-mono text-slate-200">{s.email}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      s.status === 'converted' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' : 'bg-white/5 text-slate-400'
+                    }`}>
+                      {s.status === 'converted' ? 'Purchased Pass' : 'Registered'}
+                    </span>
+                    <span className="font-bold text-white">₹{s.commissionINR}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

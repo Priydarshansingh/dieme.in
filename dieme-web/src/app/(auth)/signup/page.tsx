@@ -20,6 +20,16 @@ export default function SignUpPage() {
   const [isRedirectingToGateway, setIsRedirectingToGateway] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref');
+      if (ref) {
+        localStorage.setItem('digicast_referral_code', ref.trim().toUpperCase());
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (!loading && user) {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
@@ -61,6 +71,31 @@ export default function SignUpPage() {
             }
             router.replace('/pricing');
           })();
+          return;
+        }
+
+        // Check onboarding completion
+        const isDone = localStorage.getItem('dieme_onboarding_completed');
+        if (isDone !== 'true') {
+          import('@/lib/firebase/client').then(({ db }) => {
+            import('firebase/firestore').then(({ doc, getDoc }) => {
+              getDoc(doc(db, 'users', user.uid)).then((snap) => {
+                if (snap.exists() && snap.data()?.onboardingCompleted === false) {
+                  const redirectQuery = redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : '';
+                  router.replace(`/onboarding${redirectQuery}`);
+                } else {
+                  localStorage.setItem('dieme_onboarding_completed', 'true');
+                  if (redirectParam) {
+                    router.replace(decodeURIComponent(redirectParam));
+                  } else {
+                    router.replace('/dashboard');
+                  }
+                }
+              }).catch(() => {
+                router.replace('/dashboard');
+              });
+            });
+          });
           return;
         }
 

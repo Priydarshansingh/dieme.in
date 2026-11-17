@@ -76,6 +76,12 @@ export default function LoginPage() {
       const params = new URLSearchParams(window.location.search);
       const plan = params.get('plan');
       if (plan) setSelectedPlanId(plan);
+
+      // Track referral code from query params (e.g. ?ref=REF_MDV4XD)
+      const ref = params.get('ref');
+      if (ref) {
+        localStorage.setItem('digicast_referral_code', ref.trim().toUpperCase());
+      }
     }
   }, []);
 
@@ -124,6 +130,31 @@ export default function LoginPage() {
             }
             router.replace('/pricing');
           })();
+          return;
+        }
+
+        // Check onboarding completion
+        const isDone = localStorage.getItem('dieme_onboarding_completed');
+        if (isDone !== 'true') {
+          import('@/lib/firebase/client').then(({ db }) => {
+            import('firebase/firestore').then(({ doc, getDoc }) => {
+              getDoc(doc(db, 'users', user.uid)).then((snap) => {
+                if (snap.exists() && snap.data()?.onboardingCompleted === false) {
+                  const redirectQuery = redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : '';
+                  router.replace(`/onboarding${redirectQuery}`);
+                } else {
+                  localStorage.setItem('dieme_onboarding_completed', 'true');
+                  if (redirectParam) {
+                    router.replace(decodeURIComponent(redirectParam));
+                  } else {
+                    router.replace('/dashboard');
+                  }
+                }
+              }).catch(() => {
+                router.replace('/dashboard');
+              });
+            });
+          });
           return;
         }
 

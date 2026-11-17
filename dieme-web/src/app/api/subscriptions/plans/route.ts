@@ -15,21 +15,33 @@ export async function GET() {
     let plans = PRICING_PLANS;
     let upiConfig = UPI_CONFIG;
     let unlockFee = UNLOCK_24H_DCOINS_COST;
+    let dCoinsPerDp = D_COINS_PER_DP;
+    let inrPerDp = INR_PER_DP;
+    let commissionPercent = 15;
 
-    // Support dynamic admin overrides in Firestore system_config
+    // Support dynamic admin overrides in Firestore platformConfig & system_config
     try {
-      const { adminDb } = await import('@/lib/firebase/admin');
-      const doc = await adminDb.collection('system_config').doc('pricing').get();
-      if (doc.exists) {
-        const data = doc.data();
-        if (data?.plans && Array.isArray(data.plans) && data.plans.length > 0) {
-          plans = data.plans;
-        }
-        if (data?.upiConfig) {
-          upiConfig = { ...upiConfig, ...data.upiConfig };
-        }
-        if (typeof data?.unlock24hDCoinsCost === 'number') {
-          unlockFee = data.unlock24hDCoinsCost;
+      const { getPlatformConfig } = await import('@/lib/referrals/service');
+      const platformConfig = await getPlatformConfig();
+      if (platformConfig) {
+        if (platformConfig.dCoinsPerDP) dCoinsPerDp = platformConfig.dCoinsPerDP;
+        if (platformConfig.dpToInrRate) inrPerDp = platformConfig.dpToInrRate;
+        if (platformConfig.referralCommissionPercent) commissionPercent = platformConfig.referralCommissionPercent;
+
+        // Apply price overrides to known plans
+        if (platformConfig.plans) {
+          plans = plans.map(p => {
+            const override = platformConfig.plans[p.id];
+            if (override) {
+              return {
+                ...p,
+                priceINR: override.priceINR ?? p.priceINR,
+                dpCost: override.dpCost ?? p.dpCost,
+                dCoinsCost: (override.priceINR ?? p.priceINR) * dCoinsPerDp,
+              };
+            }
+            return p;
+          });
         }
       }
     } catch (_) {}
@@ -38,13 +50,15 @@ export async function GET() {
       success: true,
       plans,
       currencySystem: {
-        dCoinsPerDp: D_COINS_PER_DP,
-        inrPerDp: INR_PER_DP,
+        dCoinsPerDp,
+        inrPerDp,
+        referralCommissionPercent: commissionPercent,
         unlock24hDCoinsCost: unlockFee,
         adRewardDCoins: AD_REWARD_DCOINS,
         rules: [
-          '1 DP Diamond = ₹1 INR (Primary Platform Value Token)',
-          '10 D-Coins = 1 DP Diamond = ₹1 INR',
+          `1 DP Diamond = ₹${inrPerDp} INR (Primary Platform Value Token)`,
+          `${dCoinsPerDp} D-Coins = 1 DP Diamond = ₹${inrPerDp} INR`,
+          `Affiliate Referral Program: ${commissionPercent}% Lifetime Commission credited to DP wallet`,
           'Free users after 14-day trial must unlock once every 24 hours',
           '24-Hour Access unlock fee = 50 D-Coins (or watch 1 rewarded video)',
           'All packages grant unlimited continuous access for their validity duration',

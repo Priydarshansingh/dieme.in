@@ -28,4 +28,13 @@ export const col = {
 
   subscriptions: () => 'subscriptions',
   subscription: (sid: string) => `subscriptions/${sid}`,
+
+  referrals: () => 'referrals',
+  referral: (id: string) => `referrals/${id}`,
+  referralCodes: () => 'referral_codes',
+  referralCode: (code: string) => `referral_codes/${code}`,
+
+  platformConfig: () => 'platform_config/pricing_and_currency',
+  wallets: () => 'wallets',
+  wallet: (uid: string) => `wallets/${uid}`,
 } as const;

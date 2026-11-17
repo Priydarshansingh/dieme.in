@@ -16,6 +16,24 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       } else {
         router.replace('/login');
       }
+    } else if (!loading && user) {
+      if (typeof window !== 'undefined') {
+        const isDone = localStorage.getItem('dieme_onboarding_completed');
+        if (isDone !== 'true') {
+          import('@/lib/firebase/client').then(({ db }) => {
+            import('firebase/firestore').then(({ doc, getDoc }) => {
+              getDoc(doc(db, 'users', user.uid)).then((snap) => {
+                if (snap.exists() && snap.data()?.onboardingCompleted === false) {
+                  const fullPath = window.location.pathname + window.location.search;
+                  router.replace(`/onboarding?redirect=${encodeURIComponent(fullPath)}`);
+                } else if (snap.exists() && snap.data()?.onboardingCompleted === true) {
+                  localStorage.setItem('dieme_onboarding_completed', 'true');
+                }
+              }).catch(() => {});
+            });
+          });
+        }
+      }
     }
   }, [user, loading, router]);
 

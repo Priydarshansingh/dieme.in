@@ -15,10 +15,19 @@ function getBaseUrl(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const baseUrl = getBaseUrl(req);
-  const redirectUri = `${baseUrl}/api/auth/mobile/callback`;
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const error = searchParams.get("error");
+  const state = searchParams.get("state");
+
+  let decodedState: any = {};
+  if (state) {
+    try {
+      decodedState = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
+    } catch {}
+  }
+
+  const redirectUri = decodedState.redirectUri || `${baseUrl}/api/auth/mobile/callback`;
 
   if (error || !code) {
     return NextResponse.json({ error: error || "Missing authorization code" }, { status: 400 });

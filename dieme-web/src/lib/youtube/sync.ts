@@ -76,6 +76,11 @@ export async function syncWorkspaceYouTubeStreams(
     // 1. Fetch connected YouTube account strictly for this workspace (strict tenant isolation)
     const wsDoc = await adminDb.doc(col.workspace(workspaceId)).get();
     const wsData = wsDoc.data() || {};
+
+    if (wsData.youtubeConnected !== true) {
+      return { success: false, syncedCount: 0, error: 'YouTube channel is not connected for this workspace' };
+    }
+
     const resolvedTargetId = targetChannelId || wsData.channelId || wsData.primaryYoutubeChannelId;
 
     let accountDoc: any = null;

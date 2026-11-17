@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -230,11 +231,15 @@ fun Access24hGateDialog(
             modifier = Modifier.fillMaxSize(),
             color = DigicastDeepNavy
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
                 // Scrollable Content Column
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .widthIn(max = 520.dp)
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,

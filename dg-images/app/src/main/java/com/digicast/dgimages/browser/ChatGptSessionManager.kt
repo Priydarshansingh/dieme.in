@@ -260,24 +260,16 @@ object ChatGptSessionManager {
                 }
             }
 
-            // 5. If ChatGPT didn't return an image, fall back to Dg-Images Neural Engine
-            Log.w(TAG, "ChatGPT did not produce a valid image in time; using local engine fallback")
-            _sessionStatus.value = "Refining with Dg-Images Neural Canvas..."
-            ImageInpaintEngine.processInpaintTask(
-                context = context,
-                baseImageUrl = baseImageUrl,
-                maskPointsJson = maskPointsJson,
-                prompt = prompt
+            // 5. If ChatGPT didn't return an image, return failure instead of silently echoing base image
+            Log.w(TAG, "ChatGPT did not produce a valid new image in time")
+            _sessionStatus.value = "Generation timed out or not produced. Please retry."
+            return@withContext Result.failure(
+                IllegalStateException("ChatGPT did not produce a new thumbnail revision within 90s. Please ensure you are logged in to ChatGPT in Dg-Images.")
             )
         } catch (e: Exception) {
             Log.e(TAG, "Exception during executeGeneration", e)
             _sessionStatus.value = "Error: ${e.message}"
-            ImageInpaintEngine.processInpaintTask(
-                context = context,
-                baseImageUrl = baseImageUrl,
-                maskPointsJson = maskPointsJson,
-                prompt = prompt
-            )
+            return@withContext Result.failure(e)
         }
     }
 

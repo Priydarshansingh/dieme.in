@@ -21,9 +21,13 @@ export async function GET(req: NextRequest) {
   const baseUrl = getBaseUrl(req);
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
   const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
-  const redirectUri = isLocalhost
-    ? "http://localhost:3000/api/youtube/callback"
-    : "https://digicast-web.vercel.app/api/youtube/callback";
+  const redirectUri = process.env.YOUTUBE_REDIRECT_URI || (
+    isLocalhost
+      ? "http://localhost:3000/api/youtube/callback"
+      : host.includes("dieme.in")
+        ? `https://${host}/api/youtube/callback`
+        : "https://digicast-web.vercel.app/api/youtube/callback"
+  );
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.YOUTUBE_CLIENT_ID;
 
   if (!clientId) {
@@ -36,6 +40,7 @@ export async function GET(req: NextRequest) {
   const state = Buffer.from(JSON.stringify({
     source: "mobile_android",
     workspaceId: requestedWorkspaceId,
+    redirectUri,
     timestamp: Date.now()
   })).toString("base64");
 

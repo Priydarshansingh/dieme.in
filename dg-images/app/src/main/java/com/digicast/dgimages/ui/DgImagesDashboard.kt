@@ -26,6 +26,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -73,9 +77,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -217,6 +223,14 @@ fun DgImagesDashboard() {
         }
     }
 
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    val isSmallScreen = screenWidthDp < 360
+    val isCompactScreen = screenWidthDp < 400
+    val isTablet = screenWidthDp >= 600
+    val isShortScreen = screenHeightDp < 700
+
     Scaffold(
         containerColor = DgCanvas,
         topBar = {
@@ -229,17 +243,18 @@ fun DgImagesDashboard() {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                        .padding(horizontal = if (isSmallScreen) 12.dp else 18.dp, vertical = if (isShortScreen) 8.dp else 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f, fill = false),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(if (isSmallScreen) 6.dp else 10.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(if (isSmallScreen) 30.dp else 34.dp)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(Brush.linearGradient(listOf(Color(0xFF0F766E), Color(0xFF134E5E))))
                                 .border(1.dp, DgElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
@@ -250,28 +265,35 @@ fun DgImagesDashboard() {
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(if (isSmallScreen) 16.dp else 18.dp)
                             )
                         }
                         Column(modifier = Modifier.clickable { onLogoClicked() }) {
                             Text(
                                 text = "Dg-Images",
                                 color = Color.White,
-                                fontSize = 17.sp,
+                                fontSize = if (isSmallScreen) 15.sp else 17.sp,
                                 fontWeight = FontWeight.Bold,
-                                letterSpacing = (-0.4).sp
+                                letterSpacing = (-0.4).sp,
+                                maxLines = 1
                             )
                             Text(
-                                text = if (hasDevAccess) "Dieme AI Engine • Dev Mode" else "Dieme AI Engine Companion",
+                                text = if (hasDevAccess) {
+                                    if (isSmallScreen) "Dev Mode" else "Dieme AI Engine • Dev"
+                                } else {
+                                    if (isSmallScreen) "AI Engine" else "Dieme AI Engine"
+                                },
                                 color = if (hasDevAccess) DgAmber else DgSlate,
-                                fontSize = 11.sp
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(if (isSmallScreen) 4.dp else 8.dp)
                     ) {
                         if (hasDevAccess) {
                             Box(
@@ -283,36 +305,45 @@ fun DgImagesDashboard() {
                                         DevAccessManager.setDevAccess(context, false)
                                         Toast.makeText(context, "Developer mode locked", Toast.LENGTH_SHORT).show()
                                     }
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .padding(horizontal = if (isSmallScreen) 6.dp else 8.dp, vertical = 4.dp)
                             ) {
-                                Text("🔒 DEV ACTIVE", color = DgAmber, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = if (isSmallScreen) "DEV" else "🔒 DEV ACTIVE",
+                                    color = DgAmber,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
                             }
                         }
 
-                        // Port status badge
+                        // Port status badge (Guaranteed never to wrap vertically!)
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(9999.dp))
                                 .background(DgEmerald.copy(alpha = 0.12f))
                                 .border(1.dp, DgEmerald.copy(alpha = 0.35f), RoundedCornerShape(9999.dp))
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                                .padding(horizontal = if (isCompactScreen) 7.dp else 10.dp, vertical = 4.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(7.dp)
+                                        .size(6.dp)
                                         .clip(CircleShape)
                                         .background(DgEmerald)
                                 )
                                 Text(
-                                    text = "127.0.0.1:5488",
+                                    text = if (isCompactScreen) ":5488" else "127.0.0.1:5488",
                                     color = DgEmerald,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -324,7 +355,7 @@ fun DgImagesDashboard() {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 6.dp),
+                            .padding(horizontal = if (isSmallScreen) 12.dp else 20.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Box(
@@ -346,7 +377,14 @@ fun DgImagesDashboard() {
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(Icons.Default.OpenInBrowser, contentDescription = null, tint = if (selectedTab == 0) DgElectricCyan else DgSlate, modifier = Modifier.size(15.dp))
-                                Text("ChatGPT Web Engine", color = if (selectedTab == 0) Color.White else DgSlate, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    text = if (isSmallScreen) "Web Engine" else "ChatGPT Web Engine",
+                                    color = if (selectedTab == 0) Color.White else DgSlate,
+                                    fontSize = if (isSmallScreen) 11.sp else 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
 
@@ -369,7 +407,14 @@ fun DgImagesDashboard() {
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(Icons.Default.Layers, contentDescription = null, tint = if (selectedTab == 1) DgElectricCyan else DgSlate, modifier = Modifier.size(15.dp))
-                                Text("Activity (${recentJobs.size})", color = if (selectedTab == 1) Color.White else DgSlate, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    text = "Activity (${recentJobs.size})",
+                                    color = if (selectedTab == 1) Color.White else DgSlate,
+                                    fontSize = if (isSmallScreen) 11.sp else 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
@@ -660,6 +705,15 @@ fun NormalUserOverlay(
     onLogoTap: () -> Unit,
     onDisconnect: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    val isSmallScreen = screenWidthDp < 360
+    val isShortScreen = screenHeightDp < 700
+    val isTablet = screenWidthDp >= 600
+
+    val scrollState = rememberScrollState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -667,30 +721,33 @@ fun NormalUserOverlay(
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
-            ) {} // Catch all touches so they never reach background WebView
+            ) {}, // Catch all touches so they never reach background WebView
+        contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .verticalScroll(scrollState)
+                .padding(horizontal = if (isSmallScreen) 16.dp else 24.dp, vertical = if (isShortScreen) 12.dp else 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = if (isShortScreen) Arrangement.spacedBy(14.dp) else Arrangement.SpaceBetween
         ) {
-            // Upper Section: App Branding & Status Badge
+            // Upper Section: App Branding & Status Badge (Constrained to max width for tablets)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isShortScreen) 12.dp else 18.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 20.dp)
+                    .widthIn(max = 520.dp)
+                    .padding(top = if (isShortScreen) 6.dp else 16.dp)
             ) {
-                // Large App Logo
+                // Large App Logo (Adaptive sizing for small/short screens)
                 Box(
                     modifier = Modifier
-                        .size(76.dp)
-                        .clip(RoundedCornerShape(22.dp))
+                        .size(if (isShortScreen || isSmallScreen) 58.dp else 74.dp)
+                        .clip(RoundedCornerShape(if (isShortScreen) 18.dp else 22.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF0F766E), Color(0xFF134E5E))))
-                        .border(1.5.dp, DgElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(22.dp))
+                        .border(1.5.dp, DgElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(if (isShortScreen) 18.dp else 22.dp))
                         .clickable { onLogoTap() },
                     contentAlignment = Alignment.Center
                 ) {
@@ -698,25 +755,28 @@ fun NormalUserOverlay(
                         imageVector = Icons.Default.AutoAwesome,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier.size(if (isShortScreen || isSmallScreen) 30.dp else 38.dp)
                     )
                 }
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
                         text = "Dg-Images",
                         color = Color.White,
-                        fontSize = 24.sp,
+                        fontSize = if (isShortScreen) 21.sp else 24.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.5).sp
+                        letterSpacing = (-0.5).sp,
+                        maxLines = 1
                     )
                     Text(
                         text = "Dieme AI Engine Companion",
                         color = DgSlate,
-                        fontSize = 13.sp
+                        fontSize = if (isSmallScreen) 11.sp else 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -726,15 +786,15 @@ fun NormalUserOverlay(
                         .clip(RoundedCornerShape(9999.dp))
                         .background(DgEmerald.copy(alpha = 0.12f))
                         .border(1.dp, DgEmerald.copy(alpha = 0.4f), RoundedCornerShape(9999.dp))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = 14.dp, vertical = 7.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .size(7.dp)
                                 .clip(CircleShape)
                                 .background(DgEmerald)
                         )
@@ -743,7 +803,9 @@ fun NormalUserOverlay(
                             color = DgEmerald,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.2.sp
+                            letterSpacing = 0.2.sp,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }
@@ -755,9 +817,9 @@ fun NormalUserOverlay(
                         .clip(RoundedCornerShape(16.dp))
                         .background(DgCardSurface)
                         .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
-                        .padding(16.dp)
+                        .padding(if (isSmallScreen) 12.dp else 16.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -772,19 +834,20 @@ fun NormalUserOverlay(
                                 text = "Local AI Engine Active",
                                 color = Color.White,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
                             )
                         }
                         Text(
                             text = "Dg-Images operates in background mode. All thumbnail generation requests from Dieme are processed automatically.",
                             color = DgSlate,
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp
+                            fontSize = if (isSmallScreen) 11.sp else 12.sp,
+                            lineHeight = if (isSmallScreen) 15.sp else 17.sp
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
                 // Primary CTA: Generate Thumbnail in Dieme
                 Button(
@@ -807,7 +870,7 @@ fun NormalUserOverlay(
                     colors = ButtonDefaults.buttonColors(containerColor = DgElectricCyan),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(if (isSmallScreen) 48.dp else 52.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -822,8 +885,10 @@ fun NormalUserOverlay(
                         Text(
                             text = "Generate Thumbnail in Dieme",
                             color = Color(0xFF030A0D),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = if (isSmallScreen) 13.sp else 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -835,7 +900,7 @@ fun NormalUserOverlay(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1418)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp)
+                        .height(if (isSmallScreen) 42.dp else 46.dp)
                         .border(1.dp, Color(0xFFEF4444).copy(alpha = 0.35f), RoundedCornerShape(14.dp))
                 ) {
                     Row(
@@ -852,19 +917,21 @@ fun NormalUserOverlay(
                             text = "Disconnect Session",
                             color = Color(0xFFF87171),
                             fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
                         )
                     }
                 }
             }
 
-            // Downside: dieme.in website link, update checker & engine info
+            // Downside: dieme.in website link, update checker & engine info (Constrained to max width for tablets)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp)
+                    .widthIn(max = 520.dp)
+                    .padding(bottom = 8.dp, top = if (isShortScreen) 8.dp else 0.dp)
             ) {
                 // If update check returned a message, show status pill
                 if (updateStatusMessage != null) {
@@ -882,88 +949,176 @@ fun NormalUserOverlay(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.fillMaxWidth(),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Check for Updates Action Pill
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.05f))
-                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                            .clickable(enabled = !isCheckingUpdate) {
-                                onTriggerCheckUpdates()
-                            }
-                            .padding(horizontal = 14.dp, vertical = 9.dp),
-                        contentAlignment = Alignment.Center
+                // Responsive row or stacked buttons based on screen width
+                if (isSmallScreen) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        // Check for Updates Action Pill
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.05f))
+                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                .clickable(enabled = !isCheckingUpdate) {
+                                    onTriggerCheckUpdates()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 9.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            if (isCheckingUpdate) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(12.dp),
-                                    strokeWidth = 2.dp,
-                                    color = DgElectricCyan
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (isCheckingUpdate) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(12.dp),
+                                        strokeWidth = 2.dp,
+                                        color = DgElectricCyan
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        tint = DgElectricCyan,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                                Text(
+                                    text = if (isCheckingUpdate) "Checking..." else "v$currentVersionName • Check Updates",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
                                 )
-                            } else {
+                            }
+                        }
+
+                        // Website link
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.05f))
+                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    try {
+                                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://dieme.in"))
+                                        context.startActivity(browserIntent)
+                                    } catch (_: Exception) {}
+                                }
+                                .padding(horizontal = 14.dp, vertical = 9.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
                                 Icon(
-                                    Icons.Default.Refresh,
+                                    Icons.Default.Language,
                                     contentDescription = null,
                                     tint = DgElectricCyan,
-                                    modifier = Modifier.size(13.dp)
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "dieme.in ↗",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
-                            Text(
-                                text = if (isCheckingUpdate) "Checking..." else "v$currentVersionName • Updates",
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
                         }
                     }
-
-                    // Website link
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.05f))
-                            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                            .clickable {
-                                try {
-                                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://dieme.in"))
-                                    context.startActivity(browserIntent)
-                                } catch (_: Exception) {}
-                            }
-                            .padding(horizontal = 14.dp, vertical = 9.dp),
-                        contentAlignment = Alignment.Center
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        // Check for Updates Action Pill
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.05f))
+                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                .clickable(enabled = !isCheckingUpdate) {
+                                    onTriggerCheckUpdates()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 9.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                Icons.Default.Language,
-                                contentDescription = null,
-                                tint = DgElectricCyan,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = "dieme.in ↗",
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (isCheckingUpdate) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(12.dp),
+                                        strokeWidth = 2.dp,
+                                        color = DgElectricCyan
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        tint = DgElectricCyan,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                                Text(
+                                    text = if (isCheckingUpdate) "Checking..." else "v$currentVersionName • Updates",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        // Website link
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.05f))
+                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                                .clickable {
+                                    try {
+                                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://dieme.in"))
+                                        context.startActivity(browserIntent)
+                                    } catch (_: Exception) {}
+                                }
+                                .padding(horizontal = 14.dp, vertical = 9.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Language,
+                                    contentDescription = null,
+                                    tint = DgElectricCyan,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "dieme.in ↗",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }
@@ -987,15 +1142,22 @@ fun ActivityFeedView(
     testFeedback: String?,
     onTestFeedbackChange: (String?) -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isSmallScreen = configuration.screenWidthDp < 360
     val latestJob = recentJobs.firstOrNull()
 
-    LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    contentPadding = PaddingValues(vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = 680.dp)
+                .padding(horizontal = if (isSmallScreen) 12.dp else 16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
                     // Daemon Status Card
                     item {
                         Box(
@@ -1323,3 +1485,4 @@ fun ActivityFeedView(
                     }
                 }
             }
+        }

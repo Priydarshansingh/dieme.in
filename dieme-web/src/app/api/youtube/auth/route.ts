@@ -57,15 +57,18 @@ export async function GET(req: NextRequest) {
   const source = searchParams.get("source") || "web";
 
   const origin = getBaseUrl(req);
-  // Pass workspaceId, uid, source, and originating domain via state variable to maintain context for callback
-  const state = Buffer.from(JSON.stringify({ workspaceId, uid, source, origin })).toString("base64");
-
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
   const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
-  // Always use the authorized redirect URI registered in Google Cloud Console
-  const redirectUri = isLocalhost
-    ? "http://localhost:3000/api/youtube/callback"
-    : "https://digicast-web.vercel.app/api/youtube/callback";
+  const redirectUri = process.env.YOUTUBE_REDIRECT_URI || (
+    isLocalhost
+      ? "http://localhost:3000/api/youtube/callback"
+      : host.includes("dieme.in")
+        ? `https://${host}/api/youtube/callback`
+        : "https://digicast-web.vercel.app/api/youtube/callback"
+  );
+
+  // Pass workspaceId, uid, source, originating domain, and exact redirectUri via state variable
+  const state = Buffer.from(JSON.stringify({ workspaceId, uid, source, origin, redirectUri })).toString("base64");
   const clientId = process.env.YOUTUBE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
 
   if (!clientId) {

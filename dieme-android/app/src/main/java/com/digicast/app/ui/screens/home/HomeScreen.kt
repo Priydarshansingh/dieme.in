@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -232,6 +234,11 @@ fun HomeScreen(
         viewModel.syncData()
     }
 
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val isSmallScreen = screenWidthDp < 360
+    val isTablet = screenWidthDp >= 600
+
     Scaffold(
         containerColor = DigicastDeepNavy,
         topBar = {
@@ -239,7 +246,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(DigicastNavy)
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
+                    .padding(horizontal = if (isSmallScreen) 12.dp else 18.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -319,71 +326,77 @@ fun HomeScreen(
             )
         }
 
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentAlignment = Alignment.TopCenter
         ) {
-            // ── 1. Interactive Channel Performance Graph ───────────────────────
-            item {
-                ChannelPerformanceGraph(
-                    streams = if (ytAccount != null) realAllStreams else emptyList(),
-                    totalMessagesCount = if (ytAccount != null) messages.size else 0,
-                    youtubeAccount = ytAccount,
-                    onConnectYouTube = onConnectYouTube,
-                    onViewDetailsClick = onNavigateToStreams
-                )
-            }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = 760.dp),
+                contentPadding = PaddingValues(if (isSmallScreen) 12.dp else 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // ── 1. Interactive Channel Performance Graph ───────────────────────
+                item {
+                    ChannelPerformanceGraph(
+                        streams = if (ytAccount != null) realAllStreams else emptyList(),
+                        totalMessagesCount = if (ytAccount != null) messages.size else 0,
+                        youtubeAccount = ytAccount,
+                        onConnectYouTube = onConnectYouTube,
+                        onViewDetailsClick = onNavigateToStreams
+                    )
+                }
 
-            // ── 2. AI Studio Bento Row (Thumbnail Studio & Voice Studio) ────────
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Left Bento: Thumbnail Studio
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(AppleDarkEdgeCardBrush)
-                            .border(1.dp, AppleSpecularBorder, RoundedCornerShape(20.dp))
-                            .clickable(onClick = onNavigateToThumbnailStudio)
-                            .padding(14.dp)
+                // ── 2. AI Studio Bento Row (Thumbnail Studio & Voice Studio) ────────
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(if (isSmallScreen) 8.dp else 12.dp)
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(DigicastElectricCyan.copy(alpha = 0.15f))
-                                        .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), CircleShape),
-                                    contentAlignment = Alignment.Center
+                        // Left Bento: Thumbnail Studio
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(AppleDarkEdgeCardBrush)
+                                .border(1.dp, AppleSpecularBorder, RoundedCornerShape(20.dp))
+                                .clickable(onClick = onNavigateToThumbnailStudio)
+                                .padding(if (isSmallScreen) 10.dp else 14.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = null,
-                                        tint = DigicastElectricCyan,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(if (isSmallScreen) 28.dp else 32.dp)
+                                            .clip(CircleShape)
+                                            .background(DigicastElectricCyan.copy(alpha = 0.15f))
+                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AutoAwesome,
+                                            contentDescription = null,
+                                            tint = DigicastElectricCyan,
+                                            modifier = Modifier.size(if (isSmallScreen) 14.dp else 16.dp)
+                                        )
+                                    }
 
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(DigicastElectricCyan.copy(alpha = 0.2f))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text("Dg-Images", color = DigicastElectricCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(DigicastElectricCyan.copy(alpha = 0.2f))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("Dg-Images", color = DigicastElectricCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
-                            }
 
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
@@ -415,7 +428,7 @@ fun HomeScreen(
                             .clickable {
                                 Toast.makeText(context, "Voice Studio (.dcast) launching soon!", Toast.LENGTH_SHORT).show()
                             }
-                            .padding(14.dp)
+                            .padding(if (isSmallScreen) 10.dp else 14.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(
@@ -425,7 +438,7 @@ fun HomeScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(if (isSmallScreen) 28.dp else 32.dp)
                                         .clip(CircleShape)
                                         .background(DigicastElectricViolet.copy(alpha = 0.15f))
                                         .border(1.dp, DigicastElectricViolet.copy(alpha = 0.35f), CircleShape),
@@ -435,7 +448,7 @@ fun HomeScreen(
                                         imageVector = Icons.Default.RecordVoiceOver,
                                         contentDescription = null,
                                         tint = DigicastElectricViolet,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(if (isSmallScreen) 14.dp else 16.dp)
                                     )
                                 }
 
@@ -574,9 +587,9 @@ fun HomeScreen(
                     }
                 }
             }
-
         }
     }
+}
 
     if (show24hGate && signedInSession != null) {
         Access24hGateDialog(

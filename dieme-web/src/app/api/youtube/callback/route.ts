@@ -15,17 +15,29 @@ function getBaseUrl(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const baseUrl = getBaseUrl(req);
-  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
-  const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
-  // Strictly match the registered redirect URI used during authorization
-  const redirectUri = isLocalhost
-    ? "http://localhost:3000/api/youtube/callback"
-    : "https://digicast-web.vercel.app/api/youtube/callback";
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
+  let decodedState: any = {};
+  if (state) {
+    try {
+      decodedState = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
+    } catch {
+      decodedState = {};
+    }
+  }
+
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+  const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
+  const fallbackRedirectUri = process.env.YOUTUBE_REDIRECT_URI || (
+    isLocalhost
+      ? "http://localhost:3000/api/youtube/callback"
+      : host.includes("dieme.in")
+        ? `https://${host}/api/youtube/callback`
+        : "https://digicast-web.vercel.app/api/youtube/callback"
+  );
   if (error || !code) {
     return NextResponse.json({ error: error || "Authorization error or missing code" }, { status: 400 });
   }
@@ -37,14 +49,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Server OAuth credentials missing" }, { status: 500 });
   }
 
-  let decodedState: any = {};
-  if (state) {
-    try {
-      decodedState = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
-    } catch {
-      decodedState = {};
-    }
-  }
+  // Match the exact redirect URI passed in state during authorization
+  const redirectUri = decodedState.redirectUri || fallbackRedirectUri;
 
   try {
 

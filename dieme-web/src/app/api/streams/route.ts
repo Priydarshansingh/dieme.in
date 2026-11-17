@@ -68,24 +68,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Resolve active connected channel for this workspace (strict tenant & channel isolation)
-    let activeChannelId: string | null = wsData.channelId || wsData.primaryYoutubeChannelId || null;
-    let isYoutubeConnected: boolean = wsData.youtubeConnected === true;
-
-    if (!activeChannelId || !isYoutubeConnected) {
-      try {
-        const ytAccountSnap = await adminDb
-          .collection(col.youtube(actualWorkspaceId))
-          .where('connectionStatus', '==', 'connected')
-          .limit(1)
-          .get();
-        if (!ytAccountSnap.empty) {
-          activeChannelId = ytAccountSnap.docs[0].data().channelId || ytAccountSnap.docs[0].id;
-          isYoutubeConnected = true;
-        }
-      } catch (err) {
-        console.warn('[streams GET] youtube account lookup warning:', err);
-      }
-    }
+    const isYoutubeConnected: boolean = wsData.youtubeConnected === true;
+    const activeChannelId: string | null = isYoutubeConnected
+      ? (wsData.channelId || wsData.primaryYoutubeChannelId || null)
+      : null;
 
     // If channel is not connected or disconnected, return empty streams to prevent data leakage
     if (!isYoutubeConnected || !activeChannelId) {
@@ -217,7 +203,7 @@ export async function GET(req: NextRequest) {
     // Filter strictly by activeChannelId to prevent any stream leakage across channel switches
     const validDocs = streamsSnap.docs.filter((docSnap) => {
       const d = docSnap.data();
-      if (activeChannelId && d.channelId && d.channelId !== activeChannelId) {
+      if (!d.channelId || d.channelId !== activeChannelId) {
         docSnap.ref.delete().catch(() => {});
         return false;
       }

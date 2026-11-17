@@ -120,30 +120,8 @@ async function handleDisconnect(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     }, { merge: true });
 
-    // 3. Purge all streams in this workspace so no stream data or history from the disconnected channel leaks
-    const allStreamsSnap = await adminDb
-      .collection(col.streams(workspaceId))
-      .get();
-
-    const purgeBatch = adminDb.batch();
-    for (const sDoc of allStreamsSnap.docs) {
-      purgeBatch.delete(sDoc.ref);
-    }
-    if (!allStreamsSnap.empty) {
-      await purgeBatch.commit().catch(() => {});
-    }
-
-    // Also purge streams under callerUid workspace if different
-    if (callerUid !== workspaceId) {
-      const callerStreamsSnap = await adminDb.collection(col.streams(callerUid)).get();
-      const callerBatch = adminDb.batch();
-      for (const cs of callerStreamsSnap.docs) {
-        callerBatch.delete(cs.ref);
-      }
-      if (!callerStreamsSnap.empty) {
-        await callerBatch.commit().catch(() => {});
-      }
-    }
+    // 3. Mark disconnected status (preserve streams and clips history so user can reconnect without data loss)
+    // Streams are strictly filtered by active connected channel when requested in /api/streams.
 
     return NextResponse.json({
       success: true,

@@ -200,6 +200,20 @@ function DashboardContent() {
       const tgUploaded = clipsList.filter((d) => d.telegramSent || d.telegramStatus === 'uploaded').length;
       setTelegramUploads(tgUploaded);
 
+      // Map live clipCount onto streams so stream rows display exact matching clip counts
+      if (clipsList.length > 0 && allStreams.length > 0) {
+        const streamClipCounts = new Map<string, number>();
+        clipsList.forEach((c) => {
+          if (c.streamId) streamClipCounts.set(c.streamId, (streamClipCounts.get(c.streamId) || 0) + 1);
+          if (c.youtubeVideoId) streamClipCounts.set(c.youtubeVideoId, (streamClipCounts.get(c.youtubeVideoId) || 0) + 1);
+        });
+        const updatedRecent = allStreams.map((s) => ({
+          ...s,
+          clipCount: streamClipCounts.get(s.youtubeVideoId || '') ?? streamClipCounts.get(s.id) ?? s.clipCount ?? 0,
+        }));
+        setRecentStreams(updatedRecent.slice(0, 10));
+      }
+
       return allStreams.length;
     } catch (err) {
       console.error('Dashboard load error:', err);

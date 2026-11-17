@@ -68,10 +68,24 @@ export async function GET(req: NextRequest) {
     }
 
     // Resolve active connected channel for this workspace (strict tenant & channel isolation)
-    const isYoutubeConnected: boolean = wsData.youtubeConnected === true;
-    const activeChannelId: string | null = isYoutubeConnected
+    let isYoutubeConnected: boolean = wsData.youtubeConnected === true;
+    let activeChannelId: string | null = isYoutubeConnected
       ? (wsData.channelId || wsData.primaryYoutubeChannelId || null)
       : null;
+
+    // Check if caller's personal workspace has connected YouTube if actualWorkspaceId doesn't
+    if (!activeChannelId && callerUid !== actualWorkspaceId) {
+      try {
+        const callerWsDoc = await adminDb.doc(col.workspace(callerUid)).get();
+        if (callerWsDoc.exists) {
+          const callerWsData = callerWsDoc.data() || {};
+          if (callerWsData.youtubeConnected && (callerWsData.channelId || callerWsData.primaryYoutubeChannelId)) {
+            isYoutubeConnected = true;
+            activeChannelId = callerWsData.channelId || callerWsData.primaryYoutubeChannelId;
+          }
+        }
+      } catch {}
+    }
 
     // If channel is not connected or disconnected, return empty streams to prevent data leakage
     if (!isYoutubeConnected || !activeChannelId) {
@@ -82,6 +96,48 @@ export async function GET(req: NextRequest) {
         activeLiveStream: null,
         streams: [],
       });
+    }
+
+    // Pre-calculate clip counts for this workspace and active channel to ensure 100% accurate clip counts
+    const clipCountMap = new Map<string, number>();
+    try {
+      const clipsSnap = await adminDb.collection(col.clips(actualWorkspaceId)).get();
+      clipsSnap.docs.forEach((cdoc) => {
+        const cdata = cdoc.data();
+        const sid = cdata.streamId;
+        const yid = cdata.youtubeVideoId;
+        if (sid) clipCountMap.set(sid, (clipCountMap.get(sid) || 0) + 1);
+        if (yid && yid !== sid) clipCountMap.set(yid, (clipCountMap.get(yid) || 0) + 1);
+      });
+
+      // Also check caller workspace if different
+      if (callerUid !== actualWorkspaceId) {
+        const callerClipsSnap = await adminDb.collection(col.clips(callerUid)).get();
+        callerClipsSnap.docs.forEach((cdoc) => {
+          const cdata = cdoc.data();
+          const sid = cdata.streamId;
+          const yid = cdata.youtubeVideoId;
+          if (sid) clipCountMap.set(sid, (clipCountMap.get(sid) || 0) + 1);
+          if (yid && yid !== sid) clipCountMap.set(yid, (clipCountMap.get(yid) || 0) + 1);
+        });
+      }
+
+      // Check collectionGroup('clips') for this channel
+      const allClipsSnap = await adminDb.collectionGroup('clips').get();
+      allClipsSnap.docs.forEach((cdoc) => {
+        const cdata = cdoc.data();
+        if (cdata.channelId === activeChannelId) {
+          const sid = cdata.streamId;
+          const yid = cdata.youtubeVideoId;
+          // Count only if not already counted in this workspace
+          if (!cdoc.ref.path.includes(actualWorkspaceId) && !cdoc.ref.path.includes(callerUid)) {
+            if (sid) clipCountMap.set(sid, (clipCountMap.get(sid) || 0) + 1);
+            if (yid && yid !== sid) clipCountMap.set(yid, (clipCountMap.get(yid) || 0) + 1);
+          }
+        }
+      });
+    } catch (clipErr) {
+      console.warn('[streams GET] clipCount map calculation warning:', clipErr);
     }
 
     // If specific streamId requested, return that stream directly
@@ -110,18 +166,6 @@ export async function GET(req: NextRequest) {
           .limit(1)
           .get();
         if (!byYtCaller.empty) sDoc = byYtCaller.docs[0];
-      }
-
-      // Fallback: search collectionGroup across all streams if accessible
-      if (!sDoc.exists) {
-        const groupSnap = await adminDb
-          .collectionGroup('streams')
-          .where('youtubeVideoId', '==', streamId)
-          .limit(1)
-          .get();
-        if (!groupSnap.empty) {
-          sDoc = groupSnap.docs[0];
-        }
       }
 
       if (sDoc.exists) {
@@ -157,6 +201,11 @@ export async function GET(req: NextRequest) {
           d.thumb ||
           (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '');
 
+        const resolvedClipCount =
+          clipCountMap.get(videoId) ??
+          clipCountMap.get(sDoc.id) ??
+          (d.clipCount || 0);
+
         const formattedStream = {
           id: sDoc.id,
           title: d.title || 'Live Stream',
@@ -164,7 +213,7 @@ export async function GET(req: NextRequest) {
           thumbnailUrl,
           startedAt: startedAtMs,
           endedAt: endedAtMs,
-          clipCount: d.clipCount || 0,
+          clipCount: resolvedClipCount,
           status: d.status || 'ended',
           viewCount: d.viewCount || 0,
           concurrentViewers: d.concurrentViewers || 0,
@@ -183,7 +232,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Stream not found' }, { status: 404 });
     }
 
-    // Fetch streams via adminDb (bypasses client security rules)
+    // Fetch streams via adminDb
     let streamsSnap = await adminDb
       .collection(col.streams(actualWorkspaceId))
       .limit(100)
@@ -201,14 +250,39 @@ export async function GET(req: NextRequest) {
     }
 
     // Filter strictly by activeChannelId to prevent any stream leakage across channel switches
-    const validDocs = streamsSnap.docs.filter((docSnap) => {
+    let validDocs = streamsSnap.docs.filter((docSnap) => {
       const d = docSnap.data();
-      if (!d.channelId || d.channelId !== activeChannelId) {
-        docSnap.ref.delete().catch(() => {});
-        return false;
-      }
-      return true;
+      return d.channelId === activeChannelId;
     });
+
+    // If no streams found in workspace for this activeChannelId, attempt channel recovery from DB
+    if (validDocs.length === 0 && activeChannelId) {
+      try {
+        const allStreamsSnap = await adminDb.collectionGroup('streams').get();
+        const matchingStreams = allStreamsSnap.docs.filter((doc) => doc.data()?.channelId === activeChannelId);
+
+        if (matchingStreams.length > 0) {
+          // Recover and associate streams into current workspace
+          const recoveryBatch = adminDb.batch();
+          for (const ms of matchingStreams) {
+            const data = ms.data();
+            const targetRef = adminDb.doc(col.stream(actualWorkspaceId, ms.id));
+            recoveryBatch.set(targetRef, {
+              ...data,
+              workspaceId: actualWorkspaceId,
+              updatedAt: new Date().toISOString(),
+            }, { merge: true });
+          }
+          await recoveryBatch.commit().catch(() => {});
+
+          // Re-read workspace streams
+          const reSnap = await adminDb.collection(col.streams(actualWorkspaceId)).limit(100).get();
+          validDocs = reSnap.docs.filter((docSnap) => docSnap.data()?.channelId === activeChannelId);
+        }
+      } catch (recErr) {
+        console.warn('[streams GET] channel stream recovery warning:', recErr);
+      }
+    }
 
     const streams = validDocs.map((docSnap) => {
       const d = docSnap.data();
@@ -243,6 +317,16 @@ export async function GET(req: NextRequest) {
         d.thumb ||
         (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '');
 
+      const liveClipCount =
+        clipCountMap.get(videoId) ??
+        clipCountMap.get(docSnap.id) ??
+        (d.clipCount || 0);
+
+      // Asynchronously synchronize Firestore stream doc if count differs
+      if (d.clipCount !== liveClipCount) {
+        docSnap.ref.set({ clipCount: liveClipCount }, { merge: true }).catch(() => {});
+      }
+
       return {
         id: docSnap.id,
         title: d.title || 'Live Stream',
@@ -250,7 +334,7 @@ export async function GET(req: NextRequest) {
         thumbnailUrl,
         startedAt: startedAtMs,
         endedAt: endedAtMs,
-        clipCount: d.clipCount || 0,
+        clipCount: liveClipCount,
         status: d.status || 'ended',
         viewCount: d.viewCount || 0,
         concurrentViewers: d.concurrentViewers || 0,

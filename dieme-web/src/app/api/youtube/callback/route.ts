@@ -169,17 +169,33 @@ export async function GET(req: NextRequest) {
       }
 
       if (!activeWorkspaceId) {
-        activeWorkspaceId = `ws-${uid.substring(0, 8)}`;
-        activeWorkspaceName = `${displayName}'s Workspace`;
+        try {
+          const userDoc = await adminDb.doc(col.user(uid)).get();
+          const defWid = userDoc.exists ? userDoc.data()?.defaultWorkspaceId : null;
+          if (defWid) {
+            activeWorkspaceId = defWid;
+            const wDoc = await adminDb.doc(col.workspace(activeWorkspaceId!)).get();
+            if (wDoc.exists) {
+              activeWorkspaceName = wDoc.data()?.name || `${displayName}'s Studio`;
+              role = "owner";
+            }
+          }
+        } catch {}
+      }
+
+      if (!activeWorkspaceId) {
+        activeWorkspaceId = uid;
+        activeWorkspaceName = `${displayName}'s Studio`;
         role = "owner";
 
         await adminDb.doc(col.workspace(activeWorkspaceId)).set({
           id: activeWorkspaceId,
           name: activeWorkspaceName,
+          ownerUid: uid,
           ownerId: uid,
           createdAt: new Date().toISOString(),
           subscription: "free_trial",
-        });
+        }, { merge: true });
 
         await adminDb.doc(col.member(activeWorkspaceId, uid)).set({
           id: uid,
@@ -190,7 +206,7 @@ export async function GET(req: NextRequest) {
           email,
           photoURL,
           joinedAt: new Date().toISOString(),
-        });
+        }, { merge: true });
       }
 
       // Construct mobile deep-link URL
@@ -310,24 +326,50 @@ export async function GET(req: NextRequest) {
       console.warn("[youtube-callback] Error purging previous account docs:", prevErr);
     }
 
-    // Purge any streams in this workspace that belonged to a different channel
+    // ── 4. RECOVER & RESTORE HISTORICAL STREAMS AND CLIPS FOR THIS CHANNEL ─────
+    // Never delete streams or clips when reconnecting or switching channels.
+    // Instead, recover any previously recorded clips or synced streams for this channelId.
     try {
-      const existingStreamsSnap = await adminDb.collection(col.streams(workspaceId)).get();
-      const purgeBatch = adminDb.batch();
-      let purgeCount = 0;
-      for (const sDoc of existingStreamsSnap.docs) {
-        const sData = sDoc.data();
-        if (sData.channelId && sData.channelId !== channelId) {
-          purgeBatch.delete(sDoc.ref);
-          purgeCount++;
+      const allStreamsSnap = await adminDb.collectionGroup('streams').get();
+      const existingChannelStreams = allStreamsSnap.docs.filter((d) => d.data()?.channelId === channelId);
+      if (existingChannelStreams.length > 0) {
+        const streamRestoreBatch = adminDb.batch();
+        for (const cs of existingChannelStreams) {
+          const sData = cs.data();
+          const targetRef = adminDb.doc(col.stream(workspaceId, cs.id));
+          streamRestoreBatch.set(targetRef, {
+            ...sData,
+            workspaceId,
+            updatedAt: new Date().toISOString(),
+          }, { merge: true });
         }
+        await streamRestoreBatch.commit().catch(() => {});
+        console.log(`[youtube-callback] Restored ${existingChannelStreams.length} streams for channel ${channelId}`);
       }
-      if (purgeCount > 0) {
-        await purgeBatch.commit().catch(() => {});
-        console.log(`[youtube-callback] Cleaned up ${purgeCount} stale streams from previous channel`);
+
+      // Also ensure any clips belonging to this channel or its streams are associated with this workspace
+      const allClipsSnap = await adminDb.collectionGroup('clips').get();
+      const existingClips = allClipsSnap.docs.filter((d) => {
+        const cd = d.data();
+        return cd.channelId === channelId || existingChannelStreams.some((s) => s.id === cd.streamId || s.id === cd.youtubeVideoId);
+      });
+      if (existingClips.length > 0) {
+        const clipRestoreBatch = adminDb.batch();
+        for (const cDoc of existingClips) {
+          const cData = cDoc.data();
+          const targetClipRef = adminDb.doc(col.clip(workspaceId, cDoc.id));
+          clipRestoreBatch.set(targetClipRef, {
+            ...cData,
+            workspaceId,
+            channelId,
+            updatedAt: new Date().toISOString(),
+          }, { merge: true });
+        }
+        await clipRestoreBatch.commit().catch(() => {});
+        console.log(`[youtube-callback] Restored ${existingClips.length} clips for channel ${channelId}`);
       }
-    } catch (streamPurgeErr) {
-      console.warn("[youtube-callback] Error purging old channel streams:", streamPurgeErr);
+    } catch (restoreErr) {
+      console.warn("[youtube-callback] Stream/clip restoration non-fatal note:", restoreErr);
     }
 
     // Also update workspace to ensure live channel metadata is active

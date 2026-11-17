@@ -142,17 +142,80 @@ export async function GET(req: NextRequest) {
     }
 
     // 2. Fetch and synchronize YouTube live broadcasts and streams
-    const activeChannelId = wsData.channelId || wsData.primaryYoutubeChannelId || null;
-    const isYoutubeConnected = wsData.youtubeConnected === true && Boolean(activeChannelId);
+    let activeChannelId = wsData.channelId || wsData.primaryYoutubeChannelId || null;
+    let isYoutubeConnected = wsData.youtubeConnected === true && Boolean(activeChannelId);
 
-    if (isYoutubeConnected) {
+    // If caller workspace has channel connected, fall back to it
+    if (!activeChannelId && caller.uid !== actualWorkspaceId) {
+      try {
+        const callerWsDoc = await adminDb.doc(col.workspace(caller.uid)).get();
+        if (callerWsDoc.exists) {
+          const cWsData = callerWsDoc.data() || {};
+          if (cWsData.youtubeConnected && (cWsData.channelId || cWsData.primaryYoutubeChannelId)) {
+            activeChannelId = cWsData.channelId || cWsData.primaryYoutubeChannelId;
+            isYoutubeConnected = true;
+          }
+        }
+      } catch {}
+    }
+
+    if (isYoutubeConnected && activeChannelId) {
       try {
         const { syncWorkspaceYouTubeStreams } = await import("@/lib/youtube/sync");
-        await syncWorkspaceYouTubeStreams(actualWorkspaceId, activeChannelId!);
+        await syncWorkspaceYouTubeStreams(actualWorkspaceId, activeChannelId);
       } catch (syncErr) {
         console.warn("[mobile/sync] YouTube auto-sync warning:", syncErr);
       }
     }
+
+    // 3. Pre-fetch clips across workspace and channel to calculate accurate counts & return full list
+    const clipMap = new Map<string, any>();
+    const clipCountMap = new Map<string, number>();
+
+    // 3a. Primary workspace clips
+    try {
+      const primaryClipsSnap = await adminDb.collection(col.clips(actualWorkspaceId)).get();
+      for (const d of primaryClipsSnap.docs) {
+        clipMap.set(d.id, { id: d.id, ...d.data() });
+      }
+    } catch {}
+
+    // 3b. Caller UID workspace clips if different
+    if (caller.uid !== actualWorkspaceId) {
+      try {
+        const callerClipsSnap = await adminDb.collection(col.clips(caller.uid)).get();
+        for (const d of callerClipsSnap.docs) {
+          if (!clipMap.has(d.id)) {
+            clipMap.set(d.id, { id: d.id, ...d.data() });
+          }
+        }
+      } catch {}
+    }
+
+    // 3c. Collection group clips matching activeChannelId or workspace
+    try {
+      const allClipsSnap = await adminDb.collectionGroup('clips').get();
+      for (const d of allClipsSnap.docs) {
+        const data = d.data();
+        if (
+          (activeChannelId && data.channelId === activeChannelId) ||
+          data.workspaceId === actualWorkspaceId ||
+          data.workspaceId === caller.uid
+        ) {
+          if (!clipMap.has(d.id)) {
+            clipMap.set(d.id, { id: d.id, ...data });
+          }
+        }
+      }
+    } catch {}
+
+    // Populate clipCountMap
+    Array.from(clipMap.values()).forEach((c: any) => {
+      if (c.streamId) clipCountMap.set(c.streamId, (clipCountMap.get(c.streamId) || 0) + 1);
+      if (c.youtubeVideoId && c.youtubeVideoId !== c.streamId) {
+        clipCountMap.set(c.youtubeVideoId, (clipCountMap.get(c.youtubeVideoId) || 0) + 1);
+      }
+    });
 
     let activeStream: any = null;
     let streams: any[] = [];
@@ -164,85 +227,106 @@ export async function GET(req: NextRequest) {
           .limit(30)
           .get();
 
-        const validDocs = streamsSnap.docs.filter(doc => {
+        let validDocs = streamsSnap.docs.filter(doc => {
           const d = doc.data();
-          if (activeChannelId && d.channelId && d.channelId !== activeChannelId) {
-            doc.ref.delete().catch(() => {});
-            return false;
-          }
-          return true;
+          return d.channelId === activeChannelId;
         });
 
-        streams = validDocs.map(doc => {
-        const d = doc.data();
-        let startedAtMs = Date.now();
-        if (d.startedAt?._seconds) {
-          startedAtMs = d.startedAt._seconds * 1000;
-        } else if (typeof d.startedAt === "number") {
-          startedAtMs = d.startedAt;
-        } else if (typeof d.startedAt === "string") {
-          const parsed = Date.parse(d.startedAt);
-          if (!isNaN(parsed)) startedAtMs = parsed;
+        // If no streams found in workspace for this channel, recover from collectionGroup
+        if (validDocs.length === 0) {
+          const allStreamsSnap = await adminDb.collectionGroup('streams').get();
+          const matchingStreams = allStreamsSnap.docs.filter((doc) => doc.data()?.channelId === activeChannelId);
+
+          if (matchingStreams.length > 0) {
+            const recoveryBatch = adminDb.batch();
+            for (const ms of matchingStreams) {
+              const data = ms.data();
+              const targetRef = adminDb.doc(col.stream(actualWorkspaceId, ms.id));
+              recoveryBatch.set(targetRef, {
+                ...data,
+                workspaceId: actualWorkspaceId,
+                updatedAt: new Date().toISOString(),
+              }, { merge: true });
+            }
+            await recoveryBatch.commit().catch(() => {});
+
+            const reSnap = await adminDb.collection(col.streams(actualWorkspaceId)).limit(30).get();
+            validDocs = reSnap.docs.filter(doc => doc.data()?.channelId === activeChannelId);
+          }
         }
 
-        const videoId = d.youtubeVideoId || doc.id;
-        const thumbnailUrl =
-          d.thumbnailUrl ||
-          d.thumbnail ||
-          d.thumb ||
-          (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : "");
+        streams = validDocs.map(doc => {
+          const d = doc.data();
+          let startedAtMs = Date.now();
+          if (d.startedAt?._seconds) {
+            startedAtMs = d.startedAt._seconds * 1000;
+          } else if (typeof d.startedAt === "number") {
+            startedAtMs = d.startedAt;
+          } else if (typeof d.startedAt === "string") {
+            const parsed = Date.parse(d.startedAt);
+            if (!isNaN(parsed)) startedAtMs = parsed;
+          }
 
-        return {
-          id: doc.id,
-          ...d,
-          thumbnailUrl,
-          concurrentViewers: Number(d.concurrentViewers) || 0,
-          viewCount: Number(d.viewCount) || 0,
-          likeCount: Number(d.likeCount) || 0,
-          commentCount: Number(d.commentCount) || 0,
-          startedAtMs,
-        };
-      });
-      activeStream = streams.find((s: any) => s.status === 'live') || streams[0] || null;
+          const videoId = d.youtubeVideoId || doc.id;
+          const thumbnailUrl =
+            d.thumbnailUrl ||
+            d.thumbnail ||
+            d.thumb ||
+            (videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : "");
+
+          const liveClipCount =
+            clipCountMap.get(videoId) ??
+            clipCountMap.get(doc.id) ??
+            (d.clipCount || 0);
+
+          return {
+            id: doc.id,
+            ...d,
+            thumbnailUrl,
+            clipCount: liveClipCount,
+            concurrentViewers: Number(d.concurrentViewers) || 0,
+            viewCount: Number(d.viewCount) || 0,
+            likeCount: Number(d.likeCount) || 0,
+            commentCount: Number(d.commentCount) || 0,
+            startedAtMs,
+          };
+        });
+
+        activeStream = streams.find((s: any) => s.status === 'live') || streams[0] || null;
       } catch (streamErr) {
         console.warn("[mobile/sync] Stream fetch warning:", streamErr);
       }
     }
 
-    // 3. Fetch recent clip markers for this workspace
-    let clips: any[] = [];
-    try {
-      const clipsSnap = await adminDb
-        .collection(col.clips(actualWorkspaceId))
-        .orderBy("createdAt", "desc")
-        .limit(50)
-        .get();
-
-      clips = clipsSnap.docs.map(doc => {
-        const d = doc.data();
-        let normalizedStatus = d.status;
-        if (!normalizedStatus) {
-          if (d.downloadStatus === 'completed' || d.telegramStatus === 'uploaded' || d.telegramSent) {
-            normalizedStatus = 'UPLOADED';
-          } else if (d.downloadStatus === 'processing' || d.downloadStatus === 'downloading') {
-            normalizedStatus = 'GENERATING';
-          } else if (d.downloadStatus === 'failed') {
-            normalizedStatus = 'FAILED';
-          } else {
-            normalizedStatus = 'PENDING';
-          }
+    // Format all retrieved clips for mobile consumption
+    const clips = Array.from(clipMap.values()).map(d => {
+      let normalizedStatus = d.status;
+      if (!normalizedStatus) {
+        if (d.downloadStatus === 'completed' || d.telegramStatus === 'uploaded' || d.telegramSent) {
+          normalizedStatus = 'UPLOADED';
+        } else if (d.downloadStatus === 'processing' || d.downloadStatus === 'downloading') {
+          normalizedStatus = 'GENERATING';
+        } else if (d.downloadStatus === 'failed') {
+          normalizedStatus = 'FAILED';
+        } else {
+          normalizedStatus = 'PENDING';
         }
-        return {
-          id: doc.id,
-          ...d,
-          status: normalizedStatus,
-          downloadStatus: d.downloadStatus || (normalizedStatus === 'UPLOADED' || normalizedStatus === 'GENERATED' ? 'completed' : 'not_started'),
-          telegramStatus: d.telegramStatus || (normalizedStatus === 'UPLOADED' ? 'uploaded' : 'not_uploaded'),
-        };
-      });
-    } catch (clipErr) {
-      console.warn("[mobile/sync] Clip fetch warning:", clipErr);
-    }
+      }
+      return {
+        id: d.id,
+        ...d,
+        status: normalizedStatus,
+        downloadStatus: d.downloadStatus || (normalizedStatus === 'UPLOADED' || normalizedStatus === 'GENERATED' ? 'completed' : 'not_started'),
+        telegramStatus: d.telegramStatus || (normalizedStatus === 'UPLOADED' ? 'uploaded' : 'not_uploaded'),
+      };
+    });
+
+    // Sort clips descending by createdAt / markerTimestamp
+    clips.sort((a: any, b: any) => {
+      const timeA = new Date(a.createdAt || 0).getTime() || (a.markerTimestamp || 0);
+      const timeB = new Date(b.createdAt || 0).getTime() || (b.markerTimestamp || 0);
+      return timeB - timeA;
+    });
 
     // 4. Fetch YouTube Account connection status
     let youtubeAccount: any = null;
@@ -260,6 +344,13 @@ export async function GET(req: NextRequest) {
           channelName: ytData.channelName,
           channelThumbnail: ytData.channelThumbnail || "",
           connectionStatus: ytData.connectionStatus || 'connected',
+        };
+      } else if (activeChannelId) {
+        youtubeAccount = {
+          channelId: activeChannelId,
+          channelName: wsData.channelName || "Connected Channel",
+          channelThumbnail: wsData.channelThumbnail || "",
+          connectionStatus: 'connected',
         };
       }
     } catch (ytErr) {

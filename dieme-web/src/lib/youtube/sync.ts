@@ -114,25 +114,8 @@ export async function syncWorkspaceYouTubeStreams(
       return { success: false, syncedCount: 0, error: 'Could not obtain valid YouTube token' };
     }
 
-    // ── PURGE ANY STALE STREAMS BELONGING TO DIFFERENT CHANNELS ─────────────
-    try {
-      const existingStreams = await adminDb.collection(col.streams(workspaceId)).get();
-      const purgeBatch = adminDb.batch();
-      let purgeCount = 0;
-      for (const sDoc of existingStreams.docs) {
-        const sData = sDoc.data();
-        if (sData.channelId && sData.channelId !== channelId) {
-          purgeBatch.delete(sDoc.ref);
-          purgeCount++;
-        }
-      }
-      if (purgeCount > 0) {
-        await purgeBatch.commit().catch(() => {});
-        console.log(`[youtube-sync] Purged ${purgeCount} stale streams from previous channel(s)`);
-      }
-    } catch (purgeErr) {
-      console.warn('[youtube-sync] purge check non-fatal warning:', purgeErr);
-    }
+    // ── CHANNEL STREAM SYNCHRONIZATION ─────────────
+    // Note: Never delete existing streams or clips; streams are filtered by channelId when queried.
 
     let syncedCount = 0;
     let activeLiveStream: any = null;

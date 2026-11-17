@@ -131,6 +131,29 @@ function StreamsContent() {
         }
       }
 
+      // Cross-verify live clip counts against /api/clips to guarantee immediate visual reflection
+      if (list.length > 0) {
+        try {
+          const clipsRes = await fetch(`/api/clips?workspaceId=${wid}`, { headers });
+          if (clipsRes.ok) {
+            const cData = await clipsRes.json();
+            if (Array.isArray(cData.clips) && cData.clips.length > 0) {
+              const streamClipCounts = new Map<string, number>();
+              cData.clips.forEach((c: any) => {
+                if (c.streamId) streamClipCounts.set(c.streamId, (streamClipCounts.get(c.streamId) || 0) + 1);
+                if (c.youtubeVideoId) streamClipCounts.set(c.youtubeVideoId, (streamClipCounts.get(c.youtubeVideoId) || 0) + 1);
+              });
+              list = list.map((s) => ({
+                ...s,
+                clipCount: streamClipCounts.get(s.youtubeVideoId || '') ?? streamClipCounts.get(s.id) ?? s.clipCount ?? 0,
+              }));
+            }
+          }
+        } catch (clipsErr) {
+          console.warn('[streams] live clip count sync note:', clipsErr);
+        }
+      }
+
       setStreams(list);
       return list.length;
     } catch (err) {

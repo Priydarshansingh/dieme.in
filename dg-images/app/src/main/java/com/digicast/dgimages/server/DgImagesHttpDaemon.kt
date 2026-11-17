@@ -180,6 +180,9 @@ class DgImagesHttpDaemon(
                         val responseJson = JSONObject().apply {
                             put("status", if (result.isSuccess) "success" else "error")
                             put("resultUrl", result.getOrDefault(baseImageUrl))
+                            if (!result.isSuccess) {
+                                put("error", result.exceptionOrNull()?.message ?: "Engine failed to produce a valid thumbnail")
+                            }
                             put("prompt", prompt)
                             put("referenceCount", refList.size)
                             put("timestamp", System.currentTimeMillis())

@@ -125,6 +125,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import kotlinx.coroutines.isActive
 import com.digicast.app.ui.screens.settings.ExtensionViewModel
@@ -763,7 +764,7 @@ fun ThumbnailStudioScreen(
             )
         )
 
-        selectedDrawerTab = 0
+        selectedDrawerTab = 1
         Toast.makeText(context, "✨ Started New Session", Toast.LENGTH_SHORT).show()
     }
 
@@ -1149,6 +1150,7 @@ fun ThumbnailStudioScreen(
         // Clear active inputs as requested
         promptInput = ""
         urlInput = ""
+        selectedDrawerTab = 1
 
         val pendingMessageId = UUID.randomUUID().toString()
         chatMessages.add(
@@ -1236,6 +1238,7 @@ fun ThumbnailStudioScreen(
                 )
 
                 val index = chatMessages.indexOfFirst { it.id == pendingMessageId }
+                selectedDrawerTab = 1
                 if (result.isSuccess) {
                     val resultUrl = result.getOrNull() ?: baseImage
                     generatedImageUrl = resultUrl
@@ -1327,7 +1330,12 @@ fun ThumbnailStudioScreen(
                                 .clip(CircleShape)
                                 .background(Color.White.copy(alpha = 0.08f))
                                 .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
-                                .clickable { isHistoryDrawerOpen = !isHistoryDrawerOpen },
+                                .clickable {
+                                    if (!isHistoryDrawerOpen && chatMessages.isNotEmpty()) {
+                                        selectedDrawerTab = 1
+                                    }
+                                    isHistoryDrawerOpen = !isHistoryDrawerOpen
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1659,6 +1667,8 @@ fun ThumbnailStudioScreen(
                                     model = ImageRequest.Builder(context)
                                         .data(generatedImageUrl ?: currentThumbnailUrl)
                                         .crossfade(true)
+                                        .memoryCachePolicy(CachePolicy.DISABLED)
+                                        .diskCachePolicy(CachePolicy.DISABLED)
                                         .build(),
                                     contentDescription = "Thumbnail Canvas",
                                     contentScale = ContentScale.Crop,
@@ -2037,6 +2047,71 @@ fun ThumbnailStudioScreen(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // ── 2.5 Live Studio Chat & Generated Revision Results ───────
+                if (chatMessages.isNotEmpty() || isGenerating) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFF0D141C))
+                                .border(1.dp, AppleSpecularBorder, RoundedCornerShape(16.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isGenerating) DigicastElectricCyan else DigicastEmerald)
+                                    )
+                                    Text(
+                                        text = "💬 Active Revision Chat",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = "${chatMessages.size} updates",
+                                    color = DigicastSlate,
+                                    fontSize = 10.sp
+                                )
+                            }
+
+                            chatMessages.forEach { msg ->
+                                ThumbnailChatMessageBubble(
+                                    message = msg,
+                                    generationStatusMessage = generationStatusMessage,
+                                    onDownload = { url ->
+                                        if (PermissionHelper.hasStoragePermissions(context)) {
+                                            saveImageToDownloads(url)
+                                        } else {
+                                            pendingImageUrlToSave = url
+                                            showStoragePermissionForThumbnail = true
+                                        }
+                                    },
+                                    onLoadOnCanvas = { url ->
+                                        currentThumbnailUrl = url
+                                        generatedImageUrl = url
+                                        markedPins.clear()
+                                        Toast.makeText(context, "Loaded on Canvas", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
                             }
                         }
                     }
@@ -2597,164 +2672,25 @@ fun ThumbnailStudioScreen(
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             items(chatMessages, key = { it.id }) { message ->
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
-                                ) {
-                                    val cardModifier = if (message.isUser) {
-                                        Modifier
-                                            .fillMaxWidth(0.92f)
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .background(Color(0xFF0F323A))
-                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-                                    } else {
-                                        Modifier
-                                            .fillMaxWidth(0.96f)
-                                            .clip(RoundedCornerShape(14.dp))
-                                            .background(AppleDarkEdgeCardBrush)
-                                            .border(1.dp, AppleSpecularBorder, RoundedCornerShape(14.dp))
-                                    }
-
-                                    Box(modifier = cardModifier.padding(10.dp)) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            // Header
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = if (message.isUser) "YOU" else "AI ASSISTANT",
-                                                    color = if (message.isUser) DigicastElectricCyan else DigicastEmerald,
-                                                    fontSize = 9.sp,
-                                                    fontWeight = FontWeight.ExtraBold
-                                                )
-                                                Text(
-                                                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
-                                                    color = DigicastSlate,
-                                                    fontSize = 9.sp
-                                                )
-                                            }
-
-                                            // Text Message
-                                            Text(
-                                                text = message.text,
-                                                color = Color.White,
-                                                fontSize = 12.sp,
-                                                lineHeight = 16.sp
-                                            )
-
-                                            // Pins Chips
-                                            if (message.pins.isNotEmpty()) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .horizontalScroll(rememberScrollState()),
-                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                                ) {
-                                                    message.pins.forEach { pin ->
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .clip(RoundedCornerShape(4.dp))
-                                                                .background(Color.Black.copy(alpha = 0.4f))
-                                                                .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                                                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                                                        ) {
-                                                            Text(
-                                                                text = "📍 #${pin.id} (${"%.0f".format(Locale.US, pin.xPercent)}%, ${"%.0f".format(Locale.US, pin.yPercent)}%)",
-                                                                color = DigicastElectricCyan,
-                                                                fontSize = 9.sp,
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            // Loading Status
-                                            if (message.isGenerating) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                ) {
-                                                    CircularProgressIndicator(color = DigicastElectricCyan, modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp)
-                                                    Text(message.status ?: generationStatusMessage, color = DigicastSlate, fontSize = 11.sp)
-                                                }
-                                            }
-
-                                            // Compact ChatGPT-Style Result Card (Clean & Compact, NOT full giant 16:9 thumbnail)
-                                            if (message.previewImageUrl != null && !message.isGenerating) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(Color.Black.copy(alpha = 0.35f))
-                                                        .border(1.dp, AppleSpecularBorder, RoundedCornerShape(8.dp))
-                                                        .padding(6.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
-                                                    // Compact square preview thumbnail
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(46.dp)
-                                                            .clip(RoundedCornerShape(6.dp))
-                                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                                                    ) {
-                                                        AsyncImage(
-                                                            model = ImageRequest.Builder(context).data(message.previewImageUrl).crossfade(true).build(),
-                                                            contentDescription = null,
-                                                            contentScale = ContentScale.Crop,
-                                                            modifier = Modifier.fillMaxSize()
-                                                        )
-                                                    }
-
-                                                    // Compact actions
-                                                    Column(
-                                                        modifier = Modifier.weight(1f),
-                                                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                                                    ) {
-                                                        Text("✨ Revision Ready", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .clip(RoundedCornerShape(6.dp))
-                                                                    .background(Color(0xFF134E5E))
-                                                                    .clickable {
-                                                                        if (PermissionHelper.hasStoragePermissions(context)) {
-                                                                            saveImageToDownloads(message.previewImageUrl)
-                                                                        } else {
-                                                                            pendingImageUrlToSave = message.previewImageUrl
-                                                                            showStoragePermissionForThumbnail = true
-                                                                        }
-                                                                    }
-                                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                                                            ) {
-                                                                Text("Download", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                                            }
-
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .clip(RoundedCornerShape(6.dp))
-                                                                    .background(Color.White.copy(alpha = 0.08f))
-                                                                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                                                                    .clickable {
-                                                                        currentThumbnailUrl = message.previewImageUrl
-                                                                        markedPins.clear()
-                                                                        isHistoryDrawerOpen = false
-                                                                        Toast.makeText(context, "Loaded on Canvas", Toast.LENGTH_SHORT).show()
-                                                                    }
-                                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                                                            ) {
-                                                                Text("Load on Canvas", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                ThumbnailChatMessageBubble(
+                                    message = message,
+                                    generationStatusMessage = generationStatusMessage,
+                                    onDownload = { url ->
+                                        if (PermissionHelper.hasStoragePermissions(context)) {
+                                            saveImageToDownloads(url)
+                                        } else {
+                                            pendingImageUrlToSave = url
+                                            showStoragePermissionForThumbnail = true
                                         }
+                                    },
+                                    onLoadOnCanvas = { url ->
+                                        currentThumbnailUrl = url
+                                        generatedImageUrl = url
+                                        markedPins.clear()
+                                        isHistoryDrawerOpen = false
+                                        Toast.makeText(context, "Loaded on Canvas", Toast.LENGTH_SHORT).show()
                                     }
-                                }
+                                )
                             }
                         }
                     }
@@ -3010,6 +2946,172 @@ fun optimizeAndCacheImage(context: Context, sourceUri: Uri): Uri? {
     } catch (e: Exception) {
         Log.e("ThumbnailStudio", "Error optimizing image: ${e.message}", e)
         sourceUri
+    }
+}
+
+@Composable
+private fun ThumbnailChatMessageBubble(
+    message: ThumbnailChatMessage,
+    generationStatusMessage: String,
+    onDownload: (String) -> Unit,
+    onLoadOnCanvas: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
+    ) {
+        val cardModifier = if (message.isUser) {
+            Modifier
+                .fillMaxWidth(0.92f)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0xFF0F323A))
+                .border(1.dp, DigicastElectricCyan.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+        } else {
+            Modifier
+                .fillMaxWidth(0.96f)
+                .clip(RoundedCornerShape(14.dp))
+                .background(AppleDarkEdgeCardBrush)
+                .border(1.dp, AppleSpecularBorder, RoundedCornerShape(14.dp))
+        }
+
+        Box(modifier = cardModifier.padding(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (message.isUser) "YOU" else "AI ASSISTANT",
+                        color = if (message.isUser) DigicastElectricCyan else DigicastEmerald,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
+                        color = DigicastSlate,
+                        fontSize = 9.sp
+                    )
+                }
+
+                // Text Message
+                Text(
+                    text = message.text,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+
+                // Pins Chips
+                if (message.pins.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        message.pins.forEach { pin ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color.Black.copy(alpha = 0.4f))
+                                    .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "📍 #${pin.id} (${"%.0f".format(Locale.US, pin.xPercent)}%, ${"%.0f".format(Locale.US, pin.yPercent)}%)",
+                                    color = DigicastElectricCyan,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Loading Status
+                if (message.isGenerating) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        CircularProgressIndicator(color = DigicastElectricCyan, modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp)
+                        Text(message.status ?: generationStatusMessage, color = DigicastSlate, fontSize = 11.sp)
+                    }
+                }
+
+                // Compact ChatGPT-Style Result Card
+                if (message.previewImageUrl != null && !message.isGenerating) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.35f))
+                            .border(1.dp, AppleSpecularBorder, RoundedCornerShape(8.dp))
+                            .padding(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Compact square preview thumbnail
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .border(1.dp, DigicastElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(message.previewImageUrl)
+                                    .crossfade(true)
+                                    .memoryCachePolicy(CachePolicy.DISABLED)
+                                    .diskCachePolicy(CachePolicy.DISABLED)
+                                    .build(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+
+                        // Compact actions
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text("✨ Revision Ready", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFF134E5E))
+                                        .clickable {
+                                            onDownload(message.previewImageUrl)
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text("Download", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                        .clickable {
+                                            onLoadOnCanvas(message.previewImageUrl)
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text("Load on Canvas", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

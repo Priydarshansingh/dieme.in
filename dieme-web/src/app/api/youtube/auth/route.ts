@@ -12,10 +12,12 @@ function getBaseUrl(req: NextRequest) {
   return `${proto}://${host}`;
 }
 
-// Required scopes for capturing live streams and chat
+// Required scopes for YouTube channel management, broadcasts, and chat
 const YOUTUBE_SCOPES = [
   "https://www.googleapis.com/auth/youtube.readonly",
   "https://www.googleapis.com/auth/youtube.force-ssl", // Need for chat messaging
+  "https://www.googleapis.com/auth/youtube.upload",
+  "https://www.googleapis.com/auth/youtube",
 ];
 
 export async function GET(req: NextRequest) {
@@ -54,10 +56,15 @@ export async function GET(req: NextRequest) {
 
   const source = searchParams.get("source") || "web";
 
-  // Pass workspaceId, uid, and source via state variable to maintain context for callback
-  const state = Buffer.from(JSON.stringify({ workspaceId, uid, source })).toString("base64");
+  const origin = getBaseUrl(req);
+  // Pass workspaceId, uid, source, and originating domain via state variable to maintain context for callback
+  const state = Buffer.from(JSON.stringify({ workspaceId, uid, source, origin })).toString("base64");
 
-  const redirectUri = `${getBaseUrl(req)}/api/youtube/callback`;
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+  const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
+  const redirectUri = isLocalhost
+    ? "http://localhost:3000/api/youtube/callback"
+    : (process.env.YOUTUBE_REDIRECT_URI || "https://digicast-web.vercel.app/api/youtube/callback");
   const clientId = process.env.YOUTUBE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
 
   if (!clientId) {

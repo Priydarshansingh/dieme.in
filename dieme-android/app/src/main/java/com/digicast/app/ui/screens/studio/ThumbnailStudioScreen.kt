@@ -1088,6 +1088,13 @@ fun ThumbnailStudioScreen(
         val currentRefsSnapshot = referenceImages.toList()
         val currentNewChatChoice = preferNewChat
 
+        // If starting a fresh new chat session, archive previous messages so active chat stays clean
+        if (currentNewChatChoice && chatMessages.isNotEmpty()) {
+            saveCurrentSessionToHistory()
+            chatMessages.clear()
+            activeSessionId = UUID.randomUUID().toString()
+        }
+
         val displayPrompt = if (userPrompt.isNotEmpty()) userPrompt else "Refine marked target regions"
         chatMessages.add(
             ThumbnailChatMessage(
@@ -1761,6 +1768,47 @@ fun ThumbnailStudioScreen(
                                     )
                                 }
 
+                                if (generatedImageUrl != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(12.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(Color.Black.copy(alpha = 0.8f))
+                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                                            .clickable {
+                                                val targetUrl = generatedImageUrl
+                                                if (targetUrl != null) {
+                                                    if (PermissionHelper.hasStoragePermissions(context)) {
+                                                        saveImageToDownloads(targetUrl)
+                                                    } else {
+                                                        pendingImageUrlToSave = targetUrl
+                                                        showStoragePermissionForThumbnail = true
+                                                    }
+                                                }
+                                            }
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Download,
+                                                contentDescription = "Save 1080p",
+                                                tint = DigicastElectricCyan,
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Text(
+                                                text = "Save 1080p",
+                                                color = DigicastElectricCyan,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
                                 // ── Background Canvas Placeholder when Generating ───────
                                 if (isGenerating) {
                                     Box(
@@ -1815,51 +1863,6 @@ fun ThumbnailStudioScreen(
                                         fontSize = 11.sp,
                                         textAlign = TextAlign.Center,
                                         lineHeight = 16.sp
-                                    )
-                                }
-                            }
-                        }
-
-                        // ── DIRECT ONE-TAP DOWNLOAD BUTTON UNDER CANVAS ─────────
-                        if (generatedImageUrl != null || currentThumbnailUrl != null) {
-                            Button(
-                                onClick = {
-                                    val targetUrl = generatedImageUrl ?: currentThumbnailUrl
-                                    if (targetUrl != null) {
-                                        if (PermissionHelper.hasStoragePermissions(context)) {
-                                            saveImageToDownloads(targetUrl)
-                                        } else {
-                                            pendingImageUrlToSave = targetUrl
-                                            showStoragePermissionForThumbnail = true
-                                        }
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (generatedImageUrl != null) DigicastElectricCyan else Color(0xFF134E5E)
-                                ),
-                                border = BorderStroke(1.dp, if (generatedImageUrl != null) DigicastElectricCyan else Color.White.copy(alpha = 0.2f))
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Download,
-                                        contentDescription = null,
-                                        tint = if (generatedImageUrl != null) Color(0xFF030A0D) else Color.White,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        text = if (generatedImageUrl != null) "Download 1080p Thumbnail to Gallery" else "Save HD Thumbnail to Gallery",
-                                        color = if (generatedImageUrl != null) Color(0xFF030A0D) else Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }

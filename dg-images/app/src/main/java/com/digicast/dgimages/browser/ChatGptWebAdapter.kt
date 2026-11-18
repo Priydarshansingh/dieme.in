@@ -140,13 +140,18 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    var newBtn = Array.from(document.querySelectorAll("button, a")).find(function(el) {
-                        var text = (el.innerText || el.getAttribute('aria-label') || '').toLowerCase().trim();
-                        return text === 'new chat' || text.indexOf('new chat') !== -1;
-                    });
+                    var newBtn = document.querySelector("a[href='/'], button[aria-label*='New chat' i], [data-testid*='new-chat']");
                     if (newBtn) {
                         newBtn.click();
                         return true;
+                    }
+                    var allLinks = Array.from(document.querySelectorAll("button, a"));
+                    for (var i = 0; i < allLinks.length; i++) {
+                        var t = (allLinks[i].innerText || allLinks[i].getAttribute('aria-label') || '').toLowerCase().trim();
+                        if (t === 'new chat' || t.indexOf('new chat') !== -1) {
+                            allLinks[i].click();
+                            return true;
+                        }
                     }
                     window.location.href = 'https://chatgpt.com/';
                     return true;
@@ -159,7 +164,7 @@ class ChatGptWebAdapter(
         webView.evaluateJavascript(js) { res ->
             Handler(Looper.getMainLooper()).postDelayed({
                 onComplete?.invoke(res?.trim() == "true")
-            }, 800)
+            }, 1500L)
         }
     }
 
@@ -172,11 +177,6 @@ class ChatGptWebAdapter(
                 try {
                     var count = window.DgImagesJs ? window.DgImagesJs.getPendingFilesCount() : 0;
                     if (count <= 0) return false;
-
-                    var fileInput = document.querySelector('input[type="file"][multiple]') ||
-                                    document.querySelector('input[type="file"][accept*="image"]') ||
-                                    document.querySelector('input[type="file"]');
-                    if (!fileInput) return false;
 
                     var dt = new DataTransfer();
                     for (var i = 0; i < count; i++) {
@@ -195,15 +195,56 @@ class ChatGptWebAdapter(
 
                     if (dt.items.length === 0) return false;
 
-                    var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files');
-                    if (desc && desc.set) {
-                        desc.set.call(fileInput, dt.files);
-                    } else {
-                        fileInput.files = dt.files;
+                    var fileInputs = Array.from(document.querySelectorAll('input[type="file"]')).filter(function(inp) {
+                        var acc = inp.getAttribute('accept') || '';
+                        return acc.indexOf('image') !== -1 || inp.hasAttribute('multiple');
+                    });
+                    if (fileInputs.length === 0) {
+                        fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
                     }
-                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    fileInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    return true;
+                    if (fileInputs.length === 0) return false;
+
+                    var attached = false;
+                    fileInputs.forEach(function(input) {
+                        try {
+                            var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files');
+                            if (desc && desc.set) {
+                                desc.set.call(input, dt.files);
+                            } else {
+                                input.files = dt.files;
+                            }
+
+                            // Trigger React synthetic onChange directly
+                            for (var k in input) {
+                                if (k.startsWith('__reactProps')) {
+                                    var props = input[k];
+                                    if (props && typeof props.onChange === 'function') {
+                                        try {
+                                            props.onChange({
+                                                target: input,
+                                                currentTarget: input,
+                                                nativeEvent: new Event('change', { bubbles: true }),
+                                                bubbles: true,
+                                                cancelable: true,
+                                                defaultPrevented: false,
+                                                isDefaultPrevented: function() { return false; },
+                                                isPropagationStopped: function() { return false; },
+                                                persist: function() {},
+                                                timeStamp: Date.now(),
+                                                type: 'change'
+                                            });
+                                        } catch(e) {}
+                                    }
+                                }
+                            }
+
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            attached = true;
+                        } catch(e) {}
+                    });
+
+                    return attached;
                 } catch(e) {
                     return false;
                 }
@@ -226,11 +267,10 @@ class ChatGptWebAdapter(
                 try {
                     // Check for attachments inside the composer form
                     var attachments = document.querySelectorAll(
-                        ".group\\/composer-attachment, " +
                         "[class*='composer-attachment'], " +
                         "[data-testid*='attachment'], " +
                         "[data-testid*='file-thumbnail'], " +
-                        "form img[src*='blob:']"
+                        "form img"
                     );
 
                     if (attachments.length === 0) {
@@ -268,7 +308,7 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    var editor = document.querySelector(".ProseMirror, [contenteditable='true'], textarea, #prompt-textarea");
+                    var editor = document.querySelector("#prompt-textarea, .ProseMirror, [contenteditable='true'], textarea");
                     if (!editor) return false;
 
                     editor.focus();
@@ -294,14 +334,21 @@ class ChatGptWebAdapter(
                     editor.dispatchEvent(new Event('change', { bubbles: true }));
 
                     setTimeout(function() {
-                        var sendBtn = document.querySelector("button[aria-label*='Send' i], button[data-testid='send-button'], button[aria-label*='Submit' i]");
+                        var sendBtn = document.querySelector("button[aria-label='Send'], button.bg-composer-primary, button[data-testid='send-button'], button[aria-label*='Send' i], button[aria-label*='Submit' i]");
                         if (sendBtn) {
                             sendBtn.removeAttribute('disabled');
+                            sendBtn.removeAttribute('aria-disabled');
+                            var rect = sendBtn.getBoundingClientRect();
+                            var opts = { bubbles: true, cancelable: true, view: window, clientX: rect.x + rect.width / 2, clientY: rect.y + rect.height / 2 };
+                            sendBtn.dispatchEvent(new PointerEvent('pointerdown', opts));
+                            sendBtn.dispatchEvent(new MouseEvent('mousedown', opts));
+                            sendBtn.dispatchEvent(new PointerEvent('pointerup', opts));
+                            sendBtn.dispatchEvent(new MouseEvent('mouseup', opts));
                             sendBtn.click();
                         } else {
                             editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true }));
                         }
-                    }, 800);
+                    }, 600);
 
                     return true;
                 } catch(e) {
@@ -310,7 +357,9 @@ class ChatGptWebAdapter(
             })();
         """.trimIndent()
         webView.evaluateJavascript(js) { res ->
-            onComplete?.invoke(res?.trim() == "true")
+            Handler(Looper.getMainLooper()).postDelayed({
+                onComplete?.invoke(res?.trim() == "true")
+            }, 1200L)
         }
     }
 
@@ -397,33 +446,42 @@ class ChatGptWebAdapter(
                         scroller.scrollTop = scroller.scrollHeight;
                     }
 
-                    // 2. Check if generation is still active
+                    // 2. Check if generation is still active (only check actual stop button or spinners, never body text)
                     var stopBtn = document.querySelector(
-                        "button[data-testid='stop-button'], button[aria-label*='Stop' i], [data-icon='stop'], button:has(svg rect), [class*='result-streaming'], [class*='streaming']"
+                        "button[data-testid='stop-button'], button[aria-label*='Stop' i], [data-icon='stop'], button:has(svg rect)"
                     );
-                    var bodyText = document.body.innerText || "";
-                    var isWorking = stopBtn ||
-                        bodyText.indexOf("Creating image") !== -1 ||
-                        bodyText.indexOf("Thinking") !== -1 ||
-                        bodyText.indexOf("Generating") !== -1 ||
-                        document.querySelector("[role='progressbar'], .animate-spin, .animate-pulse, [class*='result-streaming']");
+                    var isWorking = !!stopBtn || !!document.querySelector("[role='progressbar'], .animate-spin, [class*='result-streaming']");
 
                     var excludeList = $excludeJson;
                     var excludeSet = new Set(excludeList);
 
-                    // 3. Find candidate images strictly within ASSISTANT responses
-                    // Exclude any user prompt attachments, composer previews, or avatars
-                    var allImgs = Array.from(document.querySelectorAll(
-                        "[data-message-author-role='assistant'] img, article[data-testid*='assistant'] img, [class*='agent-turn'] img, [class*='assistant'] img"
+                    // 3. Find candidate images strictly within the NEWEST ASSISTANT responses
+                    var assistantTurns = Array.from(document.querySelectorAll(
+                        "[data-message-author-role='assistant'], article[data-testid*='assistant'], [class*='agent-turn'], [class*='assistant']"
                     ));
 
-                    // If assistant turn has no explicit author role attribute, check main/article but filter out user containers
+                    // If we know initialTurnCount and new turns have appeared, inspect only the new turns
+                    var candidateTurns = assistantTurns;
+                    if (assistantTurns.length > $initialTurnCount) {
+                        candidateTurns = assistantTurns.slice($initialTurnCount);
+                    } else if (assistantTurns.length > 0) {
+                        // Otherwise inspect the latest assistant turn
+                        candidateTurns = [assistantTurns[assistantTurns.length - 1]];
+                    }
+
+                    var allImgs = [];
+                    candidateTurns.forEach(function(turn) {
+                        turn.querySelectorAll("img").forEach(function(img) {
+                            allImgs.push(img);
+                        });
+                    });
+
+                    // If no images found in candidate assistant turns, check all assistant turns
                     if (allImgs.length === 0) {
-                        allImgs = Array.from(document.querySelectorAll("main img, article img, div[class*='conversation'] img")).filter(function(img) {
-                            if (img.closest("[data-message-author-role='user']")) return false;
-                            if (img.closest("[class*='user-turn']")) return false;
-                            if (img.closest("[data-testid*='turn-user']")) return false;
-                            return true;
+                        assistantTurns.forEach(function(turn) {
+                            turn.querySelectorAll("img").forEach(function(img) {
+                                allImgs.push(img);
+                            });
                         });
                     }
 

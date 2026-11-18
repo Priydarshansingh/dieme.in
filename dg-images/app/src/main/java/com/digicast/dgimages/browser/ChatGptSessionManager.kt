@@ -111,6 +111,10 @@ object ChatGptSessionManager {
         }
 
         try {
+            withContext(Dispatchers.Main) {
+                adapter.webView.resumeTimers()
+                adapter.webView.onResume()
+            }
             _sessionStatus.value = "Preparing media assets..."
 
             // Download base image and reference images to local cache
@@ -183,8 +187,12 @@ object ChatGptSessionManager {
             val startNew = forceNewChat ?: _preferNewChat.value
             if (startNew) {
                 _sessionStatus.value = "Opening fresh ChatGPT conversation..."
-                adapter.startNewChat()
-                delay(1200)
+                suspendCancellableCoroutine<Boolean> { cont ->
+                    adapter.startNewChat { success ->
+                        if (cont.isActive) cont.resume(success)
+                    }
+                }
+                delay(2000)
             } else {
                 _sessionStatus.value = "Appending to ongoing ChatGPT conversation..."
             }
@@ -199,8 +207,8 @@ object ChatGptSessionManager {
                     }
                 }
 
-                // Poll for attachments readiness up to 10 seconds
-                for (attempt in 0 until 10) {
+                // Poll for attachments readiness up to 45 seconds (handling slow mobile upload speeds)
+                for (attempt in 0 until 45) {
                     delay(1000)
                     val ready = suspendCancellableCoroutine<Boolean> { cont ->
                         adapter.checkAttachmentsReady { isReady ->
@@ -208,8 +216,11 @@ object ChatGptSessionManager {
                         }
                     }
                     if (ready) {
-                        Log.i(TAG, "✅ Attachments confirmed ready in ChatGPT DOM at attempt #${attempt + 1}")
+                        Log.i(TAG, "✅ Attachments confirmed fully uploaded in ChatGPT DOM at attempt #${attempt + 1}")
                         break
+                    }
+                    if (attempt % 5 == 0) {
+                        _sessionStatus.value = "Uploading image assets to ChatGPT (${attempt + 1}s)..."
                     }
                 }
             }
@@ -283,6 +294,10 @@ object ChatGptSessionManager {
         // Poll for up to 90 seconds (30 attempts x 3000ms)
         for (i in 0 until 30) {
             delay(3000)
+            withContext(Dispatchers.Main) {
+                adapter.webView.resumeTimers()
+                adapter.webView.onResume()
+            }
             _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
             val result = suspendCancellableCoroutine<String?> { cont ->
                 adapter.captureGeneratedImage(initialTurnCount, excludeUrls) { imgResult ->

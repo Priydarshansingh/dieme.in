@@ -37,6 +37,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -49,14 +50,23 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import com.digicast.dgimages.util.AppUpdateManager
 import com.digicast.dgimages.util.DgUpdateInfo
 import com.digicast.dgimages.util.DgUpdateCheckResult
@@ -118,6 +128,7 @@ fun resolveJobImageModel(context: Context, job: GenerationJob): Any {
     return job.baseImageUrl
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DgImagesDashboard() {
     val context = LocalContext.current
@@ -129,7 +140,7 @@ fun DgImagesDashboard() {
     val hasDevAccess by DevAccessManager.hasDevAccess.collectAsState()
     val isChatGptConnected by ChatGptSessionManager.isChatGptConnected.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = ChatGPT Engine, 1 = Activity Feed
+    var showActivitySheet by remember { mutableStateOf(false) }
     var webAdapter by remember { mutableStateOf<ChatGptWebAdapter?>(null) }
     var testFeedback by remember { mutableStateOf<String?>(null) }
 
@@ -207,8 +218,6 @@ fun DgImagesDashboard() {
         )
     }
 
-    val latestJob = recentJobs.firstOrNull()
-
     val onLogoClicked = {
         val now = System.currentTimeMillis()
         if (now - lastTapTimestamp > 2500L) {
@@ -225,11 +234,7 @@ fun DgImagesDashboard() {
 
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
-    val screenHeightDp = configuration.screenHeightDp
     val isSmallScreen = screenWidthDp < 360
-    val isCompactScreen = screenWidthDp < 400
-    val isTablet = screenWidthDp >= 600
-    val isShortScreen = screenHeightDp < 700
 
     Scaffold(
         containerColor = DgCanvas,
@@ -243,225 +248,94 @@ fun DgImagesDashboard() {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = if (isSmallScreen) 12.dp else 18.dp, vertical = if (isShortScreen) 8.dp else 12.dp),
+                        .padding(horizontal = if (isSmallScreen) 12.dp else 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    // Left: Logo icon + "Dg-Images" text ONLY (minimal, bold, uncluttered)
                     Row(
-                        modifier = Modifier.weight(1f, fill = false),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(if (isSmallScreen) 6.dp else 10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.clickable { onLogoClicked() }
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(if (isSmallScreen) 30.dp else 34.dp)
+                                .size(34.dp)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(Brush.linearGradient(listOf(Color(0xFF0F766E), Color(0xFF134E5E))))
-                                .border(1.dp, DgElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-                                .clickable { onLogoClicked() },
+                                .border(1.dp, DgElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(if (isSmallScreen) 16.dp else 18.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
-                        Column(modifier = Modifier.clickable { onLogoClicked() }) {
-                            Text(
-                                text = "Dg-Images",
-                                color = Color.White,
-                                fontSize = if (isSmallScreen) 15.sp else 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = (-0.4).sp,
-                                maxLines = 1
-                            )
-                            Text(
-                                text = if (hasDevAccess) {
-                                    if (isSmallScreen) "Dev Mode" else "Dieme AI Engine • Dev"
-                                } else {
-                                    if (isSmallScreen) "AI Engine" else "Dieme AI Engine"
-                                },
-                                color = if (hasDevAccess) DgAmber else DgSlate,
-                                fontSize = 10.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                        Text(
+                            text = "Dg-Images",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.4).sp,
+                            maxLines = 1
+                        )
                     }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(if (isSmallScreen) 4.dp else 8.dp)
-                    ) {
-                        if (hasDevAccess) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(DgAmber.copy(alpha = 0.15f))
-                                    .border(1.dp, DgAmber.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        DevAccessManager.setDevAccess(context, false)
-                                        Toast.makeText(context, "Developer mode locked", Toast.LENGTH_SHORT).show()
-                                    }
-                                    .padding(horizontal = if (isSmallScreen) 6.dp else 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = if (isSmallScreen) "DEV" else "🔒 DEV ACTIVE",
-                                    color = DgAmber,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-                        }
+                    // Right: ONLY the green dot needed (live pulsing status dot that opens Activity sheet)
+                    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                    val pulseScale by infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.7f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1800, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "scale"
+                    )
+                    val pulseAlpha by infiniteTransition.animateFloat(
+                        initialValue = 0.5f,
+                        targetValue = 0.05f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1800, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "alpha"
+                    )
 
-                        // Port status badge (Guaranteed never to wrap vertically!)
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .clickable { showActivitySheet = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Pulsing outer aura ring
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(9999.dp))
-                                .background(DgEmerald.copy(alpha = 0.12f))
-                                .border(1.dp, DgEmerald.copy(alpha = 0.35f), RoundedCornerShape(9999.dp))
-                                .padding(horizontal = if (isCompactScreen) 7.dp else 10.dp, vertical = 4.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(DgEmerald)
-                                )
-                                Text(
-                                    text = if (isCompactScreen) ":5488" else "127.0.0.1:5488",
-                                    color = DgEmerald,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-                        }
+                                .size(12.dp * pulseScale)
+                                .clip(CircleShape)
+                                .background(DgEmerald.copy(alpha = pulseAlpha))
+                        )
+                        // Inner solid emerald dot
+                        Box(
+                            modifier = Modifier
+                                .size(8.5.dp)
+                                .clip(CircleShape)
+                                .background(DgEmerald)
+                                .border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape)
+                        )
                     }
                 }
 
-                // If user has dev access, show the sub-tabs: ChatGPT Browser vs Activity Feed
-                if (hasDevAccess) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = if (isSmallScreen) 12.dp else 20.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (selectedTab == 0) DgCardSurface else Color.Transparent)
-                                .border(
-                                    1.dp,
-                                    if (selectedTab == 0) DgElectricCyan.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.08f),
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .clickable { selectedTab = 0 }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(Icons.Default.OpenInBrowser, contentDescription = null, tint = if (selectedTab == 0) DgElectricCyan else DgSlate, modifier = Modifier.size(15.dp))
-                                Text(
-                                    text = if (isSmallScreen) "Web Engine" else "ChatGPT Web Engine",
-                                    color = if (selectedTab == 0) Color.White else DgSlate,
-                                    fontSize = if (isSmallScreen) 11.sp else 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (selectedTab == 1) DgCardSurface else Color.Transparent)
-                                .border(
-                                    1.dp,
-                                    if (selectedTab == 1) DgElectricCyan.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.08f),
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .clickable { selectedTab = 1 }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(Icons.Default.Layers, contentDescription = null, tint = if (selectedTab == 1) DgElectricCyan else DgSlate, modifier = Modifier.size(15.dp))
-                                Text(
-                                    text = "Activity (${recentJobs.size})",
-                                    color = if (selectedTab == 1) Color.White else DgSlate,
-                                    fontSize = if (isSmallScreen) 11.sp else 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                } else if (!isChatGptConnected) {
-                    // Sign-in requirement banner when not logged in
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFF0F1E26))
-                            .border(1.dp, DgElectricCyan.copy(alpha = 0.3f))
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.Lock, contentDescription = null, tint = DgElectricCyan, modifier = Modifier.size(14.dp))
-                            Text(
-                                text = "Sign in to ChatGPT once below. Dg-Images will then switch to background mode.",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(DgElectricCyan.copy(alpha = 0.15f))
-                                .border(1.dp, DgElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                                .clickable {
-                                    webAdapter?.checkLoginStatus { loggedIn ->
-                                        if (loggedIn) {
-                                            Toast.makeText(context, "Connected to ChatGPT!", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Please complete sign-in first", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                }
-                                .padding(horizontal = 8.dp, vertical = 5.dp)
-                        ) {
-                            Text("Verify", color = DgElectricCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
+                // Sleek specular hairline separator
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Color.White.copy(alpha = 0.06f))
+                )
             }
         }
     ) { innerPadding ->
@@ -470,7 +344,7 @@ fun DgImagesDashboard() {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // ALWAYS mount WebView in composition so background generation via 127.0.0.1:5488 is never disrupted
+            // ALWAYS mount WebView in full unhindered view so ChatGPT chat displays completely
             AndroidView(
                 factory = { ctx ->
                     val existingWv = ChatGptSessionManager.activeAdapter?.webView
@@ -512,109 +386,182 @@ fun DgImagesDashboard() {
                         (wv.parent as? ViewGroup)?.removeView(wv)
                     } catch (_: Throwable) {}
                 },
-                modifier = if (hasDevAccess && selectedTab == 1) {
-                    Modifier.size(1.dp).graphicsLayer { alpha = 0.001f }
-                } else {
-                    Modifier.fillMaxSize()
-                }
+                modifier = Modifier.fillMaxSize()
             )
+        }
+    }
 
-            // OVERLAY: NORMAL USERS (When logged in and not in dev mode)
-            if (!hasDevAccess && isChatGptConnected) {
-                NormalUserOverlay(
-                    context = context,
-                    currentVersionName = currentVersionName,
-                    isCheckingUpdate = isCheckingUpdate,
-                    updateStatusMessage = updateStatusMessage,
-                    onTriggerCheckUpdates = onTriggerCheckUpdates,
-                    onLogoTap = { onLogoClicked() },
-                    onDisconnect = {
-                        ChatGptSessionManager.disconnect {
-                            Toast.makeText(context, "ChatGPT disconnected", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                )
-            } else if (hasDevAccess && selectedTab == 0) {
-                // Developer Mode: Session Control Bar & Latest Generation Banner over WebView
-                Column(
+    // ── ACTIVITY & ENGINE STATUS BOTTOM SHEET ────────────────────────────────
+    if (showActivitySheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showActivitySheet = false },
+            sheetState = sheetState,
+            containerColor = Color(0xFF061217),
+            contentColor = Color.White,
+            dragHandle = {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter)
+                        .padding(top = 10.dp, bottom = 6.dp)
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color.White.copy(alpha = 0.25f))
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                // Sheet Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Session control bar
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFF041014).copy(alpha = 0.95f))
-                            .border(1.dp, Color.White.copy(alpha = 0.06f))
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(DgElectricCyan.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (preferNewChat) DgElectricCyan.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f))
-                                    .border(1.dp, if (preferNewChat) DgElectricCyan else Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
-                                    .clickable { ChatGptSessionManager.setPreferNewChat(true) }
-                                    .padding(horizontal = 8.dp, vertical = 5.dp)
-                            ) {
-                                Text("✨ New Chat", color = if (preferNewChat) DgElectricCyan else DgSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (!preferNewChat) DgElectricCyan.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f))
-                                    .border(1.dp, if (!preferNewChat) DgElectricCyan else Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
-                                    .clickable { ChatGptSessionManager.setPreferNewChat(false) }
-                                    .padding(horizontal = 8.dp, vertical = 5.dp)
-                            ) {
-                                Text("💬 Current Chat", color = if (!preferNewChat) DgElectricCyan else DgSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
+                            Icon(
+                                Icons.Default.Layers,
+                                contentDescription = null,
+                                tint = DgElectricCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { webAdapter?.webView?.reload() }) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Reload", tint = Color.White, modifier = Modifier.size(16.dp))
-                            }
+                        Text(
+                            text = "Engine Activity",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color.White.copy(alpha = 0.08f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "${recentJobs.size} tasks",
+                                color = DgSlate,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
 
-                    // Notice capsule for dev
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFF09161B).copy(alpha = 0.92f))
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        // Status badge inside sheet
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(9999.dp))
+                                .background(DgEmerald.copy(alpha = 0.12f))
+                                .border(1.dp, DgEmerald.copy(alpha = 0.35f), RoundedCornerShape(9999.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
-                            Icon(Icons.Default.Lock, contentDescription = null, tint = DgAmber, modifier = Modifier.size(12.dp))
-                            Text(
-                                text = "Developer Mode: Inspecting active ChatGPT Web Engine. Dieme IPC is listening on :5488.",
-                                color = DgSlate,
-                                fontSize = 10.sp,
-                                lineHeight = 14.sp
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(modifier = Modifier.size(5.dp).clip(CircleShape).background(DgEmerald))
+                                Text(
+                                    text = ":5488 Online",
+                                    color = DgEmerald,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { showActivitySheet = false },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = DgSlate,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
                 }
-            } else if (hasDevAccess && selectedTab == 1) {
-                // Developer Mode: Activity Feed Tab
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Quick session control bar (neatly housed inside Activity sheet)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF091E26))
+                        .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (preferNewChat) DgElectricCyan.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f))
+                                .border(1.dp, if (preferNewChat) DgElectricCyan else Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                .clickable { ChatGptSessionManager.setPreferNewChat(true) }
+                                .padding(horizontal = 8.dp, vertical = 5.dp)
+                        ) {
+                            Text("✨ New Chat", color = if (preferNewChat) DgElectricCyan else DgSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (!preferNewChat) DgElectricCyan.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f))
+                                .border(1.dp, if (!preferNewChat) DgElectricCyan else Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                .clickable { ChatGptSessionManager.setPreferNewChat(false) }
+                                .padding(horizontal = 8.dp, vertical = 5.dp)
+                        ) {
+                            Text("💬 Current Chat", color = if (!preferNewChat) DgElectricCyan else DgSlate, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    IconButton(
+                        onClick = {
+                            webAdapter?.webView?.reload()
+                            Toast.makeText(context, "Reloading ChatGPT...", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Reload", tint = Color.White, modifier = Modifier.size(16.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Activity Feed List
                 ActivityFeedView(
                     context = context,
                     coroutineScope = coroutineScope,
                     sessionStatus = sessionStatus,
                     recentJobs = recentJobs,
                     testFeedback = testFeedback,
-                    onTestFeedbackChange = { testFeedback = it }
+                    onTestFeedbackChange = { testFeedback = it },
+                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
                 )
             }
         }
@@ -1140,14 +1087,15 @@ fun ActivityFeedView(
     sessionStatus: String,
     recentJobs: List<GenerationJob>,
     testFeedback: String?,
-    onTestFeedbackChange: (String?) -> Unit
+    onTestFeedbackChange: (String?) -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize()
 ) {
     val configuration = LocalConfiguration.current
     val isSmallScreen = configuration.screenWidthDp < 360
     val latestJob = recentJobs.firstOrNull()
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier,
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(

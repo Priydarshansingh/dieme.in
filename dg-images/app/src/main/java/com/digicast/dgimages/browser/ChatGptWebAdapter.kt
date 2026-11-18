@@ -11,6 +11,7 @@ import android.view.View
 import android.webkit.CookieManager
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -51,6 +52,7 @@ class ChatGptWebAdapter(
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
+        settings.setSupportMultipleWindows(false)
         settings.javaScriptCanOpenWindowsAutomatically = true
         settings.userAgentString = USER_AGENT
 
@@ -100,6 +102,15 @@ class ChatGptWebAdapter(
         }
 
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                // Ensure auth, oauth redirects, and internal navigations remain inside WebView
+                val url = request?.url?.toString() ?: return false
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    return false
+                }
+                return false
+            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 CookieManager.getInstance().flush()

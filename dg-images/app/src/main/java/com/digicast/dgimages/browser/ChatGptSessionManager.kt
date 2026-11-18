@@ -298,15 +298,25 @@ object ChatGptSessionManager {
                 adapter.webView.resumeTimers()
                 adapter.webView.onResume()
             }
-            _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
             val result = suspendCancellableCoroutine<String?> { cont ->
                 adapter.captureGeneratedImage(initialTurnCount, excludeUrls) { imgResult ->
                     if (cont.isActive) cont.resume(imgResult)
                 }
             }
-            if (!result.isNullOrBlank()) {
-                Log.i(TAG, "🎯 Captured newly generated image on attempt #${i + 1}!")
-                return result
+            when {
+                result == "LOADING" -> {
+                    _sessionStatus.value = "ChatGPT rendering 1080p canvas... (${(i + 1) * 3}s)"
+                }
+                result == "GENERATING" || result.isNullOrBlank() || result == "null" -> {
+                    _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
+                }
+                result.startsWith("http://") || result.startsWith("https://") || result.startsWith("data:") -> {
+                    Log.i(TAG, "🎯 Captured newly generated image on attempt #${i + 1}!")
+                    return result
+                }
+                else -> {
+                    Log.d(TAG, "Polling attempt #${i + 1}: $result")
+                }
             }
         }
         return null

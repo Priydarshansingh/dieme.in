@@ -1768,46 +1768,7 @@ fun ThumbnailStudioScreen(
                                     )
                                 }
 
-                                if (generatedImageUrl != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(12.dp)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(Color.Black.copy(alpha = 0.8f))
-                                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
-                                            .clickable {
-                                                val targetUrl = generatedImageUrl
-                                                if (targetUrl != null) {
-                                                    if (PermissionHelper.hasStoragePermissions(context)) {
-                                                        saveImageToDownloads(targetUrl)
-                                                    } else {
-                                                        pendingImageUrlToSave = targetUrl
-                                                        showStoragePermissionForThumbnail = true
-                                                    }
-                                                }
-                                            }
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Download,
-                                                contentDescription = "Save 1080p",
-                                                tint = DigicastElectricCyan,
-                                                modifier = Modifier.size(13.dp)
-                                            )
-                                            Text(
-                                                text = "Save 1080p",
-                                                color = DigicastElectricCyan,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
+
 
                                 // ── Background Canvas Placeholder when Generating ───────
                                 if (isGenerating) {

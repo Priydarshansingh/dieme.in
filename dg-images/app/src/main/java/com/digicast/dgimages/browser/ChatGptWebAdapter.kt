@@ -446,11 +446,12 @@ class ChatGptWebAdapter(
                         scroller.scrollTop = scroller.scrollHeight;
                     }
 
-                    // 2. Check if generation is still active (only check actual stop button or spinners, never body text)
+                    // 2. Check if generation is still active (detect stop buttons or streaming indicators)
                     var stopBtn = document.querySelector(
-                        "button[data-testid='stop-button'], button[aria-label*='Stop' i], [data-icon='stop'], button:has(svg rect)"
+                        "button[data-testid='stop-button'], button[aria-label*='Stop generating' i], button[aria-label*='Stop streaming' i], [data-testid='fruitjuice-stop-button'], [data-testid*='stop-button']"
                     );
-                    var isWorking = !!stopBtn || !!document.querySelector("[role='progressbar'], .animate-spin, [class*='result-streaming']");
+                    var isStreaming = !!document.querySelector("[class*='result-streaming'], [class*='streaming'], [data-testid*='streaming']");
+                    var isWorking = !!stopBtn || isStreaming;
 
                     var excludeList = $excludeJson;
                     var excludeSet = new Set(excludeList);
@@ -460,13 +461,21 @@ class ChatGptWebAdapter(
                         "[data-message-author-role='assistant'], article[data-testid*='assistant'], [class*='agent-turn'], [class*='assistant']"
                     ));
 
-                    // If we know initialTurnCount and new turns have appeared, inspect only the new turns
-                    var candidateTurns = assistantTurns;
-                    if (assistantTurns.length > $initialTurnCount) {
-                        candidateTurns = assistantTurns.slice($initialTurnCount);
-                    } else if (assistantTurns.length > 0) {
-                        // Otherwise inspect the latest assistant turn
-                        candidateTurns = [assistantTurns[assistantTurns.length - 1]];
+                    // If assistant response hasn't appeared yet, it is still generating
+                    if (assistantTurns.length <= $initialTurnCount) {
+                        return "GENERATING";
+                    }
+
+                    // Inspect ONLY the newly appeared assistant turns
+                    var candidateTurns = assistantTurns.slice($initialTurnCount);
+
+                    // Check if candidate turn text indicates active generation
+                    var isTurnWorking = candidateTurns.some(function(turn) {
+                        var text = turn.innerText || '';
+                        return /creating image|generating image|thinking|drawing/i.test(text);
+                    });
+                    if (isTurnWorking) {
+                        isWorking = true;
                     }
 
                     var allImgs = [];
@@ -475,15 +484,6 @@ class ChatGptWebAdapter(
                             allImgs.push(img);
                         });
                     });
-
-                    // If no images found in candidate assistant turns, check all assistant turns
-                    if (allImgs.length === 0) {
-                        assistantTurns.forEach(function(turn) {
-                            turn.querySelectorAll("img").forEach(function(img) {
-                                allImgs.push(img);
-                            });
-                        });
-                    }
 
                     var targetImgs = allImgs.filter(function(img) {
                         if (img.closest("[data-message-author-role='user']")) return false;
@@ -501,10 +501,7 @@ class ChatGptWebAdapter(
                     });
 
                     if (targetImgs.length === 0) {
-                        if (isWorking) {
-                            return "GENERATING";
-                        }
-                        return null;
+                        return "GENERATING";
                     }
 
                     // If still actively streaming/generating, do not capture prematurely
@@ -546,7 +543,7 @@ class ChatGptWebAdapter(
         """.trimIndent()
         webView.evaluateJavascript(js) { res ->
             val clean = res?.trim('"', ' ', '\n')
-            if (!clean.isNullOrEmpty() && clean != "null" && clean != "GENERATING" && clean != "LOADING") {
+            if (!clean.isNullOrEmpty() && clean != "null") {
                 callback(clean)
             } else {
                 callback(null)

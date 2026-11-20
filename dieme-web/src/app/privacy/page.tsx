@@ -109,6 +109,17 @@ export default function PrivacyPage() {
                     <b>Data Processed:</b> Live stream chat message timestamps, author display names, and trigger commands.
                   </p>
                 </div>
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5">
+                  <div className="font-mono font-bold text-cyan-300 break-all">
+                    https://www.googleapis.com/auth/yt-analytics.readonly
+                  </div>
+                  <p className="text-slate-300">
+                    <b>Purpose:</b> Read-only access to view creator channel and live stream performance metrics (watch time, peak concurrent viewers, audience retention) for workspace analytics.
+                  </p>
+                  <p className="text-slate-400">
+                    <b>Data Processed:</b> Aggregated stream view counts, average watch time, peak concurrent viewership, and engagement statistics.
+                  </p>
+                </div>
               </div>
             </div>
           </section>

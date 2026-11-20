@@ -37,9 +37,9 @@ class DefaultImageStudioExtension : ImageStudioExtension {
     // Force Proxy.NO_PROXY so OkHttp communicates directly with local loopback without carrier cellular proxy interception
     private val httpClient = OkHttpClient.Builder()
         .proxy(Proxy.NO_PROXY)
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .writeTimeout(120, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
+        .writeTimeout(180, TimeUnit.SECONDS)
         .build()
 
     override fun isDgImagesInstalled(context: Context): Boolean {

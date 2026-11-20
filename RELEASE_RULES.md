@@ -23,6 +23,8 @@ Every release of Dieme Core (`dieme-android`), Dg-Images Companion (`dg-images`)
 | :--- | :--- | :--- | :--- | :--- |
 | `v1.0.0` | 1 | 1.0.0 | 2026-11-02 | Initial production launch of Dieme Live Studio & Dg-Images daemon. |
 | `v1.1.0` | 2 | 1.1.0 | 2026-11-15 | In-app update checker, 24h snooze, Retro dot-matrix canvas mini-game, normal user ChatGPT barrier, direct UPI payment launch. |
+| `v1.2.0` | 3 | 1.2.0 | 2026-11-19 | Clean distraction-free canvas, obsidian top bar with pulsing emerald dot, persistent clip tracking across logins, and background daemon persistence. |
+| `v1.2.1` | 4 | 1.2.1 | 2026-11-20 | Skippable in-app update notifications, bulletproof ChatGPT attachment upload & canvas generation capture, 180s daemon timeout, and updated APK distributions. |
 
 ---
 

@@ -207,8 +207,9 @@ object ChatGptSessionManager {
                     }
                 }
 
-                // Poll for attachments readiness up to 45 seconds (handling slow mobile upload speeds)
-                for (attempt in 0 until 45) {
+                // Poll for attachments readiness up to 20 seconds
+                var attachmentsReady = false
+                for (attempt in 0 until 20) {
                     delay(1000)
                     val ready = suspendCancellableCoroutine<Boolean> { cont ->
                         adapter.checkAttachmentsReady { isReady ->
@@ -217,11 +218,21 @@ object ChatGptSessionManager {
                     }
                     if (ready) {
                         Log.i(TAG, "✅ Attachments confirmed fully uploaded in ChatGPT DOM at attempt #${attempt + 1}")
+                        attachmentsReady = true
                         break
                     }
                     if (attempt % 5 == 0) {
                         _sessionStatus.value = "Uploading image assets to ChatGPT (${attempt + 1}s)..."
                     }
+                }
+
+                if (!attachmentsReady) {
+                    Log.e(TAG, "❌ Attachments failed to upload within 20s. Aborting prompt submission to avoid broken text response.")
+                    _sessionStatus.value = "Error: Failed to attach image assets to ChatGPT"
+                    adapter.clearPendingFiles()
+                    return@withContext Result.failure(
+                        IllegalStateException("Failed to attach reference images to ChatGPT composer. Please verify ChatGPT is ready in Dg-Images.")
+                    )
                 }
             }
 
@@ -311,8 +322,19 @@ object ChatGptSessionManager {
                     _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
                 }
                 result.startsWith("http://") || result.startsWith("https://") || result.startsWith("data:") -> {
-                    Log.i(TAG, "🎯 Captured newly generated image on attempt #${i + 1}!")
-                    return result
+                    if (i < 2) {
+                        Log.i(TAG, "⏳ Image candidate at attempt #${i + 1}, waiting for generation cycle to settle...")
+                        _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
+                    } else {
+                        Log.i(TAG, "🎯 Captured newly generated image on attempt #${i + 1}!")
+                        return result
+                    }
+                }
+                result.startsWith("TEXT_RESPONSE:") -> {
+                    val text = result.substringAfter("TEXT_RESPONSE:").trim()
+                    Log.w(TAG, "⚠️ ChatGPT responded with text instead of image: ${text.take(200)}")
+                    _sessionStatus.value = "ChatGPT: \"${text.take(45)}...\""
+                    return null
                 }
                 else -> {
                     Log.d(TAG, "Polling attempt #${i + 1}: $result")

@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 3,
-    "versionName": "1.2.0",
+    "versionCode": 4,
+    "versionName": "1.2.1",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "• Clean distraction-free 16:9 canvas without overlay pills\n• Real-time countdown & dot snake mini-game while generating\n• Persistent YouTube channel clip tracking across logins\n• Instant UPI plans & payments",
+    "releaseNotes": "• In-app update notifications with skippable alerts\n• High-speed 1080p face-swap thumbnail generation and live canvas preview\n• Clean distraction-free 16:9 canvas without overlay pills\n• Persistent YouTube channel clip tracking across logins\n• Instant UPI plans & payments",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
-    "releaseDate": "2026-11-19",
-    "publishedAt": "2026-11-19T02:00:00Z"
+    "releaseDate": "2026-11-20",
+    "publishedAt": "2026-11-20T05:00:00Z"
   },
   "dgImages": {
-    "versionCode": 3,
-    "versionName": "1.2.0",
+    "versionCode": 4,
+    "versionName": "1.2.1",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "• Minimalist obsidian top bar with pulsing emerald dot\n• Full unhindered ChatGPT view with streamlined login & navigation\n• High-performance 1080p generation with background daemon persistence\n• Dedicated Activity & session control sheet",
+    "releaseNotes": "• Bulletproof ChatGPT attachment upload & generation capture\n• Minimalist obsidian top bar with pulsing emerald dot\n• Full unhindered ChatGPT view with streamlined login & navigation\n• Dedicated Activity & session control sheet",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
-    "releaseDate": "2026-11-19",
-    "publishedAt": "2026-11-19T02:00:00Z"
+    "releaseDate": "2026-11-20",
+    "publishedAt": "2026-11-20T05:00:00Z"
   }
 }

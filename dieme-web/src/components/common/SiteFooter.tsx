@@ -113,18 +113,30 @@ export function SiteFooter({ onSelectProgram, className = '' }: SiteFooterProps)
           </p>
         </div>
 
-        {/* Column 4: Support */}
-        <div className="space-y-3">
-          <p className="font-bold text-white tracking-wide">Support</p>
-          <a
-            href="https://t.me/YT_dieme?start=help"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition shadow-md shadow-emerald-400/20"
-          >
-            <span>Support</span>
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+        {/* Column 4: Downloads & Support */}
+        <div className="space-y-2">
+          <p className="font-bold text-white tracking-wide">Downloads &amp; Apps</p>
+          <p>
+            <Link href="/download" className="hover:text-cyan-400 text-slate-300 hover:underline transition">
+              Android Studio APK (v1.2.1)
+            </Link>
+          </p>
+          <p>
+            <Link href="/download" className="hover:text-cyan-400 text-slate-300 hover:underline transition">
+              Dg-Images AI Companion
+            </Link>
+          </p>
+          <div className="pt-2">
+            <a
+              href="https://t.me/YT_dieme?start=help"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition shadow-md shadow-emerald-400/20"
+            >
+              <span>Support</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </div>
       </div>
 

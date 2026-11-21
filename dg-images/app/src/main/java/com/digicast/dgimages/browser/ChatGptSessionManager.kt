@@ -185,6 +185,7 @@ object ChatGptSessionManager {
 
             // 1. If preferNewChat is true, click New Chat first
             val startNew = forceNewChat ?: _preferNewChat.value
+            adapter.lastCapturedDataUrl = null
             if (startNew) {
                 _sessionStatus.value = "Opening fresh ChatGPT conversation..."
                 suspendCancellableCoroutine<Boolean> { cont ->
@@ -220,15 +221,6 @@ object ChatGptSessionManager {
                         Log.i(TAG, "✅ Attachments confirmed fully uploaded in ChatGPT DOM at attempt #${attempt + 1}")
                         attachmentsReady = true
                         break
-                    }
-                    // Re-trigger attachment assignment if not detected after 5 attempts
-                    if (attempt == 5) {
-                        Log.i(TAG, "🔄 Re-triggering attachImages assignment at attempt #6")
-                        suspendCancellableCoroutine<Boolean> { cont ->
-                            adapter.attachImages(filesToAttach) { success ->
-                                if (cont.isActive) cont.resume(success)
-                            }
-                        }
                     }
                     if (attempt % 5 == 0) {
                         _sessionStatus.value = "Uploading image assets to ChatGPT (${attempt + 1}s)..."
@@ -353,6 +345,43 @@ object ChatGptSessionManager {
         return null
     }
 
+    suspend fun startFreshSession(context: Context): Boolean = withContext(Dispatchers.Main) {
+        val adapter = activeAdapter ?: return@withContext false
+        try {
+            _sessionStatus.value = "Starting fresh ChatGPT session..."
+            adapter.clearPendingFiles()
+            adapter.lastCapturedDataUrl = null
+
+            suspendCancellableCoroutine<Boolean> { cont ->
+                adapter.startNewChat { success ->
+                    adapter.clearComposerAttachments {
+                        if (cont.isActive) cont.resume(success)
+                    }
+                }
+            }
+
+            withContext(Dispatchers.IO) {
+                try {
+                    context.cacheDir.listFiles()?.forEach { file ->
+                        if (file.name.startsWith("chatgpt_gen_") ||
+                            file.name.startsWith("base_") ||
+                            file.name.startsWith("ref_") ||
+                            file.name.startsWith("inpaint_")) {
+                            file.delete()
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            _sessionStatus.value = "ChatGPT Ready (Fresh Session)"
+            Log.i(TAG, "✨ Fresh session started: new chat active, composer and cache cleared")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting fresh session", e)
+            false
+        }
+    }
+
     private suspend fun saveGeneratedResultToCache(
         context: Context,
         captured: String
@@ -363,14 +392,22 @@ object ChatGptSessionManager {
                 val base64Data = captured.substringAfter(",")
                 val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
                 FileOutputStream(outputFile).use { it.write(bytes) }
+                Log.i(TAG, "💾 Saved Base64 generated result -> ${outputFile.name} (${bytes.size} bytes)")
                 "http://127.0.0.1:5488/v1/image/${outputFile.name}"
             } else if (captured.startsWith("http://") || captured.startsWith("https://")) {
-                val cookie = CookieManager.getInstance().getCookie(captured) ?: ""
+                val chatGptCookie = CookieManager.getInstance().getCookie("https://chatgpt.com") ?: ""
+                val specificCookie = CookieManager.getInstance().getCookie(captured) ?: ""
+                val combinedCookie = listOf(chatGptCookie, specificCookie).filter { it.isNotBlank() }.joinToString("; ")
+
                 val reqBuilder = Request.Builder()
                     .url(captured)
                     .header("User-Agent", ChatGptWebAdapter.USER_AGENT)
-                if (cookie.isNotBlank()) {
-                    reqBuilder.header("Cookie", cookie)
+                    .header("Referer", "https://chatgpt.com/")
+                    .header("Origin", "https://chatgpt.com")
+                    .header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+
+                if (combinedCookie.isNotBlank()) {
+                    reqBuilder.header("Cookie", combinedCookie)
                 }
                 val request = reqBuilder.build()
                 val response = httpClient.newCall(request).execute()
@@ -378,11 +415,13 @@ object ChatGptSessionManager {
                     val bytes = response.body?.bytes()
                     if (bytes != null && bytes.isNotEmpty()) {
                         FileOutputStream(outputFile).use { it.write(bytes) }
+                        Log.i(TAG, "💾 Downloaded CDN generated result -> ${outputFile.name} (${bytes.size} bytes)")
                         "http://127.0.0.1:5488/v1/image/${outputFile.name}"
                     } else {
                         captured
                     }
                 } else {
+                    Log.w(TAG, "⚠️ CDN fetch returned HTTP ${response.code} for $captured")
                     captured
                 }
             } else {

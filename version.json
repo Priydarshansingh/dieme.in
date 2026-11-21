@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 6,
-    "versionName": "1.2.3",
+    "versionCode": 7,
+    "versionName": "1.2.4",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Compile-time BuildConfig version detection ensuring no popups when app is up to date\n\u2022 Synchronized direct APK distribution on dieme.in\n\u2022 Real-time launch check with session-only dismiss",
+    "releaseNotes": "\u2022 Fresh ChatGPT session & asset reset on New Session in Dieme\\n\u2022 Deterministic attachment without duplicate multi-image uploads\\n\u2022 Authenticated in-WebView image capture directly cached to local storage\\n\u2022 Replaced downside chat clutter with crisp Generated Result Showcase Card\\n\u2022 Added Active Session Ongoing Assets & Target Pins HUD in Drawer",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
     "releaseDate": "2026-11-21",
-    "publishedAt": "2026-11-21T10:07:22Z"
+    "publishedAt": "2026-11-21T14:03:08Z"
   },
   "dgImages": {
-    "versionCode": 6,
-    "versionName": "1.2.3",
+    "versionCode": 7,
+    "versionName": "1.2.4",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Compile-time BuildConfig version detection ensuring no popups when app is up to date\n\u2022 Synchronized direct APK distribution on dieme.in\n\u2022 Real-time launch check with session-only dismiss",
+    "releaseNotes": "\u2022 Fresh ChatGPT session & asset reset on New Session in Dieme\\n\u2022 Deterministic attachment without duplicate multi-image uploads\\n\u2022 Authenticated in-WebView image capture directly cached to local storage\\n\u2022 Replaced downside chat clutter with crisp Generated Result Showcase Card\\n\u2022 Added Active Session Ongoing Assets & Target Pins HUD in Drawer",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
     "releaseDate": "2026-11-21",
-    "publishedAt": "2026-11-21T10:07:22Z"
+    "publishedAt": "2026-11-21T14:03:08Z"
   }
 }

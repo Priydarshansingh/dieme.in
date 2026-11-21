@@ -18,6 +18,14 @@ class ChatGptJsInterface(
         onPageLoaded(success)
     }
 
+    var onImageCapturedCallback: ((String) -> Unit)? = null
+
+    @JavascriptInterface
+    fun onCapturedImageDataUrl(dataUrl: String) {
+        Log.i("ChatGptJsInterface", "📥 onCapturedImageDataUrl received base64 image (len=${dataUrl.length})")
+        onImageCapturedCallback?.invoke(dataUrl)
+    }
+
     @JavascriptInterface
     fun onCapturedResult(resultJson: String) {
         onResponseCaptured(resultJson)

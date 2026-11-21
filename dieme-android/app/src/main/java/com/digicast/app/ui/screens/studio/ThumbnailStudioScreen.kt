@@ -702,6 +702,18 @@ fun ThumbnailStudioScreen(
             )
         )
 
+        // 5. Instruct Dg-Images companion app to start fresh ChatGPT conversation and reset cache
+        coroutineScope.launch {
+            try {
+                val ext = extensionViewModel.getImageStudio()
+                if (ext is com.digicast.app.api.extension.DefaultImageStudioExtension) {
+                    ext.resetSession(context)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("ThumbnailStudio", "Error requesting resetSession from Dg-Images: ${e.message}")
+            }
+        }
+
         selectedDrawerTab = 1
         Toast.makeText(context, "✨ Started New Session", Toast.LENGTH_SHORT).show()
     }
@@ -1831,68 +1843,42 @@ fun ThumbnailStudioScreen(
                     }
                 }
 
-                // ── 2.5 Live Studio Chat & Generated Revision Results ───────
-                if (chatMessages.isNotEmpty() || isGenerating) {
+                // ── 2.5 Active Revision Dispatch / Result Showcase ───────
+                if (isGenerating) {
                     item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xFF0D141C))
-                                .border(1.dp, AppleSpecularBorder, RoundedCornerShape(16.dp))
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isGenerating) DigicastElectricCyan else DigicastEmerald)
-                                    )
-                                    Text(
-                                        text = "💬 Active Revision Chat",
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                        ActiveRevisionDispatchCard(
+                            status = generationStatusMessage.ifBlank { "Synthesizing revision with Dg-Images..." },
+                            baseImageUrl = activeGeneratingBaseImage,
+                            referenceImages = activeGeneratingRefs,
+                            markedPins = activeGeneratingPins,
+                            onOpenHistory = {
+                                selectedDrawerTab = 1
+                                isHistoryDrawerOpen = true
+                            }
+                        )
+                    }
+                } else if (generatedImageUrl != null) {
+                    item {
+                        GeneratedResultShowcaseCard(
+                            generatedUrl = generatedImageUrl!!,
+                            onSave = {
+                                if (PermissionHelper.hasStoragePermissions(context)) {
+                                    saveImageToDownloads(generatedImageUrl!!)
+                                } else {
+                                    pendingImageUrlToSave = generatedImageUrl
+                                    showStoragePermissionForThumbnail = true
                                 }
-                                Text(
-                                    text = "${chatMessages.size} updates",
-                                    color = DigicastSlate,
-                                    fontSize = 10.sp
-                                )
+                            },
+                            onLoadAsBase = {
+                                currentThumbnailUrl = generatedImageUrl
+                                markedPins.clear()
+                                Toast.makeText(context, "Loaded as New Base Canvas", Toast.LENGTH_SHORT).show()
+                            },
+                            onOpenHistory = {
+                                selectedDrawerTab = 1
+                                isHistoryDrawerOpen = true
                             }
-
-                            chatMessages.forEach { msg ->
-                                ThumbnailChatMessageBubble(
-                                    message = msg,
-                                    generationStatusMessage = generationStatusMessage,
-                                    onDownload = { url ->
-                                        if (PermissionHelper.hasStoragePermissions(context)) {
-                                            saveImageToDownloads(url)
-                                        } else {
-                                            pendingImageUrlToSave = url
-                                            showStoragePermissionForThumbnail = true
-                                        }
-                                    },
-                                    onLoadOnCanvas = { url ->
-                                        currentThumbnailUrl = url
-                                        generatedImageUrl = url
-                                        markedPins.clear()
-                                        Toast.makeText(context, "Loaded on Canvas", Toast.LENGTH_SHORT).show()
-                                    }
-                                )
-                            }
-                        }
+                        )
                     }
                 }
 
@@ -2458,6 +2444,16 @@ fun ThumbnailStudioScreen(
                                 .fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
+                            item {
+                                ActiveSessionOngoingSummaryCard(
+                                    baseImageUrl = currentThumbnailUrl ?: originalSourceThumbnailUrl,
+                                    referenceImages = referenceImages.toList(),
+                                    markedPins = markedPins.toList(),
+                                    generatedImageUrl = generatedImageUrl,
+                                    isGenerating = isGenerating,
+                                    generationStatusMessage = generationStatusMessage
+                                )
+                            }
                             items(chatMessages, key = { it.id }) { message ->
                                 ThumbnailChatMessageBubble(
                                     message = message,
@@ -3134,6 +3130,399 @@ private fun ThumbnailChatMessageBubble(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Live Dispatch Card (Shown Under Canvas When Generating) ─────────────────
+@Composable
+private fun ActiveRevisionDispatchCard(
+    status: String,
+    baseImageUrl: String?,
+    referenceImages: List<Uri>,
+    markedPins: List<MarkedPin>,
+    onOpenHistory: () -> Unit
+) {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF0D141C))
+            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(DigicastElectricCyan)
+                )
+                Text(
+                    text = "⚡ Generating Revision...",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFF0F323A))
+                    .clickable { onOpenHistory() }
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = "View Chat",
+                    color = DigicastElectricCyan,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Text(
+            text = status,
+            color = Color.White.copy(alpha = 0.85f),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        // Ongoing Assets & Pins Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Base Image Mini Preview
+            if (baseImageUrl != null) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context).data(baseImageUrl).crossfade(true).build(),
+                        contentDescription = "Base",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            // Reference Assets Mini Previews
+            referenceImages.forEach { refUri ->
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context).data(refUri).crossfade(true).build(),
+                        contentDescription = "Ref",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            // Pins Badge
+            if (markedPins.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = 0.08f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "🎯 ${markedPins.size} Target Pins",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ── Generated Result Showcase Card (Shown Under Canvas When Ready) ───────────
+@Composable
+private fun GeneratedResultShowcaseCard(
+    generatedUrl: String,
+    onSave: () -> Unit,
+    onLoadAsBase: () -> Unit,
+    onOpenHistory: () -> Unit
+) {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF0D141C))
+            .border(1.dp, AppleSpecularBorder, RoundedCornerShape(16.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(DigicastEmerald)
+                )
+                Text(
+                    text = "✨ Generated Revision Result",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = "1080P • AI ENGINE",
+                color = DigicastSlate,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        // Crisp 16:9 Showcase Preview
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.Black)
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(generatedUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Generated Result",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Action Buttons Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Save to Downloads Button
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF134E5E))
+                    .border(1.dp, DigicastElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+                    .clickable { onSave() }
+                    .padding(vertical = 9.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = "Save",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // Set as Base Button
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                    .clickable { onLoadAsBase() }
+                    .padding(vertical = 9.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Load as Base",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // View Chat Button
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.White.copy(alpha = 0.05f))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+                    .clickable { onOpenHistory() }
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Chat History",
+                    color = DigicastSlate,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+// ── Ongoing Assets & Pins Summary Card (Shown at Top of Drawer Tab 1) ────────
+@Composable
+private fun ActiveSessionOngoingSummaryCard(
+    baseImageUrl: String?,
+    referenceImages: List<Uri>,
+    markedPins: List<MarkedPin>,
+    generatedImageUrl: String?,
+    isGenerating: Boolean,
+    generationStatusMessage: String
+) {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFF0F1722))
+            .border(1.dp, AppleSpecularBorder, RoundedCornerShape(14.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "📌 Active Session Context",
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(
+                        if (isGenerating) Color(0xFF0F323A)
+                        else if (generatedImageUrl != null) Color(0xFF063A22)
+                        else Color.White.copy(alpha = 0.08f)
+                    )
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = if (isGenerating) "GENERATING" else if (generatedImageUrl != null) "RESULT READY" else "IDLE",
+                    color = if (isGenerating) DigicastElectricCyan else if (generatedImageUrl != null) DigicastEmerald else DigicastSlate,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Assets Previews Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Base Image
+            if (baseImageUrl != null) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context).data(baseImageUrl).crossfade(true).build(),
+                            contentDescription = "Base",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    Text("Base", color = DigicastSlate, fontSize = 9.sp)
+                }
+            }
+
+            // References
+            referenceImages.forEachIndexed { idx, refUri ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context).data(refUri).crossfade(true).build(),
+                            contentDescription = "Ref #$idx",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    Text("Ref #${idx + 1}", color = DigicastElectricCyan, fontSize = 9.sp)
+                }
+            }
+
+            // Pins Coordinates Summary
+            if (markedPins.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.Black.copy(alpha = 0.3f))
+                        .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                        .padding(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text("🎯 Targeted Pins (${markedPins.size})", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    markedPins.take(2).forEach { pin ->
+                        Text(
+                            text = "Pin ${pin.id}: ${pin.xPercent.toInt()}%x, ${pin.yPercent.toInt()}%y",
+                            color = DigicastSlate,
+                            fontSize = 9.sp
+                        )
+                    }
+                    if (markedPins.size > 2) {
+                        Text("+${markedPins.size - 2} more pins", color = DigicastElectricCyan, fontSize = 9.sp)
                     }
                 }
             }

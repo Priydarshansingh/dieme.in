@@ -131,6 +131,16 @@ class DgImagesHttpDaemon(
                         }
                     }
 
+                    method == "POST" && (path == "/v1/session/new" || path == "/v1/session/reset") -> {
+                        val success = com.digicast.dgimages.browser.ChatGptSessionManager.startFreshSession(context)
+                        val responseJson = JSONObject().apply {
+                            put("status", if (success) "success" else "error")
+                            put("message", if (success) "Fresh session initialized" else "Session reset failed")
+                            put("timestamp", System.currentTimeMillis())
+                        }.toString()
+                        sendResponse(writer, 200, "application/json", responseJson)
+                    }
+
                     method == "POST" && path == "/v1/eval" -> {
                         val bodyBytes = ByteArray(contentLength)
                         var bytesRead = 0

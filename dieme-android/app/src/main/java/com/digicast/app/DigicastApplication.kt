@@ -31,7 +31,14 @@ class DigicastApplication : Application(), Configuration.Provider, ImageLoaderFa
     }
 
     override fun newImageLoader(): ImageLoader {
+        val okHttpClient = okhttp3.OkHttpClient.Builder()
+            .proxy(java.net.Proxy.NO_PROXY)
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+
         return ImageLoader.Builder(this)
+            .okHttpClient(okHttpClient)
             .components {
                 add(SvgDecoder.Factory())
             }

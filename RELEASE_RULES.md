@@ -21,6 +21,7 @@ Every release of Dieme Core (`dieme-android`), Dg-Images Companion (`dg-images`)
 
 | Tag | Version Code | Version Name | Release Date | Highlights |
 | :--- | :--- | :--- | :--- | :--- |
+| `v1.2.4` | 7 | 1.2.4 | 2026-11-21 | Fresh ChatGPT session & asset reset on New Session in Dieme\n• Deterministic attachment without duplicate multi-image uploads\n• Authenticated in-WebView image capture directly cached to local storage\n• Replaced downside chat clutter with crisp Generated Result Showcase Card\n• Added Active Session Ongoing Assets & Target Pins HUD in Drawer |
 | `v1.2.3` | 6 | 1.2.3 | 2026-11-21 | Compile-time BuildConfig version detection ensuring no popups when app is up to date |
 | `v1.2.2` | 5 | 1.2.2 | 2026-11-21 | Persistent in-app update checks on launch, attachment retry engine, and synchronized GitHub releases |
 | `v1.0.0` | 1 | 1.0.0 | 2026-11-02 | Initial production launch of Dieme Live Studio & Dg-Images daemon. |

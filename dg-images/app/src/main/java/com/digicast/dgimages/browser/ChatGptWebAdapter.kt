@@ -27,6 +27,29 @@ class ChatGptWebAdapter(
 ) {
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     var pendingFiles: List<File> = emptyList()
+    @Volatile
+    var lastCapturedDataUrl: String? = null
+
+    val jsInterface = ChatGptJsInterface(
+        onPageLoaded = { success ->
+            onStateChanged(if (success) "ChatGPT Loaded" else "Load Failed")
+        },
+        onResponseCaptured = { resultJson ->
+            onResultCaptured(resultJson)
+        },
+        onError = { error ->
+            onStateChanged("Error: $error")
+        },
+        onAuthRequired = {
+            onAuthRequired()
+        },
+        pendingFilesProvider = { pendingFiles }
+    ).apply {
+        onImageCapturedCallback = { dataUrl ->
+            lastCapturedDataUrl = dataUrl
+            Log.i("ChatGptWebAdapter", "🎯 Received captured image DataURL from WebView JS (len=${dataUrl.length})")
+        }
+    }
 
     companion object {
         private const val TAG = "ChatGptWebAdapter"
@@ -63,22 +86,6 @@ class ChatGptWebAdapter(
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(true)
         cookieManager.setAcceptThirdPartyCookies(webView, true)
-
-        val jsInterface = ChatGptJsInterface(
-            onPageLoaded = { success ->
-                onStateChanged(if (success) "ChatGPT Loaded" else "Load Failed")
-            },
-            onResponseCaptured = { resultJson ->
-                onResultCaptured(resultJson)
-            },
-            onError = { error ->
-                onStateChanged("Error: $error")
-            },
-            onAuthRequired = {
-                onAuthRequired()
-            },
-            pendingFilesProvider = { pendingFiles }
-        )
 
         webView.addJavascriptInterface(jsInterface, "DgImagesJs")
 
@@ -189,9 +196,51 @@ class ChatGptWebAdapter(
         }
     }
 
+    fun clearComposerAttachments(onComplete: ((Int) -> Unit)? = null) {
+        val js = """
+            (function() {
+                try {
+                    // Close any open popups/banners first
+                    var dismissBtns = document.querySelectorAll(
+                        "button[aria-label='Close'], button[data-testid*='close'], div[role='dialog'] button:has(svg), button.absolute.right-4"
+                    );
+                    dismissBtns.forEach(function(b) {
+                        try { b.click(); } catch(e) {}
+                    });
+
+                    var removed = 0;
+                    var removeBtns = document.querySelectorAll(
+                        "button[aria-label*='Remove' i], button[aria-label*='Delete' i], [data-testid*='remove-attachment'], .composer-attachment-surface button, [class*='attachment'] button"
+                    );
+                    removeBtns.forEach(function(b) {
+                        try {
+                            b.click();
+                            removed++;
+                        } catch(e) {}
+                    });
+
+                    var fileInputs = document.querySelectorAll('input[type="file"]');
+                    fileInputs.forEach(function(input) {
+                        try { input.value = ''; } catch(e) {}
+                    });
+
+                    return removed;
+                } catch(e) {
+                    return 0;
+                }
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js) { res ->
+            val count = res?.trim('"', ' ')?.toIntOrNull() ?: 0
+            onComplete?.invoke(count)
+        }
+    }
+
     fun attachImages(files: List<File>, onComplete: ((Boolean) -> Unit)? = null) {
-        this.pendingFiles = files
-        Log.i(TAG, "📎 attachImages: Queueing ${files.size} media file(s) for ChatGPT: ${files.map { it.name }}")
+        // Deduplicate files to prevent duplicate attachments
+        val distinctFiles = files.distinctBy { it.canonicalPath }
+        this.pendingFiles = distinctFiles
+        Log.i(TAG, "📎 attachImages: Queueing ${distinctFiles.size} media file(s) for ChatGPT (distinct from ${files.size}): ${distinctFiles.map { it.name }}")
 
         val js = """
             (function() {
@@ -204,7 +253,15 @@ class ChatGptWebAdapter(
                         try { b.click(); } catch(e) {}
                     });
 
-                    // 2. Prepare DataTransfer with image blobs from pending files
+                    // 2. Clear any previous lingering composer attachment buttons
+                    var oldRemoveBtns = document.querySelectorAll(
+                        "button[aria-label*='Remove' i], button[aria-label*='Delete' i], [data-testid*='remove-attachment'], .composer-attachment-surface button"
+                    );
+                    oldRemoveBtns.forEach(function(b) {
+                        try { b.click(); } catch(e) {}
+                    });
+
+                    // 3. Prepare DataTransfer with image blobs from pending files
                     var count = window.DgImagesJs ? window.DgImagesJs.getPendingFilesCount() : 0;
                     var dt = new DataTransfer();
                     if (count > 0) {
@@ -223,9 +280,27 @@ class ChatGptWebAdapter(
                         }
                     }
 
-                    // Strategy A: Synthetic paste event on #prompt-textarea
+                    if (dt.items.length === 0) return false;
+
+                    // 4. Primary deterministic strategy: assign to mounted file input without clicking
+                    var existingInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+                    if (existingInputs.length > 0) {
+                        try {
+                            var imgInput = existingInputs.find(function(i) {
+                                return i.accept && (i.accept.indexOf('image') !== -1 || i.accept.indexOf('video') !== -1);
+                            }) || existingInputs[0];
+                            imgInput.files = dt.files;
+                            imgInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            imgInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            // CRITICAL: DO NOT call existingInputs[0].click(), as that triggers onShowFileChooser
+                            // which adds the files a second time via native file chooser!
+                            return true;
+                        } catch(e) {}
+                    }
+
+                    // 5. Fallback strategy: Synthetic paste event on #prompt-textarea
                     var editor = document.querySelector("#prompt-textarea, .ProseMirror, [contenteditable='true'], textarea");
-                    if (editor && dt.items.length > 0) {
+                    if (editor) {
                         try {
                             editor.focus();
                             var pasteEvt = new ClipboardEvent('paste', {
@@ -234,59 +309,25 @@ class ChatGptWebAdapter(
                                 clipboardData: dt
                             });
                             editor.dispatchEvent(pasteEvt);
-                        } catch(e) {}
-                    }
-
-                    // Strategy B: Directly assign DataTransfer files to mounted file input & dispatch change event
-                    var existingInputs = Array.from(document.querySelectorAll('input[type="file"]'));
-                    if (existingInputs.length > 0 && dt.items.length > 0) {
-                        try {
-                            var imgInput = existingInputs.find(function(i) {
-                                return i.accept && (i.accept.indexOf('image') !== -1 || i.accept.indexOf('video') !== -1);
-                            }) || existingInputs[0];
-                            imgInput.files = dt.files;
-                            imgInput.dispatchEvent(new Event('change', { bubbles: true }));
-                            imgInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        } catch(e) {}
-                    }
-                    if (existingInputs.length > 0) {
-                        try {
-                            existingInputs[0].click();
                             return true;
                         } catch(e) {}
                     }
 
-                    // Strategy C: Click the "+" or "Add files" attachment button, then click "Photos" or "Files"
+                    // 6. Secondary fallback: click attachment plus button only if input not yet present
                     var plusBtn = document.querySelector(
                         "button[aria-label*='Add files' i], " +
                         "button[aria-label*='Attach' i], " +
                         "button[aria-label*='Upload' i], " +
-                        "button[aria-label*='Add' i], " +
                         "button[data-testid*='attach-button'], " +
-                        "button[data-testid*='composer-plus'], " +
-                        "button[aria-haspopup='menu'], " +
-                        "form button:not([data-testid*='send']):not([aria-label*='Send' i])"
+                        "button[data-testid*='composer-plus']"
                     );
 
                     if (plusBtn) {
                         plusBtn.click();
-                        setTimeout(function() {
-                            var items = Array.from(document.querySelectorAll("[role='menuitem'], button, div, span"));
-                            var photoItem = items.find(function(el) {
-                                var txt = (el.innerText || '').trim().toLowerCase();
-                                return txt === 'photos' || txt === 'files' || txt.indexOf('photos') !== -1 || txt.indexOf('files') !== -1;
-                            });
-                            if (photoItem) {
-                                photoItem.click();
-                            } else {
-                                var newInput = document.querySelector('input[type="file"]');
-                                if (newInput) newInput.click();
-                            }
-                        }, 250);
                         return true;
                     }
 
-                    return dt.items.length > 0;
+                    return false;
                 } catch(e) {
                     return false;
                 }
@@ -536,6 +577,36 @@ class ChatGptWebAdapter(
                         return "LOADING";
                     }
 
+                    var targetSrc = bestImg.currentSrc || bestImg.src || '';
+
+                    // Authenticated in-WebView fetch to extract Base64 DataURL directly
+                    if (targetSrc && window.DgImagesJs && window.DgImagesJs.onCapturedImageDataUrl) {
+                        fetch(targetSrc)
+                            .then(function(r) { return r.blob(); })
+                            .then(function(blob) {
+                                var reader = new FileReader();
+                                reader.onloadend = function() {
+                                    if (reader.result && window.DgImagesJs && window.DgImagesJs.onCapturedImageDataUrl) {
+                                        window.DgImagesJs.onCapturedImageDataUrl(reader.result);
+                                    }
+                                };
+                                reader.readAsDataURL(blob);
+                            })
+                            .catch(function(err) {
+                                try {
+                                    var canvas = document.createElement('canvas');
+                                    canvas.width = bestImg.naturalWidth || 1280;
+                                    canvas.height = bestImg.naturalHeight || 720;
+                                    var ctx = canvas.getContext('2d');
+                                    ctx.drawImage(bestImg, 0, 0);
+                                    var dUrl = canvas.toDataURL('image/jpeg', 0.95);
+                                    if (dUrl && dUrl.length > 200 && window.DgImagesJs && window.DgImagesJs.onCapturedImageDataUrl) {
+                                        window.DgImagesJs.onCapturedImageDataUrl(dUrl);
+                                    }
+                                } catch(e2) {}
+                            });
+                    }
+
                     try {
                         var canvas = document.createElement('canvas');
                         canvas.width = bestImg.naturalWidth || bestImg.width || 1280;
@@ -548,7 +619,7 @@ class ChatGptWebAdapter(
                         }
                     } catch(e) {}
 
-                    return bestImg.currentSrc || bestImg.src || null;
+                    return targetSrc || null;
                 } catch(e) {
                     return null;
                 }
@@ -556,7 +627,10 @@ class ChatGptWebAdapter(
         """.trimIndent()
         webView.evaluateJavascript(js) { res ->
             val clean = res?.trim('"', ' ', '\n')
-            if (!clean.isNullOrEmpty() && clean != "null") {
+            val pushed = lastCapturedDataUrl
+            if (!pushed.isNullOrBlank()) {
+                callback(pushed)
+            } else if (!clean.isNullOrEmpty() && clean != "null") {
                 callback(clean)
             } else {
                 callback(null)

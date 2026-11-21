@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 2,
-    "versionName": "1.1.0",
+    "versionCode": 6,
+    "versionName": "1.2.3",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "• Retro dot-matrix canvas mini-game while generating thumbnails\n• Saved thumbnail history & past chat reachability\n• Native UPI gateway direct launch\n• Real-time in-app update checker with 24h snooze",
+    "releaseNotes": "\u2022 Compile-time BuildConfig version detection ensuring no popups when app is up to date\n\u2022 Synchronized direct APK distribution on dieme.in\n\u2022 Real-time launch check with session-only dismiss",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
-    "releaseDate": "2026-11-15",
-    "publishedAt": "2026-11-15T14:00:00Z"
+    "releaseDate": "2026-11-21",
+    "publishedAt": "2026-11-21T10:07:22Z"
   },
   "dgImages": {
-    "versionCode": 2,
-    "versionName": "1.1.0",
+    "versionCode": 6,
+    "versionName": "1.2.3",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "• Secure normal user background overlay & ChatGPT privacy barrier\n• Developer passcode bypass\n• Direct redirect to Dieme Web Thumbnail creator\n• In-app update system with 24h snooze",
+    "releaseNotes": "\u2022 Compile-time BuildConfig version detection ensuring no popups when app is up to date\n\u2022 Synchronized direct APK distribution on dieme.in\n\u2022 Real-time launch check with session-only dismiss",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
-    "releaseDate": "2026-11-15",
-    "publishedAt": "2026-11-15T14:00:00Z"
+    "releaseDate": "2026-11-21",
+    "publishedAt": "2026-11-21T10:07:22Z"
   }
 }

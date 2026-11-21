@@ -38,9 +38,9 @@ Dieme provides two official native Android applications that work together seaml
 
 | Application | Role | Version | Format | Size | Direct Download |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Dieme Live Studio** | Core Stream & Clip Companion | `v1.0.0` | `.apk` | ~43 MB | [📥 Download Dieme APK](download/dieme-app-latest.apk) |
-| **Dg-Images AI Studio** | Local AI Thumbnail Companion | `v1.0.0` | `.apk` | ~22 MB | [📥 Download Dg-Images APK](download/dg-images-latest.apk) |
-| **Complete Dieme Suite Bundle** | All APKs + Extensions + Guides | `v1.1.0` | `.zip` | ~89 MB | [📦 Download Suite ZIP](download/dieme-suite-complete.zip) |
+| **Dieme Live Studio** | Core Stream & Clip Companion | `v1.2.5` | `.apk` | ~43 MB | [📥 Download Dieme APK](download/dieme-app-latest.apk) |
+| **Dg-Images AI Studio** | Local AI Thumbnail Companion | `v1.2.5` | `.apk` | ~22 MB | [📥 Download Dg-Images APK](download/dg-images-latest.apk) |
+| **Complete Dieme Suite Bundle** | All APKs + Extensions + Guides | `v1.2.5` | `.zip` | ~89 MB | [📦 Download Suite ZIP](download/dieme-suite-complete.zip) |
 
 ### Key Capabilities
 

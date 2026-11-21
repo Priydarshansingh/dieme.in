@@ -79,6 +79,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -154,7 +155,7 @@ fun DgImagesDashboard() {
     var activeUpdateDialog by remember { mutableStateOf<DgUpdateInfo?>(null) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
     var updateStatusMessage by remember { mutableStateOf<String?>(null) }
-    var dismissedAutoUpdateThisSession by remember { mutableStateOf(false) }
+    var dismissedAutoUpdateThisSession by rememberSaveable { mutableStateOf(false) }
 
     val currentVersionName = remember { AppUpdateManager.getCurrentVersionName(context) }
     val currentVersionCode = remember { AppUpdateManager.getCurrentVersionCode(context) }
@@ -208,11 +209,9 @@ fun DgImagesDashboard() {
                 dismissedAutoUpdateThisSession = true
                 activeUpdateDialog = null
             },
-            onSkip24Hours = {
-                AppUpdateManager.skipUpdateFor24Hours(context, activeUpdateDialog!!.versionCode)
+            onSkip = {
                 dismissedAutoUpdateThisSession = true
                 activeUpdateDialog = null
-                Toast.makeText(context, "Update reminder paused for 24 hours", Toast.LENGTH_SHORT).show()
             }
         )
     }

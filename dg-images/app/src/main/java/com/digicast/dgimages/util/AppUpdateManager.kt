@@ -109,7 +109,9 @@ object AppUpdateManager {
         try {
             val req = Request.Builder()
                 .url(PRIMARY_URL)
-                .header("Cache-Control", "no-cache")
+                .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                .header("Pragma", "no-cache")
+                .header("Expires", "0")
                 .build()
             httpClient.newCall(req).execute().use { response ->
                 if (response.isSuccessful) {
@@ -128,7 +130,9 @@ object AppUpdateManager {
         try {
             val req = Request.Builder()
                 .url(FALLBACK_URL)
-                .header("Cache-Control", "no-cache")
+                .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                .header("Pragma", "no-cache")
+                .header("Expires", "0")
                 .build()
             httpClient.newCall(req).execute().use { response ->
                 if (response.isSuccessful) {
@@ -170,24 +174,14 @@ object AppUpdateManager {
     }
 
     fun shouldShowAutoPrompt(context: Context, latestVersionCode: Int): Boolean {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val skippedVersion = prefs.getInt(KEY_SKIPPED_VERSION, -1)
-        val skippedTime = prefs.getLong(KEY_SKIPPED_TIME, 0L)
-        val now = System.currentTimeMillis()
-
-        val isWithin24Hours = (now - skippedTime) < TWENTY_FOUR_HOURS_MS
-        if (skippedVersion == latestVersionCode && isWithin24Hours) {
-            return false
-        }
-        return true
+        // As requested: The update prompt is skippable per session, but MUST appear every time
+        // the app is opened if the app has not been updated yet.
+        return latestVersionCode > getCurrentVersionCode(context)
     }
 
+    @Deprecated("Superseded by per-session skipping. Preserved for backwards compatibility.")
     fun skipUpdateFor24Hours(context: Context, latestVersionCode: Int) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit()
-            .putInt(KEY_SKIPPED_VERSION, latestVersionCode)
-            .putLong(KEY_SKIPPED_TIME, System.currentTimeMillis())
-            .apply()
+        // No-op: update reminders reappear every time the app opens until updated
     }
 
     fun launchUpdateDownload(context: Context, downloadUrl: String) {

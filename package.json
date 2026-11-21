@@ -10,6 +10,7 @@
     "start": "npm --prefix dieme-web run start",
     "install:web": "npm --prefix dieme-web install",
     "install:backend": "npm --prefix dieme-backend install",
-    "test:phase1": "node dieme-backend/scripts/test-phase1.js"
+    "test:phase1": "node dieme-backend/scripts/test-phase1.js",
+    "release": "./scripts/release.sh"
   }
 }

@@ -207,9 +207,9 @@ object ChatGptSessionManager {
                     }
                 }
 
-                // Poll for attachments readiness up to 20 seconds
+                // Poll for attachments readiness up to 30 seconds
                 var attachmentsReady = false
-                for (attempt in 0 until 20) {
+                for (attempt in 0 until 30) {
                     delay(1000)
                     val ready = suspendCancellableCoroutine<Boolean> { cont ->
                         adapter.checkAttachmentsReady { isReady ->
@@ -221,13 +221,22 @@ object ChatGptSessionManager {
                         attachmentsReady = true
                         break
                     }
+                    // Re-trigger attachment assignment if not detected after 5 attempts
+                    if (attempt == 5) {
+                        Log.i(TAG, "🔄 Re-triggering attachImages assignment at attempt #6")
+                        suspendCancellableCoroutine<Boolean> { cont ->
+                            adapter.attachImages(filesToAttach) { success ->
+                                if (cont.isActive) cont.resume(success)
+                            }
+                        }
+                    }
                     if (attempt % 5 == 0) {
                         _sessionStatus.value = "Uploading image assets to ChatGPT (${attempt + 1}s)..."
                     }
                 }
 
                 if (!attachmentsReady) {
-                    Log.e(TAG, "❌ Attachments failed to upload within 20s. Aborting prompt submission to avoid broken text response.")
+                    Log.e(TAG, "❌ Attachments failed to upload within 30s. Aborting prompt submission to avoid broken text response.")
                     _sessionStatus.value = "Error: Failed to attach image assets to ChatGPT"
                     adapter.clearPendingFiles()
                     return@withContext Result.failure(

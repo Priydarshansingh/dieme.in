@@ -50,7 +50,8 @@ fun AppUpdateDialog(
     updateInfo: DgUpdateInfo,
     onUpdate: () -> Unit,
     onClose: () -> Unit,
-    onSkip24Hours: () -> Unit
+    onSkip: () -> Unit = onClose,
+    onSkip24Hours: () -> Unit = onSkip
 ) {
     Dialog(
         onDismissRequest = onClose,
@@ -195,9 +196,9 @@ fun AppUpdateDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // 2. Close Button (dismiss for current session)
+                // 2. Skip for Now Button (dismiss for current session)
                 OutlinedButton(
-                    onClick = onClose,
+                    onClick = onSkip,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
@@ -209,27 +210,21 @@ fun AppUpdateDialog(
                     )
                 ) {
                     Text(
-                        text = "Close",
+                        text = "Skip for Now",
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // 3. Downside small text-type Skip button (snooze for 24 hours)
-                TextButton(
-                    onClick = onSkip24Hours,
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Text(
-                        text = "Skip for 24 hours",
-                        color = DgSlate,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Normal
-                    )
-                }
+                Text(
+                    text = "You can update anytime. We'll remind you on next app launch.",
+                    color = DgSlate,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Normal
+                )
             }
         }
     }

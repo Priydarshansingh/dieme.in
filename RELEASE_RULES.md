@@ -21,6 +21,7 @@ Every release of Dieme Core (`dieme-android`), Dg-Images Companion (`dg-images`)
 
 | Tag | Version Code | Version Name | Release Date | Highlights |
 | :--- | :--- | :--- | :--- | :--- |
+| `v1.2.2` | 5 | 1.2.2 | 2026-11-21 | Persistent in-app update checks on launch, attachment retry engine, and synchronized GitHub releases |
 | `v1.0.0` | 1 | 1.0.0 | 2026-11-02 | Initial production launch of Dieme Live Studio & Dg-Images daemon. |
 | `v1.1.0` | 2 | 1.1.0 | 2026-11-15 | In-app update checker, 24h snooze, Retro dot-matrix canvas mini-game, normal user ChatGPT barrier, direct UPI payment launch. |
 | `v1.2.0` | 3 | 1.2.0 | 2026-11-19 | Clean distraction-free canvas, obsidian top bar with pulsing emerald dot, persistent clip tracking across logins, and background daemon persistence. |
@@ -74,19 +75,17 @@ Both apps (`dieme-android` and `dg-images`) implement `AppUpdateManager`:
 1. **Manual Check (Settings / Dashboard)**:
    - User taps "Check for Updates".
    - If up to date: displays "You are on the latest version • All good (vX.X.X)".
-   - If update available: immediately opens the Update Dialog (bypassing any snooze timer).
+   - If update available: immediately opens the Update Dialog.
 2. **Automatic Launch Check**:
-   - Runs silently in the background on app startup.
-   - If snoozed within the last 24 hours (`currentTime - skippedTime < 24h`) for this specific `versionCode`: suppresses dialog.
-   - Otherwise, pops up the Update Dialog.
+   - Runs in the background on every app startup.
+   - If the app is not updated (`remoteVersionCode > localVersionCode`), pops up the Update Dialog on every launch.
+   - It is skippable per session, but reappears on next app launch until updated.
 
 ### C. Update Dialog Actions
 - **"Update App Now" (Primary Button)**:
   Directs user to the download endpoint (`https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk` or `https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk`) in their default web browser.
-- **"Close" (Outlined Button)**:
-  Dismisses the dialog for the **current app session only**. When the app is freshly reopened, the update dialog will prompt again.
-- **"Skip for 24 hours" (Small Text Button below)**:
-  Saves `skipped_version = versionCode` and `skipped_time = System.currentTimeMillis()` in `SharedPreferences`. The automatic prompt is suppressed for 24 hours.
+- **"Skip for Now" (Outlined Button) / Close ('X')**:
+  Dismisses the dialog for the **current app session only**. When the app is freshly reopened, the update dialog will prompt again until the user updates.
 
 ---
 

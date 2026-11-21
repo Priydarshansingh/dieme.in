@@ -44,12 +44,15 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttp(): OkHttpClient {
+    fun provideOkHttp(@ApplicationContext context: Context): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             // BASIC only — never log Authorization headers or chat bodies
             level = HttpLoggingInterceptor.Level.BASIC
         }
+        val cacheSize = 50L * 1024L * 1024L // 50 MB disk cache
+        val httpCache = okhttp3.Cache(java.io.File(context.cacheDir, "http_cache"), cacheSize)
         return OkHttpClient.Builder()
+            .cache(httpCache)
             .addInterceptor(logging)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)

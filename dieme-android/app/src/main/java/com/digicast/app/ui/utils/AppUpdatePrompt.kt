@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.digicast.app.ui.components.AppUpdateDialog
@@ -16,7 +17,7 @@ import com.digicast.app.util.UpdateCheckResult
 fun AppUpdatePrompt() {
     val context = LocalContext.current
     var pendingUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
-    var dismissedThisSession by remember { mutableStateOf(false) }
+    var dismissedThisSession by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (!dismissedThisSession) {
@@ -37,13 +38,12 @@ fun AppUpdatePrompt() {
                 AppUpdateManager.launchUpdateDownload(context, update.downloadUrl)
             },
             onClose = {
-                // Dismiss only for this session; next fresh launch will prompt again
+                // Dismiss for current session only; next fresh app launch will prompt again
                 dismissedThisSession = true
                 pendingUpdate = null
             },
-            onSkip24Hours = {
-                // Snooze for 24 hours in SharedPreferences
-                AppUpdateManager.skipUpdateFor24Hours(context, update.versionCode)
+            onSkip = {
+                // Skippable for current session; next fresh app launch will prompt again
                 dismissedThisSession = true
                 pendingUpdate = null
             }

@@ -237,8 +237,18 @@ class ChatGptWebAdapter(
                         } catch(e) {}
                     }
 
-                    // Strategy B: Trigger native file input if directly mounted
+                    // Strategy B: Directly assign DataTransfer files to mounted file input & dispatch change event
                     var existingInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+                    if (existingInputs.length > 0 && dt.items.length > 0) {
+                        try {
+                            var imgInput = existingInputs.find(function(i) {
+                                return i.accept && (i.accept.indexOf('image') !== -1 || i.accept.indexOf('video') !== -1);
+                            }) || existingInputs[0];
+                            imgInput.files = dt.files;
+                            imgInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            imgInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        } catch(e) {}
+                    }
                     if (existingInputs.length > 0) {
                         try {
                             existingInputs[0].click();
@@ -246,8 +256,9 @@ class ChatGptWebAdapter(
                         } catch(e) {}
                     }
 
-                    // Strategy C: Click the "+" attachment button, then click "Photos" or "Files"
+                    // Strategy C: Click the "+" or "Add files" attachment button, then click "Photos" or "Files"
                     var plusBtn = document.querySelector(
+                        "button[aria-label*='Add files' i], " +
                         "button[aria-label*='Attach' i], " +
                         "button[aria-label*='Upload' i], " +
                         "button[aria-label*='Add' i], " +

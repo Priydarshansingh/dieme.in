@@ -2287,10 +2287,8 @@ private fun OfficialAppsCard(
             onClose = {
                 availableUpdate = null
             },
-            onSkip24Hours = {
-                AppUpdateManager.skipUpdateFor24Hours(context, availableUpdate!!.versionCode)
+            onSkip = {
                 availableUpdate = null
-                Toast.makeText(context, "Update reminder paused for 24 hours", Toast.LENGTH_SHORT).show()
             }
         )
     }

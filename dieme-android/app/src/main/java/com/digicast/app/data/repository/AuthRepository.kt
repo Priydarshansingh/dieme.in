@@ -118,6 +118,14 @@ class AuthRepository @Inject constructor(
         private const val KEY_SAVED_LOGIN_PASSWORD = "auth_saved_login_password"
         private const val KEY_HAS_WATCHED_AD = "auth_has_watched_ad"
 
+        // Offline-first instant load cache keys
+        private const val KEY_CACHED_YT_CHANNEL_ID = "cached_yt_channel_id"
+        private const val KEY_CACHED_YT_CHANNEL_NAME = "cached_yt_channel_name"
+        private const val KEY_CACHED_YT_CHANNEL_THUMBNAIL = "cached_yt_channel_thumbnail"
+        private const val KEY_CACHED_YT_STATUS = "cached_yt_status"
+        private const val KEY_CACHED_SYNC_JSON = "cached_sync_json"
+        private const val KEY_LAST_SYNC_TIME_MS = "cached_last_sync_time_ms"
+
         // All API calls go to Dieme production backend
         const val BACKEND_URL = "https://www.dieme.in"
 
@@ -615,6 +623,31 @@ class AuthRepository @Inject constructor(
                     createdAtMs = prefs.getLong(KEY_CREATED_AT, 0L)
                 )
                 _authState.value = AuthState.SignedIn(session)
+
+                // 0ms instant cache restore for YouTube Account metadata
+                val cachedYtId = prefs.getString(KEY_CACHED_YT_CHANNEL_ID, null)
+                if (!cachedYtId.isNullOrBlank()) {
+                    _youtubeAccount.value = YouTubeAccountInfo(
+                        channelId = cachedYtId,
+                        channelName = prefs.getString(KEY_CACHED_YT_CHANNEL_NAME, "") ?: "",
+                        channelThumbnail = prefs.getString(KEY_CACHED_YT_CHANNEL_THUMBNAIL, "") ?: "",
+                        connectionStatus = prefs.getString(KEY_CACHED_YT_STATUS, "connected") ?: "connected"
+                    )
+                }
+
+                // 0ms instant offline cache hydration for immediate UI display
+                val cachedSyncJson = prefs.getString(KEY_CACHED_SYNC_JSON, null)
+                if (!cachedSyncJson.isNullOrBlank()) {
+                    scope.launch {
+                        try {
+                            applySyncPayload(JSONObject(cachedSyncJson), session, isFromCache = true)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+
+                // Background revalidation (Stale-While-Revalidate)
                 scope.launch { syncWorkspaceData() }
             }
             // Was in demo mode or has active 1-day pass — restore without cloud error
@@ -845,180 +878,16 @@ class AuthRepository @Inject constructor(
                 return@withContext Result.failure(Exception("Sync failed: ${response.code}"))
             }
 
-            val json = JSONObject(response.body?.string() ?: "{}")
+            val jsonStr = response.body?.string() ?: "{}"
+            val json = JSONObject(jsonStr)
 
-            // Update workspace and subscription if present in sync response
-            val wsObj = json.optJSONObject("workspace")
-            val subObj = json.optJSONObject("subscription")
-            val current = (_authState.value as? AuthState.SignedIn)?.session
-            if (current != null) {
-                var updated = current
-                if (wsObj != null) {
-                    val realWid = wsObj.optString("id", "")
-                    val realWname = wsObj.optString("name", "")
-                    if (realWid.isNotBlank() && realWid != current.workspaceId) {
-                        updated = updated.copy(
-                            workspaceId = realWid,
-                            workspaceName = if (realWname.isNotBlank()) realWname else updated.workspaceName
-                        )
-                    }
-                }
-                if (subObj != null) {
-                    updated = updated.copy(
-                        subscriptionStatus = subObj.optString("status", updated.subscriptionStatus),
-                        plan = subObj.optString("plan", updated.plan),
-                        daysRemaining = subObj.optInt("daysRemaining", updated.daysRemaining)
-                    )
-                }
-                val wsCreatedAt = wsObj?.optString("createdAt") ?: subObj?.optString("createdAt") ?: ""
-                if (wsCreatedAt.isNotBlank()) {
-                    try {
-                        val parsedMs = java.time.Instant.parse(wsCreatedAt).toEpochMilli()
-                        if (parsedMs > 0L) {
-                            updated = updated.copy(createdAtMs = parsedMs)
-                            prefs.edit().putLong(KEY_CREATED_AT, parsedMs).apply()
-                        }
-                    } catch (e: Exception) {
-                        // ignore parse error
-                    }
-                }
-                val userObj = json.optJSONObject("user")
-                if (userObj != null) {
-                    val cloudPhoto = userObj.optString("photoUrl", "").ifBlank { userObj.optString("photoURL", "") }
-                    if (cloudPhoto.isNotBlank() && cloudPhoto != updated.photoUrl) {
-                        updated = updated.copy(photoUrl = cloudPhoto)
-                        prefs.edit().putString(KEY_PHOTO, cloudPhoto).apply()
-                    }
-                }
-                if (updated != current) {
-                    _authState.value = AuthState.SignedIn(updated)
-                    saveRealSession(updated)
-                }
-            }
+            // Cache raw payload for fast 0ms offline startup
+            prefs.edit()
+                .putString(KEY_CACHED_SYNC_JSON, jsonStr)
+                .putLong(KEY_LAST_SYNC_TIME_MS, System.currentTimeMillis())
+                .apply()
 
-            // 0. Extract connected YouTube channel info
-            val ytObj = json.optJSONObject("youtubeAccount")
-            if (ytObj != null) {
-                _youtubeAccount.value = YouTubeAccountInfo(
-                    channelId = ytObj.optString("channelId", ""),
-                    channelName = ytObj.optString("channelName", ""),
-                    channelThumbnail = ytObj.optString("channelThumbnail", ""),
-                    connectionStatus = ytObj.optString("connectionStatus", "connected")
-                )
-            } else {
-                _youtubeAccount.value = null
-            }
-
-            // Cleanly isolate local database from foreign workspace records
-            dao.clearStreamsExceptWorkspace(session.workspaceId)
-
-            val isDemo = session.uid == DEMO_SESSION.uid || prefs.getBoolean(KEY_IS_DEMO, false)
-
-            // 1. Streams
-            val streamsArr = json.optJSONArray("streams")
-            if (streamsArr != null && streamsArr.length() > 0) {
-                val incomingStreamIds = mutableSetOf<String>()
-                var hasLive = false
-                for (i in 0 until streamsArr.length()) {
-                    if (streamsArr.getJSONObject(i).optString("status") == "live") {
-                        hasLive = true; break
-                    }
-                }
-                for (i in 0 until streamsArr.length()) {
-                    val s = streamsArr.getJSONObject(i)
-                    val streamId = s.optString("id", UUID.randomUUID().toString())
-                    incomingStreamIds.add(streamId)
-                    val status = s.optString("status", "ended")
-                    val videoId = s.optString("youtubeVideoId", streamId)
-                    val resolvedThumb = s.optString("thumbnailUrl").takeIf { it.isNotEmpty() }
-                        ?: s.optString("thumbnail").takeIf { it.isNotEmpty() }
-                        ?: if (videoId.isNotEmpty()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else null
-
-                    dao.insertStream(
-                        StreamEntity(
-                            id = streamId,
-                            workspaceId = session.workspaceId,
-                            title = s.optString("title", "Live Stream"),
-                            channelId = s.optString("channelId", s.optString("youtubeChannelId", "")),
-                            channelTitle = s.optString("channelName", s.optString("channelTitle", session.workspaceName)),
-                            liveChatId = s.optString("liveChatId").takeIf { it.isNotEmpty() },
-                            thumbnailUrl = resolvedThumb,
-                            status = status,
-                            isActive = status == "live" || (!hasLive && i == 0),
-                            concurrentViewers = s.optLong("concurrentViewers", 0L),
-                            viewCount = s.optLong("viewCount", 0L),
-                            likeCount = s.optLong("likeCount", 0L),
-                            commentCount = s.optLong("commentCount", 0L),
-                            startedAtMs = s.optLong("startedAtMs", System.currentTimeMillis()),
-                            endedAtMs = if (status != "live") (s.optLong("endedAtMs", 0L).takeIf { it > 0 } ?: (s.optLong("startedAtMs", 0L) + 7200000L)) else null
-                        )
-                    )
-                }
-
-                // Delete any local streams for this workspace that are no longer in the cloud list
-                val existingLocal = dao.getStreamsForWorkspaceSnapshot(session.workspaceId)
-                existingLocal.forEach { local ->
-                    if (local.id !in incomingStreamIds) {
-                        dao.deleteStream(local.id)
-                    }
-                }
-            } else {
-                // Workspace has 0 streams: purge local streams and any legacy demo entries
-                dao.clearStreamsForWorkspace(session.workspaceId)
-                dao.clearDemoStreams()
-            }
-
-            // 2. Clip markers
-            val clipsArr = json.optJSONArray("clips")
-            if (clipsArr != null) {
-                for (i in 0 until clipsArr.length()) {
-                    val c = clipsArr.getJSONObject(i)
-                    val streamId = c.optString("streamId", "stream-${session.workspaceId}")
-                    if (dao.getStreamById(streamId) == null) {
-                        dao.insertStream(
-                            StreamEntity(
-                                id = streamId,
-                                workspaceId = session.workspaceId,
-                                title = "${session.workspaceName} Stream",
-                                channelId = "", channelTitle = session.workspaceName,
-                                liveChatId = null, thumbnailUrl = null,
-                                status = "live", isActive = true,
-                                startedAtMs = System.currentTimeMillis(), endedAtMs = null
-                            )
-                        )
-                    }
-                    val rawStatus = c.optString("downloadStatus", "PENDING").uppercase()
-
-                    // Parse real offset or timestamp from Vercel sync
-                    val markerSec = c.optLong("markerTimestamp", -1L)
-                    val resolvedTimestampMs = if (markerSec > 0L) {
-                        markerSec * 1000L
-                    } else {
-                        val parsedTime = c.optLong("timestampMs", -1L)
-                        if (parsedTime > 0L) parsedTime else 0L
-                    }
-
-                    // Preserve local file path if clip was already downloaded on device
-                    val existingClip = dao.getClipMarkerById(c.optString("id"))
-                    val existingFile = existingClip?.localFilePath
-                    val existingStatus = if (!existingFile.isNullOrEmpty() || rawStatus.contains("COMPLET") || rawStatus == "GENERATED") "GENERATED" else "PENDING"
-
-                    dao.insertClipMarker(
-                        ClipMarkerEntity(
-                            id = c.optString("id", UUID.randomUUID().toString()),
-                            streamId = streamId,
-                            authorName = c.optString("authorName", "Viewer"),
-                            authorId = c.optString("authorId", "user"),
-                            triggerMessageId = c.optString("chatMessageId", "msg-${UUID.randomUUID()}"),
-                            timestampMs = resolvedTimestampMs,
-                            label = c.optString("title", c.optString("note", "Clip Marker")),
-                            status = existingStatus,
-                            localFilePath = existingFile,
-                            telegramMessageUrl = c.optString("telegramMessageUrl").takeIf { it.isNotEmpty() } ?: existingClip?.telegramMessageUrl
-                        )
-                    )
-                }
-            }
+            applySyncPayload(json, session, isFromCache = false)
 
             _isSyncing.value = false
             Result.success("Synced successfully")
@@ -1026,6 +895,202 @@ class AuthRepository @Inject constructor(
             _isSyncing.value = false
             e.printStackTrace()
             Result.failure(e)
+        }
+    }
+
+    private suspend fun applySyncPayload(json: JSONObject, session: UserSession, isFromCache: Boolean = false) {
+        // Update workspace and subscription if present in sync response
+        val wsObj = json.optJSONObject("workspace")
+        val subObj = json.optJSONObject("subscription")
+        val current = (_authState.value as? AuthState.SignedIn)?.session
+        if (current != null) {
+            var updated = current
+            if (wsObj != null) {
+                val realWid = wsObj.optString("id", "")
+                val realWname = wsObj.optString("name", "")
+                if (realWid.isNotBlank() && realWid != current.workspaceId) {
+                    updated = updated.copy(
+                        workspaceId = realWid,
+                        workspaceName = if (realWname.isNotBlank()) realWname else updated.workspaceName
+                    )
+                }
+            }
+            if (subObj != null) {
+                updated = updated.copy(
+                    subscriptionStatus = subObj.optString("status", updated.subscriptionStatus),
+                    plan = subObj.optString("plan", updated.plan),
+                    daysRemaining = subObj.optInt("daysRemaining", updated.daysRemaining)
+                )
+            }
+            val wsCreatedAt = wsObj?.optString("createdAt") ?: subObj?.optString("createdAt") ?: ""
+            if (wsCreatedAt.isNotBlank()) {
+                try {
+                    val parsedMs = java.time.Instant.parse(wsCreatedAt).toEpochMilli()
+                    if (parsedMs > 0L) {
+                        updated = updated.copy(createdAtMs = parsedMs)
+                        if (!isFromCache) {
+                            prefs.edit().putLong(KEY_CREATED_AT, parsedMs).apply()
+                        }
+                    }
+                } catch (e: Exception) {
+                    // ignore parse error
+                }
+            }
+            val userObj = json.optJSONObject("user")
+            if (userObj != null) {
+                val cloudPhoto = userObj.optString("photoUrl", "").ifBlank { userObj.optString("photoURL", "") }
+                if (cloudPhoto.isNotBlank() && cloudPhoto != updated.photoUrl) {
+                    updated = updated.copy(photoUrl = cloudPhoto)
+                    if (!isFromCache) {
+                        prefs.edit().putString(KEY_PHOTO, cloudPhoto).apply()
+                    }
+                }
+            }
+            if (updated != current) {
+                _authState.value = AuthState.SignedIn(updated)
+                if (!isFromCache) {
+                    saveRealSession(updated)
+                }
+            }
+        }
+
+        // 0. Extract connected YouTube channel info
+        val ytObj = json.optJSONObject("youtubeAccount")
+        if (ytObj != null) {
+            val info = YouTubeAccountInfo(
+                channelId = ytObj.optString("channelId", ""),
+                channelName = ytObj.optString("channelName", ""),
+                channelThumbnail = ytObj.optString("channelThumbnail", ""),
+                connectionStatus = ytObj.optString("connectionStatus", "connected")
+            )
+            _youtubeAccount.value = info
+            if (!isFromCache) {
+                prefs.edit()
+                    .putString(KEY_CACHED_YT_CHANNEL_ID, info.channelId)
+                    .putString(KEY_CACHED_YT_CHANNEL_NAME, info.channelName)
+                    .putString(KEY_CACHED_YT_CHANNEL_THUMBNAIL, info.channelThumbnail)
+                    .putString(KEY_CACHED_YT_STATUS, info.connectionStatus)
+                    .apply()
+            }
+        } else if (!isFromCache) {
+            _youtubeAccount.value = null
+            prefs.edit()
+                .remove(KEY_CACHED_YT_CHANNEL_ID)
+                .remove(KEY_CACHED_YT_CHANNEL_NAME)
+                .remove(KEY_CACHED_YT_CHANNEL_THUMBNAIL)
+                .remove(KEY_CACHED_YT_STATUS)
+                .apply()
+        }
+
+        // Cleanly isolate local database from foreign workspace records
+        dao.clearStreamsExceptWorkspace(session.workspaceId)
+
+        // 1. Streams
+        val streamsArr = json.optJSONArray("streams")
+        if (streamsArr != null && streamsArr.length() > 0) {
+            val incomingStreamIds = mutableSetOf<String>()
+            var hasLive = false
+            for (i in 0 until streamsArr.length()) {
+                if (streamsArr.getJSONObject(i).optString("status") == "live") {
+                    hasLive = true; break
+                }
+            }
+            for (i in 0 until streamsArr.length()) {
+                val s = streamsArr.getJSONObject(i)
+                val streamId = s.optString("id", UUID.randomUUID().toString())
+                incomingStreamIds.add(streamId)
+                val status = s.optString("status", "ended")
+                val videoId = s.optString("youtubeVideoId", streamId)
+                val resolvedThumb = s.optString("thumbnailUrl").takeIf { it.isNotEmpty() }
+                    ?: s.optString("thumbnail").takeIf { it.isNotEmpty() }
+                    ?: if (videoId.isNotEmpty()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else null
+
+                dao.insertStream(
+                    StreamEntity(
+                        id = streamId,
+                        workspaceId = session.workspaceId,
+                        title = s.optString("title", "Live Stream"),
+                        channelId = s.optString("channelId", s.optString("youtubeChannelId", "")),
+                        channelTitle = s.optString("channelName", s.optString("channelTitle", session.workspaceName)),
+                        liveChatId = s.optString("liveChatId").takeIf { it.isNotEmpty() },
+                        thumbnailUrl = resolvedThumb,
+                        status = status,
+                        isActive = status == "live" || (!hasLive && i == 0),
+                        concurrentViewers = s.optLong("concurrentViewers", 0L),
+                        viewCount = s.optLong("viewCount", 0L),
+                        likeCount = s.optLong("likeCount", 0L),
+                        commentCount = s.optLong("commentCount", 0L),
+                        startedAtMs = s.optLong("startedAtMs", System.currentTimeMillis()),
+                        endedAtMs = if (status != "live") (s.optLong("endedAtMs", 0L).takeIf { it > 0 } ?: (s.optLong("startedAtMs", 0L) + 7200000L)) else null
+                    )
+                )
+            }
+
+            // Delete any local streams for this workspace that are no longer in the cloud list
+            if (!isFromCache) {
+                val existingLocal = dao.getStreamsForWorkspaceSnapshot(session.workspaceId)
+                existingLocal.forEach { local ->
+                    if (local.id !in incomingStreamIds) {
+                        dao.deleteStream(local.id)
+                    }
+                }
+            }
+        } else if (!isFromCache) {
+            // Workspace has 0 streams: purge local streams and any legacy demo entries
+            dao.clearStreamsForWorkspace(session.workspaceId)
+            dao.clearDemoStreams()
+        }
+
+        // 2. Clip markers
+        val clipsArr = json.optJSONArray("clips")
+        if (clipsArr != null) {
+            for (i in 0 until clipsArr.length()) {
+                val c = clipsArr.getJSONObject(i)
+                val streamId = c.optString("streamId", "stream-${session.workspaceId}")
+                if (dao.getStreamById(streamId) == null) {
+                    dao.insertStream(
+                        StreamEntity(
+                            id = streamId,
+                            workspaceId = session.workspaceId,
+                            title = "${session.workspaceName} Stream",
+                            channelId = "", channelTitle = session.workspaceName,
+                            liveChatId = null, thumbnailUrl = null,
+                            status = "live", isActive = true,
+                            startedAtMs = System.currentTimeMillis(), endedAtMs = null
+                        )
+                    )
+                }
+                val rawStatus = c.optString("downloadStatus", "PENDING").uppercase()
+
+                // Parse real offset or timestamp from Vercel sync
+                val markerSec = c.optLong("markerTimestamp", -1L)
+                val resolvedTimestampMs = if (markerSec > 0L) {
+                    markerSec * 1000L
+                } else {
+                    val parsedTime = c.optLong("timestampMs", -1L)
+                    if (parsedTime > 0L) parsedTime else 0L
+                }
+
+                // Preserve local file path if clip was already downloaded on device
+                val existingClip = dao.getClipMarkerById(c.optString("id"))
+                val existingFile = existingClip?.localFilePath
+                val existingStatus = if (!existingFile.isNullOrEmpty() || rawStatus.contains("COMPLET") || rawStatus == "GENERATED") "GENERATED" else "PENDING"
+
+                dao.insertClipMarker(
+                    ClipMarkerEntity(
+                        id = c.optString("id", UUID.randomUUID().toString()),
+                        streamId = streamId,
+                        authorName = c.optString("authorName", "Viewer"),
+                        authorId = c.optString("authorId", "user"),
+                        triggerMessageId = c.optString("chatMessageId", "msg-${UUID.randomUUID()}"),
+                        timestampMs = resolvedTimestampMs,
+                        label = c.optString("title", c.optString("note", "Clip Marker")),
+                        status = existingStatus,
+                        localFilePath = existingFile,
+                        telegramMessageUrl = c.optString("telegramMessageUrl").takeIf { it.isNotEmpty() } ?: existingClip?.telegramMessageUrl
+                    )
+                )
+            }
         }
     }
 

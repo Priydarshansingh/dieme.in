@@ -294,7 +294,9 @@ def git_commit_and_push(new_code, new_name, one_line_summary, skip_push=False):
     log("Synchronizing to distro-final and distribution repositories...")
     try:
         run_cmd("git checkout distro-final")
-        run_cmd("git merge main --no-edit -X theirs", check=False)
+        run_cmd("git checkout main -- download/ version.json RELEASE_RULES.md")
+        run_cmd("git add download/ version.json RELEASE_RULES.md")
+        run_cmd(f'git commit -m "feat(release): v{new_name} (Build {new_code}) update distribution APKs and version metadata"')
         run_cmd("git push diemein distro-final:main --tags --force", check=False)
         run_cmd("git push digicast distro-final:main --tags --force", check=False)
     except Exception as e:

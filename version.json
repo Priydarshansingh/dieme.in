@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 5,
-    "versionName": "1.2.2",
+    "versionCode": 6,
+    "versionName": "1.2.3",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Real-time in-app update checks on every app launch\n\u2022 Skippable update alert with session-based dismissal\n\u2022 50MB disk caching in OkHttp client for high-performance offline resilience\n\u2022 Persistent YouTube channel clip markers & auth sync",
+    "releaseNotes": "\u2022 Compile-time BuildConfig version detection ensuring no popups when app is up to date\n\u2022 Synchronized direct APK distribution on dieme.in\n\u2022 Real-time launch check with session-only dismiss",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
     "releaseDate": "2026-11-21",
-    "publishedAt": "2026-11-21T09:43:35Z"
+    "publishedAt": "2026-11-21T10:07:22Z"
   },
   "dgImages": {
-    "versionCode": 5,
-    "versionName": "1.2.2",
+    "versionCode": 6,
+    "versionName": "1.2.3",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Real-time in-app update checks on every app launch\n\u2022 Bulletproof ChatGPT image asset attachment retry engine & DataTransfer bridge\n\u2022 Extended 30s upload timeout with automated retry assignment\n\u2022 Minimalist top bar status indicator",
+    "releaseNotes": "\u2022 Compile-time BuildConfig version detection ensuring no popups when app is up to date\n\u2022 Synchronized direct APK distribution on dieme.in\n\u2022 Real-time launch check with session-only dismiss",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
     "releaseDate": "2026-11-21",
-    "publishedAt": "2026-11-21T09:43:35Z"
+    "publishedAt": "2026-11-21T10:07:22Z"
   }
 }

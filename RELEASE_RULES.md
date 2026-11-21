@@ -21,6 +21,7 @@ Every release of Dieme Core (`dieme-android`), Dg-Images Companion (`dg-images`)
 
 | Tag | Version Code | Version Name | Release Date | Highlights |
 | :--- | :--- | :--- | :--- | :--- |
+| `v1.2.3` | 6 | 1.2.3 | 2026-11-21 | Compile-time BuildConfig version detection ensuring no popups when app is up to date |
 | `v1.2.2` | 5 | 1.2.2 | 2026-11-21 | Persistent in-app update checks on launch, attachment retry engine, and synchronized GitHub releases |
 | `v1.0.0` | 1 | 1.0.0 | 2026-11-02 | Initial production launch of Dieme Live Studio & Dg-Images daemon. |
 | `v1.1.0` | 2 | 1.1.0 | 2026-11-15 | In-app update checker, 24h snooze, Retro dot-matrix canvas mini-game, normal user ChatGPT barrier, direct UPI payment launch. |

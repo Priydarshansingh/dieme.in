@@ -55,24 +55,32 @@ object AppUpdateManager {
 
     fun getCurrentVersionCode(context: Context): Int {
         return try {
-            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo.longVersionCode.toInt()
-            } else {
-                @Suppress("DEPRECATION")
-                packageInfo.versionCode
+            com.digicast.app.BuildConfig.VERSION_CODE
+        } catch (_: Throwable) {
+            try {
+                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    packageInfo.longVersionCode.toInt()
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageInfo.versionCode
+                }
+            } catch (_: Throwable) {
+                1
             }
-        } catch (_: Exception) {
-            2 // default fallback for v1.1.0
         }
     }
 
     fun getCurrentVersionName(context: Context): String {
         return try {
-            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            packageInfo.versionName ?: "1.1.0"
-        } catch (_: Exception) {
-            "1.1.0"
+            com.digicast.app.BuildConfig.VERSION_NAME
+        } catch (_: Throwable) {
+            try {
+                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                packageInfo.versionName ?: "1.0.0"
+            } catch (_: Throwable) {
+                "1.0.0"
+            }
         }
     }
 

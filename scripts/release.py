@@ -295,7 +295,30 @@ def git_commit_and_push(new_code, new_name, one_line_summary, skip_push=False):
     try:
         run_cmd("git checkout distro-final")
         run_cmd("git checkout main -- download/ version.json RELEASE_RULES.md")
-        run_cmd("git add download/ version.json RELEASE_RULES.md")
+
+        # Update index.html and README.md on distro-final with latest release version
+        index_html_path = os.path.join(WORKSPACE_ROOT, "index.html")
+        if os.path.exists(index_html_path):
+            with open(index_html_path, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            html_content = re.sub(r'OFFICIAL GITHUB DISTRIBUTION RELEASES &bull; v[0-9\.]+', f'OFFICIAL GITHUB DISTRIBUTION RELEASES &bull; v{new_name}', html_content)
+            html_content = re.sub(r'v[0-9\.]+ &bull; APK', f'v{new_name} &bull; APK', html_content)
+            html_content = re.sub(r'v[0-9\.]+ &bull; ZIP', f'v{new_name} &bull; ZIP', html_content)
+            with open(index_html_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            log("✓ Updated distro-final index.html")
+
+        distro_readme_path = os.path.join(WORKSPACE_ROOT, "README.md")
+        if os.path.exists(distro_readme_path):
+            with open(distro_readme_path, "r", encoding="utf-8") as f:
+                readme_content = f.read()
+            readme_content = re.sub(r'\|\s*`v[0-9\.]+`\s*\|\s*`\.apk`', f'| `v{new_name}` | `.apk`', readme_content)
+            readme_content = re.sub(r'\|\s*`v[0-9\.]+`\s*\|\s*`\.zip`', f'| `v{new_name}` | `.zip`', readme_content)
+            with open(distro_readme_path, "w", encoding="utf-8") as f:
+                f.write(readme_content)
+            log("✓ Updated distro-final README.md")
+
+        run_cmd("git add download/ version.json RELEASE_RULES.md index.html README.md")
         run_cmd(f'git commit -m "feat(release): v{new_name} (Build {new_code}) update distribution APKs and version metadata"')
         run_cmd("git push diemein distro-final:main --tags --force", check=False)
         run_cmd("git push digicast distro-final:main --tags --force", check=False)

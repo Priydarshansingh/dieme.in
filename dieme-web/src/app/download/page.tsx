@@ -16,9 +16,10 @@ import {
 } from 'lucide-react';
 import { SiteHeader } from '@/components/common/SiteHeader';
 import { SiteFooter } from '@/components/common/SiteFooter';
+import versionData from '../../../public/version.json';
 
 export const metadata: Metadata = {
-  title: 'Download Dieme Studio & AI Companion (APK) — v1.2.1',
+  title: `Download Dieme Studio & AI Companion (APK) — v${versionData.dieme.versionName}`,
   description:
     'Download the official Dieme Live Studio and Dg-Images Android APKs. Lossless YouTube stream clipping, instant inpainting, and in-app update notifications.',
   keywords: [
@@ -31,9 +32,9 @@ export const metadata: Metadata = {
 };
 
 const RELEASE_INFO = {
-  version: '1.2.1',
-  build: 4,
-  releaseDate: 'November 20, 2026',
+  version: versionData.dieme.versionName,
+  build: versionData.dieme.versionCode,
+  releaseDate: versionData.dieme.releaseDate || 'November 21, 2026',
   diemeApk: {
     name: 'Dieme Live Studio',
     filename: 'dieme-app-latest.apk',

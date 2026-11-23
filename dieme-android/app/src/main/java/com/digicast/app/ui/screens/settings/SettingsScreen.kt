@@ -8,6 +8,8 @@ import android.net.Uri
 import android.widget.Toast
 import com.digicast.app.ui.utils.WebNavigationUtil
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.material.icons.filled.AutoAwesome
 import com.digicast.app.util.AppUpdateManager
 import com.digicast.app.util.AppUpdateInfo
 import com.digicast.app.util.UpdateCheckResult
@@ -175,6 +177,11 @@ fun SettingsScreen(
         }
     }
     var isDgImagesInstalled by remember { mutableStateOf(checkDgImagesInstalled()) }
+    var globalUpdateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var isCheckingGlobalUpdate by remember { mutableStateOf(false) }
+    var globalUpdateStatusMsg by remember { mutableStateOf<String?>(null) }
+    val currentVersionName = remember { AppUpdateManager.getCurrentVersionName(context) }
+    val currentVersionCode = remember { AppUpdateManager.getCurrentVersionCode(context) }
 
     // Duolingo Anime Avatar Studio State
     var showAvatarPicker by remember { mutableStateOf(false) }
@@ -682,7 +689,52 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            // 6. Persistent Version & Release Details Footer (Always visible to all users)
+            item(key = "persistent_version_footer") {
+                PersistentAppVersionFooter(
+                    context = context,
+                    currentVersionName = currentVersionName,
+                    currentVersionCode = currentVersionCode,
+                    isDgImagesInstalled = isDgImagesInstalled,
+                    isCheckingUpdate = isCheckingGlobalUpdate,
+                    statusMessage = globalUpdateStatusMsg,
+                    onCheckUpdates = {
+                        coroutineScope.launch {
+                            isCheckingGlobalUpdate = true
+                            globalUpdateStatusMsg = null
+                            val result = AppUpdateManager.checkForUpdates(context)
+                            isCheckingGlobalUpdate = false
+                            when (result) {
+                                is UpdateCheckResult.UpToDate -> {
+                                    globalUpdateStatusMsg = "You are on the latest version • All good (v${result.currentVersionName})"
+                                    Toast.makeText(context, "App is up to date!", Toast.LENGTH_SHORT).show()
+                                }
+                                is UpdateCheckResult.UpdateAvailable -> {
+                                    globalUpdateInfo = result.updateInfo
+                                }
+                                is UpdateCheckResult.Error -> {
+                                    globalUpdateStatusMsg = "Update check failed: ${result.message}"
+                                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                )
+            }
         }
+    }
+
+    if (globalUpdateInfo != null) {
+        AppUpdateDialog(
+            updateInfo = globalUpdateInfo!!,
+            onUpdate = {
+                AppUpdateManager.launchUpdateDownload(context, globalUpdateInfo!!.downloadUrl)
+            },
+            onClose = {
+                globalUpdateInfo = null
+            }
+        )
     }
 
     // Sign Out Confirmation Dialog
@@ -2650,6 +2702,180 @@ private fun OfficialAppsCard(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun PersistentAppVersionFooter(
+    context: Context,
+    currentVersionName: String,
+    currentVersionCode: Int,
+    isDgImagesInstalled: Boolean,
+    isCheckingUpdate: Boolean,
+    statusMessage: String?,
+    onCheckUpdates: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp, bottom = 28.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = DigicastSurfaceFloating,
+        border = BorderStroke(1.dp, DigicastBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF0F766E), Color(0xFF134E5E))))
+                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Dieme Studio",
+                                color = DigicastWhite,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(DigicastEmerald.copy(alpha = 0.15f))
+                                    .border(1.dp, DigicastEmerald.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                            ) {
+                                Text(
+                                    text = "v$currentVersionName",
+                                    color = DigicastEmerald,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Build $currentVersionCode • com.digicast.app",
+                            color = DigicastSlate,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                // Check for updates pill button
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(enabled = !isCheckingUpdate) { onCheckUpdates() },
+                    color = Color(0xFF0F323A),
+                    border = BorderStroke(1.dp, DigicastElectricCyan.copy(alpha = 0.35f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        if (isCheckingUpdate) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(12.dp),
+                                color = DigicastElectricCyan,
+                                strokeWidth = 1.5.dp
+                            )
+                            Text(
+                                text = "Checking...",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = DigicastElectricCyan,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = "Check Updates",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Status Row: Up to Date indicator & Companion connection
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF040A0D))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(DigicastEmerald)
+                    )
+                    Text(
+                        text = "Release Channel: Stable • Up to date",
+                        color = DigicastSlate,
+                        fontSize = 11.sp
+                    )
+                }
+
+                Text(
+                    text = if (isDgImagesInstalled) "Dg-Images: Paired" else "Dg-Images: Not Installed",
+                    color = if (isDgImagesInstalled) DigicastEmerald else Color(0xFFF59E0B),
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            if (!statusMessage.isNullOrBlank()) {
+                Text(
+                    text = statusMessage,
+                    color = DigicastEmerald,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
             }
         }
     }

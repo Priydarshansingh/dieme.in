@@ -173,14 +173,14 @@ object ChatGptSessionManager {
                 val list = mutableListOf<File>()
                 resolveMediaToFile(baseImageUrl, "base", 0)?.let { list.add(it) }
 
-                // Attach all reference images provided
-                for ((idx, ref) in referenceImageUrls.withIndex()) {
+                // Attach reference images provided (strictly limit to top 2 references to prevent over-attachment)
+                for ((idx, ref) in referenceImageUrls.take(2).withIndex()) {
                     resolveMediaToFile(ref, "ref", idx)?.let {
                         list.add(it)
                         Log.i(TAG, "📎 Attached reference image #$idx -> ${it.name} (${it.length()} bytes)")
                     }
                 }
-                list
+                list.distinctBy { it.canonicalPath }
             }
 
             // 1. If preferNewChat is true, click New Chat first

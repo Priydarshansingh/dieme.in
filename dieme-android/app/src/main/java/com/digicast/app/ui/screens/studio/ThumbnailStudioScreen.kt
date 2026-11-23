@@ -19,6 +19,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import com.digicast.app.ui.utils.PermissionHelper
 import com.digicast.app.ui.utils.WorkPermissionRequester
+import com.digicast.app.util.AppUpdateManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -2479,6 +2480,47 @@ fun ThumbnailStudioScreen(
                                 )
                             }
                         }
+                    }
+
+                    // ── Bottom Footer of History Drawer: Version & Companion Status ──
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color.White.copy(alpha = 0.08f))
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.5.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF10B981))
+                            )
+                            Text(
+                                text = "Dieme Studio v${AppUpdateManager.getCurrentVersionName(context)} (${AppUpdateManager.getCurrentVersionCode(context)})",
+                                color = Color(0xFF94A3B8),
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Text(
+                            text = if (isDgImagesAppInstalled) "Dg-Images: Connected" else "Dg-Images: Disconnected",
+                            color = if (isDgImagesAppInstalled) Color(0xFF10B981) else Color(0xFFF59E0B),
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }

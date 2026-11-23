@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 9,
-    "versionName": "1.2.6",
+    "versionCode": 10,
+    "versionName": "1.2.7",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Fixed ChatGPT photo attachment selector to target photo-specific input without capture\n\u2022 Added automated dismissal for 'Stay on web' promo bottom-sheet and sidebar drawer\n\u2022 Verified seamless Start New Session chat reset and pinpoint thumbnail generation\n\u2022 Cleaned drawer chat history view after generated result is produced",
+    "releaseNotes": "\u2022 Added persistent version details, build number, and update check footers across Settings and bottom bars\\n\u2022 Added sideways History Drawer version status in Thumbnail Studio\\n\u2022 Enhanced ChatGPT attachment and new session lifecycle in Dg-Images companion app",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
     "releaseDate": "2026-11-23",
-    "publishedAt": "2026-11-23T07:10:53Z"
+    "publishedAt": "2026-11-23T17:49:44Z"
   },
   "dgImages": {
-    "versionCode": 9,
-    "versionName": "1.2.6",
+    "versionCode": 10,
+    "versionName": "1.2.7",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Fixed ChatGPT photo attachment selector to target photo-specific input without capture\n\u2022 Added automated dismissal for 'Stay on web' promo bottom-sheet and sidebar drawer\n\u2022 Verified seamless Start New Session chat reset and pinpoint thumbnail generation\n\u2022 Cleaned drawer chat history view after generated result is produced",
+    "releaseNotes": "\u2022 Added persistent version details, build number, and update check footers across Settings and bottom bars\\n\u2022 Added sideways History Drawer version status in Thumbnail Studio\\n\u2022 Enhanced ChatGPT attachment and new session lifecycle in Dg-Images companion app",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
     "releaseDate": "2026-11-23",
-    "publishedAt": "2026-11-23T07:10:53Z"
+    "publishedAt": "2026-11-23T17:49:44Z"
   }
 }

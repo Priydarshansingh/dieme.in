@@ -25,6 +25,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
@@ -334,6 +337,86 @@ fun DgImagesDashboard() {
                         .height(1.dp)
                         .background(Color.White.copy(alpha = 0.06f))
                 )
+            }
+        },
+        bottomBar = {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
+                color = Color(0xFF040A0D),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Left: App name + Version name & build code + status badge
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.5.dp)
+                                .clip(CircleShape)
+                                .background(DgEmerald)
+                        )
+                        Text(
+                            text = "Dg-Images v$currentVersionName ($currentVersionCode)",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "•",
+                            color = Color(0xFF475569),
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = "Up to date",
+                            color = DgEmerald,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    // Right: Quick Check Updates button
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable(enabled = !isCheckingUpdate) { onTriggerCheckUpdates() },
+                        color = Color(0xFF0F1E24),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (isCheckingUpdate) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(10.dp),
+                                    color = DgElectricCyan,
+                                    strokeWidth = 1.5.dp
+                                )
+                                Text("Checking...", color = Color.White, fontSize = 10.5.sp)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Check for updates",
+                                    tint = DgElectricCyan,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text("Check Updates", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                }
             }
         }
     ) { innerPadding ->

@@ -168,20 +168,47 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    var newBtn = document.querySelector("a[href='/'], button[aria-label*='New chat' i], [data-testid*='new-chat']");
-                    if (newBtn) {
-                        newBtn.click();
+                    // 1. Dismiss any blocking dialogs, promo modals ("Stay on web", "Create richer images", "Open the app", etc.)
+                    var stayBtn = Array.from(document.querySelectorAll("button, a")).find(function(b) {
+                        return (b.innerText || '').toLowerCase().indexOf("stay on web") !== -1;
+                    });
+                    if (stayBtn) { try { stayBtn.click(); } catch(e) {} }
+
+                    var dismissBtns = document.querySelectorAll(
+                        "button[aria-label='Close'], button[aria-label*='Close' i], button[data-testid*='close'], div[role='dialog'] button:has(svg), button.absolute.right-4"
+                    );
+                    dismissBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
+
+                    // 2. If sidebar drawer is open, close it (or use "New chat" inside sidebar)
+                    var newChatBtn = Array.from(document.querySelectorAll("button, a")).find(function(b) {
+                        var txt = (b.innerText || b.getAttribute('aria-label') || '').toLowerCase().trim();
+                        return txt === 'new chat' || txt.indexOf('new chat') !== -1;
+                    });
+                    if (newChatBtn) {
+                        newChatBtn.click();
+                        setTimeout(function() {
+                            var hideSidebar = document.querySelector("button[aria-label*='Hide sidebar' i], button[aria-label*='Close sidebar' i]");
+                            if (hideSidebar) hideSidebar.click();
+                        }, 300);
                         return true;
                     }
-                    var allLinks = Array.from(document.querySelectorAll("button, a"));
-                    for (var i = 0; i < allLinks.length; i++) {
-                        var t = (allLinks[i].innerText || allLinks[i].getAttribute('aria-label') || '').toLowerCase().trim();
-                        if (t === 'new chat' || t.indexOf('new chat') !== -1) {
-                            allLinks[i].click();
-                            return true;
-                        }
+
+                    var hideSidebar = document.querySelector("button[aria-label*='Hide sidebar' i], button[aria-label*='Close sidebar' i]");
+                    if (hideSidebar) { try { hideSidebar.click(); } catch(e) {} }
+
+                    var topNewChat = document.querySelector("a[href='/'], [data-testid*='new-chat']");
+                    if (topNewChat) {
+                        topNewChat.click();
+                        return true;
                     }
-                    window.location.href = 'https://chatgpt.com/';
+
+                    if (window.location.pathname.indexOf('/c/') !== -1) {
+                        window.location.href = 'https://chatgpt.com/';
+                    } else {
+                        // Clear any lingering composer attachment buttons
+                        var removeBtns = document.querySelectorAll("button[aria-label*='Remove' i], button[aria-label*='Delete' i]");
+                        removeBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
+                    }
                     return true;
                 } catch(e) {
                     window.location.href = 'https://chatgpt.com/';
@@ -201,12 +228,21 @@ class ChatGptWebAdapter(
             (function() {
                 try {
                     // Close any open popups/banners first
+                    var stayBtn = Array.from(document.querySelectorAll("button, a")).find(function(b) {
+                        return (b.innerText || '').toLowerCase().indexOf("stay on web") !== -1;
+                    });
+                    if (stayBtn) { try { stayBtn.click(); } catch(e) {} }
+
                     var dismissBtns = document.querySelectorAll(
-                        "button[aria-label='Close'], button[data-testid*='close'], div[role='dialog'] button:has(svg), button.absolute.right-4"
+                        "button[aria-label='Close'], button[aria-label*='Close' i], button[data-testid*='close'], div[role='dialog'] button:has(svg), button.absolute.right-4"
                     );
                     dismissBtns.forEach(function(b) {
                         try { b.click(); } catch(e) {}
                     });
+
+                    // Close sidebar if open
+                    var hideSidebar = document.querySelector("button[aria-label*='Hide sidebar' i], button[aria-label*='Close sidebar' i]");
+                    if (hideSidebar) { try { hideSidebar.click(); } catch(e) {} }
 
                     var removed = 0;
                     var removeBtns = document.querySelectorAll(
@@ -245,15 +281,24 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    // 1. Dismiss any blocking dialogs/popups (e.g. "Create richer images" promo banner)
+                    // 1. Dismiss any blocking dialogs/popups (e.g. "Stay on web", promo banner)
+                    var stayBtn = Array.from(document.querySelectorAll("button, a")).find(function(b) {
+                        return (b.innerText || '').toLowerCase().indexOf("stay on web") !== -1;
+                    });
+                    if (stayBtn) { try { stayBtn.click(); } catch(e) {} }
+
                     var dismissBtns = document.querySelectorAll(
-                        "button[aria-label='Close'], button[data-testid*='close'], div[role='dialog'] button:has(svg), button.absolute.right-4"
+                        "button[aria-label='Close'], button[aria-label*='Close' i], button[data-testid*='close'], div[role='dialog'] button:has(svg), button.absolute.right-4"
                     );
                     dismissBtns.forEach(function(b) {
                         try { b.click(); } catch(e) {}
                     });
 
-                    // 2. Clear any previous lingering composer attachment buttons
+                    // 2. Close sidebar if open so backdrop never blocks composer
+                    var hideSidebar = document.querySelector("button[aria-label*='Hide sidebar' i], button[aria-label*='Close sidebar' i]");
+                    if (hideSidebar) { try { hideSidebar.click(); } catch(e) {} }
+
+                    // 3. Clear any previous lingering composer attachment buttons
                     var oldRemoveBtns = document.querySelectorAll(
                         "button[aria-label*='Remove' i], button[aria-label*='Delete' i], [data-testid*='remove-attachment'], .composer-attachment-surface button"
                     );
@@ -261,7 +306,7 @@ class ChatGptWebAdapter(
                         try { b.click(); } catch(e) {}
                     });
 
-                    // 3. Prepare DataTransfer with image blobs from pending files
+                    // 4. Prepare DataTransfer with image blobs from pending files
                     var count = window.DgImagesJs ? window.DgImagesJs.getPendingFilesCount() : 0;
                     var dt = new DataTransfer();
                     if (count > 0) {
@@ -282,23 +327,34 @@ class ChatGptWebAdapter(
 
                     if (dt.items.length === 0) return false;
 
-                    // 4. Primary deterministic strategy: assign to mounted file input without clicking
-                    var existingInputs = Array.from(document.querySelectorAll('input[type="file"]'));
-                    if (existingInputs.length > 0) {
+                    // 5. Select non-capture photo input (specifically target input[aria-label="Attach photos"])
+                    var allInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+                    var nonCaptureInputs = allInputs.filter(function(i) {
+                        return !i.hasAttribute('capture');
+                    });
+
+                    var imgInput = document.querySelector("input[aria-label='Attach photos']") ||
+                                   document.querySelector("input[aria-label*='Attach photos' i]") ||
+                                   nonCaptureInputs.find(function(i) {
+                                       return i.accept && i.accept === 'image/*';
+                                   }) ||
+                                   nonCaptureInputs.find(function(i) {
+                                       var label = (i.getAttribute('aria-label') || '').toLowerCase();
+                                       return label.indexOf('photo') !== -1 || label.indexOf('attach') !== -1;
+                                   }) ||
+                                   nonCaptureInputs[0] ||
+                                   allInputs[0];
+
+                    if (imgInput) {
                         try {
-                            var imgInput = existingInputs.find(function(i) {
-                                return i.accept && (i.accept.indexOf('image') !== -1 || i.accept.indexOf('video') !== -1);
-                            }) || existingInputs[0];
                             imgInput.files = dt.files;
                             imgInput.dispatchEvent(new Event('change', { bubbles: true }));
                             imgInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            // CRITICAL: DO NOT call existingInputs[0].click(), as that triggers onShowFileChooser
-                            // which adds the files a second time via native file chooser!
                             return true;
                         } catch(e) {}
                     }
 
-                    // 5. Fallback strategy: Synthetic paste event on #prompt-textarea
+                    // 6. Fallback strategy: Synthetic paste event on #prompt-textarea
                     var editor = document.querySelector("#prompt-textarea, .ProseMirror, [contenteditable='true'], textarea");
                     if (editor) {
                         try {
@@ -313,7 +369,7 @@ class ChatGptWebAdapter(
                         } catch(e) {}
                     }
 
-                    // 6. Secondary fallback: click attachment plus button only if input not yet present
+                    // 7. Secondary fallback: click attachment plus button only if input not yet present
                     var plusBtn = document.querySelector(
                         "button[aria-label*='Add files' i], " +
                         "button[aria-label*='Attach' i], " +
@@ -348,39 +404,66 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    // Check for attachments inside the composer form
+                    // 1. Check if file upload is still in progress (pending state)
+                    var pendingUpload = Array.from(document.querySelectorAll("button")).find(function(b) {
+                        return (b.getAttribute('aria-label') || '').toLowerCase().indexOf('file upload pending') !== -1;
+                    });
+                    if (pendingUpload) {
+                        return false; // Still uploading to OpenAI CDN!
+                    }
+
+                    var progressBars = document.querySelectorAll("[role='progressbar']");
+                    if (progressBars.length > 0) {
+                        return false; // Active progress bar!
+                    }
+
+                    // 2. Check for removal buttons which indicate attached media chips in composer
+                    var removeButtons = Array.from(document.querySelectorAll("button[aria-label*='Remove' i], button[aria-label*='Delete' i]"));
+                    if (removeButtons.length > 0) {
+                        // Check if any attachment is showing an upload error
+                        for (var i = 0; i < removeButtons.length; i++) {
+                            var parent = removeButtons[i].parentElement || removeButtons[i];
+                            var text = (parent.innerText || '').toLowerCase();
+                            if (text.indexOf("upload failed") !== -1 || text.indexOf("failed") !== -1) {
+                                return false;
+                            }
+                        }
+
+                        // Ensure none of the attachments are currently actively uploading
+                        var activeSpinners = Array.from(document.querySelectorAll(".animate-spin, [role='progressbar']")).filter(function(el) {
+                            var style = el.getAttribute('style') || '';
+                            var inner = el.querySelector("[style*='play-state: paused']");
+                            if (style.indexOf('paused') !== -1 || inner) return false;
+                            return true;
+                        });
+
+                        return activeSpinners.length === 0;
+                    }
+
+                    // Fallback to composer attachment surface or preview elements
                     var attachments = document.querySelectorAll(
-                        "button[aria-label*='Remove ' i], " +
-                        ".composer-attachment-surface, " +
-                        "[class*='composer-attachment'], " +
-                        "[data-testid*='attachment'], " +
-                        "[data-testid*='file-thumbnail'], " +
-                        "[data-testid*='image-preview'], " +
-                        "form img:not([class*='avatar']), " +
-                        "[class*='attachment-preview']"
+                        ".composer-attachment-surface, [class*='composer-attachment'], [data-testid*='attachment'], [data-testid*='file-thumbnail'], [data-testid*='image-preview'], form img:not([class*='avatar']), [class*='attachment-preview']"
                     );
 
                     if (attachments.length === 0) {
                         return false;
                     }
 
-                    // Check if any attachment is showing an upload error
-                    for (var i = 0; i < attachments.length; i++) {
-                        var text = attachments[i].innerText || "";
-                        if (text.indexOf("Upload failed") !== -1 || text.indexOf("failed") !== -1) {
+                    for (var j = 0; j < attachments.length; j++) {
+                        var t = (attachments[j].innerText || '').toLowerCase();
+                        if (t.indexOf("upload failed") !== -1 || t.indexOf("failed") !== -1) {
                             return false;
                         }
                     }
 
-                    // Ensure none of the attachments are currently actively uploading
-                    var activeSpinners = Array.from(document.querySelectorAll(".animate-spin, [role='progressbar']")).filter(function(el) {
+                    var spinners = Array.from(document.querySelectorAll(".animate-spin, [role='progressbar']")).filter(function(el) {
                         var style = el.getAttribute('style') || '';
                         var inner = el.querySelector("[style*='play-state: paused']");
                         if (style.indexOf('paused') !== -1 || inner) return false;
                         return true;
                     });
 
-                    return activeSpinners.length === 0;
+                    return spinners.length === 0;
                 } catch(e) {
                     return false;
                 }
@@ -401,7 +484,7 @@ class ChatGptWebAdapter(
 
                     editor.focus();
 
-                    // If ProseMirror or contentEditable, use execCommand to create a transaction so React state & send button update
+                    // If ProseMirror or contentEditable, use execCommand & InputEvent to update React state
                     if (editor.isContentEditable) {
                         try {
                             document.execCommand('selectAll', false, null);
@@ -414,18 +497,41 @@ class ChatGptWebAdapter(
                             }
                             p.innerText = $escaped;
                         }
+                        editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: $escaped }));
                     } else {
                         editor.value = $escaped;
+                        editor.dispatchEvent(new Event('input', { bubbles: true }));
                     }
 
-                    editor.dispatchEvent(new Event('input', { bubbles: true }));
                     editor.dispatchEvent(new Event('change', { bubbles: true }));
 
                     setTimeout(function() {
-                        var sendBtn = document.querySelector("button[aria-label='Send'], button.bg-composer-primary, button[data-testid='send-button'], button[aria-label*='Send' i], button[aria-label*='Submit' i]");
+                        var sendBtn = Array.from(document.querySelectorAll("button")).find(function(b) {
+                            return /send|submit/i.test(b.getAttribute('aria-label') || b.innerText || '') ||
+                                   (b.className && b.className.indexOf('bg-composer-primary') !== -1);
+                        });
                         if (sendBtn) {
                             sendBtn.removeAttribute('disabled');
                             sendBtn.removeAttribute('aria-disabled');
+
+                            // 1. Invoke React onClick prop directly if present
+                            var reactKey = Object.keys(sendBtn).find(function(k) {
+                                return k.startsWith('__reactProps') || k.startsWith('__reactEventHandlers');
+                            });
+                            var props = reactKey ? sendBtn[reactKey] : null;
+                            if (props && typeof props.onClick === 'function') {
+                                try {
+                                    props.onClick({
+                                        preventDefault: function(){},
+                                        stopPropagation: function(){},
+                                        currentTarget: sendBtn,
+                                        target: sendBtn,
+                                        isDefaultPrevented: function(){ return false; }
+                                    });
+                                } catch(e) {}
+                            }
+
+                            // 2. Dispatch simulated events & click
                             var rect = sendBtn.getBoundingClientRect();
                             var opts = { bubbles: true, cancelable: true, view: window, clientX: rect.x + rect.width / 2, clientY: rect.y + rect.height / 2 };
                             sendBtn.dispatchEvent(new PointerEvent('pointerdown', opts));

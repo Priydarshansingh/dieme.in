@@ -2444,15 +2444,18 @@ fun ThumbnailStudioScreen(
                                 .fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            item {
-                                ActiveSessionOngoingSummaryCard(
-                                    baseImageUrl = currentThumbnailUrl ?: originalSourceThumbnailUrl,
-                                    referenceImages = referenceImages.toList(),
-                                    markedPins = markedPins.toList(),
-                                    generatedImageUrl = generatedImageUrl,
-                                    isGenerating = isGenerating,
-                                    generationStatusMessage = generationStatusMessage
-                                )
+                            // Only show ongoing context summary while generating or before a result is produced
+                            if (isGenerating || generatedImageUrl == null) {
+                                item {
+                                    ActiveSessionOngoingSummaryCard(
+                                        baseImageUrl = if (isGenerating) activeGeneratingBaseImage else (currentThumbnailUrl ?: originalSourceThumbnailUrl),
+                                        referenceImages = if (isGenerating) activeGeneratingRefs else referenceImages.toList(),
+                                        markedPins = if (isGenerating) activeGeneratingPins else markedPins.toList(),
+                                        generatedImageUrl = generatedImageUrl,
+                                        isGenerating = isGenerating,
+                                        generationStatusMessage = generationStatusMessage
+                                    )
+                                }
                             }
                             items(chatMessages, key = { it.id }) { message ->
                                 ThumbnailChatMessageBubble(

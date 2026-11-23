@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 8,
-    "versionName": "1.2.5",
+    "versionCode": 9,
+    "versionName": "1.2.6",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Synchronized live website distribution and release documentation\\n\u2022 Dynamic versioning across dieme-web download page and GitHub repo\\n\u2022 Verified real-time in-app update check prompting immediately when newer build is published",
+    "releaseNotes": "\u2022 Fixed ChatGPT photo attachment selector to target photo-specific input without capture\n\u2022 Added automated dismissal for 'Stay on web' promo bottom-sheet and sidebar drawer\n\u2022 Verified seamless Start New Session chat reset and pinpoint thumbnail generation\n\u2022 Cleaned drawer chat history view after generated result is produced",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
-    "releaseDate": "2026-11-21",
-    "publishedAt": "2026-11-21T17:03:18Z"
+    "releaseDate": "2026-11-23",
+    "publishedAt": "2026-11-23T07:10:53Z"
   },
   "dgImages": {
-    "versionCode": 8,
-    "versionName": "1.2.5",
+    "versionCode": 9,
+    "versionName": "1.2.6",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Synchronized live website distribution and release documentation\\n\u2022 Dynamic versioning across dieme-web download page and GitHub repo\\n\u2022 Verified real-time in-app update check prompting immediately when newer build is published",
+    "releaseNotes": "\u2022 Fixed ChatGPT photo attachment selector to target photo-specific input without capture\n\u2022 Added automated dismissal for 'Stay on web' promo bottom-sheet and sidebar drawer\n\u2022 Verified seamless Start New Session chat reset and pinpoint thumbnail generation\n\u2022 Cleaned drawer chat history view after generated result is produced",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
-    "releaseDate": "2026-11-21",
-    "publishedAt": "2026-11-21T17:03:18Z"
+    "releaseDate": "2026-11-23",
+    "publishedAt": "2026-11-23T07:10:53Z"
   }
 }

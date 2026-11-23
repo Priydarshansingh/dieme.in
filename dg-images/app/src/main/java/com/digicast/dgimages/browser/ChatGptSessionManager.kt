@@ -200,6 +200,14 @@ object ChatGptSessionManager {
 
             // 2. Attach base thumbnail + reference assets
             if (filesToAttach.isNotEmpty()) {
+                // Pre-clean composer attachments to prevent lingering duplicates from past retries
+                suspendCancellableCoroutine<Int> { cont ->
+                    adapter.clearComposerAttachments { count ->
+                        if (cont.isActive) cont.resume(count)
+                    }
+                }
+                delay(300)
+
                 _sessionStatus.value = "Attaching ${filesToAttach.size} image assets to ChatGPT..."
                 Log.i(TAG, "📎 Attaching ${filesToAttach.size} image assets to ChatGPT (Base + Refs)")
                 suspendCancellableCoroutine<Boolean> { cont ->

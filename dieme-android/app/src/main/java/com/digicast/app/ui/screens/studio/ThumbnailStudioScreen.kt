@@ -707,9 +707,7 @@ fun ThumbnailStudioScreen(
         coroutineScope.launch {
             try {
                 val ext = extensionViewModel.getImageStudio()
-                if (ext is com.digicast.app.api.extension.DefaultImageStudioExtension) {
-                    ext.resetSession(context)
-                }
+                ext?.resetSession(context)
             } catch (e: Exception) {
                 android.util.Log.w("ThumbnailStudio", "Error requesting resetSession from Dg-Images: ${e.message}")
             }
@@ -891,52 +889,78 @@ fun ThumbnailStudioScreen(
         }
     }
 
-    fun uriToBase64(uri: Uri): String? {
+    fun resolveMediaAssetToBase64(context: Context, mediaStr: String): String? {
+        if (mediaStr.isBlank()) return null
+        if (mediaStr.startsWith("data:image/")) return mediaStr
+
         return try {
-            val mimeType = try { context.contentResolver.getType(uri) ?: "" } catch (_: Throwable) { "" }
-            val path = uri.path ?: ""
-            val isVideo = mimeType.startsWith("video/") ||
-                    path.endsWith(".mp4", true) ||
-                    path.endsWith(".mov", true) ||
-                    path.endsWith(".mkv", true) ||
-                    path.endsWith(".webm", true)
-
-            if (isVideo) {
-                val videoFrame = extractFrameFromVideo(uri) ?: return null
-                val maxDim = 1024
-                val width = videoFrame.width
-                val height = videoFrame.height
-                val scaled = if (width > maxDim || height > maxDim) {
-                    val ratio = width.toFloat() / height.toFloat()
-                    val newWidth = if (width > height) maxDim else (maxDim * ratio).toInt()
-                    val newHeight = if (height > width) maxDim else (maxDim / ratio).toInt()
-                    Bitmap.createScaledBitmap(videoFrame, newWidth.coerceAtLeast(1), newHeight.coerceAtLeast(1), true)
-                } else {
-                    videoFrame
+            val rawBytes: ByteArray? = when {
+                mediaStr.startsWith("http://") || mediaStr.startsWith("https://") -> {
+                    try {
+                        val conn = (URL(mediaStr).openConnection() as HttpURLConnection).apply {
+                            setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                            setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+                            connectTimeout = 12000
+                            readTimeout = 12000
+                        }
+                        if (conn.responseCode in 200..299) {
+                            conn.inputStream.use { it.readBytes() }
+                        } else null
+                    } catch (e: Exception) {
+                        Log.e("ThumbnailStudio", "Error downloading HTTP asset: ${e.message}", e)
+                        null
+                    }
                 }
-                val stream = ByteArrayOutputStream()
-                scaled.compress(Bitmap.CompressFormat.JPEG, 85, stream)
-                val bytes = stream.toByteArray()
-                Log.i("ThumbnailStudio", "Extracted and encoded video frame from $uri (${bytes.size} bytes)")
-                return "data:image/jpeg;base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                mediaStr.startsWith("file://") -> {
+                    val path = mediaStr.substring(7)
+                    val f = File(path)
+                    if (f.exists()) f.readBytes() else null
+                }
+                mediaStr.startsWith("content://") -> {
+                    val uri = Uri.parse(mediaStr)
+                    try {
+                        val mimeType = try { context.contentResolver.getType(uri) ?: "" } catch (_: Throwable) { "" }
+                        val isVideo = mimeType.startsWith("video/") ||
+                                (uri.path ?: "").endsWith(".mp4", true) ||
+                                (uri.path ?: "").endsWith(".mov", true)
+                        if (isVideo) {
+                            val videoFrame = extractFrameFromVideo(uri)
+                            if (videoFrame != null) {
+                                val stream = ByteArrayOutputStream()
+                                videoFrame.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                                stream.toByteArray()
+                            } else null
+                        } else {
+                            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ThumbnailStudio", "Error reading content URI: ${e.message}", e)
+                        null
+                    }
+                }
+                mediaStr.startsWith("/") -> {
+                    val f = File(mediaStr)
+                    if (f.exists()) f.readBytes() else null
+                }
+                else -> null
             }
 
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            var stream = if (uri.scheme == "file") {
-                val f = File(path)
-                if (f.exists()) f.inputStream() else context.contentResolver.openInputStream(uri)
-            } else {
-                context.contentResolver.openInputStream(uri)
+            if (rawBytes == null || rawBytes.isEmpty()) {
+                Log.w("ThumbnailStudio", "Failed to retrieve raw bytes for media: ${mediaStr.take(50)}")
+                return null
             }
-            BitmapFactory.decodeStream(stream, null, options)
-            stream?.close()
+
+            val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size, boundsOptions)
 
             val maxDim = 1024
             var inSampleSize = 1
-            if (options.outHeight > maxDim || options.outWidth > maxDim) {
-                val halfHeight = options.outHeight / 2
-                val halfWidth = options.outWidth / 2
-                while ((halfHeight / inSampleSize) >= maxDim && (halfWidth / inSampleSize) >= maxDim) {
+            val rawW = boundsOptions.outWidth
+            val rawH = boundsOptions.outHeight
+            if (rawW > maxDim || rawH > maxDim) {
+                val halfW = rawW / 2
+                val halfH = rawH / 2
+                while ((halfW / inSampleSize) >= maxDim || (halfH / inSampleSize) >= maxDim) {
                     inSampleSize *= 2
                 }
             }
@@ -945,33 +969,16 @@ fun ThumbnailStudioScreen(
                 this.inSampleSize = inSampleSize
                 inPreferredConfig = Bitmap.Config.RGB_565
             }
-            stream = if (uri.scheme == "file") {
-                val f = File(path)
-                if (f.exists()) f.inputStream() else context.contentResolver.openInputStream(uri)
-            } else {
-                context.contentResolver.openInputStream(uri)
-            }
-            val originalBitmap = BitmapFactory.decodeStream(stream, null, decodeOptions)
-            stream?.close()
-            if (originalBitmap == null) {
-                Log.w("ThumbnailStudio", "Could not decode bitmap from uri: $uri")
-                return null
-            }
+            val originalBitmap = BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size, decodeOptions)
+                ?: return null
 
             val width = originalBitmap.width
             val height = originalBitmap.height
             val scaledBitmap = if (width > maxDim || height > maxDim) {
                 val ratio = width.toFloat() / height.toFloat()
-                val newWidth: Int
-                val newHeight: Int
-                if (ratio > 1f) {
-                    newWidth = maxDim
-                    newHeight = (maxDim / ratio).toInt()
-                } else {
-                    newHeight = maxDim
-                    newWidth = (maxDim * ratio).toInt()
-                }
-                Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)
+                val newWidth = if (width > height) maxDim else (maxDim * ratio).toInt()
+                val newHeight = if (height > width) maxDim else (maxDim / ratio).toInt()
+                Bitmap.createScaledBitmap(originalBitmap, newWidth.coerceAtLeast(1), newHeight.coerceAtLeast(1), true)
             } else {
                 originalBitmap
             }
@@ -980,12 +987,16 @@ fun ThumbnailStudioScreen(
             scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
             val bytes = outputStream.toByteArray()
             val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-            Log.i("ThumbnailStudio", "Decoded reference media $uri (${width}x${height}) -> ${bytes.size} bytes base64")
+            Log.i("ThumbnailStudio", "⚡ Resolved media to Base64 (${width}x${height} -> ${bytes.size} bytes): ${mediaStr.take(30)}")
             "data:image/jpeg;base64,$base64"
         } catch (t: Throwable) {
-            Log.e("ThumbnailStudio", "Error decoding uri to base64: $uri", t)
+            Log.e("ThumbnailStudio", "resolveMediaAssetToBase64 failed: ${t.message}", t)
             null
         }
+    }
+
+    fun uriToBase64(uri: Uri): String? {
+        return resolveMediaAssetToBase64(context, uri.toString())
     }
 
     // ── Helper: Synthesize Master Prompt ────────────────────────────────────
@@ -1147,19 +1158,11 @@ fun ThumbnailStudioScreen(
         coroutineScope.launch {
             try {
                 val resolvedBaseImage = withContext(Dispatchers.IO) {
-                    if (baseImage.startsWith("content://") || baseImage.startsWith("file://")) {
-                        try {
-                            uriToBase64(Uri.parse(baseImage)) ?: baseImage
-                        } catch (_: Throwable) {
-                            baseImage
-                        }
-                    } else {
-                        baseImage
-                    }
+                    resolveMediaAssetToBase64(context, baseImage) ?: baseImage
                 }
 
                 val base64RefList = withContext(Dispatchers.IO) {
-                    currentRefsSnapshot.mapNotNull { uriToBase64(it) }
+                    currentRefsSnapshot.mapNotNull { resolveMediaAssetToBase64(context, it.toString()) }
                 }
 
                 val masterPrompt = synthesizeMasterPrompt(

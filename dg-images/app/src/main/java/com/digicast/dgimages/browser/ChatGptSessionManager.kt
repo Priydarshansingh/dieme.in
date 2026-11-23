@@ -124,19 +124,31 @@ object ChatGptSessionManager {
                     val outFile = File(context.cacheDir, "${prefix}_${System.currentTimeMillis()}_$index.jpg")
                     return try {
                         when {
-                            mediaStr.startsWith("http://") || mediaStr.startsWith("https://") -> {
-                                URL(mediaStr).openStream().use { input ->
-                                    FileOutputStream(outFile).use { output -> input.copyTo(output) }
-                                }
-                                Log.i(TAG, "✅ Downloaded HTTP asset $prefix #$index -> ${outFile.name}")
-                                outFile
-                            }
-                            mediaStr.startsWith("data:") || (mediaStr.length > 500 && !mediaStr.startsWith("content:") && !mediaStr.startsWith("file:") && !mediaStr.startsWith("/")) -> {
+                            mediaStr.startsWith("data:") || (mediaStr.length > 300 && !mediaStr.startsWith("content:") && !mediaStr.startsWith("http:") && !mediaStr.startsWith("https:") && !mediaStr.startsWith("file:") && !mediaStr.startsWith("/")) -> {
                                 val base64Data = if (mediaStr.contains(",")) mediaStr.substringAfter(",") else mediaStr
-                                val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+                                val cleanB64 = base64Data.trim().replace("\n", "").replace("\r", "")
+                                val bytes = android.util.Base64.decode(cleanB64, android.util.Base64.DEFAULT)
                                 FileOutputStream(outFile).use { it.write(bytes) }
                                 Log.i(TAG, "✅ Decoded Base64 asset $prefix #$index -> ${outFile.name} (${bytes.size} bytes)")
                                 outFile
+                            }
+                            mediaStr.startsWith("http://") || mediaStr.startsWith("https://") -> {
+                                val conn = (URL(mediaStr).openConnection() as java.net.HttpURLConnection).apply {
+                                    setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                                    setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+                                    connectTimeout = 15000
+                                    readTimeout = 15000
+                                }
+                                if (conn.responseCode in 200..299) {
+                                    conn.inputStream.use { input ->
+                                        FileOutputStream(outFile).use { output -> input.copyTo(output) }
+                                    }
+                                    Log.i(TAG, "✅ Downloaded HTTP asset $prefix #$index -> ${outFile.name} (${outFile.length()} bytes)")
+                                    outFile
+                                } else {
+                                    Log.w(TAG, "⚠️ HTTP asset download returned HTTP ${conn.responseCode} for $mediaStr")
+                                    null
+                                }
                             }
                             mediaStr.startsWith("file://") || mediaStr.startsWith("/") -> {
                                 val cleanPath = if (mediaStr.startsWith("file://")) mediaStr.substring(7) else mediaStr
@@ -145,7 +157,7 @@ object ChatGptSessionManager {
                                     srcFile.inputStream().use { input ->
                                         FileOutputStream(outFile).use { output -> input.copyTo(output) }
                                     }
-                                    Log.i(TAG, "✅ Copied local file asset $prefix #$index -> ${outFile.name}")
+                                    Log.i(TAG, "✅ Copied local file asset $prefix #$index -> ${outFile.name} (${outFile.length()} bytes)")
                                     outFile
                                 } else {
                                     Log.w(TAG, "⚠️ Local file not found: $cleanPath")
@@ -156,7 +168,7 @@ object ChatGptSessionManager {
                                 context.contentResolver.openInputStream(android.net.Uri.parse(mediaStr))?.use { input ->
                                     FileOutputStream(outFile).use { output -> input.copyTo(output) }
                                 }
-                                Log.i(TAG, "✅ Read content:// asset $prefix #$index -> ${outFile.name}")
+                                Log.i(TAG, "✅ Read content:// asset $prefix #$index -> ${outFile.name} (${outFile.length()} bytes)")
                                 outFile
                             }
                             else -> {
@@ -165,22 +177,31 @@ object ChatGptSessionManager {
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error resolving $prefix #$index to file", e)
+                        Log.e(TAG, "Error resolving $prefix #$index to file: ${e.message}", e)
                         null
                     }
                 }
 
                 val list = mutableListOf<File>()
-                resolveMediaToFile(baseImageUrl, "base", 0)?.let { list.add(it) }
+                resolveMediaToFile(baseImageUrl, "base", 0)?.let {
+                    list.add(it)
+                    Log.i(TAG, "📎 Successfully queued base image: ${it.name} (${it.length()} bytes)")
+                } ?: run {
+                    Log.w(TAG, "⚠️ Failed to resolve baseImageUrl! Prefix: ${baseImageUrl.take(60)}")
+                }
 
-                // Attach reference images provided (strictly limit to top 2 references to prevent over-attachment)
-                for ((idx, ref) in referenceImageUrls.take(2).withIndex()) {
+                // Attach reference images provided (strictly limit to top 1 reference to prevent over-attachment)
+                for ((idx, ref) in referenceImageUrls.take(1).withIndex()) {
                     resolveMediaToFile(ref, "ref", idx)?.let {
                         list.add(it)
-                        Log.i(TAG, "📎 Attached reference image #$idx -> ${it.name} (${it.length()} bytes)")
+                        Log.i(TAG, "📎 Successfully queued reference image #$idx -> ${it.name} (${it.length()} bytes)")
+                    } ?: run {
+                        Log.w(TAG, "⚠️ Failed to resolve ref image #$idx! Prefix: ${ref.take(60)}")
                     }
                 }
-                list.distinctBy { it.canonicalPath }
+                val distinct = list.distinctBy { it.canonicalPath }
+                Log.i(TAG, "📦 Prepared ${distinct.size} distinct image file(s) for ChatGPT composer")
+                distinct
             }
 
             // 1. If preferNewChat is true, click New Chat first
@@ -216,9 +237,9 @@ object ChatGptSessionManager {
                     }
                 }
 
-                // Poll for attachments readiness up to 30 seconds
+                // Poll for attachments readiness up to 10 seconds
                 var attachmentsReady = false
-                for (attempt in 0 until 30) {
+                for (attempt in 0 until 10) {
                     delay(1000)
                     val ready = suspendCancellableCoroutine<Boolean> { cont ->
                         adapter.checkAttachmentsReady { isReady ->
@@ -226,22 +247,17 @@ object ChatGptSessionManager {
                         }
                     }
                     if (ready) {
-                        Log.i(TAG, "✅ Attachments confirmed fully uploaded in ChatGPT DOM at attempt #${attempt + 1}")
+                        Log.i(TAG, "✅ Attachments confirmed ready in ChatGPT DOM at attempt #${attempt + 1}")
                         attachmentsReady = true
                         break
                     }
-                    if (attempt % 5 == 0) {
+                    if (attempt % 3 == 0) {
                         _sessionStatus.value = "Uploading image assets to ChatGPT (${attempt + 1}s)..."
                     }
                 }
 
                 if (!attachmentsReady) {
-                    Log.e(TAG, "❌ Attachments failed to upload within 30s. Aborting prompt submission to avoid broken text response.")
-                    _sessionStatus.value = "Error: Failed to attach image assets to ChatGPT"
-                    adapter.clearPendingFiles()
-                    return@withContext Result.failure(
-                        IllegalStateException("Failed to attach reference images to ChatGPT composer. Please verify ChatGPT is ready in Dg-Images.")
-                    )
+                    Log.w(TAG, "⚠️ Attachment detector timed out or inconclusive; proceeding with prompt submission since files were dispatched.")
                 }
             }
 

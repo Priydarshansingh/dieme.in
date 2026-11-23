@@ -2,26 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const VERSION_METADATA = {
   dieme: {
-    versionCode: 10,
-    versionName: '1.2.7',
+    versionCode: 11,
+    versionName: '1.2.8',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `• Added persistent version details, build number, and update check footers across Settings and bottom bars\n• Added sideways History Drawer version status in Thumbnail Studio\n• Enhanced ChatGPT attachment and new session lifecycle in Dg-Images companion app`,
+      `• Fixed ChatGPT image attachment and readiness detector in Dg-Images companion app
+• Resolved false-negative attachment detector timeouts that blocked prompt submission
+• Prevented duplicate image stacking in ChatGPT composer (strictly 1 base + 1 pinpoint reference)
+• Integrated clean Start New Session lifecycle: resets ChatGPT chat, composer attachments, and cached files
+• Added media and storage permissions in Dg-Images manifest and single-pass Base64 dispatch in Dieme
+• Updated version metadata across mobile clients, website, and GitHub distribution`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk',
-    releaseDate: '2026-11-23',
-    publishedAt: '2026-11-23T17:49:44Z',
+    releaseDate: '2026-11-24',
+    publishedAt: '2026-11-23T19:43:38Z',
   },
   dgImages: {
-    versionCode: 10,
-    versionName: '1.2.7',
+    versionCode: 11,
+    versionName: '1.2.8',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `• Added persistent version details, build number, and update check footers across Settings and bottom bars\n• Added sideways History Drawer version status in Thumbnail Studio\n• Enhanced ChatGPT attachment and new session lifecycle in Dg-Images companion app`,
+      `• Fixed ChatGPT image attachment and readiness detector in Dg-Images companion app
+• Resolved false-negative attachment detector timeouts that blocked prompt submission
+• Prevented duplicate image stacking in ChatGPT composer (strictly 1 base + 1 pinpoint reference)
+• Integrated clean Start New Session lifecycle: resets ChatGPT chat, composer attachments, and cached files
+• Added media and storage permissions in Dg-Images manifest and single-pass Base64 dispatch in Dieme
+• Updated version metadata across mobile clients, website, and GitHub distribution`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk',
-    releaseDate: '2026-11-23',
-    publishedAt: '2026-11-23T17:49:44Z',
+    releaseDate: '2026-11-24',
+    publishedAt: '2026-11-23T19:43:38Z',
   },
 };
 

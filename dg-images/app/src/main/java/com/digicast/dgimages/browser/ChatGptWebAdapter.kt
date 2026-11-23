@@ -174,8 +174,9 @@ class ChatGptWebAdapter(
                     });
                     stayBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
 
-                    var appBanners = Array.from(document.querySelectorAll("div, aside")).filter(function(d) {
-                        return (d.innerText || '').indexOf('Open the app') !== -1 || (d.innerText || '').indexOf('Free offer') !== -1;
+                    var appBanners = Array.from(document.querySelectorAll("div, aside, section")).filter(function(d) {
+                        var txt = d.innerText || '';
+                        return txt.indexOf('Open the app') !== -1 || txt.indexOf('Free offer') !== -1;
                     });
                     appBanners.forEach(function(b) {
                         var close = b.querySelector("button, [aria-label*='Close' i], [aria-label*='Dismiss' i]");
@@ -184,7 +185,7 @@ class ChatGptWebAdapter(
                     });
 
                     var dismissBtns = document.querySelectorAll(
-                        "button[aria-label='Close'], button[aria-label*='Close' i], button[aria-label*='Dismiss' i], button[data-testid*='close'], div[role='dialog'] button:has(svg), button.absolute.right-4"
+                        "button[aria-label='Close'], button[aria-label*='Close' i], button[aria-label*='Dismiss' i], button[data-testid*='close'], button.absolute.right-4"
                     );
                     dismissBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
 
@@ -197,8 +198,8 @@ class ChatGptWebAdapter(
                     var fileInputs = document.querySelectorAll('input[type="file"]');
                     fileInputs.forEach(function(input) { try { input.value = ''; } catch(e) {} });
 
-                    // 4. If on conversation URL or to ensure clean session, navigate directly to root ChatGPT
-                    var topNewChat = document.querySelector("a[href='/'], [data-testid='create-new-chat-button'], button[aria-label*='New chat' i]");
+                    // 4. Trigger fresh new chat: look for New Chat button or navigate
+                    var topNewChat = document.querySelector("button[data-testid='create-new-chat-button'], a[data-testid='create-new-chat-button'], button[aria-label*='New chat' i], a[aria-label*='New chat' i]");
                     if (topNewChat && window.location.pathname === '/') {
                         try { topNewChat.click(); } catch(e) {}
                         return true;
@@ -223,33 +224,30 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    // Close any open popups/banners first
-                    var stayBtns = Array.from(document.querySelectorAll("button, a")).filter(function(b) {
-                        return /stay on web/i.test(b.innerText || '');
-                    });
-                    stayBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
-
-                    var appBanners = Array.from(document.querySelectorAll("div, aside")).filter(function(d) {
-                        return (d.innerText || '').indexOf('Open the app') !== -1 || (d.innerText || '').indexOf('Free offer') !== -1;
+                    // 1. Dismiss promo banners
+                    var appBanners = Array.from(document.querySelectorAll("div, aside, section")).filter(function(d) {
+                        var txt = d.innerText || '';
+                        return txt.indexOf('Open the app') !== -1 || txt.indexOf('Free offer') !== -1;
                     });
                     appBanners.forEach(function(b) {
-                        var close = b.querySelector("button, [aria-label*='Close' i]");
+                        var close = b.querySelector("button");
                         if (close) { try { close.click(); } catch(e) {} }
                         try { b.remove(); } catch(e) {}
                     });
 
-                    // Dismiss drawer if open
+                    // 2. Dismiss drawer if open
                     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
 
                     var removed = 0;
-                    // Click all close/delete/remove buttons on image preview cards
-                    var candidateBtns = Array.from(document.querySelectorAll("button")).filter(function(b) {
+                    // 3. Target composer area specifically
+                    var composer = document.querySelector("#prompt-textarea") ? document.querySelector("#prompt-textarea").closest("form, div.relative, main") : document;
+                    var candidateBtns = Array.from((composer || document).querySelectorAll("button")).filter(function(b) {
                         var aria = (b.getAttribute('aria-label') || '').toLowerCase();
                         if (aria.indexOf('remove') !== -1 || aria.indexOf('delete') !== -1 || aria.indexOf('dismiss') !== -1 || aria.indexOf('close') !== -1) {
                             return true;
                         }
                         var parent = b.parentElement;
-                        if (parent && (parent.querySelector('img') || parent.parentElement?.querySelector('img'))) {
+                        if (parent && (parent.querySelector('img') || (parent.parentElement && parent.parentElement.querySelector('img')))) {
                             return true;
                         }
                         return false;
@@ -257,6 +255,8 @@ class ChatGptWebAdapter(
 
                     candidateBtns.forEach(function(b) {
                         try {
+                            b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+                            b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
                             b.click();
                             removed++;
                         } catch(e) {}
@@ -280,10 +280,10 @@ class ChatGptWebAdapter(
     }
 
     fun attachImages(files: List<File>, onComplete: ((Boolean) -> Unit)? = null) {
-        // Take at most 3 distinct files (1 base + max 2 refs) to prevent over-attachment
-        val distinctFiles = files.distinctBy { it.canonicalPath }.take(3)
+        // Take at most 2 distinct files (1 base + 1 ref) to prevent composer overcrowding
+        val distinctFiles = files.distinctBy { it.canonicalPath }.take(2)
         this.pendingFiles = distinctFiles
-        Log.i(TAG, "📎 attachImages: Queueing ${distinctFiles.size} media file(s) for ChatGPT (distinct from ${files.size}): ${distinctFiles.map { it.name }}")
+        Log.i(TAG, "📎 attachImages: Queueing ${distinctFiles.size} media file(s) for ChatGPT: ${distinctFiles.map { it.name }}")
 
         val js = """
             (function() {
@@ -294,11 +294,12 @@ class ChatGptWebAdapter(
                     });
                     stayBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
 
-                    var appBanners = Array.from(document.querySelectorAll("div, aside")).filter(function(d) {
-                        return (d.innerText || '').indexOf('Open the app') !== -1 || (d.innerText || '').indexOf('Free offer') !== -1;
+                    var appBanners = Array.from(document.querySelectorAll("div, aside, section")).filter(function(d) {
+                        var txt = d.innerText || '';
+                        return txt.indexOf('Open the app') !== -1 || txt.indexOf('Free offer') !== -1;
                     });
                     appBanners.forEach(function(b) {
-                        var close = b.querySelector("button, [aria-label*='Close' i]");
+                        var close = b.querySelector("button");
                         if (close) { try { close.click(); } catch(e) {} }
                         try { b.remove(); } catch(e) {}
                     });
@@ -307,15 +308,20 @@ class ChatGptWebAdapter(
                     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
 
                     // 3. Clear any previous lingering composer attachment buttons
-                    var oldRemoveBtns = Array.from(document.querySelectorAll("button")).filter(function(b) {
+                    var composer = document.querySelector("#prompt-textarea") ? document.querySelector("#prompt-textarea").closest("form, div.relative, main") : document;
+                    var oldRemoveBtns = Array.from((composer || document).querySelectorAll("button")).filter(function(b) {
                         var aria = (b.getAttribute('aria-label') || '').toLowerCase();
-                        if (aria.indexOf('remove') !== -1 || aria.indexOf('delete') !== -1 || aria.indexOf('dismiss') !== -1) return true;
+                        if (aria.indexOf('remove') !== -1 || aria.indexOf('delete') !== -1 || aria.indexOf('close') !== -1) return true;
                         var parent = b.parentElement;
-                        if (parent && parent.querySelector('img')) return true;
+                        if (parent && (parent.querySelector('img') || (parent.parentElement && parent.parentElement.querySelector('img')))) return true;
                         return false;
                     });
                     oldRemoveBtns.forEach(function(b) {
-                        try { b.click(); } catch(e) {}
+                        try {
+                            b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+                            b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+                            b.click();
+                        } catch(e) {}
                     });
 
                     // 4. Prepare DataTransfer with image blobs from pending files
@@ -416,43 +422,31 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    // 1. Check if file upload is still in progress (pending state)
-                    var pendingUpload = Array.from(document.querySelectorAll("button, div")).find(function(el) {
-                        var aria = (el.getAttribute('aria-label') || '').toLowerCase();
-                        var text = (el.innerText || '').toLowerCase();
-                        return aria.indexOf('file upload pending') !== -1 || aria.indexOf('uploading') !== -1 || text.indexOf('uploading') !== -1;
-                    });
-                    if (pendingUpload) {
-                        return false; // Still actively uploading to OpenAI CDN!
-                    }
+                    var composer = document.querySelector("#prompt-textarea") ? document.querySelector("#prompt-textarea").closest("form, div.relative, main") : document;
+                    if (!composer) composer = document;
 
-                    var progressBars = document.querySelectorAll("[role='progressbar'], .animate-spin");
-                    if (progressBars.length > 0) {
-                        return false; // Active progress bar or spinner!
+                    // 1. Check if an active spinner or progressbar exists inside the composer
+                    var activeSpinner = composer.querySelector("[role='progressbar'], .animate-spin");
+                    if (activeSpinner) {
+                        return false; // Still actively uploading!
                     }
 
                     // 2. Check for uploaded image thumbnails in composer
-                    var composerImgs = Array.from(document.querySelectorAll("img")).filter(function(img) {
+                    var imgs = Array.from(composer.querySelectorAll("img")).filter(function(img) {
                         var src = img.currentSrc || img.src || '';
                         if (!src) return false;
-                        if (img.classList.contains('avatar') || img.closest("[class*='avatar']")) return false;
-                        if (src.startsWith('blob:') || src.startsWith('data:image')) return true;
-                        var editor = document.querySelector("#prompt-textarea, .ProseMirror, textarea");
-                        if (editor) {
-                            var root = editor.closest("div:has(button)") || editor.parentElement?.parentElement;
-                            if (root && root.contains(img)) return true;
-                        }
-                        return false;
+                        if (img.closest("[class*='avatar'], header, nav")) return false;
+                        return true;
                     });
 
                     // 3. Check for removal buttons which indicate attached media chips in composer
-                    var removeButtons = Array.from(document.querySelectorAll("button")).filter(function(b) {
+                    var removeBtns = Array.from(composer.querySelectorAll("button")).filter(function(b) {
                         var aria = (b.getAttribute('aria-label') || '').toLowerCase();
-                        if (aria.indexOf('remove') !== -1 || aria.indexOf('delete') !== -1 || aria.indexOf('dismiss') !== -1 || aria.indexOf('close') !== -1) {
+                        if (aria.indexOf('remove') !== -1 || aria.indexOf('delete') !== -1 || aria.indexOf('close') !== -1) {
                             return true;
                         }
                         var parent = b.parentElement;
-                        if (parent && (parent.querySelector('img') || parent.parentElement?.querySelector('img'))) {
+                        if (parent && (parent.querySelector('img') || (parent.parentElement && parent.parentElement.querySelector('img')))) {
                             return true;
                         }
                         return false;
@@ -467,11 +461,7 @@ class ChatGptWebAdapter(
                     var sendBtnEnabled = sendBtn && !sendBtn.disabled && sendBtn.getAttribute('aria-disabled') !== 'true';
 
                     // Ready if images or removal buttons exist with no active progress
-                    if (composerImgs.length > 0 || removeButtons.length > 0) {
-                        return true;
-                    }
-
-                    if (sendBtnEnabled) {
+                    if (imgs.length > 0 || removeBtns.length > 0 || sendBtnEnabled) {
                         return true;
                     }
 
@@ -518,10 +508,12 @@ class ChatGptWebAdapter(
                     editor.dispatchEvent(new Event('change', { bubbles: true }));
 
                     setTimeout(function() {
-                        var sendBtn = Array.from(document.querySelectorAll("button")).find(function(b) {
-                            return /send|submit/i.test(b.getAttribute('aria-label') || b.innerText || '') ||
-                                   (b.className && b.className.indexOf('bg-composer-primary') !== -1);
-                        });
+                        var sendBtn = document.querySelector("button[data-testid='send-button']") ||
+                                      document.querySelector("button[aria-label*='Send' i]") ||
+                                      Array.from(document.querySelectorAll("button")).find(function(b) {
+                                          return /send|submit/i.test(b.getAttribute('aria-label') || b.innerText || '') ||
+                                                 (b.className && b.className.indexOf('bg-composer-primary') !== -1);
+                                      });
                         if (sendBtn) {
                             sendBtn.removeAttribute('disabled');
                             sendBtn.removeAttribute('aria-disabled');

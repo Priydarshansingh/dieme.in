@@ -173,7 +173,7 @@ class DefaultImageStudioExtension : ImageStudioExtension {
         }
     }
 
-    suspend fun resetSession(context: Context): Result<Boolean> = withContext(Dispatchers.IO) {
+    override suspend fun resetSession(context: Context): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             if (!isDgImagesInstalled(context)) {
                 return@withContext Result.failure(IllegalStateException("Dg-Images companion app is not installed."))

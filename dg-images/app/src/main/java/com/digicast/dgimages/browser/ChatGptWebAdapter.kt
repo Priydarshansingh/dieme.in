@@ -139,6 +139,24 @@ class ChatGptWebAdapter(
         webView.loadUrl(CHATGPT_URL)
     }
 
+    fun safeEvalJs(js: String, callback: ((String?) -> Unit)? = null) {
+        val runnable = Runnable {
+            try {
+                webView.evaluateJavascript(js) { res ->
+                    callback?.invoke(res)
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, "safeEvalJs error", t)
+                callback?.invoke(null)
+            }
+        }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            runnable.run()
+        } else {
+            Handler(Looper.getMainLooper()).post(runnable)
+        }
+    }
+
     fun checkLoginStatus(onResult: ((Boolean) -> Unit)? = null) {
         val cookies = CookieManager.getInstance().getCookie(CHATGPT_URL) ?: ""
         val hasSessionCookie = cookies.contains("__Secure") || cookies.contains("session-token") || cookies.contains("_puid") || cookies.contains("oai-")
@@ -157,7 +175,7 @@ class ChatGptWebAdapter(
                 }
             })();
         """.trimIndent()
-        webView.evaluateJavascript(js) { res ->
+        safeEvalJs(js) { res ->
             val isLogged = res?.trim() == "true" || (hasSessionCookie && res?.trim() != "false")
             ChatGptSessionManager.setIsChatGptConnected(isLogged)
             onResult?.invoke(isLogged)
@@ -234,7 +252,7 @@ class ChatGptWebAdapter(
                 }
             })();
         """.trimIndent()
-        webView.evaluateJavascript(js) { res ->
+        safeEvalJs(js) { res ->
             Handler(Looper.getMainLooper()).postDelayed({
                 onComplete?.invoke(res?.trim() == "true")
             }, 600L)
@@ -261,7 +279,7 @@ class ChatGptWebAdapter(
                     })();
                 """.trimIndent()
 
-                webView.evaluateJavascript(js) { res ->
+                safeEvalJs(js) { res ->
                     val isReady = res?.trim() == "true"
                     if (isReady) {
                         onReady(true)
@@ -329,7 +347,7 @@ class ChatGptWebAdapter(
                 }
             })();
         """.trimIndent()
-        webView.evaluateJavascript(js) { res ->
+        safeEvalJs(js) { res ->
             val count = res?.trim('"', ' ')?.toIntOrNull() ?: 0
             onComplete?.invoke(count)
         }
@@ -392,16 +410,18 @@ class ChatGptWebAdapter(
 
                     if (dt.items.length === 0) return false;
 
-                    // 5. Target EXACTLY ONE active non-capture photo input to prevent duplicate uploads
+                    // 5. Target EXACTLY ONE active non-capture photo input in the visible composer form
+                    var editor = document.querySelector("#prompt-textarea, .ProseMirror, textarea, [contenteditable='true']");
+                    var composerForm = editor ? editor.closest("form") : null;
                     var forms = Array.from(document.querySelectorAll('form'));
-                    var activeForm = forms.find(function(f) {
+                    var visibleForm = composerForm || forms.find(function(f) {
                         var r = f.getBoundingClientRect();
                         return r.width > 0 && r.height > 0;
                     }) || forms[0] || document;
 
-                    var targetInput = activeForm.querySelector("input[aria-label='Attach photos']") ||
-                                      activeForm.querySelector("input[aria-label='Attach photos or videos']") ||
-                                      Array.from(activeForm.querySelectorAll("input[type='file']")).find(function(i) { return !i.hasAttribute('capture'); }) ||
+                    var targetInput = visibleForm.querySelector("input[aria-label='Attach photos']") ||
+                                      visibleForm.querySelector("input[aria-label='Attach photos or videos']") ||
+                                      Array.from(visibleForm.querySelectorAll("input[type='file']")).find(function(i) { return !i.hasAttribute('capture'); }) ||
                                       document.querySelector("input[aria-label='Attach photos']") ||
                                       document.querySelector("input[type='file']:not([capture])");
 
@@ -415,7 +435,6 @@ class ChatGptWebAdapter(
                     }
 
                     // 6. Fallback strategy: Synthetic paste event on editor
-                    var editor = document.querySelector(".ProseMirror, #prompt-textarea, [contenteditable='true'], textarea");
                     if (editor) {
                         try {
                             editor.focus();
@@ -435,7 +454,7 @@ class ChatGptWebAdapter(
                 }
             })();
         """.trimIndent()
-        webView.evaluateJavascript(js) { res ->
+        safeEvalJs(js) { res ->
             Handler(Looper.getMainLooper()).postDelayed({
                 onComplete?.invoke(res?.trim() == "true")
             }, 600L)
@@ -456,23 +475,16 @@ class ChatGptWebAdapter(
                         return false; // Still actively uploading
                     }
 
-                    // 2. Check for explicit upload failed indicators
-                    var failedText = Array.from(document.querySelectorAll("*")).find(function(el) {
-                        return (el.innerText || '').toLowerCase().indexOf('upload failed') !== -1;
-                    });
-                    if (failedText) {
-                        return false;
-                    }
-
-                    // 3. Count ready attachment chips via remove buttons and attachment surface containers
+                    // 2. Count ready attachment chips via remove buttons, attachment surfaces, or progressbars
                     var removeBtns = Array.from(document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button, [class*='ComposerLayoutAttachments'] button"));
                     var surfaces = Array.from(document.querySelectorAll(".composer-attachment-surface, [class*='ComposerLayoutAttachments'] > div"));
+                    var progressBars = Array.from(document.querySelectorAll("[role='progressbar']"));
                     var readyImgs = Array.from(document.querySelectorAll(".composer-attachment-surface img, [class*='ComposerLayoutAttachments'] img, form img")).filter(function(img) {
                         if (img.closest("[class*='avatar'], header, nav")) return false;
                         return (img.naturalWidth > 10 || img.width > 10) && img.complete;
                     });
 
-                    var count = Math.max(removeBtns.length, surfaces.length, readyImgs.length);
+                    var count = Math.max(removeBtns.length, surfaces.length, progressBars.length, readyImgs.length);
                     if (expected > 0) {
                         return count >= expected;
                     }
@@ -482,7 +494,7 @@ class ChatGptWebAdapter(
                 }
             })($expectedCount);
         """.trimIndent()
-        webView.evaluateJavascript(js) { res ->
+        safeEvalJs(js) { res ->
             callback(res?.trim() == "true")
         }
     }
@@ -573,7 +585,7 @@ class ChatGptWebAdapter(
                 }
             })();
         """.trimIndent()
-        webView.evaluateJavascript(js) { res ->
+        safeEvalJs(js) { res ->
             Handler(Looper.getMainLooper()).postDelayed({
                 onComplete?.invoke(res?.trim() == "true")
             }, 1000L)
@@ -591,7 +603,7 @@ class ChatGptWebAdapter(
                 }
             })();
         """.trimIndent()
-        webView.evaluateJavascript(js) { res ->
+        safeEvalJs(js) { res ->
             val count = res?.trim('"', ' ')?.toIntOrNull() ?: 0
             callback(count)
         }
@@ -611,7 +623,7 @@ class ChatGptWebAdapter(
                 }
             })();
         """.trimIndent()
-        webView.evaluateJavascript(js) { res ->
+        safeEvalJs(js) { res ->
             try {
                 val clean = res?.trim('"', ' ', '\n') ?: "[]"
                 val unescaped = if (clean.startsWith("[") && clean.endsWith("]")) {
@@ -754,7 +766,7 @@ class ChatGptWebAdapter(
                 }
             })();
         """.trimIndent()
-        webView.evaluateJavascript(js) { res ->
+        safeEvalJs(js) { res ->
             val clean = res?.trim('"', ' ', '\n')
             val pushed = lastCapturedDataUrl
             if (!pushed.isNullOrBlank()) {

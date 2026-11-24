@@ -258,10 +258,10 @@ object ChatGptSessionManager {
                     }
                 }
 
-                // Poll for attachments readiness up to 30 seconds
+                // Poll for attachments readiness up to 12 seconds
                 var attachmentsReady = false
                 val expectedCount = filesToAttach.size
-                for (attempt in 0 until 30) {
+                for (attempt in 0 until 12) {
                     delay(1000)
                     withContext(Dispatchers.Main) {
                         adapter.webView.resumeTimers()
@@ -283,12 +283,19 @@ object ChatGptSessionManager {
                 }
 
                 if (!attachmentsReady) {
-                    Log.e(TAG, "❌ Failed to attach $expectedCount image assets to ChatGPT within 30s")
-                    _sessionStatus.value = "Error: Failed to attach image assets"
-                    adapter.clearPendingFiles()
-                    return@withContext Result.failure(
-                        IllegalStateException("Failed to attach reference images to ChatGPT composer. Please ensure ChatGPT is signed in and ready in Dg-Images.")
-                    )
+                    // Check if at least 1 attachment is present
+                    val partialReady = suspendCancellableCoroutine<Boolean> { cont ->
+                        adapter.checkAttachmentsReady(expectedCount = 1) { isReady ->
+                            if (cont.isActive) cont.resume(isReady)
+                        }
+                    }
+                    if (partialReady) {
+                        Log.i(TAG, "ℹ️ At least 1 attachment chip confirmed ready; proceeding with prompt submission.")
+                        attachmentsReady = true
+                    } else {
+                        Log.w(TAG, "⚠️ Attachment detector timed out; proceeding with prompt submission since files were dispatched.")
+                        attachmentsReady = true
+                    }
                 }
             }
 

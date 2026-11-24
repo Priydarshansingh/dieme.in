@@ -21,6 +21,7 @@ Every release of Dieme Core (`dieme-android`), Dg-Images Companion (`dg-images`)
 
 | Tag | Version Code | Version Name | Release Date | Highlights |
 | :--- | :--- | :--- | :--- | :--- |
+| `v1.2.14` | 17 | 1.2.14 | 2026-11-24 | Fixed image attachment to ChatGPT composer using prototype property descriptor setter\n• Cleaned up New Session lifecycle in Dg-Images to guarantee fresh session and purged past assets\n• Removed past chat drawer and pin stream from Dieme Studio to showcase pure 16:9 thumbnail result\n• Added top bar Back navigation and instant New Session action button |
 | `v1.2.13` | 16 | 1.2.13 | 2026-11-24 | Fixed seamless local image transfer between Dieme and Dg-Images companion in background without app switching |
 | `v1.2.12` | 15 | 1.2.12 | 2026-11-24 | Implemented foreground companion handover during inpaint generation so Android and OEM battery managers never throttle WebView upload threads |
 | `v1.2.11` | 14 | 1.2.11 | 2026-11-24 | Resolved ChatGPT page-reload race condition by switching to SPA in-memory new chat transition via sidebar |

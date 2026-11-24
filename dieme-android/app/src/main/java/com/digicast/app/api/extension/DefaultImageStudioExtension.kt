@@ -246,8 +246,20 @@ class DefaultImageStudioExtension : ImageStudioExtension {
             val sIntent = Intent().apply {
                 component = android.content.ComponentName(DG_IMAGES_PACKAGE, "com.digicast.dgimages.service.DgImagesService")
             }
+            // Bind service to ensure background daemon starts and stays pinned on Android 14+ without foreground limits
+            try {
+                context.bindService(sIntent, object : android.content.ServiceConnection {
+                    override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) {}
+                    override fun onServiceDisconnected(name: android.content.ComponentName?) {}
+                }, Context.BIND_AUTO_CREATE)
+            } catch (e: Exception) {
+                Log.w(TAG, "bindService fallback error: ${e.message}")
+            }
+
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                context.startForegroundService(sIntent)
+                try {
+                    context.startForegroundService(sIntent)
+                } catch (_: Throwable) {}
             } else {
                 context.startService(sIntent)
             }

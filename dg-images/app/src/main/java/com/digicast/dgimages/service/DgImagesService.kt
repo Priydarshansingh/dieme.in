@@ -156,5 +156,6 @@ class DgImagesService : Service() {
         super.onDestroy()
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    private val binder = object : android.os.Binder() {}
+    override fun onBind(intent: Intent?): IBinder = binder
 }

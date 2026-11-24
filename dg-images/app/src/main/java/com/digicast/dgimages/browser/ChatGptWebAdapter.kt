@@ -236,9 +236,16 @@ class ChatGptWebAdapter(
 
                     var path = window.location.pathname;
                     var msgCount = document.querySelectorAll("[data-message-author-role]").length;
+                    var hasAttachments = document.querySelectorAll("button[aria-label^='Remove '], .composer-attachment-surface button").length > 0;
 
-                    // If already at root with no conversation history, composer is already clean and fresh
-                    if (path === '/' && msgCount === 0) {
+                    // If currently on an existing conversation URL /c/... or composer has lingering attachments, hard navigate to root
+                    if (path.indexOf('/c/') !== -1 || hasAttachments) {
+                        window.location.href = 'https://chatgpt.com/';
+                        return true;
+                    }
+
+                    // If already at root with no conversation history and no attachments, composer is already clean and fresh
+                    if (path === '/' && msgCount === 0 && !hasAttachments) {
                         return true;
                     }
 
@@ -460,16 +467,22 @@ class ChatGptWebAdapter(
                         return lbl.indexOf('files') !== -1;
                     }) || candidateInputs[0] || visibleForm.querySelector("input[type='file']") || document.querySelector("input[type='file']");
 
+                    var fileAssigned = false;
                     if (targetInput) {
                         try {
-                            targetInput.files = dt.files;
+                            var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files');
+                            if (desc && desc.set) {
+                                desc.set.call(targetInput, dt.files);
+                            } else {
+                                targetInput.files = dt.files;
+                            }
                             targetInput.dispatchEvent(new Event('input', { bubbles: true }));
                             targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-                            return true;
+                            fileAssigned = true;
                         } catch(e) {}
                     }
 
-                    // 6. Fallback strategy: Synthetic paste event on editor
+                    // 6. Secondary fallback strategy: Synthetic paste event on editor
                     if (editor) {
                         try {
                             editor.focus();
@@ -479,11 +492,10 @@ class ChatGptWebAdapter(
                                 clipboardData: dt
                             });
                             editor.dispatchEvent(pasteEvt);
-                            return true;
                         } catch(e) {}
                     }
 
-                    return false;
+                    return fileAssigned;
                 } catch(e) {
                     return false;
                 }
@@ -520,8 +532,8 @@ class ChatGptWebAdapter(
                         return (img.naturalWidth > 10 || img.width > 10 || (img.alt && img.alt.length > 0)) && img.complete;
                     });
 
-                    // Note: Each attachment chip in mobile web renders up to 2 remove buttons (touch + hover).
-                    var chipCount = Math.max(Math.ceil(removeBtns.length / 2), readyImgs.length, surfaces.length, progressBars.length);
+                    // Note: Each attachment chip renders a distinct remove button or attachment surface.
+                    var chipCount = Math.max(removeBtns.length, readyImgs.length, surfaces.length, progressBars.length);
                     if (expected > 0) {
                         return chipCount >= expected;
                     }

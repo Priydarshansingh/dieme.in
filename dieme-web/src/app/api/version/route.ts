@@ -6,22 +6,22 @@ const VERSION_METADATA = {
     versionName: '1.2.14',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `• Fixed image attachment to ChatGPT composer using prototype property descriptor setter\n• Cleaned up New Session lifecycle in Dg-Images to guarantee fresh session and purged past assets\n• Removed past chat drawer and pin stream from Dieme Studio to showcase pure 16:9 thumbnail result\n• Added top bar Back navigation and instant New Session action button`,
+      `• Guaranteed SPA New Chat transition in Dg-Images to prevent full page reload race conditions\n• Enforced strict attachment verification before prompt submission so ChatGPT always receives base and reference images\n• Streamlined Dieme Studio to pure 16:9 thumbnail showcase without past chat drawer or pin stream`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk',
     releaseDate: '2026-11-24',
-    publishedAt: '2026-11-24T11:11:31Z',
+    publishedAt: '2026-11-24T11:19:51Z',
   },
   dgImages: {
     versionCode: 17,
     versionName: '1.2.14',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `• Fixed image attachment to ChatGPT composer using prototype property descriptor setter\n• Cleaned up New Session lifecycle in Dg-Images to guarantee fresh session and purged past assets\n• Removed past chat drawer and pin stream from Dieme Studio to showcase pure 16:9 thumbnail result\n• Added top bar Back navigation and instant New Session action button`,
+      `• Guaranteed SPA New Chat transition in Dg-Images to prevent full page reload race conditions\n• Enforced strict attachment verification before prompt submission so ChatGPT always receives base and reference images\n• Streamlined Dieme Studio to pure 16:9 thumbnail showcase without past chat drawer or pin stream`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk',
     releaseDate: '2026-11-24',
-    publishedAt: '2026-11-24T11:11:31Z',
+    publishedAt: '2026-11-24T11:19:51Z',
   },
 };
 

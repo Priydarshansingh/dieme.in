@@ -220,7 +220,7 @@ object ChatGptSessionManager {
                 _sessionStatus.value = "Opening fresh ChatGPT conversation..."
                 suspendCancellableCoroutine<Boolean> { cont ->
                     adapter.startNewChat {
-                        adapter.ensureComposerReady(timeoutMs = 8000L) { ready ->
+                        adapter.ensureComposerReady(timeoutMs = 15000L) { ready ->
                             if (cont.isActive) cont.resume(ready)
                         }
                     }
@@ -229,7 +229,7 @@ object ChatGptSessionManager {
             } else {
                 _sessionStatus.value = "Appending to ongoing ChatGPT conversation..."
                 suspendCancellableCoroutine<Boolean> { cont ->
-                    adapter.ensureComposerReady(timeoutMs = 4000L) { ready ->
+                    adapter.ensureComposerReady(timeoutMs = 6000L) { ready ->
                         if (cont.isActive) cont.resume(ready)
                     }
                 }
@@ -258,10 +258,10 @@ object ChatGptSessionManager {
                     }
                 }
 
-                // Poll for attachments readiness up to 12 seconds
+                // Poll for attachments readiness up to 15 seconds
                 var attachmentsReady = false
                 val expectedCount = filesToAttach.size
-                for (attempt in 0 until 12) {
+                for (attempt in 0 until 15) {
                     delay(1000)
                     withContext(Dispatchers.Main) {
                         adapter.webView.resumeTimers()
@@ -283,18 +283,27 @@ object ChatGptSessionManager {
                 }
 
                 if (!attachmentsReady) {
-                    // Check if at least 1 attachment is present
-                    val partialReady = suspendCancellableCoroutine<Boolean> { cont ->
+                    Log.w(TAG, "⚠️ Attachment detector timed out; attempting re-dispatch of files...")
+                    suspendCancellableCoroutine<Boolean> { cont ->
+                        adapter.attachImages(filesToAttach) { success ->
+                            if (cont.isActive) cont.resume(success)
+                        }
+                    }
+                    delay(2500)
+                    val retryReady = suspendCancellableCoroutine<Boolean> { cont ->
                         adapter.checkAttachmentsReady(expectedCount = 1) { isReady ->
                             if (cont.isActive) cont.resume(isReady)
                         }
                     }
-                    if (partialReady) {
-                        Log.i(TAG, "ℹ️ At least 1 attachment chip confirmed ready; proceeding with prompt submission.")
+                    if (retryReady) {
+                        Log.i(TAG, "✅ Attachments confirmed ready after re-dispatch")
                         attachmentsReady = true
                     } else {
-                        Log.w(TAG, "⚠️ Attachment detector timed out; proceeding with prompt submission since files were dispatched.")
-                        attachmentsReady = true
+                        Log.e(TAG, "❌ Failed to attach image assets to ChatGPT composer")
+                        _sessionStatus.value = "Error: Failed to attach image assets"
+                        return@withContext Result.failure(
+                            IllegalStateException("Failed to attach reference images to ChatGPT composer. Please ensure ChatGPT is signed in and ready in Dg-Images.")
+                        )
                     }
                 }
             }

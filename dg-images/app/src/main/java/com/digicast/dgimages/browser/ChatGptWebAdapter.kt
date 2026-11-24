@@ -238,18 +238,7 @@ class ChatGptWebAdapter(
                     var msgCount = document.querySelectorAll("[data-message-author-role]").length;
                     var hasAttachments = document.querySelectorAll("button[aria-label^='Remove '], .composer-attachment-surface button").length > 0;
 
-                    // If currently on an existing conversation URL /c/... or composer has lingering attachments, hard navigate to root
-                    if (path.indexOf('/c/') !== -1 || hasAttachments) {
-                        window.location.href = 'https://chatgpt.com/';
-                        return true;
-                    }
-
-                    // If already at root with no conversation history and no attachments, composer is already clean and fresh
-                    if (path === '/' && msgCount === 0 && !hasAttachments) {
-                        return true;
-                    }
-
-                    // 4. SPA transition to fresh chat: Direct click on top header "New chat" button
+                    // 4. SPA transition to fresh chat: Direct click on top header "New chat" button (instant, no page reload)
                     var headerNewChat = document.querySelector("button[aria-label='New chat'], a[aria-label='New chat'], [data-testid='new-chat-button']");
                     if (headerNewChat) {
                         try {
@@ -270,8 +259,12 @@ class ChatGptWebAdapter(
                         } catch(e) {}
                     }
 
-                    // Fallback: Navigate to root only if SPA controls cannot be found
-                    window.location.href = 'https://chatgpt.com/';
+                    // If currently on an existing conversation URL /c/... and SPA button was not clickable, navigate to root
+                    if (path.indexOf('/c/') !== -1) {
+                        window.location.href = 'https://chatgpt.com/';
+                        return true;
+                    }
+
                     return true;
                 } catch(e) {
                     window.location.href = 'https://chatgpt.com/';

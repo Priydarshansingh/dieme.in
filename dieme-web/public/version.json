@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 13,
-    "versionName": "1.2.10",
+    "versionCode": 14,
+    "versionName": "1.2.11",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Guaranteed main thread execution for all WebView JavaScript evaluations via safeEvalJs to fix background thread attachment detection failures\n\u2022 Hardened active composer form targeting using editor.closest('form')\n\u2022 Added resilient fallback handling in attachment readiness polling to prevent false-negative timeouts\n\u2022 Replaced progressbar false-positives with multi-element chip detection",
+    "releaseNotes": "\u2022 Resolved ChatGPT page-reload race condition by switching to SPA in-memory new chat transition via sidebar\n\u2022 Guaranteed clean composer state and pre-cleared attachments before dispatching media assets\n\u2022 Fixed multi-touch remove button detection and spinner tracking for instantaneous attachment readiness\n\u2022 Synchronized New Session lifecycle to wipe past session assets and reset ChatGPT without full WebView reload\n\u2022 Verified robust thumbnail generation and seamless 1080p canvas result display",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
     "releaseDate": "2026-11-24",
-    "publishedAt": "2026-11-24T09:04:02Z"
+    "publishedAt": "2026-11-24T09:19:38Z"
   },
   "dgImages": {
-    "versionCode": 13,
-    "versionName": "1.2.10",
+    "versionCode": 14,
+    "versionName": "1.2.11",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Guaranteed main thread execution for all WebView JavaScript evaluations via safeEvalJs to fix background thread attachment detection failures\n\u2022 Hardened active composer form targeting using editor.closest('form')\n\u2022 Added resilient fallback handling in attachment readiness polling to prevent false-negative timeouts\n\u2022 Replaced progressbar false-positives with multi-element chip detection",
+    "releaseNotes": "\u2022 Resolved ChatGPT page-reload race condition by switching to SPA in-memory new chat transition via sidebar\n\u2022 Guaranteed clean composer state and pre-cleared attachments before dispatching media assets\n\u2022 Fixed multi-touch remove button detection and spinner tracking for instantaneous attachment readiness\n\u2022 Synchronized New Session lifecycle to wipe past session assets and reset ChatGPT without full WebView reload\n\u2022 Verified robust thumbnail generation and seamless 1080p canvas result display",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
     "releaseDate": "2026-11-24",
-    "publishedAt": "2026-11-24T09:04:02Z"
+    "publishedAt": "2026-11-24T09:19:38Z"
   }
 }

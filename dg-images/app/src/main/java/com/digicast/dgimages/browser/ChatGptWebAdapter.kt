@@ -207,25 +207,23 @@ class ChatGptWebAdapter(
                     );
                     dismissBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
 
-                    // 2. Dismiss sidebar / drawer if open
-                    var hideSidebar = document.querySelector("button[aria-label='Hide sidebar']");
-                    if (hideSidebar) { try { hideSidebar.click(); } catch(e) {} }
-                    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
-
-                    // 3. Clear file inputs and composer attachments immediately
+                    // 2. Clear file inputs and composer attachments immediately
                     var removeBtns = Array.from(document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button, [class*='ComposerLayoutAttachments'] button"));
                     removeBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
 
                     var fileInputs = document.querySelectorAll('input[type="file"]');
                     fileInputs.forEach(function(input) { try { input.value = ''; } catch(e) {} });
 
-                    // 4. Clear editor text
-                    var editor = document.querySelector(".ProseMirror, #prompt-textarea, [contenteditable='true'], textarea");
+                    // 3. Clear editor text
+                    var editor = document.querySelector(".ProseMirror, #prompt-textarea, [contenteditable='true'], [role='textbox'], textarea");
                     if (editor) {
                         try {
                             editor.focus();
                             document.execCommand('selectAll', false, null);
                             document.execCommand('delete', false, null);
+                            editor.innerText = '';
+                            editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
+                            editor.dispatchEvent(new Event('change', { bubbles: true }));
                         } catch(e) {}
                     }
 
@@ -234,16 +232,50 @@ class ChatGptWebAdapter(
 
                     // If already at root with no conversation history, composer is already clean and fresh
                     if (path === '/' && msgCount === 0) {
+                        var hideSidebar = document.querySelector("button[aria-label='Hide sidebar']");
+                        if (hideSidebar) { try { hideSidebar.click(); } catch(e) {} }
                         return true;
                     }
 
-                    // Directly click New Chat button in the header bar if present
-                    var headerNewChat = document.querySelector("button[aria-label='New chat'], a[aria-label='New chat']");
-                    if (headerNewChat) {
-                        try { headerNewChat.click(); return true; } catch(e) {}
+                    // 4. SPA transition to fresh chat via sidebar New Chat button (avoids full page reload)
+                    var existingNewChat = Array.from(document.querySelectorAll("button, a")).find(function(b) {
+                        return (b.innerText || '').trim().toLowerCase() === 'new chat' ||
+                               b.getAttribute('aria-label') === 'New chat';
+                    });
+                    if (existingNewChat) {
+                        try {
+                            existingNewChat.click();
+                            setTimeout(function() {
+                                var hide = document.querySelector("button[aria-label='Hide sidebar']");
+                                if (hide) { try { hide.click(); } catch(e) {} }
+                            }, 150);
+                            return true;
+                        } catch(e) {}
                     }
 
-                    // Fallback: Navigate to root
+                    // If sidebar is closed, open it and click New chat
+                    var showBtn = document.querySelector("button[aria-label='Show sidebar']");
+                    if (showBtn) {
+                        try {
+                            showBtn.click();
+                            setTimeout(function() {
+                                var btn = Array.from(document.querySelectorAll("button, a")).find(function(b) {
+                                    return (b.innerText || '').trim().toLowerCase() === 'new chat' ||
+                                           b.getAttribute('aria-label') === 'New chat';
+                                });
+                                if (btn) {
+                                    try { btn.click(); } catch(e) {}
+                                }
+                                setTimeout(function() {
+                                    var hide = document.querySelector("button[aria-label='Hide sidebar']");
+                                    if (hide) { try { hide.click(); } catch(e) {} }
+                                }, 150);
+                            }, 150);
+                            return true;
+                        } catch(e) {}
+                    }
+
+                    // Fallback: Navigate to root only if SPA controls cannot be found
                     window.location.href = 'https://chatgpt.com/';
                     return true;
                 } catch(e) {
@@ -255,7 +287,7 @@ class ChatGptWebAdapter(
         safeEvalJs(js) { res ->
             Handler(Looper.getMainLooper()).postDelayed({
                 onComplete?.invoke(res?.trim() == "true")
-            }, 600L)
+            }, 500L)
         }
     }
 
@@ -475,20 +507,21 @@ class ChatGptWebAdapter(
                         return false; // Still actively uploading
                     }
 
-                    // 2. Count ready attachment chips via remove buttons, attachment surfaces, or progressbars
+                    // 2. Count ready attachment chips via remove buttons, attachment surfaces, images, or progressbars
                     var removeBtns = Array.from(document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button, [class*='ComposerLayoutAttachments'] button"));
                     var surfaces = Array.from(document.querySelectorAll(".composer-attachment-surface, [class*='ComposerLayoutAttachments'] > div"));
                     var progressBars = Array.from(document.querySelectorAll("[role='progressbar']"));
                     var readyImgs = Array.from(document.querySelectorAll(".composer-attachment-surface img, [class*='ComposerLayoutAttachments'] img, form img")).filter(function(img) {
                         if (img.closest("[class*='avatar'], header, nav")) return false;
-                        return (img.naturalWidth > 10 || img.width > 10) && img.complete;
+                        return (img.naturalWidth > 10 || img.width > 10 || (img.alt && img.alt.length > 0)) && img.complete;
                     });
 
-                    var count = Math.max(removeBtns.length, surfaces.length, progressBars.length, readyImgs.length);
+                    // Note: Each attachment chip in mobile web renders up to 2 remove buttons (touch + hover).
+                    var chipCount = Math.max(Math.ceil(removeBtns.length / 2), readyImgs.length, surfaces.length, progressBars.length);
                     if (expected > 0) {
-                        return count >= expected;
+                        return chipCount >= expected;
                     }
-                    return count > 0;
+                    return chipCount > 0;
                 } catch(e) {
                     return false;
                 }
@@ -566,14 +599,19 @@ class ChatGptWebAdapter(
                                 } catch(e) {}
                             }
 
-                            // 2. Dispatch simulated pointer/mouse events and click
+                            // 2. Dispatch simulated pointer/mouse events and click/requestSubmit
                             var rect = sendBtn.getBoundingClientRect();
                             var opts = { bubbles: true, cancelable: true, view: window, clientX: rect.x + rect.width / 2, clientY: rect.y + rect.height / 2 };
                             sendBtn.dispatchEvent(new PointerEvent('pointerdown', opts));
                             sendBtn.dispatchEvent(new MouseEvent('mousedown', opts));
                             sendBtn.dispatchEvent(new PointerEvent('pointerup', opts));
                             sendBtn.dispatchEvent(new MouseEvent('mouseup', opts));
-                            sendBtn.click();
+                            var form = sendBtn.closest('form');
+                            if (form && typeof form.requestSubmit === 'function') {
+                                try { form.requestSubmit(sendBtn); } catch(e) { sendBtn.click(); }
+                            } else {
+                                sendBtn.click();
+                            }
                         } else {
                             editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true }));
                         }

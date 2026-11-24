@@ -21,6 +21,7 @@ Every release of Dieme Core (`dieme-android`), Dg-Images Companion (`dg-images`)
 
 | Tag | Version Code | Version Name | Release Date | Highlights |
 | :--- | :--- | :--- | :--- | :--- |
+| `v1.2.11` | 14 | 1.2.11 | 2026-11-24 | Resolved ChatGPT page-reload race condition by switching to SPA in-memory new chat transition via sidebar |
 | `v1.2.10` | 13 | 1.2.10 | 2026-11-24 | Guaranteed main thread execution for all WebView JavaScript evaluations via safeEvalJs to fix background thread attachment detection failures |
 | `v1.2.9` | 12 | 1.2.9 | 2026-11-24 | Fixed single-input attachment targeting to prevent duplicate image stacking in ChatGPT composer |
 | `v1.2.8` | 11 | 1.2.8 | 2026-11-24 | Fixed ChatGPT image attachment and readiness detector in Dg-Images companion app |

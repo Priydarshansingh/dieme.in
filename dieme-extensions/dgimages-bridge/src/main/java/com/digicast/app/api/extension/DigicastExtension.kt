@@ -31,5 +31,7 @@ interface ImageStudioExtension : DigicastExtension {
         prompt: String,
         onProgress: (progressPercent: Int, statusMessage: String) -> Unit
     ): Result<String>
+
+    suspend fun resetSession(context: Context): Result<Boolean> = Result.success(true)
 }
 

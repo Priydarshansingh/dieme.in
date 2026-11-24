@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 19,
-    "versionName": "1.2.16",
+    "versionCode": 23,
+    "versionName": "1.2.20",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "Fixed single-event image paste to active ChatGPT composer without duplication or attachment failures\n• Instant canvas JPEG extraction for 16:9 widescreen revisions delivered directly to Dieme Studio\n• Automatic sidebar drawer & modal overlay dismissal to prevent blocking the composer\n• Added persistent version & daemon badges at bottom of screens",
+    "releaseNotes": "Zero-latency in-page Base64 generated result capture from ChatGPT to Dieme Studio\n• Strict composer attachment de-duplication with React-safe props event handling\n• Instant fresh chat initialization on New Session with full cache and attachment purge\n• Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
     "releaseDate": "2026-11-24",
-    "publishedAt": "2026-11-24T12:10:00Z"
+    "publishedAt": "2026-11-24T19:30:00Z"
   },
   "dgImages": {
-    "versionCode": 19,
-    "versionName": "1.2.16",
+    "versionCode": 23,
+    "versionName": "1.2.20",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "Fixed single-event image paste to active ChatGPT composer without duplication or attachment failures\n• Instant canvas JPEG extraction for 16:9 widescreen revisions delivered directly to Dieme Studio\n• Automatic sidebar drawer & modal overlay dismissal to prevent blocking the composer\n• Added persistent version & daemon badges at bottom of screens",
+    "releaseNotes": "Zero-latency in-page Base64 generated result capture from ChatGPT to Dieme Studio\n• Strict composer attachment de-duplication with React-safe props event handling\n• Instant fresh chat initialization on New Session with full cache and attachment purge\n• Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
     "releaseDate": "2026-11-24",
-    "publishedAt": "2026-11-24T12:10:00Z"
+    "publishedAt": "2026-11-24T19:30:00Z"
   }
 }

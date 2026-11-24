@@ -2,30 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const VERSION_METADATA = {
   dieme: {
-    versionCode: 18,
-    versionName: '1.2.15',
+    versionCode: 23,
+    versionName: '1.2.20',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `Fixed ChatGPT composer file assignment in Dg-Images to attach base and visual reference without duplication
-• Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets
-• Instant fresh chat initialization on New Session with full cache purge and sidebar dismiss`,
+      `Zero-latency in-page Base64 generated result capture from ChatGPT to Dieme Studio
+• Strict composer attachment de-duplication with React-safe props event handling
+• Instant fresh chat initialization on New Session with full cache and attachment purge
+• Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk',
     releaseDate: '2026-11-24',
-    publishedAt: '2026-11-24T11:51:53Z',
+    publishedAt: '2026-11-24T19:30:00Z',
   },
   dgImages: {
-    versionCode: 18,
-    versionName: '1.2.15',
+    versionCode: 23,
+    versionName: '1.2.20',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `Fixed ChatGPT composer file assignment in Dg-Images to attach base and visual reference without duplication
-• Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets
-• Instant fresh chat initialization on New Session with full cache purge and sidebar dismiss`,
+      `Zero-latency in-page Base64 generated result capture from ChatGPT to Dieme Studio
+• Strict composer attachment de-duplication with React-safe props event handling
+• Instant fresh chat initialization on New Session with full cache and attachment purge
+• Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk',
     releaseDate: '2026-11-24',
-    publishedAt: '2026-11-24T11:51:53Z',
+    publishedAt: '2026-11-24T19:30:00Z',
   },
 };
 

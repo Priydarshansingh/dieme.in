@@ -68,7 +68,6 @@ class DgImagesHttpDaemon(
             socket.use { s ->
                 val rawInput = s.getInputStream()
                 val rawOutput = s.getOutputStream()
-                val writer = PrintWriter(OutputStreamWriter(rawOutput, Charsets.UTF_8), true)
 
                 // 1. Read HTTP headers byte-by-byte until \r\n\r\n delimiter
                 val headerStream = ByteArrayOutputStream()
@@ -113,7 +112,7 @@ class DgImagesHttpDaemon(
                             put("ready", true)
                             put("port", port)
                         }.toString()
-                        sendResponse(writer, 200, "application/json", responseJson)
+                        sendResponse(rawOutput, 200, "application/json", responseJson)
                     }
 
                     method == "GET" && path.startsWith("/v1/image/") -> {
@@ -128,7 +127,7 @@ class DgImagesHttpDaemon(
                                 put("error", "Image not found")
                                 put("fileName", fileName)
                             }.toString()
-                            sendResponse(writer, 404, "application/json", notFoundJson)
+                            sendResponse(rawOutput, 404, "application/json", notFoundJson)
                         }
                     }
 
@@ -139,7 +138,7 @@ class DgImagesHttpDaemon(
                             put("message", if (success) "Fresh session initialized" else "Session reset failed")
                             put("timestamp", System.currentTimeMillis())
                         }.toString()
-                        sendResponse(writer, 200, "application/json", responseJson)
+                        sendResponse(rawOutput, 200, "application/json", responseJson)
                     }
 
                     method == "POST" && path == "/v1/eval" -> {
@@ -162,11 +161,11 @@ class DgImagesHttpDaemon(
                                 }
                             }
                             latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
-                            sendResponse(writer, 200, "application/json", JSONObject().apply {
+                            sendResponse(rawOutput, 200, "application/json", JSONObject().apply {
                                 put("result", evalResult)
                             }.toString())
                         } else {
-                            sendResponse(writer, 503, "application/json", "{\"error\":\"No active adapter\"}")
+                            sendResponse(rawOutput, 503, "application/json", "{\"error\":\"No active adapter\"}")
                         }
                     }
 
@@ -227,7 +226,7 @@ class DgImagesHttpDaemon(
                             put("timestamp", System.currentTimeMillis())
                         }.toString()
 
-                        sendResponse(writer, 200, "application/json", responseJson)
+                        sendResponse(rawOutput, 200, "application/json", responseJson)
                     }
 
                     else -> {
@@ -235,7 +234,7 @@ class DgImagesHttpDaemon(
                             put("error", "Not Found")
                             put("path", path)
                         }.toString()
-                        sendResponse(writer, 404, "application/json", notFoundJson)
+                        sendResponse(rawOutput, 404, "application/json", notFoundJson)
                     }
                 }
             }
@@ -255,13 +254,15 @@ class DgImagesHttpDaemon(
         outputStream.flush()
     }
 
-    private fun sendResponse(writer: PrintWriter, statusCode: Int, contentType: String, body: String) {
-        writer.print("HTTP/1.1 $statusCode OK\r\n")
-        writer.print("Content-Type: $contentType\r\n")
-        writer.print("Content-Length: ${body.toByteArray(Charsets.UTF_8).size}\r\n")
-        writer.print("Connection: close\r\n")
-        writer.print("Access-Control-Allow-Origin: *\r\n\r\n")
-        writer.print(body)
-        writer.flush()
+    private fun sendResponse(outputStream: OutputStream, statusCode: Int, contentType: String, body: String) {
+        val bodyBytes = body.toByteArray(Charsets.UTF_8)
+        val header = "HTTP/1.1 $statusCode OK\r\n" +
+                "Content-Type: $contentType\r\n" +
+                "Content-Length: ${bodyBytes.size}\r\n" +
+                "Connection: close\r\n" +
+                "Access-Control-Allow-Origin: *\r\n\r\n"
+        outputStream.write(header.toByteArray(Charsets.UTF_8))
+        outputStream.write(bodyBytes)
+        outputStream.flush()
     }
 }

@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 18,
-    "versionName": "1.2.15",
+    "versionCode": 19,
+    "versionName": "1.2.16",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "Fixed ChatGPT composer file assignment in Dg-Images to attach base and visual reference without duplication\n\u2022 Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets\n\u2022 Instant fresh chat initialization on New Session with full cache purge and sidebar dismiss",
+    "releaseNotes": "Fixed single-event image paste to active ChatGPT composer without duplication or attachment failures\n• Instant canvas JPEG extraction for 16:9 widescreen revisions delivered directly to Dieme Studio\n• Automatic sidebar drawer & modal overlay dismissal to prevent blocking the composer\n• Added persistent version & daemon badges at bottom of screens",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
     "releaseDate": "2026-11-24",
-    "publishedAt": "2026-11-24T11:51:53Z"
+    "publishedAt": "2026-11-24T12:10:00Z"
   },
   "dgImages": {
-    "versionCode": 18,
-    "versionName": "1.2.15",
+    "versionCode": 19,
+    "versionName": "1.2.16",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "Fixed ChatGPT composer file assignment in Dg-Images to attach base and visual reference without duplication\n\u2022 Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets\n\u2022 Instant fresh chat initialization on New Session with full cache purge and sidebar dismiss",
+    "releaseNotes": "Fixed single-event image paste to active ChatGPT composer without duplication or attachment failures\n• Instant canvas JPEG extraction for 16:9 widescreen revisions delivered directly to Dieme Studio\n• Automatic sidebar drawer & modal overlay dismissal to prevent blocking the composer\n• Added persistent version & daemon badges at bottom of screens",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
     "releaseDate": "2026-11-24",
-    "publishedAt": "2026-11-24T11:51:53Z"
+    "publishedAt": "2026-11-24T12:10:00Z"
   }
 }

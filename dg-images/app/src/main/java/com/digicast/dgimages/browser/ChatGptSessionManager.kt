@@ -413,13 +413,17 @@ object ChatGptSessionManager {
             }
 
             when {
-                result == "LOADING" || (result != null && result.startsWith("blob:")) -> {
+                result == "LOADING" -> {
                     _sessionStatus.value = "ChatGPT rendering 1080p canvas... (${(i + 1) * 3}s)"
                 }
                 result == "GENERATING" || result.isNullOrBlank() || result == "null" -> {
                     _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
                 }
-                result.startsWith("http://") || result.startsWith("https://") || result.startsWith("data:") -> {
+                result.startsWith("http://") || result.startsWith("https://") || result.startsWith("data:") || result.startsWith("blob:") -> {
+                    if (result.startsWith("data:")) {
+                        Log.i(TAG, "🎯 Captured newly generated image (DataURL len=${result.length}) on attempt #${i + 1}!")
+                        return result
+                    }
                     if (i < 1) {
                         Log.i(TAG, "⏳ Image candidate at attempt #${i + 1}, waiting for generation cycle to settle...")
                         _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"

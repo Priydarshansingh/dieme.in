@@ -1182,6 +1182,9 @@ fun ActivityFeedView(
     val configuration = LocalConfiguration.current
     val isSmallScreen = configuration.screenWidthDp < 360
     val latestJob = recentJobs.firstOrNull()
+    val isConnected by ChatGptSessionManager.isChatGptConnected.collectAsState()
+    val vName = remember { AppUpdateManager.getCurrentVersionName(context) }
+    val vCode = remember { AppUpdateManager.getCurrentVersionCode(context) }
 
     Box(
         modifier = modifier,
@@ -1518,6 +1521,32 @@ fun ActivityFeedView(
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .padding(bottom = 24.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isConnected) DgEmerald else Color(0xFFF59E0B))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Dg-Images Engine v$vName ($vCode) • Daemon 127.0.0.1:5488 • ${if (isConnected) "ChatGPT Online" else "ChatGPT Standby"}",
+                                color = DgSlate,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
                         }
                     }
                 }

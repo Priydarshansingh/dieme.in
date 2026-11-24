@@ -2786,16 +2786,15 @@ private fun ActiveRevisionDispatchCard(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(DigicastElectricCyan)
+            CircularProgressIndicator(
+                color = DigicastElectricCyan,
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp
             )
             Text(
-                text = "⚡ Generating Revision with Dg-Images...",
+                text = "Generating Revision with Dg-Images...",
                 color = Color.White,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
@@ -2809,7 +2808,7 @@ private fun ActiveRevisionDispatchCard(
             fontWeight = FontWeight.Medium
         )
 
-        // Ongoing Assets & Pins Row
+        // Ongoing Assets & Pins Preview
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -2819,9 +2818,9 @@ private fun ActiveRevisionDispatchCard(
             if (baseImageUrl != null) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(46.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
                 ) {
                     AsyncImage(
                         model = ImageRequest.Builder(context).data(baseImageUrl).crossfade(true).build(),
@@ -2836,9 +2835,9 @@ private fun ActiveRevisionDispatchCard(
             referenceImages.forEach { refUri ->
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(46.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .border(1.5.dp, DigicastElectricCyan, RoundedCornerShape(8.dp))
                 ) {
                     AsyncImage(
                         model = ImageRequest.Builder(context).data(refUri).crossfade(true).build(),
@@ -2864,6 +2863,34 @@ private fun ActiveRevisionDispatchCard(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+        }
+
+        // Target Pin Point Details
+        if (markedPins.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                markedPins.forEach { pin ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF041A20))
+                            .border(1.dp, DigicastElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "📍 Pin #${pin.id} (${pin.xPercent.toInt()}%, ${pin.yPercent.toInt()}%)",
+                            color = DigicastElectricCyan,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }

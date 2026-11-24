@@ -2,26 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const VERSION_METADATA = {
   dieme: {
-    versionCode: 17,
-    versionName: '1.2.14',
+    versionCode: 18,
+    versionName: '1.2.15',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `• Guaranteed SPA New Chat transition in Dg-Images to prevent full page reload race conditions\n• Enforced strict attachment verification before prompt submission so ChatGPT always receives base and reference images\n• Streamlined Dieme Studio to pure 16:9 thumbnail showcase without past chat drawer or pin stream`,
+      `Fixed ChatGPT composer file assignment in Dg-Images to attach base and visual reference without duplication
+• Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets
+• Instant fresh chat initialization on New Session with full cache purge and sidebar dismiss`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk',
     releaseDate: '2026-11-24',
-    publishedAt: '2026-11-24T11:19:51Z',
+    publishedAt: '2026-11-24T11:51:53Z',
   },
   dgImages: {
-    versionCode: 17,
-    versionName: '1.2.14',
+    versionCode: 18,
+    versionName: '1.2.15',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `• Guaranteed SPA New Chat transition in Dg-Images to prevent full page reload race conditions\n• Enforced strict attachment verification before prompt submission so ChatGPT always receives base and reference images\n• Streamlined Dieme Studio to pure 16:9 thumbnail showcase without past chat drawer or pin stream`,
+      `Fixed ChatGPT composer file assignment in Dg-Images to attach base and visual reference without duplication
+• Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets
+• Instant fresh chat initialization on New Session with full cache purge and sidebar dismiss`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk',
     releaseDate: '2026-11-24',
-    publishedAt: '2026-11-24T11:19:51Z',
+    publishedAt: '2026-11-24T11:51:53Z',
   },
 };
 

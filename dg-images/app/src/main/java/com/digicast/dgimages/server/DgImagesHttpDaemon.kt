@@ -108,7 +108,8 @@ class DgImagesHttpDaemon(
                         val responseJson = JSONObject().apply {
                             put("status", "ok")
                             put("app", "Dg-Images")
-                            put("version", "1.1.0")
+                            put("version", com.digicast.dgimages.BuildConfig.VERSION_NAME)
+                            put("versionCode", com.digicast.dgimages.BuildConfig.VERSION_CODE)
                             put("ready", true)
                             put("port", port)
                         }.toString()

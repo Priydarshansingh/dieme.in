@@ -207,9 +207,10 @@ class ChatGptWebAdapter(
                     );
                     dismissBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
 
-                    // Dismiss sidebar drawer if open
+                    // Ensure sidebar is closed so its modal backdrop never covers the screen or composer
                     var hideSidebar = document.querySelector("button[aria-label='Hide sidebar'], button[aria-label='Close sidebar']");
                     if (hideSidebar) { try { hideSidebar.click(); } catch(e) {} }
+                    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
 
                     // 2. Clear file inputs and composer attachments immediately
                     for (var iter = 0; iter < 5; iter++) {
@@ -235,36 +236,21 @@ class ChatGptWebAdapter(
                     }
 
                     var path = window.location.pathname;
-                    var msgCount = document.querySelectorAll("[data-message-author-role]").length;
-                    var hasAttachments = document.querySelectorAll("button[aria-label^='Remove '], .composer-attachment-surface button").length > 0;
 
-                    // 4. SPA transition to fresh chat: Direct click on top header "New chat" button (instant, no page reload)
-                    var headerNewChat = document.querySelector("button[aria-label='New chat'], a[aria-label='New chat'], [data-testid='new-chat-button']");
-                    if (headerNewChat) {
-                        try {
-                            headerNewChat.click();
-                            return true;
-                        } catch(e) {}
-                    }
-
-                    // Look for any visible New chat action button
-                    var anyNewChat = Array.from(document.querySelectorAll("button, a")).find(function(b) {
-                        return (b.innerText || '').trim().toLowerCase() === 'new chat' ||
-                               b.getAttribute('aria-label') === 'New chat';
-                    });
-                    if (anyNewChat) {
-                        try {
-                            anyNewChat.click();
-                            return true;
-                        } catch(e) {}
-                    }
-
-                    // If currently on an existing conversation URL /c/... and SPA button was not clickable, navigate to root
-                    if (path.indexOf('/c/') !== -1) {
+                    // 4. If we are currently on an existing conversation path (/c/... or /g/...), navigate to root
+                    if (path.indexOf('/c/') !== -1 || path.indexOf('/g/') !== -1) {
+                        var headerNewChat = document.querySelector("header button[aria-label='New chat'], header a[aria-label='New chat'], [data-testid='new-chat-button']");
+                        if (headerNewChat) {
+                            try {
+                                headerNewChat.click();
+                                return true;
+                            } catch(e) {}
+                        }
                         window.location.href = 'https://chatgpt.com/';
                         return true;
                     }
 
+                    // Already at root fresh chat - ready instantly without page reload
                     return true;
                 } catch(e) {
                     window.location.href = 'https://chatgpt.com/';
@@ -460,7 +446,7 @@ class ChatGptWebAdapter(
                         return lbl.indexOf('files') !== -1;
                     }) || candidateInputs[0] || visibleForm.querySelector("input[type='file']") || document.querySelector("input[type='file']");
 
-                    var fileAssigned = false;
+                    var fileAssigned = false
                     if (targetInput) {
                         try {
                             var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files');
@@ -475,8 +461,8 @@ class ChatGptWebAdapter(
                         } catch(e) {}
                     }
 
-                    // 6. Secondary fallback strategy: Synthetic paste event on editor
-                    if (editor) {
+                    // 6. Secondary fallback strategy: ONLY use synthetic paste if targetInput was NOT assigned (prevents duplicate attachments!)
+                    if (!fileAssigned && editor) {
                         try {
                             editor.focus();
                             var pasteEvt = new ClipboardEvent('paste', {
@@ -485,6 +471,7 @@ class ChatGptWebAdapter(
                                 clipboardData: dt
                             });
                             editor.dispatchEvent(pasteEvt);
+                            fileAssigned = true;
                         } catch(e) {}
                     }
 
@@ -505,6 +492,26 @@ class ChatGptWebAdapter(
         this.pendingFiles = emptyList()
     }
 
+    fun hasAnyComposerAttachments(callback: (Boolean) -> Unit) {
+        val js = """
+            (function() {
+                try {
+                    var removeBtns = document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button, [class*='ComposerLayoutAttachments'] button");
+                    var readyImgs = Array.from(document.querySelectorAll(".composer-attachment-surface img, [class*='ComposerLayoutAttachments'] img, form img")).filter(function(img) {
+                        if (img.closest("[class*='avatar'], header, nav")) return false;
+                        return (img.naturalWidth > 10 || img.width > 10 || (img.alt && img.alt.length > 0));
+                    });
+                    return removeBtns.length > 0 || readyImgs.length > 0;
+                } catch(e) {
+                    return false;
+                }
+            })();
+        """.trimIndent()
+        safeEvalJs(js) { res ->
+            callback(res?.trim() == "true")
+        }
+    }
+
     fun checkAttachmentsReady(expectedCount: Int = 1, callback: (Boolean) -> Unit) {
         val js = """
             (function(expected) {
@@ -519,14 +526,13 @@ class ChatGptWebAdapter(
                     // 2. Count ready attachment chips via remove buttons, attachment surfaces, images, or progressbars
                     var removeBtns = Array.from(document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button, [class*='ComposerLayoutAttachments'] button"));
                     var surfaces = Array.from(document.querySelectorAll(".composer-attachment-surface, [class*='ComposerLayoutAttachments'] > div"));
-                    var progressBars = Array.from(document.querySelectorAll("[role='progressbar']"));
                     var readyImgs = Array.from(document.querySelectorAll(".composer-attachment-surface img, [class*='ComposerLayoutAttachments'] img, form img")).filter(function(img) {
                         if (img.closest("[class*='avatar'], header, nav")) return false;
                         return (img.naturalWidth > 10 || img.width > 10 || (img.alt && img.alt.length > 0)) && img.complete;
                     });
 
-                    // Note: Each attachment chip renders a distinct remove button or attachment surface.
-                    var chipCount = Math.max(removeBtns.length, readyImgs.length, surfaces.length, progressBars.length);
+                    // Each attachment chip renders a distinct remove button or image/surface
+                    var chipCount = Math.max(removeBtns.length, readyImgs.length, surfaces.length);
                     if (expected > 0) {
                         return chipCount >= expected;
                     }

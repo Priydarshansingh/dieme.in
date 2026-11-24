@@ -283,27 +283,37 @@ object ChatGptSessionManager {
                 }
 
                 if (!attachmentsReady) {
-                    Log.w(TAG, "⚠️ Attachment detector timed out; attempting re-dispatch of files...")
-                    suspendCancellableCoroutine<Boolean> { cont ->
-                        adapter.attachImages(filesToAttach) { success ->
-                            if (cont.isActive) cont.resume(success)
+                    val hasExisting = suspendCancellableCoroutine<Boolean> { cont ->
+                        adapter.hasAnyComposerAttachments { hasAny ->
+                            if (cont.isActive) cont.resume(hasAny)
                         }
                     }
-                    delay(2500)
-                    val retryReady = suspendCancellableCoroutine<Boolean> { cont ->
-                        adapter.checkAttachmentsReady(expectedCount = 1) { isReady ->
-                            if (cont.isActive) cont.resume(isReady)
-                        }
-                    }
-                    if (retryReady) {
-                        Log.i(TAG, "✅ Attachments confirmed ready after re-dispatch")
+                    if (hasExisting) {
+                        Log.i(TAG, "✅ Attachments detected in composer chips, proceeding without re-dispatching")
                         attachmentsReady = true
                     } else {
-                        Log.e(TAG, "❌ Failed to attach image assets to ChatGPT composer")
-                        _sessionStatus.value = "Error: Failed to attach image assets"
-                        return@withContext Result.failure(
-                            IllegalStateException("Failed to attach reference images to ChatGPT composer. Please ensure ChatGPT is signed in and ready in Dg-Images.")
-                        )
+                        Log.w(TAG, "⚠️ Attachment detector timed out with 0 chips; attempting single re-dispatch of files...")
+                        suspendCancellableCoroutine<Boolean> { cont ->
+                            adapter.attachImages(filesToAttach) { success ->
+                                if (cont.isActive) cont.resume(success)
+                            }
+                        }
+                        delay(2500)
+                        val retryReady = suspendCancellableCoroutine<Boolean> { cont ->
+                            adapter.checkAttachmentsReady(expectedCount = 1) { isReady ->
+                                if (cont.isActive) cont.resume(isReady)
+                            }
+                        }
+                        if (retryReady) {
+                            Log.i(TAG, "✅ Attachments confirmed ready after single re-dispatch")
+                            attachmentsReady = true
+                        } else {
+                            Log.e(TAG, "❌ Failed to attach image assets to ChatGPT composer")
+                            _sessionStatus.value = "Error: Failed to attach image assets"
+                            return@withContext Result.failure(
+                                IllegalStateException("Failed to attach reference images to ChatGPT composer. Please ensure ChatGPT is signed in and ready in Dg-Images.")
+                            )
+                        }
                     }
                 }
             }

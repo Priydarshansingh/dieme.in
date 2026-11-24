@@ -501,10 +501,11 @@ class ChatGptWebAdapter(
         val js = """
             (function(expected) {
                 try {
-                    // 1. Check if an explicit CSS spinning animation exists in composer
-                    var activeSpinner = document.querySelector(".composer-attachment-surface .animate-spin, form .animate-spin, [class*='ComposerLayoutAttachments'] .animate-spin");
-                    if (activeSpinner) {
-                        return false; // Still actively uploading
+                    // 1. Check if upload is still pending or spinner is active
+                    var uploadPendingBtn = document.querySelector("button[aria-label='File upload pending']");
+                    var activeSpinner = document.querySelector(".composer-attachment-surface .animate-spin, form .animate-spin, [class*='ComposerLayoutAttachments'] .animate-spin, [data-loading-indicator]");
+                    if (uploadPendingBtn || activeSpinner) {
+                        return false; // Still actively uploading to OpenAI
                     }
 
                     // 2. Count ready attachment chips via remove buttons, attachment surfaces, images, or progressbars

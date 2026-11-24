@@ -378,8 +378,8 @@ fun DgImagesDashboard() {
                             fontSize = 11.sp
                         )
                         Text(
-                            text = "Up to date",
-                            color = DgEmerald,
+                            text = if (activeUpdateDialog != null) "Update: v${activeUpdateDialog?.versionName}" else "Up to date",
+                            color = if (activeUpdateDialog != null) DgAmber else DgEmerald,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
                         )

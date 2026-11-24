@@ -689,6 +689,10 @@ fun ThumbnailStudioScreen(
         generatedImageUrl = null
         markedPins.clear()
         referenceImages.clear()
+        activeGeneratingBaseImage = null
+        activeGeneratingPrompt = ""
+        activeGeneratingRefs = emptyList()
+        activeGeneratingPins = emptyList()
         preferNewChat = true
 
         // 3. Generate a fresh new session ID
@@ -1876,7 +1880,11 @@ fun ThumbnailStudioScreen(
                             onLoadAsBase = {
                                 currentThumbnailUrl = generatedImageUrl
                                 markedPins.clear()
+                                generatedImageUrl = null
                                 Toast.makeText(context, "Loaded as New Base Canvas", Toast.LENGTH_SHORT).show()
+                            },
+                            onReviseFurther = {
+                                generatedImageUrl = null
                             },
                             onOpenHistory = {
                                 selectedDrawerTab = 1
@@ -1887,16 +1895,18 @@ fun ThumbnailStudioScreen(
                 }
 
                 // ── 3. ChatGPT-Style Input Capsule (Attachments Chips + Pill Composer) ─
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(26.dp))
-                            .background(Color(0xFF161E24))
-                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(26.dp))
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
+                // Only shown when editing (hidden when generated result showcase is active)
+                if (generatedImageUrl == null) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(26.dp))
+                                .background(Color(0xFF161E24))
+                                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(26.dp))
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
                         // Attached Media & Active Pin Chips Row (shown inside top of capsule)
                         if (markedPins.isNotEmpty() || referenceImages.isNotEmpty()) {
                             Row(
@@ -2071,6 +2081,7 @@ fun ThumbnailStudioScreen(
                             }
                         }
                     }
+                }
                 }
 
                 item {
@@ -2448,18 +2459,16 @@ fun ThumbnailStudioScreen(
                                 .fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Only show ongoing context summary while generating or before a result is produced
-                            if (isGenerating || generatedImageUrl == null) {
-                                item {
-                                    ActiveSessionOngoingSummaryCard(
-                                        baseImageUrl = if (isGenerating) activeGeneratingBaseImage else (currentThumbnailUrl ?: originalSourceThumbnailUrl),
-                                        referenceImages = if (isGenerating) activeGeneratingRefs else referenceImages.toList(),
-                                        markedPins = if (isGenerating) activeGeneratingPins else markedPins.toList(),
-                                        generatedImageUrl = generatedImageUrl,
-                                        isGenerating = isGenerating,
-                                        generationStatusMessage = generationStatusMessage
-                                    )
-                                }
+                            // Always showcase ongoing session context summary at top of drawer
+                            item {
+                                ActiveSessionOngoingSummaryCard(
+                                    baseImageUrl = if (isGenerating) activeGeneratingBaseImage else (currentThumbnailUrl ?: originalSourceThumbnailUrl),
+                                    referenceImages = if (isGenerating) activeGeneratingRefs else referenceImages.toList(),
+                                    markedPins = if (isGenerating) activeGeneratingPins else markedPins.toList(),
+                                    generatedImageUrl = generatedImageUrl,
+                                    isGenerating = isGenerating,
+                                    generationStatusMessage = generationStatusMessage
+                                )
                             }
                             items(chatMessages, key = { it.id }) { message ->
                                 ThumbnailChatMessageBubble(
@@ -3316,6 +3325,7 @@ private fun GeneratedResultShowcaseCard(
     generatedUrl: String,
     onSave: () -> Unit,
     onLoadAsBase: () -> Unit,
+    onReviseFurther: () -> Unit,
     onOpenHistory: () -> Unit
 ) {
     val context = LocalContext.current
@@ -3433,6 +3443,24 @@ private fun GeneratedResultShowcaseCard(
                 )
             }
 
+            // Revise Further / New Edit Button
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                    .clickable { onReviseFurther() }
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "New Edit",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
             // View Chat Button
             Box(
                 modifier = Modifier
@@ -3440,11 +3468,11 @@ private fun GeneratedResultShowcaseCard(
                     .background(Color.White.copy(alpha = 0.05f))
                     .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
                     .clickable { onOpenHistory() }
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Chat History",
+                    text = "Chat",
                     color = DigicastSlate,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
@@ -3547,6 +3575,26 @@ private fun ActiveSessionOngoingSummaryCard(
                         )
                     }
                     Text("Ref #${idx + 1}", color = DigicastElectricCyan, fontSize = 9.sp)
+                }
+            }
+
+            // Generated Result Preview (if ready)
+            if (generatedImageUrl != null) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, DigicastEmerald.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context).data(generatedImageUrl).crossfade(true).build(),
+                            contentDescription = "Result",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    Text("Result", color = DigicastEmerald, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 }
             }
 

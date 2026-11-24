@@ -128,19 +128,6 @@ class DefaultImageStudioExtension : ImageStudioExtension {
 
             onProgress(40, "Sending inpaint task with reference assets...")
 
-            // Reorder Dg-Images companion to front so Android/OEM battery managers don't throttle WebView network upload threads
-            try {
-                val launchIntent = context.packageManager.getLaunchIntentForPackage(DG_IMAGES_PACKAGE)?.apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                }
-                if (launchIntent != null) {
-                    context.startActivity(launchIntent)
-                    delay(350)
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not bring Dg-Images to front: ${e.message}")
-            }
-
             val requestBody = payload.toString().toRequestBody("application/json".toMediaType())
             val request = Request.Builder()
                 .url("$BASE_URL/v1/thumbnail/generate")
@@ -155,18 +142,6 @@ class DefaultImageStudioExtension : ImageStudioExtension {
                 return@withContext Result.failure(
                     IllegalStateException("Communication error with Dg-Images daemon: ${e.message}")
                 )
-            } finally {
-                // Return focus to Dieme Core App so user sees the newly generated thumbnail on canvas
-                try {
-                    val returnIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                    }
-                    if (returnIntent != null) {
-                        context.startActivity(returnIntent)
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Could not return focus to Dieme: ${e.message}")
-                }
             }
 
             if (response.isSuccessful) {

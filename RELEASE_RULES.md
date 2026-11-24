@@ -21,6 +21,7 @@ Every release of Dieme Core (`dieme-android`), Dg-Images Companion (`dg-images`)
 
 | Tag | Version Code | Version Name | Release Date | Highlights |
 | :--- | :--- | :--- | :--- | :--- |
+| `v1.2.13` | 16 | 1.2.13 | 2026-11-24 | Fixed seamless local image transfer between Dieme and Dg-Images companion in background without app switching |
 | `v1.2.12` | 15 | 1.2.12 | 2026-11-24 | Implemented foreground companion handover during inpaint generation so Android and OEM battery managers never throttle WebView upload threads |
 | `v1.2.11` | 14 | 1.2.11 | 2026-11-24 | Resolved ChatGPT page-reload race condition by switching to SPA in-memory new chat transition via sidebar |
 | `v1.2.10` | 13 | 1.2.10 | 2026-11-24 | Guaranteed main thread execution for all WebView JavaScript evaluations via safeEvalJs to fix background thread attachment detection failures |

@@ -207,9 +207,16 @@ class ChatGptWebAdapter(
                     );
                     dismissBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
 
+                    // Dismiss sidebar drawer if open
+                    var hideSidebar = document.querySelector("button[aria-label='Hide sidebar'], button[aria-label='Close sidebar']");
+                    if (hideSidebar) { try { hideSidebar.click(); } catch(e) {} }
+
                     // 2. Clear file inputs and composer attachments immediately
-                    var removeBtns = Array.from(document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button, [class*='ComposerLayoutAttachments'] button"));
-                    removeBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
+                    for (var iter = 0; iter < 5; iter++) {
+                        var removeBtns = Array.from(document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button, [class*='ComposerLayoutAttachments'] button"));
+                        if (removeBtns.length === 0) break;
+                        removeBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
+                    }
 
                     var fileInputs = document.querySelectorAll('input[type="file"]');
                     fileInputs.forEach(function(input) { try { input.value = ''; } catch(e) {} });
@@ -232,45 +239,26 @@ class ChatGptWebAdapter(
 
                     // If already at root with no conversation history, composer is already clean and fresh
                     if (path === '/' && msgCount === 0) {
-                        var hideSidebar = document.querySelector("button[aria-label='Hide sidebar']");
-                        if (hideSidebar) { try { hideSidebar.click(); } catch(e) {} }
                         return true;
                     }
 
-                    // 4. SPA transition to fresh chat via sidebar New Chat button (avoids full page reload)
-                    var existingNewChat = Array.from(document.querySelectorAll("button, a")).find(function(b) {
-                        return (b.innerText || '').trim().toLowerCase() === 'new chat' ||
-                               b.getAttribute('aria-label') === 'New chat';
-                    });
-                    if (existingNewChat) {
+                    // 4. SPA transition to fresh chat: Direct click on top header "New chat" button
+                    var headerNewChat = document.querySelector("button[aria-label='New chat'], a[aria-label='New chat'], [data-testid='new-chat-button']");
+                    if (headerNewChat) {
                         try {
-                            existingNewChat.click();
-                            setTimeout(function() {
-                                var hide = document.querySelector("button[aria-label='Hide sidebar']");
-                                if (hide) { try { hide.click(); } catch(e) {} }
-                            }, 150);
+                            headerNewChat.click();
                             return true;
                         } catch(e) {}
                     }
 
-                    // If sidebar is closed, open it and click New chat
-                    var showBtn = document.querySelector("button[aria-label='Show sidebar']");
-                    if (showBtn) {
+                    // Look for any visible New chat action button
+                    var anyNewChat = Array.from(document.querySelectorAll("button, a")).find(function(b) {
+                        return (b.innerText || '').trim().toLowerCase() === 'new chat' ||
+                               b.getAttribute('aria-label') === 'New chat';
+                    });
+                    if (anyNewChat) {
                         try {
-                            showBtn.click();
-                            setTimeout(function() {
-                                var btn = Array.from(document.querySelectorAll("button, a")).find(function(b) {
-                                    return (b.innerText || '').trim().toLowerCase() === 'new chat' ||
-                                           b.getAttribute('aria-label') === 'New chat';
-                                });
-                                if (btn) {
-                                    try { btn.click(); } catch(e) {}
-                                }
-                                setTimeout(function() {
-                                    var hide = document.querySelector("button[aria-label='Hide sidebar']");
-                                    if (hide) { try { hide.click(); } catch(e) {} }
-                                }, 150);
-                            }, 150);
+                            anyNewChat.click();
                             return true;
                         } catch(e) {}
                     }
@@ -349,13 +337,16 @@ class ChatGptWebAdapter(
 
                     var removed = 0;
                     // 3. Click all remove buttons on attached media chips in composer
-                    var removeBtns = Array.from(document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button, [class*='ComposerLayoutAttachments'] button"));
-                    removeBtns.forEach(function(b) {
-                        try {
-                            b.click();
-                            removed++;
-                        } catch(e) {}
-                    });
+                    for (var iter = 0; iter < 5; iter++) {
+                        var removeBtns = Array.from(document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button, [class*='ComposerLayoutAttachments'] button"));
+                        if (removeBtns.length === 0) break;
+                        removeBtns.forEach(function(b) {
+                            try {
+                                b.click();
+                                removed++;
+                            } catch(e) {}
+                        });
+                    }
 
                     // 4. Clear all file inputs
                     var fileInputs = document.querySelectorAll('input[type="file"]');
@@ -416,10 +407,13 @@ class ChatGptWebAdapter(
                     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
 
                     // 3. Clear any previous lingering composer attachment buttons
-                    var oldRemoveBtns = Array.from(document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button"));
-                    oldRemoveBtns.forEach(function(b) {
-                        try { b.click(); } catch(e) {}
-                    });
+                    for (var iter = 0; iter < 5; iter++) {
+                        var oldRemoveBtns = Array.from(document.querySelectorAll("button[aria-label^='Remove '], button[aria-label*='Remove '], .composer-attachment-surface button, [class*='ComposerLayoutAttachments'] button"));
+                        if (oldRemoveBtns.length === 0) break;
+                        oldRemoveBtns.forEach(function(b) {
+                            try { b.click(); } catch(e) {}
+                        });
+                    }
 
                     // 4. Prepare DataTransfer with image blobs from pending files
                     var count = window.DgImagesJs ? window.DgImagesJs.getPendingFilesCount() : 0;
@@ -444,24 +438,33 @@ class ChatGptWebAdapter(
 
                     // 5. Target EXACTLY ONE active non-capture photo input in the visible composer form
                     var editor = document.querySelector("#prompt-textarea, .ProseMirror, textarea, [contenteditable='true']");
-                    var composerForm = editor ? editor.closest("form") : null;
-                    var forms = Array.from(document.querySelectorAll('form'));
-                    var visibleForm = composerForm || forms.find(function(f) {
+                    var forms = Array.from(document.querySelectorAll('form')).filter(function(f) {
                         var r = f.getBoundingClientRect();
                         return r.width > 0 && r.height > 0;
-                    }) || forms[0] || document;
+                    });
+                    var visibleForm = forms[0] || (editor ? editor.closest("form") : null) || document;
 
-                    var targetInput = visibleForm.querySelector("input[aria-label='Attach photos']") ||
-                                      visibleForm.querySelector("input[aria-label='Attach photos or videos']") ||
-                                      Array.from(visibleForm.querySelectorAll("input[type='file']")).find(function(i) { return !i.hasAttribute('capture'); }) ||
-                                      document.querySelector("input[aria-label='Attach photos']") ||
-                                      document.querySelector("input[type='file']:not([capture])");
+                    var candidateInputs = Array.from(visibleForm.querySelectorAll("input[type='file']")).filter(function(i) {
+                        var lbl = (i.getAttribute('aria-label') || '').toLowerCase();
+                        return !i.hasAttribute('capture') && lbl.indexOf('take') === -1;
+                    });
+
+                    var targetInput = candidateInputs.find(function(i) {
+                        var lbl = (i.getAttribute('aria-label') || '').toLowerCase();
+                        return lbl.indexOf('photos or videos') !== -1;
+                    }) || candidateInputs.find(function(i) {
+                        var lbl = (i.getAttribute('aria-label') || '').toLowerCase();
+                        return lbl.indexOf('photos') !== -1;
+                    }) || candidateInputs.find(function(i) {
+                        var lbl = (i.getAttribute('aria-label') || '').toLowerCase();
+                        return lbl.indexOf('files') !== -1;
+                    }) || candidateInputs[0] || visibleForm.querySelector("input[type='file']") || document.querySelector("input[type='file']");
 
                     if (targetInput) {
                         try {
                             targetInput.files = dt.files;
-                            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
                             targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
                             return true;
                         } catch(e) {}
                     }

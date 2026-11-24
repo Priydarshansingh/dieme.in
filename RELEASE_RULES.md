@@ -21,6 +21,7 @@ Every release of Dieme Core (`dieme-android`), Dg-Images Companion (`dg-images`)
 
 | Tag | Version Code | Version Name | Release Date | Highlights |
 | :--- | :--- | :--- | :--- | :--- |
+| `v1.2.9` | 12 | 1.2.9 | 2026-11-24 | Fixed single-input attachment targeting to prevent duplicate image stacking in ChatGPT composer |
 | `v1.2.8` | 11 | 1.2.8 | 2026-11-24 | Fixed ChatGPT image attachment and readiness detector in Dg-Images companion app |
 | `v1.2.7` | 10 | 1.2.7 | 2026-11-23 | Added persistent version details, build number, and update check footers across Settings and bottom bars\n• Added sideways History Drawer version status in Thumbnail Studio\n• Enhanced ChatGPT attachment and new session lifecycle in Dg-Images companion app |
 | `v1.2.6` | 9 | 1.2.6 | 2026-11-23 | Fixed ChatGPT photo attachment selector to target photo-specific input without capture |

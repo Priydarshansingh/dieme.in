@@ -169,7 +169,7 @@ class DgImagesHttpDaemon(
                         }
                     }
 
-                    method == "POST" && (path == "/v1/thumbnail/generate" || path == "/generate") -> {
+                    method == "POST" && (path == "/v1/thumbnail/generate" || path == "/v1/generate" || path == "/generate") -> {
                         // Read exactly contentLength bytes directly from rawInput without buffer corruption
                         val bodyBytes = ByteArray(contentLength)
                         var bytesRead = 0

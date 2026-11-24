@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 11,
-    "versionName": "1.2.8",
+    "versionCode": 12,
+    "versionName": "1.2.9",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Fixed ChatGPT image attachment and readiness detector in Dg-Images companion app\n\u2022 Resolved false-negative attachment detector timeouts that blocked prompt submission\n\u2022 Prevented duplicate image stacking in ChatGPT composer (strictly 1 base + 1 pinpoint reference)\n\u2022 Integrated clean Start New Session lifecycle: resets ChatGPT chat, composer attachments, and cached files\n\u2022 Added media and storage permissions in Dg-Images manifest and single-pass Base64 dispatch in Dieme\n\u2022 Updated version metadata across mobile clients, website, and GitHub distribution",
+    "releaseNotes": "\u2022 Fixed single-input attachment targeting to prevent duplicate image stacking in ChatGPT composer\n\u2022 Resolved progressbar false-positive blocking readiness detection and added simulated pointer/mouse events to Send button\n\u2022 Ensured prompt text is never sent alone without image attachments; fails early if assets fail to attach\n\u2022 Synchronized fresh session reset across Dieme and Dg-Images companion app\n\u2022 Extended generation polling timeout to 165s to fully support ChatGPT reasoning and DALL-E queues\n\u2022 Upgraded generated thumbnail showcase and persistent version indicator display",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
     "releaseDate": "2026-11-24",
-    "publishedAt": "2026-11-23T19:43:38Z"
+    "publishedAt": "2026-11-24T08:09:30Z"
   },
   "dgImages": {
-    "versionCode": 11,
-    "versionName": "1.2.8",
+    "versionCode": 12,
+    "versionName": "1.2.9",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "\u2022 Fixed ChatGPT image attachment and readiness detector in Dg-Images companion app\n\u2022 Resolved false-negative attachment detector timeouts that blocked prompt submission\n\u2022 Prevented duplicate image stacking in ChatGPT composer (strictly 1 base + 1 pinpoint reference)\n\u2022 Integrated clean Start New Session lifecycle: resets ChatGPT chat, composer attachments, and cached files\n\u2022 Added media and storage permissions in Dg-Images manifest and single-pass Base64 dispatch in Dieme\n\u2022 Updated version metadata across mobile clients, website, and GitHub distribution",
+    "releaseNotes": "\u2022 Fixed single-input attachment targeting to prevent duplicate image stacking in ChatGPT composer\n\u2022 Resolved progressbar false-positive blocking readiness detection and added simulated pointer/mouse events to Send button\n\u2022 Ensured prompt text is never sent alone without image attachments; fails early if assets fail to attach\n\u2022 Synchronized fresh session reset across Dieme and Dg-Images companion app\n\u2022 Extended generation polling timeout to 165s to fully support ChatGPT reasoning and DALL-E queues\n\u2022 Upgraded generated thumbnail showcase and persistent version indicator display",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
     "releaseDate": "2026-11-24",
-    "publishedAt": "2026-11-23T19:43:38Z"
+    "publishedAt": "2026-11-24T08:09:30Z"
   }
 }

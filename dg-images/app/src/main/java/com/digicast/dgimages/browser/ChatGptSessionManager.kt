@@ -204,19 +204,35 @@ object ChatGptSessionManager {
                 distinct
             }
 
+            // If images were requested but could not be prepared, fail early to prevent sending prompt without assets
+            if (filesToAttach.isEmpty() && (baseImageUrl.isNotBlank() || referenceImageUrls.isNotEmpty())) {
+                Log.e(TAG, "❌ Failed to prepare image assets: base or reference files could not be resolved")
+                _sessionStatus.value = "Error: Failed to prepare image assets"
+                return@withContext Result.failure(
+                    IllegalStateException("Failed to prepare image assets for ChatGPT composer. Please verify images are valid.")
+                )
+            }
+
             // 1. If preferNewChat is true, click New Chat first
             val startNew = forceNewChat ?: _preferNewChat.value
             adapter.lastCapturedDataUrl = null
             if (startNew) {
                 _sessionStatus.value = "Opening fresh ChatGPT conversation..."
                 suspendCancellableCoroutine<Boolean> { cont ->
-                    adapter.startNewChat { success ->
-                        if (cont.isActive) cont.resume(success)
+                    adapter.startNewChat {
+                        adapter.ensureComposerReady(timeoutMs = 8000L) { ready ->
+                            if (cont.isActive) cont.resume(ready)
+                        }
                     }
                 }
-                delay(2000)
+                delay(400)
             } else {
                 _sessionStatus.value = "Appending to ongoing ChatGPT conversation..."
+                suspendCancellableCoroutine<Boolean> { cont ->
+                    adapter.ensureComposerReady(timeoutMs = 4000L) { ready ->
+                        if (cont.isActive) cont.resume(ready)
+                    }
+                }
             }
 
             // 2. Attach base thumbnail + reference assets
@@ -229,6 +245,11 @@ object ChatGptSessionManager {
                 }
                 delay(300)
 
+                withContext(Dispatchers.Main) {
+                    adapter.webView.resumeTimers()
+                    adapter.webView.onResume()
+                }
+
                 _sessionStatus.value = "Attaching ${filesToAttach.size} image assets to ChatGPT..."
                 Log.i(TAG, "📎 Attaching ${filesToAttach.size} image assets to ChatGPT (Base + Refs)")
                 suspendCancellableCoroutine<Boolean> { cont ->
@@ -237,17 +258,22 @@ object ChatGptSessionManager {
                     }
                 }
 
-                // Poll for attachments readiness up to 10 seconds
+                // Poll for attachments readiness up to 30 seconds
                 var attachmentsReady = false
-                for (attempt in 0 until 10) {
+                val expectedCount = filesToAttach.size
+                for (attempt in 0 until 30) {
                     delay(1000)
+                    withContext(Dispatchers.Main) {
+                        adapter.webView.resumeTimers()
+                        adapter.webView.onResume()
+                    }
                     val ready = suspendCancellableCoroutine<Boolean> { cont ->
-                        adapter.checkAttachmentsReady { isReady ->
+                        adapter.checkAttachmentsReady(expectedCount) { isReady ->
                             if (cont.isActive) cont.resume(isReady)
                         }
                     }
                     if (ready) {
-                        Log.i(TAG, "✅ Attachments confirmed ready in ChatGPT DOM at attempt #${attempt + 1}")
+                        Log.i(TAG, "✅ Attachments confirmed ready ($expectedCount chips) in ChatGPT DOM at attempt #${attempt + 1}")
                         attachmentsReady = true
                         break
                     }
@@ -257,7 +283,12 @@ object ChatGptSessionManager {
                 }
 
                 if (!attachmentsReady) {
-                    Log.w(TAG, "⚠️ Attachment detector timed out or inconclusive; proceeding with prompt submission since files were dispatched.")
+                    Log.e(TAG, "❌ Failed to attach $expectedCount image assets to ChatGPT within 30s")
+                    _sessionStatus.value = "Error: Failed to attach image assets"
+                    adapter.clearPendingFiles()
+                    return@withContext Result.failure(
+                        IllegalStateException("Failed to attach reference images to ChatGPT composer. Please ensure ChatGPT is signed in and ready in Dg-Images.")
+                    )
                 }
             }
 
@@ -313,7 +344,7 @@ object ChatGptSessionManager {
             Log.w(TAG, "ChatGPT did not produce a valid new image in time")
             _sessionStatus.value = "Generation timed out or not produced. Please retry."
             return@withContext Result.failure(
-                IllegalStateException("ChatGPT did not produce a new thumbnail revision within 90s. Please ensure you are logged in to ChatGPT in Dg-Images.")
+                IllegalStateException("ChatGPT did not produce a new thumbnail revision within 165s. Please ensure you are logged in to ChatGPT in Dg-Images.")
             )
         } catch (e: Exception) {
             Log.e(TAG, "Exception during executeGeneration", e)
@@ -327,9 +358,17 @@ object ChatGptSessionManager {
         initialTurnCount: Int,
         excludeUrls: List<String>
     ): String? {
-        // Poll for up to 90 seconds (30 attempts x 3000ms)
-        for (i in 0 until 30) {
+        // Poll for up to 165 seconds (55 attempts x 3000ms) to accommodate Thinking models and DALL-E queues
+        for (i in 0 until 55) {
             delay(3000)
+
+            // 1. Check if asynchronous DataURL push from in-WebView fetch already arrived
+            val pushed = adapter.lastCapturedDataUrl
+            if (!pushed.isNullOrBlank() && pushed.startsWith("data:")) {
+                Log.i(TAG, "🎯 Captured image from asynchronous DataURL push on attempt #${i + 1} (len=${pushed.length})!")
+                return pushed
+            }
+
             withContext(Dispatchers.Main) {
                 adapter.webView.resumeTimers()
                 adapter.webView.onResume()
@@ -339,15 +378,23 @@ object ChatGptSessionManager {
                     if (cont.isActive) cont.resume(imgResult)
                 }
             }
+
+            // 2. Check again immediately after evaluateJavascript in case the callback populated it
+            val pushedAfter = adapter.lastCapturedDataUrl
+            if (!pushedAfter.isNullOrBlank() && pushedAfter.startsWith("data:")) {
+                Log.i(TAG, "🎯 Captured image from asynchronous DataURL push on attempt #${i + 1} (len=${pushedAfter.length})!")
+                return pushedAfter
+            }
+
             when {
-                result == "LOADING" -> {
+                result == "LOADING" || (result != null && result.startsWith("blob:")) -> {
                     _sessionStatus.value = "ChatGPT rendering 1080p canvas... (${(i + 1) * 3}s)"
                 }
                 result == "GENERATING" || result.isNullOrBlank() || result == "null" -> {
                     _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
                 }
                 result.startsWith("http://") || result.startsWith("https://") || result.startsWith("data:") -> {
-                    if (i < 2) {
+                    if (i < 1) {
                         Log.i(TAG, "⏳ Image candidate at attempt #${i + 1}, waiting for generation cycle to settle...")
                         _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
                     } else {
@@ -378,8 +425,10 @@ object ChatGptSessionManager {
 
             suspendCancellableCoroutine<Boolean> { cont ->
                 adapter.startNewChat { success ->
-                    adapter.clearComposerAttachments {
-                        if (cont.isActive) cont.resume(success)
+                    adapter.ensureComposerReady(timeoutMs = 6000L) { ready ->
+                        adapter.clearComposerAttachments {
+                            if (cont.isActive) cont.resume(ready)
+                        }
                     }
                 }
             }

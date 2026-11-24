@@ -706,10 +706,9 @@ fun ThumbnailStudioScreen(
         // 5. Instruct Dg-Images companion app to start fresh ChatGPT conversation and reset cache
         coroutineScope.launch {
             try {
-                val ext = extensionViewModel.getImageStudio()
-                ext?.resetSession(context)
-            } catch (e: Exception) {
-                android.util.Log.w("ThumbnailStudio", "Error requesting resetSession from Dg-Images: ${e.message}")
+                com.digicast.app.api.extension.DefaultImageStudioExtension().resetSession(context)
+            } catch (t: Throwable) {
+                android.util.Log.w("ThumbnailStudio", "Error requesting resetSession from Dg-Images: ${t.message}")
             }
         }
 
@@ -1237,6 +1236,7 @@ fun ThumbnailStudioScreen(
                         chatMessages.add(successMsg)
                     }
                     markedPins.clear()
+                    referenceImages.clear()
                     // Keep preferNewChat true so every thumbnail generation task gets a clean ChatGPT thread!
                     preferNewChat = true
                     isHistoryDrawerOpen = false

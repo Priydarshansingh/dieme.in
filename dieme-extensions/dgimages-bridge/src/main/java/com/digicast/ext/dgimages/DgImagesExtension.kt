@@ -165,6 +165,30 @@ class DgImagesExtension : ImageStudioExtension {
         }
     }
 
+    override suspend fun resetSession(context: Context): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            if (!isDgImagesInstalled(context)) {
+                return@withContext Result.failure(IllegalStateException("Dg-Images companion app is not installed."))
+            }
+            if (!checkDaemonHealth()) {
+                wakeUpDaemon(context)
+                delay(1000)
+            }
+            val request = Request.Builder()
+                .url("$BASE_URL/v1/session/new")
+                .post("{}".toRequestBody("application/json".toMediaType()))
+                .build()
+            val response = httpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                Result.success(true)
+            } else {
+                Result.failure(IllegalStateException("Failed to reset session: HTTP ${response.code}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private fun checkDaemonHealth(): Boolean {
         return try {
             val request = Request.Builder()

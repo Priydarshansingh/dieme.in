@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 24,
-    "versionName": "1.2.21",
+    "versionCode": 25,
+    "versionName": "1.2.22",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "Safely deferred background foreground service promotion to prevent Android 14 crashes\n• Triple-tier ChatGPT media attachment pipeline (file input prototype setter, HTML5 Drag-and-Drop, and clipboard paste)\n• Guaranteed drawer sidebar dismissal to prevent composer backdrop overlay blocks\n• Instant 1080p generated revision returned directly to Dieme Studio 16:9 canvas",
+    "releaseNotes": "Fixed ChatGPT attachment duplication via single targeted file input injection\n• Active generation waiting: verifies stop button, percentage, and draft indicators before capturing\n• Strict assistant turn filtering: guarantees only newly generated DALL-E image is returned to canvas",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
     "releaseDate": "2026-11-25",
-    "publishedAt": "2026-11-25T14:30:00Z"
+    "publishedAt": "2026-11-25T22:30:00Z"
   },
   "dgImages": {
-    "versionCode": 24,
-    "versionName": "1.2.21",
+    "versionCode": 25,
+    "versionName": "1.2.22",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "Safely deferred background foreground service promotion to prevent Android 14 crashes\n• Triple-tier ChatGPT media attachment pipeline (file input prototype setter, HTML5 Drag-and-Drop, and clipboard paste)\n• Guaranteed drawer sidebar dismissal to prevent composer backdrop overlay blocks\n• Instant 1080p generated revision returned directly to Dieme Studio 16:9 canvas",
+    "releaseNotes": "Fixed ChatGPT attachment duplication via single targeted file input injection\n• Active generation waiting: verifies stop button, percentage, and draft indicators before capturing\n• Strict assistant turn filtering: guarantees only newly generated DALL-E image is returned to canvas",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
     "releaseDate": "2026-11-25",
-    "publishedAt": "2026-11-25T14:30:00Z"
+    "publishedAt": "2026-11-25T22:30:00Z"
   }
 }

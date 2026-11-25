@@ -12,8 +12,8 @@ android {
         applicationId = "com.digicast.dgimages"
         minSdk = 26
         targetSdk = 35
-        versionCode = 24
-        versionName = "1.2.21"
+        versionCode = 25
+        versionName = "1.2.22"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

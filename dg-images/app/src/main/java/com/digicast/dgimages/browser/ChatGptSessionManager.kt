@@ -341,6 +341,16 @@ object ChatGptSessionManager {
                 }
             }
 
+            // Allow 1.5s for message bubble & user attachment chips to post to transcript, then add their URLs to exclusions
+            delay(1500)
+            val postSubmitUrls = suspendCancellableCoroutine<List<String>> { cont ->
+                adapter.getExistingAssistantImageUrls { urls ->
+                    if (cont.isActive) cont.resume(urls)
+                }
+            }
+            existingUrls.addAll(postSubmitUrls)
+            Log.i(TAG, "🔍 Total excluded images (including submitted attachments): ${existingUrls.size}")
+
             // 4. Poll for generated image strictly from the NEW assistant turn
             _sessionStatus.value = "Generating thumbnail with ChatGPT..."
             val capturedRaw = pollForGeneratedImage(adapter, initialTurnCount, existingUrls)
@@ -382,52 +392,47 @@ object ChatGptSessionManager {
         initialTurnCount: Int,
         excludeUrls: List<String>
     ): String? {
-        // Poll for up to 165 seconds (55 attempts x 3000ms) to accommodate Thinking models and DALL-E queues
-        for (i in 0 until 55) {
-            delay(3000)
+        adapter.lastCapturedDataUrl = null
 
-            // 1. Check if asynchronous DataURL push from in-WebView fetch already arrived
-            val pushed = adapter.lastCapturedDataUrl
-            if (!pushed.isNullOrBlank() && pushed.startsWith("data:")) {
-                Log.i(TAG, "🎯 Captured image from asynchronous DataURL push on attempt #${i + 1} (len=${pushed.length})!")
-                return pushed
-            }
+        // Poll for up to 180 seconds (60 attempts x 3000ms) to accommodate DALL-E image generation
+        for (i in 0 until 60) {
+            delay(3000)
 
             withContext(Dispatchers.Main) {
                 adapter.webView.resumeTimers()
                 adapter.webView.onResume()
             }
+
             val result = suspendCancellableCoroutine<String?> { cont ->
                 adapter.captureGeneratedImage(initialTurnCount, excludeUrls) { imgResult ->
                     if (cont.isActive) cont.resume(imgResult)
                 }
             }
 
-            // 2. Check again immediately after evaluateJavascript in case the callback populated it
-            val pushedAfter = adapter.lastCapturedDataUrl
-            if (!pushedAfter.isNullOrBlank() && pushedAfter.startsWith("data:")) {
-                Log.i(TAG, "🎯 Captured image from asynchronous DataURL push on attempt #${i + 1} (len=${pushedAfter.length})!")
-                return pushedAfter
+            val pushed = adapter.lastCapturedDataUrl
+            val hasValidResult = !result.isNullOrBlank() && result != "GENERATING" && result != "LOADING" && result != "null"
+            val validImageCandidate = when {
+                hasValidResult && (result.startsWith("data:") || result.startsWith("http://") || result.startsWith("https://")) -> result
+                !pushed.isNullOrBlank() && pushed.startsWith("data:") && result != "GENERATING" && result != "LOADING" -> pushed
+                else -> null
             }
 
             when {
                 result == "LOADING" -> {
                     _sessionStatus.value = "ChatGPT rendering 1080p canvas... (${(i + 1) * 3}s)"
+                    Log.d(TAG, "Polling attempt #${i + 1}: Image is loading, continuing wait...")
                 }
                 result == "GENERATING" || result.isNullOrBlank() || result == "null" -> {
                     _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
+                    Log.d(TAG, "Polling attempt #${i + 1}: Generation in progress, continuing wait...")
                 }
-                result.startsWith("data:") -> {
-                    Log.i(TAG, "🎯 Captured newly generated image (DataURL len=${result.length}) on attempt #${i + 1}!")
-                    return result
-                }
-                result.startsWith("http://") || result.startsWith("https://") -> {
-                    if (i < 2) {
-                        Log.i(TAG, "⏳ Image candidate at attempt #${i + 1}, waiting for generation cycle to settle...")
-                        _sessionStatus.value = "ChatGPT Generating Thumbnail... (${(i + 1) * 3}s)"
+                validImageCandidate != null -> {
+                    if (i >= 2) { // Ensure at least 6-9s elapsed and generation is verified complete
+                        Log.i(TAG, "🎯 Confirmed newly generated image from Assistant turn on attempt #${i + 1} (len=${validImageCandidate.length})!")
+                        return validImageCandidate
                     } else {
-                        Log.i(TAG, "🎯 Captured newly generated image on attempt #${i + 1}!")
-                        return result
+                        Log.i(TAG, "⏳ Assistant image detected early (attempt #${i + 1}), letting render settle...")
+                        _sessionStatus.value = "ChatGPT finalizing render... (${(i + 1) * 3}s)"
                     }
                 }
                 result.startsWith("TEXT_RESPONSE:") -> {

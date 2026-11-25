@@ -508,61 +508,52 @@ class ChatGptWebAdapter(
 
                     if (dt.items.length === 0) return false;
 
-                    // 4. Primary: Assign dt.files directly to all file inputs (standard mobile browser upload mechanism)
-                    var fileInputs = document.querySelectorAll('input[type="file"]');
-                    fileInputs.forEach(function(input) {
+                    // 4. Single Targeted Attachment (attaches files exactly once without redundant bubbling)
+                    var targetInput = document.querySelector("input[aria-label*='Attach photos' i], input[type='file']");
+                    var attached = false;
+                    if (targetInput) {
                         try {
                             var descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'files');
                             if (descriptor && descriptor.set) {
-                                descriptor.set.call(input, dt.files);
+                                descriptor.set.call(targetInput, dt.files);
                             } else {
-                                input.files = dt.files;
+                                targetInput.files = dt.files;
                             }
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                            input.dispatchEvent(new Event('change', { bubbles: true }));
-
-                            // Invoke React synthetic handler if mounted
-                            var rk = Object.keys(input).find(function(k) { return k.startsWith('__reactProps') || k.startsWith('__reactEventHandlers'); });
-                            if (rk && input[rk] && typeof input[rk].onChange === 'function') {
-                                input[rk].onChange({ target: input, currentTarget: input, bubbles: true });
-                            }
+                            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            attached = true;
                         } catch(fe) {}
-                    });
-
-                    // 5. Secondary: Dispatch Drag-and-Drop events to all composer zones (reliably creates attachment chips in React 18+)
-                    var composerTargets = [
-                        document.querySelector("#prompt-textarea"),
-                        document.querySelector(".ProseMirror"),
-                        document.querySelector("form"),
-                        document.querySelector("[data-chatgpt-composer]"),
-                        document.querySelector(".ComposerLayoutRoot-XCKS7O"),
-                        document.querySelector("div[class*='composer']"),
-                        document.querySelector("main")
-                    ].filter(Boolean);
-
-                    composerTargets.forEach(function(target) {
-                        try {
-                            target.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: dt }));
-                            target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
-                            target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
-                        } catch(de) {}
-                    });
-
-                    // 6. Tertiary: Dispatch synthetic ClipboardEvent('paste') to ProseMirror editor
-                    var editor = document.querySelector(".ProseMirror, #prompt-textarea, [contenteditable='true'], textarea");
-                    if (editor) {
-                        try {
-                            editor.focus();
-                            var pasteEvt = new ClipboardEvent('paste', {
-                                bubbles: true,
-                                cancelable: true,
-                                clipboardData: dt
-                            });
-                            editor.dispatchEvent(pasteEvt);
-                        } catch(pe) {}
                     }
 
-                    // 7. Ensure sidebar or popovers are closed after attaching
+                    // Fallback to drag-and-drop on form only if file input was unavailable
+                    if (!attached) {
+                        var composerForm = document.querySelector("form") || document.querySelector("#prompt-textarea");
+                        if (composerForm) {
+                            try {
+                                composerForm.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: dt }));
+                                composerForm.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+                                composerForm.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+                                attached = true;
+                            } catch(de) {}
+                        }
+                    }
+
+                    // Fallback to paste only if drop was unavailable
+                    if (!attached) {
+                        var editor = document.querySelector(".ProseMirror, #prompt-textarea, [contenteditable='true'], textarea");
+                        if (editor) {
+                            try {
+                                editor.focus();
+                                editor.dispatchEvent(new ClipboardEvent('paste', {
+                                    bubbles: true,
+                                    cancelable: true,
+                                    clipboardData: dt
+                                }));
+                            } catch(pe) {}
+                        }
+                    }
+
+                    // 5. Ensure sidebar or popovers are closed after attaching
                     try {
                         var postClose = document.querySelector("button[aria-label='Hide sidebar'], button[aria-label='Close sidebar'], button[aria-controls='browser-sidebar-popover'][aria-expanded='true']");
                         if (postClose) postClose.click();
@@ -750,7 +741,7 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    var turns = document.querySelectorAll("div[data-message-author-role='assistant'], article, [data-testid*='turn'], [class*='turn-action-controls']");
+                    var turns = document.querySelectorAll("[data-message-author-role='assistant'], [class*='agent-turn']");
                     return turns.length;
                 } catch(e) {
                     return 0;
@@ -767,9 +758,9 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    // Collect every existing image src currently in the document
-                    var allImgs = Array.from(document.querySelectorAll("img")).map(function(img) {
-                        return img.currentSrc || img.src || '';
+                    // Collect every existing image src or download link currently in the document
+                    var allImgs = Array.from(document.querySelectorAll("img, a[download], a[href*='oaiusercontent.com']")).map(function(el) {
+                        return el.currentSrc || el.src || el.href || '';
                     }).filter(Boolean);
                     return JSON.stringify(allImgs);
                 } catch(e) {
@@ -811,117 +802,118 @@ class ChatGptWebAdapter(
                     var scrollers = document.querySelectorAll("[class*='scroll-container'], [class*='scrollContainer'], main, div[role='region'], .overflow-y-auto");
                     scrollers.forEach(function(s) { try { s.scrollTop = s.scrollHeight; } catch(e) {} });
 
-                    // 2. Check if generation is still active (detect stop buttons or streaming indicators)
-                    var stopBtn = document.querySelector(
-                        "button[data-testid='stop-button'], button[aria-label*='Stop generating' i], button[aria-label*='Stop streaming' i], [data-testid='fruitjuice-stop-button'], [data-testid*='stop-button']"
-                    );
-                    var isStreaming = !!document.querySelector("[class*='result-streaming'], [class*='streaming'], [data-testid*='streaming']");
-                    var isWorking = !!stopBtn || isStreaming;
+                    // 2. Strict Check: Is ChatGPT still actively generating?
+                    // A. Check for stop button (blue circle with white square, or stop testids)
+                    var hasStopBtn = !!document.querySelector(
+                        "button[data-testid='stop-button'], button[data-testid*='stop'], button[aria-label*='Stop' i], [data-testid='fruitjuice-stop-button']"
+                    ) || Array.from(document.querySelectorAll("button svg rect, button svg square")).some(function(el) {
+                        return !!el.closest("button");
+                    });
+
+                    // B. Check for draft progress / percentage / streaming indicator
+                    var pageText = document.body.innerText || '';
+                    var isDrafting = /making the (first )?draft/i.test(pageText) ||
+                                     /generating image/i.test(pageText) ||
+                                     /creating image/i.test(pageText) ||
+                                     /\b\d{1,2}%\b/.test(pageText);
+
+                    var isStreaming = !!document.querySelector("[class*='result-streaming'], [class*='streaming'], [data-testid*='streaming'], [role='progressbar']");
+
+                    if (hasStopBtn || isDrafting || isStreaming) {
+                        return "GENERATING";
+                    }
+
+                    // 3. Locate assistant turns strictly AFTER initialTurnCount
+                    var assistantTurns = Array.from(document.querySelectorAll("[data-message-author-role='assistant'], [class*='agent-turn']"));
+                    if (assistantTurns.length <= $initialTurnCount) {
+                        return "GENERATING";
+                    }
+
+                    var latestTurn = assistantTurns[assistantTurns.length - 1];
+                    var turnText = latestTurn.innerText || '';
+
+                    // If the turn itself still indicates drafting or working, wait
+                    if (/making the/i.test(turnText) || /generating/i.test(turnText) || /\b\d{1,2}%\b/.test(turnText)) {
+                        return "GENERATING";
+                    }
 
                     var excludeList = $excludeJson;
                     var excludeSet = new Set(excludeList);
 
-                    // Also check for direct high-res download anchors generated by ChatGPT
-                    var dlLinks = Array.from(document.querySelectorAll("a[download], a[href*='oaiusercontent.com'], a[href*='/backend-api/files/']"));
-                    for (var k = dlLinks.length - 1; k >= 0; k--) {
-                        var href = dlLinks[k].href || '';
-                        if (href && !excludeSet.has(href) && href.indexOf('http') === 0) {
-                            return href;
-                        }
-                    }
-
-                    // 3. Find candidate generated images anywhere in the conversation
-                    var genImgs = Array.from(document.querySelectorAll("img")).filter(function(img) {
-                        // Exclude user attachments, composer chips, forms, avatars
-                        if (img.getAttribute('alt') === 'User attachment') return false;
-                        if (img.closest("[class*='composer-attachment']")) return false;
-                        if (img.closest("form")) return false;
-                        if (img.closest("[class*='avatar']")) return false;
-                        if (img.closest("[data-message-author-role='user']")) return false;
-
+                    // 4. Find candidate generated images ONLY inside latestTurn (never user messages)
+                    var candidateImgs = Array.from(latestTurn.querySelectorAll("img")).filter(function(img) {
+                        if (img.closest("[class*='avatar'], [class*='icon'], [role='button']")) return false;
                         var src = img.currentSrc || img.src || '';
                         if (!src) return false;
                         if (excludeSet.has(src)) return false;
 
-                        // Must have explicit generated image marker or be inside assistant message, or be a rendered result canvas
-                        var isGen = !!img.closest("[data-testid*='generated-image'], [data-web-image-tile], [class*='generated-image']") ||
-                                    /generated image/i.test(img.getAttribute('alt') || '') ||
-                                    /dall[·-]e/i.test(img.getAttribute('alt') || '') ||
-                                    !!img.closest("button[aria-label*='Generated image' i]") ||
-                                    src.indexOf('oaiusercontent.com') !== -1 ||
-                                    src.indexOf('blob:') === 0 ||
-                                    (img.naturalWidth >= 280 && img.naturalHeight >= 160 && !img.closest("form") && !img.closest("[class*='composer-attachment']"));
-                        return isGen;
+                        // Must be substantial rendered image (not an icon or spinner)
+                        return (img.naturalWidth >= 200 || img.width >= 200);
                     });
 
-                    if (genImgs.length === 0) {
-                        // Check if generation finished and assistant replied with explicit refusal text
-                        if (!isWorking) {
-                            var turnTexts = Array.from(document.querySelectorAll("[data-message-author-role='assistant'], [class*='agent-turn'], [class*='assistant']"));
-                            if (turnTexts.length > 0) {
-                                var txt = (turnTexts[turnTexts.length - 1].innerText || '').trim();
-                                if (txt.length > 0) {
-                                    return "TEXT_RESPONSE:" + txt;
-                                }
-                            }
+                    // Also check for download anchor inside latestTurn only
+                    var dlAnchor = latestTurn.querySelector("a[download], a[href*='oaiusercontent.com'], a[href*='/backend-api/files/']");
+                    var dlHref = (dlAnchor && dlAnchor.href && !excludeSet.has(dlAnchor.href)) ? dlAnchor.href : null;
+
+                    if (candidateImgs.length === 0 && !dlHref) {
+                        // Check if assistant replied with explicit refusal text
+                        var txt = turnText.trim();
+                        if (txt.length > 0 && (txt.includes("cannot") || txt.includes("unable") || txt.includes("sorry") || txt.includes("policy"))) {
+                            return "TEXT_RESPONSE:" + txt;
                         }
                         return "GENERATING";
                     }
 
-                    // If still actively streaming/generating, wait for completion
-                    if (isWorking) {
-                        return "GENERATING";
-                    }
+                    // If images are found, take the newest one and verify it has loaded
+                    if (candidateImgs.length > 0) {
+                        var bestImg = candidateImgs[candidateImgs.length - 1];
+                        if (!bestImg.complete || (bestImg.naturalWidth && bestImg.naturalWidth < 120)) {
+                            return "LOADING";
+                        }
 
-                    // Pick the LAST generated image in DOM order (the newest assistant generation)
-                    var bestImg = genImgs[genImgs.length - 1];
+                        var targetSrc = bestImg.currentSrc || bestImg.src || '';
 
-                    // Verify image has finished loading
-                    if (!bestImg.complete || (bestImg.naturalWidth && bestImg.naturalWidth < 120)) {
-                        return "LOADING";
-                    }
+                        // 1. Immediately trigger in-page fetch with page credentials & cookies to resolve pure Base64 DataURL
+                        if (targetSrc && window.DgImagesJs && window.DgImagesJs.onCapturedImageDataUrl) {
+                            try {
+                                fetch(targetSrc, { credentials: 'include' })
+                                    .then(function(r) { return r.blob(); })
+                                    .then(function(blob) {
+                                        var reader = new FileReader();
+                                        reader.onloadend = function() {
+                                            var resultDataUrl = reader.result;
+                                            if (resultDataUrl && resultDataUrl.indexOf('data:') === 0 && window.DgImagesJs && window.DgImagesJs.onCapturedImageDataUrl) {
+                                                window.DgImagesJs.onCapturedImageDataUrl(resultDataUrl);
+                                            }
+                                        };
+                                        reader.readAsDataURL(blob);
+                                    })
+                                    .catch(function(err) {});
+                            } catch(fe) {}
+                        }
 
-                    var targetSrc = bestImg.currentSrc || bestImg.src || '';
-
-                    // 1. Immediately trigger in-page fetch with page credentials & cookies to resolve pure Base64 DataURL
-                    if (targetSrc && window.DgImagesJs && window.DgImagesJs.onCapturedImageDataUrl) {
+                        // 2. Render to canvas and extract JPEG Base64 DataURL if same-origin / untainted
                         try {
-                            fetch(targetSrc, { credentials: 'include' })
-                                .then(function(r) { return r.blob(); })
-                                .then(function(blob) {
-                                    var reader = new FileReader();
-                                    reader.onloadend = function() {
-                                        var resultDataUrl = reader.result;
-                                        if (resultDataUrl && resultDataUrl.indexOf('data:') === 0 && window.DgImagesJs && window.DgImagesJs.onCapturedImageDataUrl) {
-                                            window.DgImagesJs.onCapturedImageDataUrl(resultDataUrl);
-                                        }
-                                    };
-                                    reader.readAsDataURL(blob);
-                                })
-                                .catch(function(err) {});
-                        } catch(fe) {}
-                    }
-
-                    // 2. Synchronously render to canvas and extract JPEG Base64 DataURL if same-origin / untainted
-                    try {
-                        var canvas = document.createElement('canvas');
-                        canvas.width = bestImg.naturalWidth || 1280;
-                        canvas.height = bestImg.naturalHeight || 720;
-                        var ctx = canvas.getContext('2d');
-                        ctx.drawImage(bestImg, 0, 0);
-                        var dUrl = canvas.toDataURL('image/jpeg', 0.95);
-                        if (dUrl && dUrl.length > 500 && dUrl.indexOf('data:image/') === 0) {
-                            if (window.DgImagesJs && window.DgImagesJs.onCapturedImageDataUrl) {
-                                window.DgImagesJs.onCapturedImageDataUrl(dUrl);
+                            var canvas = document.createElement('canvas');
+                            canvas.width = bestImg.naturalWidth || 1280;
+                            canvas.height = bestImg.naturalHeight || 720;
+                            var ctx = canvas.getContext('2d');
+                            ctx.drawImage(bestImg, 0, 0);
+                            var dUrl = canvas.toDataURL('image/jpeg', 0.95);
+                            if (dUrl && dUrl.length > 500 && dUrl.indexOf('data:image/') === 0) {
+                                if (window.DgImagesJs && window.DgImagesJs.onCapturedImageDataUrl) {
+                                    window.DgImagesJs.onCapturedImageDataUrl(dUrl);
+                                }
+                                return dUrl;
                             }
-                            return dUrl;
-                        }
-                    } catch(e) {}
+                        } catch(e) {}
 
-                    // 3. If targetSrc is a direct HTTP/HTTPS URL, return it so Kotlin can also download it with session cookies
-                    if (targetSrc && (targetSrc.indexOf('http://') === 0 || targetSrc.indexOf('https://') === 0)) {
-                        return targetSrc;
+                        if (targetSrc && (targetSrc.indexOf('http://') === 0 || targetSrc.indexOf('https://') === 0)) {
+                            return targetSrc;
+                        }
                     }
+
+                    if (dlHref) return dlHref;
 
                     return "LOADING";
                 } catch(e) {
@@ -931,19 +923,21 @@ class ChatGptWebAdapter(
         """.trimIndent()
         safeEvalJs(js) { res ->
             val clean = res?.trim('"', ' ', '\n')
-            val pushed = lastCapturedDataUrl
-            if (!pushed.isNullOrBlank() && pushed.startsWith("data:")) {
-                callback(pushed)
+            if (clean == "GENERATING" || clean == "LOADING") {
+                callback(clean)
             } else if (clean != null && clean.startsWith("data:")) {
                 callback(clean)
             } else if (clean != null && (clean.startsWith("http://") || clean.startsWith("https://"))) {
                 callback(clean)
-            } else if (clean == "LOADING" || clean == "GENERATING") {
-                callback(clean)
             } else if (clean != null && clean.startsWith("TEXT_RESPONSE:")) {
                 callback(clean)
             } else {
-                callback("GENERATING")
+                val pushed = lastCapturedDataUrl
+                if (!pushed.isNullOrBlank() && pushed.startsWith("data:")) {
+                    callback(pushed)
+                } else {
+                    callback("GENERATING")
+                }
             }
         }
     }

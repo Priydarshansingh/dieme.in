@@ -294,6 +294,10 @@ object ChatGptSessionManager {
                         attachmentsReady = true
                         break
                     }
+                    if (attempt == 4 && !attachmentsReady) {
+                        Log.i(TAG, "🔄 Backup attachment dispatch at attempt #5...")
+                        adapter.attachImages(filesToAttach) {}
+                    }
                     if (attempt % 3 == 0) {
                         _sessionStatus.value = "Uploading image assets to ChatGPT (${attempt + 1}s)..."
                     }

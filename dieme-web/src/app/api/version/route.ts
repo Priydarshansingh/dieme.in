@@ -2,30 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const VERSION_METADATA = {
   dieme: {
-    versionCode: 25,
-    versionName: '1.2.22',
+    versionCode: 26,
+    versionName: '1.2.23',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `Fixed ChatGPT attachment duplication via single targeted file input injection
-• Active generation waiting: verifies stop button, percentage, and draft indicators before capturing
-• Strict assistant turn filtering: guarantees only newly generated DALL-E image is returned to canvas`,
+      `Prevented ChatGPT sidebar drawer lockup by safely dismissing overlays without destroying React DOM backdrops
+• Single targeted Drag-and-Drop file attachment to guarantee exactly 1 copy of each asset
+• Active generation waiting: verifies draft completion, percentage, and stop button before capturing
+• Strict assistant turn filtering to prevent echoing reference images`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk',
     releaseDate: '2026-11-25',
-    publishedAt: '2026-11-25T22:30:00Z',
+    publishedAt: '2026-11-25T23:00:00Z',
   },
   dgImages: {
-    versionCode: 25,
-    versionName: '1.2.22',
+    versionCode: 26,
+    versionName: '1.2.23',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `Fixed ChatGPT attachment duplication via single targeted file input injection
-• Active generation waiting: verifies stop button, percentage, and draft indicators before capturing
-• Strict assistant turn filtering: guarantees only newly generated DALL-E image is returned to canvas`,
+      `Prevented ChatGPT sidebar drawer lockup by safely dismissing overlays without destroying React DOM backdrops
+• Single targeted Drag-and-Drop file attachment to guarantee exactly 1 copy of each asset
+• Active generation waiting: verifies draft completion, percentage, and stop button before capturing
+• Strict assistant turn filtering to prevent echoing reference images`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk',
     releaseDate: '2026-11-25',
-    publishedAt: '2026-11-25T22:30:00Z',
+    publishedAt: '2026-11-25T23:00:00Z',
   },
 };
 

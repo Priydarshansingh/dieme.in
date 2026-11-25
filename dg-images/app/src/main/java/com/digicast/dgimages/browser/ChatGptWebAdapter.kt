@@ -186,10 +186,33 @@ class ChatGptWebAdapter(
         val js = """
             (function() {
                 try {
-                    // 1. Ensure any modal backdrop, promo banner or dialog overlay is removed
-                    var overlays = document.querySelectorAll(".codex-dialog-overlay, [class*='dialog-overlay'], [class*='backdrop']");
-                    overlays.forEach(function(o) { try { o.remove(); } catch(e) {} });
-                    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+                    // Helper to close sidebar drawer and clear overlays
+                    function closeOverlays() {
+                        var overlays = document.querySelectorAll(".codex-dialog-overlay, [class*='dialog-overlay'], [class*='backdrop'], .bg-black\\/50, div.fixed.inset-0");
+                        overlays.forEach(function(o) {
+                            try {
+                                if (!o.closest("nav, aside, [id*='sidebar']")) o.remove();
+                            } catch(e) {}
+                        });
+                        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+
+                        var hideSidebar = document.querySelector(
+                            "button[aria-label='Hide sidebar'], button[aria-label='Close sidebar'], button[aria-label*='sidebar' i][aria-expanded='true'], button[aria-controls='browser-sidebar-popover'][aria-expanded='true']"
+                        );
+                        if (hideSidebar) {
+                            try {
+                                var rk = Object.keys(hideSidebar).find(function(k) { return k.startsWith('__reactProps') || k.startsWith('__reactEventHandlers'); });
+                                var hp = rk ? hideSidebar[rk] : null;
+                                var hevt = { preventDefault: function() {}, stopPropagation: function() {} };
+                                if (hp && typeof hp.onPointerDown === 'function') hp.onPointerDown(hevt);
+                                if (hp && typeof hp.onClick === 'function') hp.onClick(hevt);
+                                hideSidebar.click();
+                            } catch(e) {}
+                        }
+                    }
+
+                    // 1. Close overlays
+                    closeOverlays();
 
                     // 2. Dismiss promo banners ("Stay on web", "Open the app", "Free offer", etc.)
                     var stayBtns = Array.from(document.querySelectorAll("button, a")).filter(function(b) {
@@ -207,28 +230,10 @@ class ChatGptWebAdapter(
                         try { b.remove(); } catch(e) {}
                     });
 
-                    var dismissBtns = document.querySelectorAll(
-                        "button[aria-label='Close'], button[aria-label*='Close' i], button[aria-label*='Dismiss' i], button[data-testid*='close']"
-                    );
-                    dismissBtns.forEach(function(b) { try { b.click(); } catch(e) {} });
-
-                    // 3. Close sidebar if open
-                    var hideSidebar = document.querySelector("button[aria-label='Hide sidebar'], button[aria-label='Close sidebar'], button[aria-controls='browser-sidebar-popover'][aria-expanded='true']");
-                    if (hideSidebar) {
-                        try {
-                            var rk = Object.keys(hideSidebar).find(function(k) { return k.startsWith('__reactProps') || k.startsWith('__reactEventHandlers'); });
-                            var hp = rk ? hideSidebar[rk] : null;
-                            var hevt = { preventDefault: function() {}, stopPropagation: function() {} };
-                            if (hp && typeof hp.onPointerDown === 'function') hp.onPointerDown(hevt);
-                            if (hp && typeof hp.onClick === 'function') hp.onClick(hevt);
-                            hideSidebar.click();
-                        } catch(e) {}
-                    }
-
-                    // 4. Click New Chat button if available
-                    var newChatBtn = document.querySelector("button[aria-label='New chat'], button[data-testid='new-chat-button']") ||
-                                     Array.from(document.querySelectorAll("button, a")).find(function(b) {
-                                         return (b.innerText || '').trim() === 'New chat';
+                    // 3. Find and click New Chat link/button (SPA client-side navigation)
+                    var newChatBtn = document.querySelector("a[href='/'], [data-testid='new-chat-button'], a[aria-label*='New chat' i], button[aria-label*='New chat' i]") ||
+                                     Array.from(document.querySelectorAll("a, button")).find(function(b) {
+                                         return (b.innerText || '').trim().toLowerCase() === 'new chat';
                                      });
                     if (newChatBtn) {
                         try {
@@ -240,6 +245,9 @@ class ChatGptWebAdapter(
                             newChatBtn.click();
                         } catch(e) {}
                     }
+
+                    // 4. Ensure sidebar is dismissed post-click so backdrop never obscures composer
+                    closeOverlays();
 
                     // 5. Remove all attachments from composer
                     var removeBtns = Array.from(document.querySelectorAll(
@@ -275,24 +283,31 @@ class ChatGptWebAdapter(
                         } catch(e) {}
                     });
 
-                    // 7. If currently on a conversation thread (/c/... or /g/...), navigate to fresh chat root
                     var path = window.location.pathname;
-                    if (path.indexOf('/c/') !== -1 || path.indexOf('/g/') !== -1 || path.length > 2) {
-                        window.location.href = 'https://chatgpt.com/';
-                        return true;
-                    }
-
-                    return true;
+                    var needsFullNav = (path.indexOf('/c/') !== -1 || path.indexOf('/g/') !== -1);
+                    return needsFullNav ? "NEED_NAV" : "OK";
                 } catch(e) {
-                    window.location.href = 'https://chatgpt.com/';
-                    return true;
+                    return "ERROR";
                 }
             })();
         """.trimIndent()
+
         safeEvalJs(js) { res ->
-            Handler(Looper.getMainLooper()).postDelayed({
-                onComplete?.invoke(res?.trim() == "true")
-            }, 500L)
+            val result = res?.trim('"', ' ')
+            if (result == "NEED_NAV") {
+                Log.i(TAG, "🔄 Ongoing conversation path detected, performing full clean navigation to $CHATGPT_URL")
+                Handler(Looper.getMainLooper()).post {
+                    webView.loadUrl(CHATGPT_URL)
+                    // Allow 1.5s for page reload to establish clean DOM
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        onComplete?.invoke(true)
+                    }, 1500L)
+                }
+            } else {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    onComplete?.invoke(true)
+                }, 400L)
+            }
         }
     }
 
@@ -305,10 +320,12 @@ class ChatGptWebAdapter(
                 val js = """
                     (function() {
                         try {
+                            // Ensure drawer is closed
                             var hideSidebar = document.querySelector("button[aria-label='Hide sidebar'], button[aria-label='Close sidebar'], button[aria-controls='browser-sidebar-popover'][aria-expanded='true']");
                             if (hideSidebar) { try { hideSidebar.click(); } catch(e) {} }
+                            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
 
-                            var composer = document.querySelector("form[data-chatgpt-composer], .ComposerLayoutRoot-XCKS7O, .ProseMirror, input[aria-label*='Attach photos']");
+                            var composer = document.querySelector("form[data-chatgpt-composer], .ComposerLayoutRoot-XCKS7O, .ProseMirror, #prompt-textarea, input[aria-label*='Attach photos']");
                             return !!composer;
                         } catch(e) {
                             return false;
@@ -436,7 +453,7 @@ class ChatGptWebAdapter(
                         try { b.remove(); } catch(e) {}
                     });
 
-                    // Dismiss drawer if open so backdrop never blocks composer
+                    // Dismiss sidebar drawer if open so backdrop never blocks composer
                     var hideSidebar = document.querySelector("button[aria-label='Hide sidebar'], button[aria-label='Close sidebar'], button[aria-controls='browser-sidebar-popover'][aria-expanded='true']");
                     if (hideSidebar) {
                         try {
@@ -448,7 +465,7 @@ class ChatGptWebAdapter(
                             hideSidebar.click();
                         } catch(e) {}
                     }
-                    var overlays = document.querySelectorAll(".codex-dialog-overlay, [class*='dialog-overlay']");
+                    var overlays = document.querySelectorAll(".codex-dialog-overlay, [class*='dialog-overlay'], [class*='backdrop']");
                     overlays.forEach(function(o) { try { o.remove(); } catch(e) {} });
                     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
 
@@ -491,7 +508,47 @@ class ChatGptWebAdapter(
 
                     if (dt.items.length === 0) return false;
 
-                    // 4. Dispatch synthetic ClipboardEvent('paste') to ProseMirror editor
+                    // 4. Primary: Assign dt.files directly to all file inputs (standard mobile browser upload mechanism)
+                    var fileInputs = document.querySelectorAll('input[type="file"]');
+                    fileInputs.forEach(function(input) {
+                        try {
+                            var descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'files');
+                            if (descriptor && descriptor.set) {
+                                descriptor.set.call(input, dt.files);
+                            } else {
+                                input.files = dt.files;
+                            }
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
+
+                            // Invoke React synthetic handler if mounted
+                            var rk = Object.keys(input).find(function(k) { return k.startsWith('__reactProps') || k.startsWith('__reactEventHandlers'); });
+                            if (rk && input[rk] && typeof input[rk].onChange === 'function') {
+                                input[rk].onChange({ target: input, currentTarget: input, bubbles: true });
+                            }
+                        } catch(fe) {}
+                    });
+
+                    // 5. Secondary: Dispatch Drag-and-Drop events to all composer zones (reliably creates attachment chips in React 18+)
+                    var composerTargets = [
+                        document.querySelector("#prompt-textarea"),
+                        document.querySelector(".ProseMirror"),
+                        document.querySelector("form"),
+                        document.querySelector("[data-chatgpt-composer]"),
+                        document.querySelector(".ComposerLayoutRoot-XCKS7O"),
+                        document.querySelector("div[class*='composer']"),
+                        document.querySelector("main")
+                    ].filter(Boolean);
+
+                    composerTargets.forEach(function(target) {
+                        try {
+                            target.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: dt }));
+                            target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+                            target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+                        } catch(de) {}
+                    });
+
+                    // 6. Tertiary: Dispatch synthetic ClipboardEvent('paste') to ProseMirror editor
                     var editor = document.querySelector(".ProseMirror, #prompt-textarea, [contenteditable='true'], textarea");
                     if (editor) {
                         try {
@@ -502,29 +559,17 @@ class ChatGptWebAdapter(
                                 clipboardData: dt
                             });
                             editor.dispatchEvent(pasteEvt);
-                            return true;
-                        } catch(e) {}
+                        } catch(pe) {}
                     }
 
-                    // Fallback to direct input assignment if editor paste was unavailable
-                    var targetInput = document.querySelector("input[aria-label*='Attach photos or videos']") ||
-                                      document.querySelector("input[aria-label*='Attach photos']") ||
-                                      document.querySelector("input[type='file']");
-                    if (targetInput) {
-                        try {
-                            var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files');
-                            if (desc && desc.set) {
-                                desc.set.call(targetInput, dt.files);
-                            } else {
-                                targetInput.files = dt.files;
-                            }
-                            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-                            return true;
-                        } catch(e2) {}
-                    }
+                    // 7. Ensure sidebar or popovers are closed after attaching
+                    try {
+                        var postClose = document.querySelector("button[aria-label='Hide sidebar'], button[aria-label='Close sidebar'], button[aria-controls='browser-sidebar-popover'][aria-expanded='true']");
+                        if (postClose) postClose.click();
+                        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+                    } catch(e) {}
 
-                    return false;
+                    return true;
                 } catch(e) {
                     return false;
                 }
@@ -762,10 +807,9 @@ class ChatGptWebAdapter(
             (function() {
                 try {
                     // 1. Auto-scroll transcript container to bottom so turns & images render
-                    var scroller = document.querySelector("[class*='scroll-container'], [class*='scrollContainer'], main, div[role='region']");
-                    if (scroller) {
-                        scroller.scrollTop = scroller.scrollHeight;
-                    }
+                    window.scrollTo(0, document.body.scrollHeight);
+                    var scrollers = document.querySelectorAll("[class*='scroll-container'], [class*='scrollContainer'], main, div[role='region'], .overflow-y-auto");
+                    scrollers.forEach(function(s) { try { s.scrollTop = s.scrollHeight; } catch(e) {} });
 
                     // 2. Check if generation is still active (detect stop buttons or streaming indicators)
                     var stopBtn = document.querySelector(
@@ -776,6 +820,15 @@ class ChatGptWebAdapter(
 
                     var excludeList = $excludeJson;
                     var excludeSet = new Set(excludeList);
+
+                    // Also check for direct high-res download anchors generated by ChatGPT
+                    var dlLinks = Array.from(document.querySelectorAll("a[download], a[href*='oaiusercontent.com'], a[href*='/backend-api/files/']"));
+                    for (var k = dlLinks.length - 1; k >= 0; k--) {
+                        var href = dlLinks[k].href || '';
+                        if (href && !excludeSet.has(href) && href.indexOf('http') === 0) {
+                            return href;
+                        }
+                    }
 
                     // 3. Find candidate generated images anywhere in the conversation
                     var genImgs = Array.from(document.querySelectorAll("img")).filter(function(img) {

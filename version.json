@@ -1,20 +1,20 @@
 {
   "dieme": {
-    "versionCode": 23,
-    "versionName": "1.2.20",
+    "versionCode": 24,
+    "versionName": "1.2.21",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "Zero-latency in-page Base64 generated result capture from ChatGPT to Dieme Studio\n• Strict composer attachment de-duplication with React-safe props event handling\n• Instant fresh chat initialization on New Session with full cache and attachment purge\n• Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets",
+    "releaseNotes": "Safely deferred background foreground service promotion to prevent Android 14 crashes\n• Triple-tier ChatGPT media attachment pipeline (file input prototype setter, HTML5 Drag-and-Drop, and clipboard paste)\n• Guaranteed drawer sidebar dismissal to prevent composer backdrop overlay blocks\n• Instant 1080p generated revision returned directly to Dieme Studio 16:9 canvas",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
-    "releaseDate": "2026-11-24",
-    "publishedAt": "2026-11-24T19:30:00Z"
+    "releaseDate": "2026-11-25",
+    "publishedAt": "2026-11-25T14:30:00Z"
   },
   "dgImages": {
-    "versionCode": 23,
-    "versionName": "1.2.20",
+    "versionCode": 24,
+    "versionName": "1.2.21",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "Zero-latency in-page Base64 generated result capture from ChatGPT to Dieme Studio\n• Strict composer attachment de-duplication with React-safe props event handling\n• Instant fresh chat initialization on New Session with full cache and attachment purge\n• Pure 16:9 thumbnail showcase in Dieme Studio with active revision cards displaying live pin points and assets",
+    "releaseNotes": "Safely deferred background foreground service promotion to prevent Android 14 crashes\n• Triple-tier ChatGPT media attachment pipeline (file input prototype setter, HTML5 Drag-and-Drop, and clipboard paste)\n• Guaranteed drawer sidebar dismissal to prevent composer backdrop overlay blocks\n• Instant 1080p generated revision returned directly to Dieme Studio 16:9 canvas",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
-    "releaseDate": "2026-11-24",
-    "publishedAt": "2026-11-24T19:30:00Z"
+    "releaseDate": "2026-11-25",
+    "publishedAt": "2026-11-25T14:30:00Z"
   }
 }

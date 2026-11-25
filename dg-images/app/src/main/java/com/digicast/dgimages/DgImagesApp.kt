@@ -21,12 +21,16 @@ class DgImagesApp : Application() {
         instance = this
         createNotificationChannel()
 
-        // Start daemon service
-        val serviceIntent = Intent(this, DgImagesService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
+        // Attempt to start daemon foreground service safely (deferred if restricted by Android 14+ background launch)
+        try {
+            val serviceIntent = Intent(this, DgImagesService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("DgImagesApp", "Foreground service start deferred: ${e.message}")
         }
     }
 

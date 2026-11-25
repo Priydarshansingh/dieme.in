@@ -32,6 +32,9 @@ class DefaultImageStudioExtension : ImageStudioExtension {
         const val DAEMON_HOST = "127.0.0.1"
         const val DAEMON_PORT = 5488
         const val BASE_URL = "http://$DAEMON_HOST:$DAEMON_PORT"
+
+        private var activeServiceConnection: android.content.ServiceConnection? = null
+        private var isBound = false
     }
 
     // Force Proxy.NO_PROXY so OkHttp communicates directly with local loopback without carrier cellular proxy interception
@@ -77,12 +80,17 @@ class DefaultImageStudioExtension : ImageStudioExtension {
 
             onProgress(20, "Connecting to Dg-Images engine (127.0.0.1:5488)...")
 
-            // Check if daemon is active; if not, wake it up
+            // Check if daemon is active; if not, wake it up and poll for up to 6 seconds
             var daemonReady = checkDaemonHealth()
             if (!daemonReady) {
                 wakeUpDaemon(context)
-                delay(1500)
-                daemonReady = checkDaemonHealth()
+                for (attempt in 0 until 12) {
+                    delay(500)
+                    if (checkDaemonHealth()) {
+                        daemonReady = true
+                        break
+                    }
+                }
             }
 
             if (!daemonReady) {
@@ -257,34 +265,40 @@ class DefaultImageStudioExtension : ImageStudioExtension {
     }
 
     private fun wakeUpDaemon(context: Context) {
+        // 1. Primary: Activate com.digicast.dgimages in the background via DgImagesDaemonProvider
         try {
-            val sIntent = Intent().apply {
-                component = android.content.ComponentName(DG_IMAGES_PACKAGE, "com.digicast.dgimages.service.DgImagesService")
-            }
-            // Bind service to ensure background daemon starts and stays pinned on Android 14+ without foreground limits
+            val uri = android.net.Uri.parse("content://com.digicast.dgimages.daemon")
+            context.contentResolver.call(uri, "start_daemon", null, null)
+            Log.i(TAG, "📡 Woke Dg-Images companion via DgImagesDaemonProvider")
+        } catch (e: Exception) {
+            Log.w(TAG, "DgImagesDaemonProvider wake fallback: ${e.message}")
+        }
+
+        // 2. Secondary: Bind service to keep background daemon connected permanently
+        if (!isBound) {
             try {
-                context.bindService(sIntent, object : android.content.ServiceConnection {
-                    override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) {}
-                    override fun onServiceDisconnected(name: android.content.ComponentName?) {}
-                }, Context.BIND_AUTO_CREATE)
+                val sIntent = Intent().apply {
+                    component = android.content.ComponentName(DG_IMAGES_PACKAGE, "com.digicast.dgimages.service.DgImagesService")
+                }
+                val conn = object : android.content.ServiceConnection {
+                    override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) {
+                        Log.i(TAG, "🔗 DgImagesService bound successfully")
+                        isBound = true
+                    }
+                    override fun onServiceDisconnected(name: android.content.ComponentName?) {
+                        Log.w(TAG, "⚡ DgImagesService disconnected")
+                        isBound = false
+                    }
+                }
+                val flags = Context.BIND_AUTO_CREATE or Context.BIND_IMPORTANT
+                val success = context.applicationContext.bindService(sIntent, conn, flags)
+                if (success) {
+                    activeServiceConnection = conn
+                    Log.i(TAG, "✅ bindService call returned true")
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "bindService fallback error: ${e.message}")
             }
-
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                try {
-                    context.startForegroundService(sIntent)
-                } catch (_: Throwable) {}
-            } else {
-                context.startService(sIntent)
-            }
-        } catch (_: Exception) {
-            try {
-                val intent = Intent(ACTION_START_SERVICE).apply {
-                    setPackage(DG_IMAGES_PACKAGE)
-                }
-                context.sendBroadcast(intent)
-            } catch (_: Exception) {}
         }
     }
 }

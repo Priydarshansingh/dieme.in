@@ -133,22 +133,39 @@ object ChatGptSessionManager {
                                 outFile
                             }
                             mediaStr.startsWith("http://") || mediaStr.startsWith("https://") -> {
-                                val conn = (URL(mediaStr).openConnection() as java.net.HttpURLConnection).apply {
-                                    setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
-                                    setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-                                    connectTimeout = 15000
-                                    readTimeout = 15000
+                                val urlsToTry = mutableListOf(mediaStr)
+                                if (mediaStr.contains("img.youtube.com/vi/")) {
+                                    val vidId = mediaStr.substringAfter("img.youtube.com/vi/").substringBefore("/")
+                                    urlsToTry.add("https://img.youtube.com/vi/$vidId/maxresdefault.jpg")
+                                    urlsToTry.add("https://img.youtube.com/vi/$vidId/sddefault.jpg")
+                                    urlsToTry.add("https://img.youtube.com/vi/$vidId/hqdefault.jpg")
+                                    urlsToTry.add("https://img.youtube.com/vi/$vidId/0.jpg")
                                 }
-                                if (conn.responseCode in 200..299) {
-                                    conn.inputStream.use { input ->
-                                        FileOutputStream(outFile).use { output -> input.copyTo(output) }
-                                    }
-                                    Log.i(TAG, "✅ Downloaded HTTP asset $prefix #$index -> ${outFile.name} (${outFile.length()} bytes)")
-                                    outFile
-                                } else {
-                                    Log.w(TAG, "⚠️ HTTP asset download returned HTTP ${conn.responseCode} for $mediaStr")
-                                    null
+                                var successFile: File? = null
+                                for (urlTarget in urlsToTry.distinct()) {
+                                    try {
+                                        val conn = (URL(urlTarget).openConnection() as java.net.HttpURLConnection).apply {
+                                            setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                                            setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+                                            connectTimeout = 8000
+                                            readTimeout = 8000
+                                        }
+                                        if (conn.responseCode in 200..299) {
+                                            conn.inputStream.use { input ->
+                                                FileOutputStream(outFile).use { output -> input.copyTo(output) }
+                                            }
+                                            if (outFile.exists() && outFile.length() > 500) {
+                                                successFile = outFile
+                                                Log.i(TAG, "✅ Downloaded HTTP asset $prefix #$index from $urlTarget -> ${outFile.name} (${outFile.length()} bytes)")
+                                                break
+                                            }
+                                        }
+                                    } catch (_: Exception) {}
                                 }
+                                if (successFile == null) {
+                                    Log.w(TAG, "⚠️ Failed to download HTTP asset after trying ${urlsToTry.size} variants for: $mediaStr")
+                                }
+                                successFile
                             }
                             mediaStr.startsWith("file://") || mediaStr.startsWith("/") -> {
                                 val cleanPath = if (mediaStr.startsWith("file://")) mediaStr.substring(7) else mediaStr

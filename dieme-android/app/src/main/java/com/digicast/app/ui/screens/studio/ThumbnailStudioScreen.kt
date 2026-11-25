@@ -820,17 +820,33 @@ fun ThumbnailStudioScreen(
             isFetchingUrl = true
             coroutineScope.launch(Dispatchers.IO) {
                 try {
-                    val maxResUrl = "https://img.youtube.com/vi/$parsedId/maxresdefault.jpg"
-                    val hqUrl = "https://img.youtube.com/vi/$parsedId/hqdefault.jpg"
-                    val finalUrl = try {
-                        val conn = URL(maxResUrl).openConnection() as HttpURLConnection
-                        conn.requestMethod = "HEAD"
-                        conn.connectTimeout = 3000
-                        conn.readTimeout = 3000
-                        if (conn.responseCode == 200) maxResUrl else hqUrl
-                    } catch (_: Exception) {
-                        hqUrl
+                    val candidates = listOf(
+                        "https://img.youtube.com/vi/$parsedId/maxresdefault.jpg",
+                        "https://img.youtube.com/vi/$parsedId/sddefault.jpg",
+                        "https://img.youtube.com/vi/$parsedId/hqdefault.jpg",
+                        "https://img.youtube.com/vi/$parsedId/0.jpg"
+                    )
+                    var downloadedFile: java.io.File? = null
+                    for (cand in candidates) {
+                        try {
+                            val conn = (URL(cand).openConnection() as HttpURLConnection).apply {
+                                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
+                                connectTimeout = 4000
+                                readTimeout = 4000
+                            }
+                            if (conn.responseCode in 200..299) {
+                                val file = java.io.File(context.cacheDir, "yt_${parsedId}_${System.currentTimeMillis()}.jpg")
+                                conn.inputStream.use { input ->
+                                    java.io.FileOutputStream(file).use { output -> input.copyTo(output) }
+                                }
+                                if (file.exists() && file.length() > 500) {
+                                    downloadedFile = file
+                                    break
+                                }
+                            }
+                        } catch (_: Exception) {}
                     }
+                    val finalUrl = downloadedFile?.let { android.net.Uri.fromFile(it).toString() } ?: candidates[2]
                     withContext(Dispatchers.Main) {
                         saveCurrentSessionToHistory()
                         chatMessages.clear()

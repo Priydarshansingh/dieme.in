@@ -46,6 +46,11 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <provider
+            android:name=".provider.DgImagesDaemonProvider"
+            android:authorities="com.digicast.dgimages.daemon"
+            android:exported="true" />
+
         <service
             android:name=".service.DgImagesService"
             android:exported="true"

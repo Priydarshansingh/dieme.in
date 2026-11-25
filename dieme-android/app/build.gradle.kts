@@ -17,8 +17,8 @@ android {
         applicationId = "com.digicast.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 23
-        versionName = "1.2.20"
+        versionCode = 24
+        versionName = "1.2.21"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Injected at build time from local.properties. Never put secrets in source.

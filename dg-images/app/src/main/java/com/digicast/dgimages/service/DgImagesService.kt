@@ -157,5 +157,13 @@ class DgImagesService : Service() {
     }
 
     private val binder = object : android.os.Binder() {}
-    override fun onBind(intent: Intent?): IBinder = binder
+    override fun onBind(intent: Intent?): IBinder {
+        Log.i(TAG, "🔗 onBind called from client app - ensuring daemon is active on port 5488")
+        if (daemon == null) {
+            daemon = DgImagesHttpDaemon(this, 5488)
+            daemon?.start()
+            Log.i(TAG, "🟢 DgImagesHttpDaemon started on port 5488 via onBind")
+        }
+        return binder
+    }
 }

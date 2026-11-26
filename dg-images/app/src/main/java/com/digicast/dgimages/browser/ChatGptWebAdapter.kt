@@ -580,7 +580,6 @@ class ChatGptWebAdapter(
                         if (postClose) postClose.click();
                         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
                     } catch(e) {}
-                    } catch(e) {}
 
                     return true;
                 } catch(e) {
@@ -824,28 +823,7 @@ class ChatGptWebAdapter(
                     var scrollers = document.querySelectorAll("[class*='scroll-container'], [class*='scrollContainer'], main, div[role='region'], .overflow-y-auto");
                     scrollers.forEach(function(s) { try { s.scrollTop = s.scrollHeight; } catch(e) {} });
 
-                    // 2. Strict Check: Is ChatGPT still actively generating?
-                    // A. Check for stop button (blue circle with white square, or stop testids)
-                    var hasStopBtn = !!document.querySelector(
-                        "button[data-testid='stop-button'], button[data-testid*='stop'], button[aria-label*='Stop' i], [data-testid='fruitjuice-stop-button']"
-                    ) || Array.from(document.querySelectorAll("button svg rect, button svg square")).some(function(el) {
-                        return !!el.closest("button");
-                    });
-
-                    // B. Check for draft progress / percentage / streaming indicator
-                    var pageText = document.body.innerText || '';
-                    var isDrafting = /making the (first )?draft/i.test(pageText) ||
-                                     /generating image/i.test(pageText) ||
-                                     /creating image/i.test(pageText) ||
-                                     /\b\d{1,2}%\b/.test(pageText);
-
-                    var isStreaming = !!document.querySelector("[class*='result-streaming'], [class*='streaming'], [data-testid*='streaming'], [role='progressbar']");
-
-                    if (hasStopBtn || isDrafting || isStreaming) {
-                        return "GENERATING";
-                    }
-
-                    // 3. Locate assistant turns strictly AFTER initialTurnCount
+                    // 2. Locate assistant turns strictly AFTER initialTurnCount
                     var assistantTurns = Array.from(document.querySelectorAll("[data-message-author-role='assistant'], [class*='agent-turn']"));
                     if (assistantTurns.length <= $initialTurnCount) {
                         return "GENERATING";
@@ -854,15 +832,27 @@ class ChatGptWebAdapter(
                     var latestTurn = assistantTurns[assistantTurns.length - 1];
                     var turnText = latestTurn.innerText || '';
 
-                    // If the turn itself still indicates drafting or working, wait
-                    if (/making the/i.test(turnText) || /generating/i.test(turnText) || /\b\d{1,2}%\b/.test(turnText)) {
-                        return "GENERATING";
+                    // Check for composer stop button (active generation in progress)
+                    var composerForm = document.querySelector("form[data-chatgpt-composer], form");
+                    var hasStopBtn = false;
+                    if (composerForm) {
+                        var stopEl = composerForm.querySelector("button[data-testid*='stop'], button[aria-label*='Stop' i], [data-testid='fruitjuice-stop-button']");
+                        if (stopEl && !stopEl.disabled && stopEl.getAttribute('aria-disabled') !== 'true') {
+                            hasStopBtn = true;
+                        }
                     }
+
+                    // Check for draft progress / percentage / streaming indicator inside latest assistant turn
+                    var isTurnDrafting = !!latestTurn.querySelector("[role='progressbar'], [class*='result-streaming'], [class*='streaming'], [data-testid*='streaming']") ||
+                                         /making the (first )?draft/i.test(turnText) ||
+                                         /generating image/i.test(turnText) ||
+                                         /creating image/i.test(turnText) ||
+                                         /\b\d{1,2}%\b/.test(turnText);
 
                     var excludeList = $excludeJson;
                     var excludeSet = new Set(excludeList);
 
-                    // 4. Find candidate generated images ONLY inside latestTurn (never user messages)
+                    // 3. Find candidate generated images ONLY inside latestTurn (never user messages)
                     var candidateImgs = Array.from(latestTurn.querySelectorAll("img")).filter(function(img) {
                         if (img.closest("[class*='avatar'], [class*='icon'], [role='button']")) return false;
                         var src = img.currentSrc || img.src || '';
@@ -870,17 +860,18 @@ class ChatGptWebAdapter(
                         if (excludeSet.has(src)) return false;
 
                         // Must be substantial rendered image (not an icon or spinner)
-                        return (img.naturalWidth >= 200 || img.width >= 200);
+                        return (img.naturalWidth >= 120 || img.width >= 120);
                     });
 
                     // Also check for download anchor inside latestTurn only
                     var dlAnchor = latestTurn.querySelector("a[download], a[href*='oaiusercontent.com'], a[href*='/backend-api/files/']");
                     var dlHref = (dlAnchor && dlAnchor.href && !excludeSet.has(dlAnchor.href)) ? dlAnchor.href : null;
 
+                    // If image is still generating and no completed candidate exists, keep waiting
                     if (candidateImgs.length === 0 && !dlHref) {
                         // Check if assistant replied with explicit refusal text
                         var txt = turnText.trim();
-                        if (txt.length > 0 && (txt.includes("cannot") || txt.includes("unable") || txt.includes("sorry") || txt.includes("policy"))) {
+                        if (txt.length > 0 && !hasStopBtn && !isTurnDrafting && (txt.includes("cannot") || txt.includes("unable") || txt.includes("sorry") || txt.includes("policy"))) {
                             return "TEXT_RESPONSE:" + txt;
                         }
                         return "GENERATING";
@@ -889,7 +880,7 @@ class ChatGptWebAdapter(
                     // If images are found, take the newest one and verify it has loaded
                     if (candidateImgs.length > 0) {
                         var bestImg = candidateImgs[candidateImgs.length - 1];
-                        if (!bestImg.complete || (bestImg.naturalWidth && bestImg.naturalWidth < 120)) {
+                        if (!bestImg.complete || (bestImg.naturalWidth && bestImg.naturalWidth < 100)) {
                             return "LOADING";
                         }
 

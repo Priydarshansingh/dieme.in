@@ -286,9 +286,14 @@ def git_commit_and_push(new_code, new_name, one_line_summary, skip_push=False):
         log("Push skipped (--skip-push provided).")
         return
 
-    log("Pushing commit and tags to origin...")
-    run_cmd("git push origin main")
-    run_cmd(f"git push origin {tag_name} --force")
+    log("Pushing commit and tags to all remotes (origin, diemein, digicast)...")
+    for remote in ["origin", "diemein", "digicast"]:
+        try:
+            run_cmd(f"git push {remote} main", check=False)
+            run_cmd(f"git push {remote} {tag_name} --force", check=False)
+            log(f"✓ Pushed main & {tag_name} to {remote}")
+        except Exception as e:
+            log(f"Warning pushing to {remote}: {e}")
 
     # Sync to distro-final and distribution repos
     log("Synchronizing to distro-final and distribution repositories...")

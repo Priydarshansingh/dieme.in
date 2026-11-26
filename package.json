@@ -2,10 +2,13 @@
   "name": "dieme-workspace",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "dieme-web"
+  ],
   "scripts": {
     "dev": "npm --prefix dieme-web run dev",
     "dev:backend": "npm --prefix dieme-backend run dev",
-    "build": "npm --prefix dieme-web run build",
+    "build": "cd dieme-web && npm run build",
     "build:backend": "npm --prefix dieme-backend run build",
     "start": "npm --prefix dieme-web run start",
     "install:web": "npm --prefix dieme-web install",

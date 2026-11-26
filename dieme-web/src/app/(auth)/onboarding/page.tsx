@@ -350,7 +350,7 @@ export default function OnboardingPage() {
                     <a href="mailto:support@dieme.in" className="text-cyan-400 underline">support@dieme.in</a>. All erasure requests are fulfilled within 72 hours.
                   </p>
                   <p>
-                    <strong>Revoking YouTube Access:</strong> You can revoke Dieme's access to your YouTube channel at any time via your{' '}
+                    <strong>Revoking YouTube Access:</strong> You can revoke Dieme&apos;s access to your YouTube channel at any time via your{' '}
                     <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline inline-flex items-center gap-0.5">
                       Google Security Settings <ExternalLink className="w-2.5 h-2.5" />
                     </a>.
@@ -385,7 +385,7 @@ export default function OnboardingPage() {
                 className="mt-0.5 h-4 w-4 rounded border-white/20 bg-[#030712] text-cyan-500 focus:ring-cyan-400 focus:ring-offset-0 cursor-pointer"
               />
               <span className="text-xs text-slate-300 leading-normal">
-                I have read, understood, and agree to Dieme's{' '}
+                I have read, understood, and agree to Dieme&apos;s{' '}
                 <button
                   type="button"
                   onClick={() => setActiveTab('terms')}

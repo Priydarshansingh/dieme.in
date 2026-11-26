@@ -1910,7 +1910,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
               <ScrollReveal key={idx} direction="up" delay={idx * 100}>
                 <div className="rounded-3xl bg-[#0D121D] border border-white/5 p-6 space-y-3 hover:border-emerald-500/30 hover:-translate-y-1 transition-all h-full">
                   <div className="flex text-amber-400 text-xs">★★★★★</div>
-                  <p className="text-xs text-slate-300 leading-relaxed">"{rev.text}"</p>
+                  <p className="text-xs text-slate-300 leading-relaxed">&ldquo;{rev.text}&rdquo;</p>
                   <div className="pt-2 border-t border-white/5">
                     <p className="text-xs font-bold text-white">{rev.name}</p>
                     <p className="text-[10px] text-slate-500 font-mono">{rev.role}</p>
@@ -1967,7 +1967,7 @@ export default function LandingPageClient({ faqs = [] }: LandingPageClientProps)
           className="select-none font-black text-6xl sm:text-9xl text-white/5 tracking-tighter uppercase mb-8 whitespace-nowrap transition-transform duration-300 ease-out"
           style={{ transform: `translateX(${-(scrollY - 4400) * 0.08}px)` }}
         >
-          Let's Talk
+          Let&apos;s Talk
         </div>
 
         <div className="max-w-xl mx-auto px-6 space-y-4 relative z-10">

@@ -1,0 +1,5 @@
+# Ignore any unexpected heavy assets within web directory
+*.apk
+*.zip
+*.mp4
+.next/cache/

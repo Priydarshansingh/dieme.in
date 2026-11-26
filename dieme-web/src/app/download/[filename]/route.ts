@@ -11,9 +11,10 @@ const DOWNLOAD_REDIRECTS: Record<string, string> = {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ filename: string }> }
+  context: { params: { filename: string } | Promise<{ filename: string }> }
 ) {
-  const { filename } = await params;
+  const resolved = await Promise.resolve(context.params);
+  const filename = resolved?.filename || '';
   const targetUrl = DOWNLOAD_REDIRECTS[filename];
 
   if (targetUrl) {

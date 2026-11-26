@@ -1,0 +1,36 @@
+# Vercel Deployment Ignore Rules for Dieme Monorepo
+
+# Native Android Apps & Gradle caches
+dieme-android/
+dg-images/
+android-app/
+digicast-android/
+build output/
+.gradle/
+*.apk
+*.zip
+
+# Massive binary video assets
+*.mp4
+Landing final.mp4
+Admin.mp4
+Mobile apps.mp4
+landing_page.mp4
+WhatsApp Video*.mp4
+
+# Distribution binaries
+download/
+dieme-suite-complete.zip
+typeui-main.zip
+
+# Backend and agents
+dieme-backend/
+adapters/
+.agent/
+.agents/
+.gsd/
+.playwright-mcp/
+typeui/
+typeui-extracted/
+Upi Open Source/
+stitch-design-package/

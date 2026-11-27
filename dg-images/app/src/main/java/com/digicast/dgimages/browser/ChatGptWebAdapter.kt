@@ -849,29 +849,52 @@ class ChatGptWebAdapter(
                                          /creating image/i.test(turnText) ||
                                          /\b\d{1,2}%\b/.test(turnText);
 
+                    // If ChatGPT is actively generating or drafting, wait for completion before querying images
+                    if (hasStopBtn || isTurnDrafting) {
+                        return "GENERATING";
+                    }
+
                     var excludeList = $excludeJson;
                     var excludeSet = new Set(excludeList);
 
-                    // 3. Find candidate generated images ONLY inside latestTurn (never user messages)
+                    // 3. Find candidate generated images inside latestTurn (never user messages)
                     var candidateImgs = Array.from(latestTurn.querySelectorAll("img")).filter(function(img) {
-                        if (img.closest("[class*='avatar'], [class*='icon'], [role='button']")) return false;
+                        if (img.closest("[data-testid*='avatar'], [class*='avatar']")) return false;
                         var src = img.currentSrc || img.src || '';
                         if (!src) return false;
                         if (excludeSet.has(src)) return false;
 
-                        // Must be substantial rendered image (not an icon or spinner)
-                        return (img.naturalWidth >= 120 || img.width >= 120);
+                        // Must be substantial rendered image (not an avatar or icon)
+                        var w = img.naturalWidth || img.width || 0;
+                        var h = img.naturalHeight || img.height || 0;
+                        return (w >= 100 || h >= 100 || src.indexOf('oaiusercontent.com') !== -1);
                     });
 
-                    // Also check for download anchor inside latestTurn only
+                    // Also check for download anchor inside latestTurn
                     var dlAnchor = latestTurn.querySelector("a[download], a[href*='oaiusercontent.com'], a[href*='/backend-api/files/']");
                     var dlHref = (dlAnchor && dlAnchor.href && !excludeSet.has(dlAnchor.href)) ? dlAnchor.href : null;
+
+                    // Fallback to newly rendered non-excluded images across document if turn query missed container
+                    if (candidateImgs.length === 0 && !dlHref) {
+                        var globalImgs = Array.from(document.querySelectorAll("img")).filter(function(img) {
+                            if (img.closest("[data-testid*='avatar'], [class*='avatar']")) return false;
+                            var src = img.currentSrc || img.src || '';
+                            if (!src) return false;
+                            if (excludeSet.has(src)) return false;
+                            var w = img.naturalWidth || img.width || 0;
+                            var h = img.naturalHeight || img.height || 0;
+                            return (src.indexOf('oaiusercontent.com') !== -1 || (w >= 180 && h >= 180));
+                        });
+                        if (globalImgs.length > 0) {
+                            candidateImgs = globalImgs;
+                        }
+                    }
 
                     // If image is still generating and no completed candidate exists, keep waiting
                     if (candidateImgs.length === 0 && !dlHref) {
                         // Check if assistant replied with explicit refusal text
                         var txt = turnText.trim();
-                        if (txt.length > 0 && !hasStopBtn && !isTurnDrafting && (txt.includes("cannot") || txt.includes("unable") || txt.includes("sorry") || txt.includes("policy"))) {
+                        if (txt.length > 0 && (txt.includes("cannot") || txt.includes("unable") || txt.includes("sorry") || txt.includes("policy"))) {
                             return "TEXT_RESPONSE:" + txt;
                         }
                         return "GENERATING";

@@ -56,8 +56,18 @@ class DgImagesService : Service() {
             setupBackgroundWebView()
         }
 
-        daemon = DgImagesHttpDaemon(this, 5488)
-        daemon?.start()
+        // Reuse singleton daemon from DgImagesDaemonProvider if already active
+        val existingDaemon = com.digicast.dgimages.provider.DgImagesDaemonProvider.activeDaemon
+        if (existingDaemon != null && existingDaemon.isAlive()) {
+            this.daemon = existingDaemon
+            Log.i(TAG, "🟢 Reusing existing DgImagesHttpDaemon on port 5488 from DaemonProvider")
+        } else {
+            val d = DgImagesHttpDaemon(this, 5488)
+            d.start()
+            this.daemon = d
+            com.digicast.dgimages.provider.DgImagesDaemonProvider.activeDaemon = d
+            Log.i(TAG, "🟢 Started new DgImagesHttpDaemon on port 5488")
+        }
     }
 
     private fun setupBackgroundWebView() {
@@ -150,18 +160,28 @@ class DgImagesService : Service() {
             }
         } catch (_: Exception) {}
         try {
-            wakeLock?.release()
+            wakeLock?.let {
+                if (it.isHeld) it.release()
+            }
         } catch (_: Exception) {}
-        daemon?.stop()
+        // Only stop daemon if not shared with DaemonProvider
+        if (daemon != null && daemon != com.digicast.dgimages.provider.DgImagesDaemonProvider.activeDaemon) {
+            daemon?.stop()
+        }
         super.onDestroy()
     }
 
     private val binder = object : android.os.Binder() {}
     override fun onBind(intent: Intent?): IBinder {
         Log.i(TAG, "🔗 onBind called from client app - ensuring daemon is active on port 5488")
-        if (daemon == null) {
-            daemon = DgImagesHttpDaemon(this, 5488)
-            daemon?.start()
+        val existingDaemon = com.digicast.dgimages.provider.DgImagesDaemonProvider.activeDaemon
+        if (existingDaemon != null && existingDaemon.isAlive()) {
+            this.daemon = existingDaemon
+        } else if (daemon == null || daemon?.isAlive() != true) {
+            val d = DgImagesHttpDaemon(this, 5488)
+            d.start()
+            this.daemon = d
+            com.digicast.dgimages.provider.DgImagesDaemonProvider.activeDaemon = d
             Log.i(TAG, "🟢 DgImagesHttpDaemon started on port 5488 via onBind")
         }
         return binder

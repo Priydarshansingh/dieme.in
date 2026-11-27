@@ -2574,12 +2574,12 @@ private fun OfficialAppsCard(
                 }
             }
 
-            // App 2: Dg-Images Thumbnail Studio (Companion APK)
+            // App 2: Integrated Cloud AI Thumbnail Engine
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 color = DigicastSurface,
-                border = BorderStroke(1.dp, if (isDgImagesInstalled) DigicastBorder.copy(alpha = 0.5f) else Color(0xFFF59E0B).copy(alpha = 0.4f))
+                border = BorderStroke(1.dp, DigicastBorder.copy(alpha = 0.5f))
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
@@ -2598,25 +2598,25 @@ private fun OfficialAppsCard(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF8B5CF6).copy(alpha = 0.15f)),
+                                    .background(Color(0xFF10B981).copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Palette,
                                     contentDescription = null,
-                                    tint = Color(0xFFA78BFA),
+                                    tint = Color(0xFF10B981),
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
                             Column {
                                 Text(
-                                    text = "Dg-Images AI Studio",
+                                    text = "Dieme Cloud AI Studio",
                                     color = DigicastWhite,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "com.digicast.dgimages • Companion",
+                                    text = "Native Engine • Cloud Ready",
                                     color = DigicastSlate,
                                     fontSize = 11.sp
                                 )
@@ -2627,12 +2627,12 @@ private fun OfficialAppsCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (isDgImagesInstalled) DigicastEmerald.copy(alpha = 0.15f) else Color(0xFFF59E0B).copy(alpha = 0.15f))
+                                .background(DigicastEmerald.copy(alpha = 0.15f))
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
-                                text = if (isDgImagesInstalled) "CONNECTED" else "NOT INSTALLED",
-                                color = if (isDgImagesInstalled) DigicastEmerald else Color(0xFFF59E0B),
+                                text = "ACTIVE",
+                                color = DigicastEmerald,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -2640,67 +2640,11 @@ private fun OfficialAppsCard(
                     }
 
                     Text(
-                        text = "Local AI companion: On-device image inpainting daemon, ChatGPT-canvas bridge, pinpoint coordinate editing, and 1080p thumbnail export.",
+                        text = "High-CTR 16:9 YouTube thumbnail synthesis, multi-pin coordinate revisions, and creator strategy chat with automated backend cloud routing.",
                         color = DigicastSlate,
                         fontSize = 12.sp,
                         lineHeight = 16.sp
                     )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (isDgImagesInstalled) {
-                            Button(
-                                onClick = {
-                                    val launchIntent = context.packageManager.getLaunchIntentForPackage("com.digicast.dgimages")
-                                    if (launchIntent != null) {
-                                        launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                        context.startActivity(launchIntent)
-                                    } else {
-                                        Toast.makeText(context, "Dg-Images is running in background daemon mode", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = DigicastSurfaceFloating),
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, DigicastBorder)
-                            ) {
-                                Text("Open App", color = DigicastWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-
-                        Button(
-                            onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk")).apply {
-                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                }
-                                try {
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Cannot open download link: ${e.message}", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = if (isDgImagesInstalled) DigicastSurfaceFloating else DigicastAccentBlue),
-                            shape = RoundedCornerShape(8.dp),
-                            border = if (isDgImagesInstalled) BorderStroke(1.dp, DigicastBorder) else null
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = null,
-                                tint = DigicastWhite,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (isDgImagesInstalled) "Re-download APK" else "Download APK (~22 MB)",
-                                color = DigicastWhite,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -2862,8 +2806,8 @@ fun PersistentAppVersionFooter(
                 }
 
                 Text(
-                    text = if (isDgImagesInstalled) "Dg-Images: Paired" else "Dg-Images: Not Installed",
-                    color = if (isDgImagesInstalled) DigicastEmerald else Color(0xFFF59E0B),
+                    text = "Dieme Cloud AI: Active",
+                    color = DigicastEmerald,
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold
                 )

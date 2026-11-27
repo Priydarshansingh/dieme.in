@@ -1,20 +1,11 @@
 {
   "dieme": {
-    "versionCode": 27,
-    "versionName": "1.2.24",
+    "versionCode": 29,
+    "versionName": "1.2.26",
     "minSupportedVersionCode": 1,
-    "releaseNotes": "Fix ChatGPT generation detection by scoping stop button and draft checks strictly to assistant turn\n• Automated GitHub Releases workflow on main for instant distribution of APK assets and .dcast extensions\n• Safe React backdrop handling and single-element Drag-and-Drop file attachment",
+    "releaseNotes": "Native Cloud AI Thumbnail Studio integration, automated multi-provider AI shuffling (FLUX, SDXL, Gemini Imagen), Google Drive backend storage for chat & generations, and standalone Dieme app without companion APK dependency.",
     "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk",
-    "releaseDate": "2026-11-26",
-    "publishedAt": "2026-11-26T01:30:00Z"
-  },
-  "dgImages": {
-    "versionCode": 27,
-    "versionName": "1.2.24",
-    "minSupportedVersionCode": 1,
-    "releaseNotes": "Fix ChatGPT generation detection by scoping stop button and draft checks strictly to assistant turn\n• Automated GitHub Releases workflow on main for instant distribution of APK assets and .dcast extensions\n• Safe React backdrop handling and single-element Drag-and-Drop file attachment",
-    "downloadUrl": "https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk",
-    "releaseDate": "2026-11-26",
-    "publishedAt": "2026-11-26T01:30:00Z"
+    "releaseDate": "2026-11-27",
+    "publishedAt": "2026-11-27T08:00:00Z"
   }
 }

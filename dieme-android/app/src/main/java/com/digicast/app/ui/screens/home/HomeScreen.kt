@@ -394,7 +394,7 @@ fun HomeScreen(
                                             .background(DigicastElectricCyan.copy(alpha = 0.2f))
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
-                                        Text("Dg-Images", color = DigicastElectricCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        Text("Cloud AI", color = DigicastElectricCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
 

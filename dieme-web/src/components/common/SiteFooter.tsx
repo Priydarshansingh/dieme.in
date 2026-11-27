@@ -118,12 +118,12 @@ export function SiteFooter({ onSelectProgram, className = '' }: SiteFooterProps)
           <p className="font-bold text-white tracking-wide">Downloads &amp; Apps</p>
           <p>
             <Link href="/download" className="hover:text-cyan-400 text-slate-300 hover:underline transition">
-              Android Studio APK (v1.2.1)
+              Android Studio APK
             </Link>
           </p>
           <p>
-            <Link href="/download" className="hover:text-cyan-400 text-slate-300 hover:underline transition">
-              Dg-Images AI Companion
+            <Link href="/pricing" className="hover:text-cyan-400 text-slate-300 hover:underline transition">
+              Plans &amp; Pricing
             </Link>
           </p>
           <div className="pt-2">

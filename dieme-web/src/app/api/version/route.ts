@@ -2,30 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const VERSION_METADATA = {
   dieme: {
-    versionCode: 27,
-    versionName: '1.2.24',
+    versionCode: 29,
+    versionName: '1.2.26',
     minSupportedVersionCode: 1,
     releaseNotes:
-      `Fix ChatGPT generation detection by scoping stop button and draft checks strictly to assistant turn
-• Automated GitHub Releases workflow on main for instant distribution of APK assets and .dcast extensions
-• Safe React backdrop handling and single-element Drag-and-Drop file attachment`,
+      `Native Cloud AI Thumbnail Studio integration, automated multi-provider AI shuffling (FLUX, SDXL, Gemini Imagen), Google Drive backend storage for chat & generations, and standalone Dieme app without companion APK dependency.`,
     downloadUrl:
       'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dieme-app-latest.apk',
-    releaseDate: '2026-11-26',
-    publishedAt: '2026-11-26T01:30:00Z',
-  },
-  dgImages: {
-    versionCode: 27,
-    versionName: '1.2.24',
-    minSupportedVersionCode: 1,
-    releaseNotes:
-      `Fix ChatGPT generation detection by scoping stop button and draft checks strictly to assistant turn
-• Automated GitHub Releases workflow on main for instant distribution of APK assets and .dcast extensions
-• Safe React backdrop handling and single-element Drag-and-Drop file attachment`,
-    downloadUrl:
-      'https://raw.githubusercontent.com/Priydarshansingh/dieme.in/main/download/dg-images-latest.apk',
-    releaseDate: '2026-11-26',
-    publishedAt: '2026-11-26T01:30:00Z',
+    releaseDate: '2026-11-27',
+    publishedAt: '2026-11-27T08:00:00Z',
   },
 };
 
@@ -33,12 +18,9 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const app = (searchParams.get('app') || '').toLowerCase();
 
-  let body: unknown = VERSION_METADATA;
-  if (app === 'dieme' || app === 'core' || app === 'app') {
-    body = VERSION_METADATA.dieme;
-  } else if (app === 'dgimages' || app === 'dg-images' || app === 'thumbnail') {
-    body = VERSION_METADATA.dgImages;
-  }
+  const body = (app === 'dieme' || app === 'core' || app === 'app' || !app)
+    ? VERSION_METADATA.dieme
+    : VERSION_METADATA.dieme;
 
   return NextResponse.json(body, {
     status: 200,

@@ -124,13 +124,13 @@ class ExtensionViewModel @Inject constructor(
                 isInstalled = checkIsInstalled("com.digicast.ext.youtubedl")
             ),
             ExtensionRegistryItem(
-                id = "com.digicast.ext.dgimages",
-                name = "Dg-Images AI Bridge",
-                version = "1.0.0",
-                description = "High-fidelity thumbnail generation & object inpainting bridge for Dg-Images companion app.",
-                downloadUrl = "https://www.dieme.in/extensions/dgimages-bridge.dcast",
-                entryClass = "com.digicast.ext.dgimages.DgImagesExtension",
-                isInstalled = checkIsInstalled("com.digicast.ext.dgimages")
+                id = "com.digicast.ext.cloudstudio",
+                name = "Dieme Cloud AI Studio",
+                version = "1.2.26",
+                description = "High-CTR 16:9 YouTube thumbnail synthesis, inpainting revisions, and creator chat intelligence.",
+                downloadUrl = "https://www.dieme.in/extensions/cloud-studio.dcast",
+                entryClass = "com.digicast.app.api.extension.DefaultImageStudioExtension",
+                isInstalled = true
             )
         )
         _extensions.value = defaultList

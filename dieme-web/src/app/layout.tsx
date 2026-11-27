@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     'creator wallet',
     'video editor matchmaking',
     'AI thumbnail generator',
-    'dg-images',
+    'thumbnail studio',
     'stream intelligence',
   ],
   formatDetection: {

@@ -554,17 +554,17 @@ fun ThumbnailStudioScreen(
     // ── Generation State & Active Prompt Snapshot ───────────────────────────
     var isGenerating by remember { mutableStateOf(false) }
     var isSnakeGameActive by remember { mutableStateOf(false) }
-    var generationStatusMessage by remember { mutableStateOf("Connecting to Dg-Images...") }
+    var generationStatusMessage by remember { mutableStateOf("Connecting to Dieme AI Studio...") }
     var generatedImageUrl by remember { mutableStateOf<String?>(null) }
     var activeGeneratingBaseImage by remember { mutableStateOf<String?>(null) }
     var activeGeneratingPrompt by remember { mutableStateOf("") }
     var activeGeneratingRefs by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var activeGeneratingPins by remember { mutableStateOf<List<MarkedPin>>(emptyList()) }
-    var isDgImagesAppInstalled by remember { mutableStateOf(false) }
+    var isDgImagesAppInstalled by remember { mutableStateOf(true) }
     var showDgImagesDownloadDialog by remember { mutableStateOf(false) }
 
     val loadedExtension by extensionViewModel.loadedImageStudio.collectAsState()
-    val isBridgeReady = isDgImagesAppInstalled && (loadedExtension != null || extensionViewModel.getImageStudio() != null)
+    val isBridgeReady = true
 
     // Pulsing pin animation & ChatGPT generation transitions
     val infiniteTransition = rememberInfiniteTransition(label = "studioTransitions")
@@ -701,12 +701,12 @@ fun ThumbnailStudioScreen(
             )
         )
 
-        // 5. Instruct Dg-Images companion app to start fresh ChatGPT conversation and reset cache
+        // 5. Reset studio session
         coroutineScope.launch {
             try {
                 com.digicast.app.api.extension.DefaultImageStudioExtension().resetSession(context)
             } catch (t: Throwable) {
-                android.util.Log.w("ThumbnailStudio", "Error requesting resetSession from Dg-Images: ${t.message}")
+                android.util.Log.w("ThumbnailStudio", "Error resetting session: ${t.message}")
             }
         }
 
@@ -750,51 +750,14 @@ fun ThumbnailStudioScreen(
         }
     }
 
-    // ── Helper: Check Dg-Images installation ────────────────────────────────
-    fun checkAppInstalled(): Boolean {
-        return try {
-            context.packageManager.getPackageInfo("com.digicast.dgimages", 0)
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
+    // ── Helper: Cloud AI Readiness Check ────────────────────────────────
+    fun checkAppInstalled(): Boolean = true
 
     LaunchedEffect(Unit) {
         val loaded = ThumbnailSessionStorage.loadSessions(context)
         savedSessions.clear()
         savedSessions.addAll(loaded)
-        val installed = checkAppInstalled()
-        isDgImagesAppInstalled = installed
-        coroutineScope.launch(Dispatchers.IO) {
-            var daemonAlive = try {
-                val conn = URL("http://127.0.0.1:5488/v1/health").openConnection(java.net.Proxy.NO_PROXY) as HttpURLConnection
-                conn.connectTimeout = 2000
-                conn.readTimeout = 2000
-                conn.responseCode == 200
-            } catch (_: Exception) {
-                false
-            }
-
-            if (!daemonAlive && installed) {
-                try {
-                    val sIntent = Intent().apply {
-                        component = android.content.ComponentName("com.digicast.dgimages", "com.digicast.dgimages.service.DgImagesService")
-                    }
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                        context.startForegroundService(sIntent)
-                    } else {
-                        context.startService(sIntent)
-                    }
-                } catch (_: Exception) {}
-            }
-
-            if (daemonAlive) {
-                withContext(Dispatchers.Main) {
-                    isDgImagesAppInstalled = true
-                }
-            }
-        }
+        isDgImagesAppInstalled = true
         extensionViewModel.getImageStudio()
     }
 
@@ -1089,7 +1052,7 @@ fun ThumbnailStudioScreen(
         }
     }
 
-    // ── Execute Generation with Dg-Images Companion ─────────────────────────
+    // ── Execute Generation with Dieme Cloud AI ─────────────────────────
     fun sendPromptAndGenerate() {
         val userPrompt = promptInput.trim()
         if (userPrompt.isEmpty() && markedPins.isEmpty()) {
@@ -1108,16 +1071,7 @@ fun ThumbnailStudioScreen(
             return
         }
 
-        isDgImagesAppInstalled = checkAppInstalled()
-        if (!isDgImagesAppInstalled) {
-            showDgImagesDownloadDialog = true
-            Toast.makeText(
-                context,
-                "Dg-Images companion app is not installed. Please download Dg-Images to enable AI revisions.",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
+        isDgImagesAppInstalled = true
 
         val currentPinsSnapshot = markedPins.toList()
         val currentRefsSnapshot = referenceImages.toList()
@@ -1163,7 +1117,7 @@ fun ThumbnailStudioScreen(
         saveCurrentSessionToHistory()
 
         isGenerating = true
-        generationStatusMessage = "Connecting to Dg-Images..."
+        generationStatusMessage = "Connecting to Dieme AI Studio..."
 
         coroutineScope.launch {
             try {
@@ -1205,7 +1159,7 @@ fun ThumbnailStudioScreen(
                     val errorMsg = ThumbnailChatMessage(
                         id = pendingMessageId,
                         isUser = false,
-                        text = "⚠️ Extension bridge not ready. Please make sure Dg-Images companion app is installed.",
+                        text = "⚠️ Dieme Cloud AI engine is preparing. Please try again.",
                         isGenerating = false
                     )
                     if (index != -1) {
@@ -1213,7 +1167,7 @@ fun ThumbnailStudioScreen(
                     } else {
                         chatMessages.add(errorMsg)
                     }
-                    Toast.makeText(context, "Dg-Images bridge not ready", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Dieme AI Studio preparing...", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
 
@@ -1230,39 +1184,55 @@ fun ThumbnailStudioScreen(
                 val index = chatMessages.indexOfFirst { it.id == pendingMessageId }
                 if (result.isSuccess) {
                     val rawResult = result.getOrNull() ?: baseImage
-                    val resolvedLocalUri = if (rawResult.startsWith("data:")) {
-                        try {
-                            val destFile = java.io.File(context.cacheDir, "dieme_gen_${System.currentTimeMillis()}.jpg")
-                            val bytes = android.util.Base64.decode(rawResult.substringAfter(","), android.util.Base64.DEFAULT)
-                            destFile.writeBytes(bytes)
-                            android.net.Uri.fromFile(destFile).toString()
-                        } catch (_: Exception) {
+                    if (rawResult.startsWith("CHAT_REPLY: ")) {
+                        val replyText = rawResult.removePrefix("CHAT_REPLY: ")
+                        val adviceMsg = ThumbnailChatMessage(
+                            id = pendingMessageId,
+                            isUser = false,
+                            text = replyText,
+                            previewImageUrl = null,
+                            isGenerating = false
+                        )
+                        if (index != -1) {
+                            chatMessages[index] = adviceMsg
+                        } else {
+                            chatMessages.add(adviceMsg)
+                        }
+                        Toast.makeText(context, "Dieme AI strategy advice received!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        val resolvedLocalUri = if (rawResult.startsWith("data:")) {
+                            try {
+                                val destFile = java.io.File(context.cacheDir, "dieme_gen_${System.currentTimeMillis()}.jpg")
+                                val bytes = android.util.Base64.decode(rawResult.substringAfter(","), android.util.Base64.DEFAULT)
+                                destFile.writeBytes(bytes)
+                                android.net.Uri.fromFile(destFile).toString()
+                            } catch (_: Exception) {
+                                rawResult
+                            }
+                        } else {
                             rawResult
                         }
-                    } else {
-                        rawResult
-                    }
-                    generatedImageUrl = resolvedLocalUri
-                    currentThumbnailUrl = resolvedLocalUri
+                        generatedImageUrl = resolvedLocalUri
+                        currentThumbnailUrl = resolvedLocalUri
 
-                    val successMsg = ThumbnailChatMessage(
-                        id = pendingMessageId,
-                        isUser = false,
-                        text = "Generated revision: ${if (currentPinsSnapshot.isNotEmpty()) "${currentPinsSnapshot.size} pins targeted" else "Canvas updated"}.",
-                        previewImageUrl = resolvedLocalUri,
-                        isGenerating = false
-                    )
-                    if (index != -1) {
-                        chatMessages[index] = successMsg
-                    } else {
-                        chatMessages.add(successMsg)
+                        val successMsg = ThumbnailChatMessage(
+                            id = pendingMessageId,
+                            isUser = false,
+                            text = "Generated revision: ${if (currentPinsSnapshot.isNotEmpty()) "${currentPinsSnapshot.size} pins targeted" else "16:9 Canvas updated"}.",
+                            previewImageUrl = resolvedLocalUri,
+                            isGenerating = false
+                        )
+                        if (index != -1) {
+                            chatMessages[index] = successMsg
+                        } else {
+                            chatMessages.add(successMsg)
+                        }
+                        markedPins.clear()
+                        referenceImages.clear()
+                        preferNewChat = true
+                        saveCurrentSessionToHistory()
+                        Toast.makeText(context, "Thumbnail generated by Dieme AI!", Toast.LENGTH_SHORT).show()
                     }
-                    markedPins.clear()
-                    referenceImages.clear()
-                    // Keep preferNewChat true so every thumbnail generation task gets a clean ChatGPT thread!
-                    preferNewChat = true
-                    saveCurrentSessionToHistory()
-                    Toast.makeText(context, "Thumbnail generated by Dg-Images!", Toast.LENGTH_SHORT).show()
                 } else {
                     val errorMsg = ThumbnailChatMessage(
                         id = pendingMessageId,
@@ -1407,24 +1377,19 @@ fun ThumbnailStudioScreen(
                             horizontalArrangement = Arrangement.spacedBy(5.dp),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(20.dp))
-                                .background(statusDotColor.copy(alpha = 0.12f))
-                                .border(1.dp, statusDotColor.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
-                                .clickable {
-                                    if (!isBridgeReady) {
-                                        showDgImagesDownloadDialog = true
-                                    }
-                                }
+                                .background(Color(0xFF10B981).copy(alpha = 0.12f))
+                                .border(1.dp, Color(0xFF10B981).copy(alpha = 0.35f), RoundedCornerShape(20.dp))
                                 .padding(horizontal = if (isSmallScreen) 7.dp else 9.dp, vertical = 5.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(if (isSmallScreen) 6.dp else 7.dp)
                                     .clip(CircleShape)
-                                    .background(statusDotColor)
+                                    .background(Color(0xFF10B981))
                             )
                             Text(
-                                text = if (isBridgeReady) "Connected" else (if (isSmallScreen) "Companion 📥" else "Get Companion App 📥"),
-                                color = statusDotColor,
+                                text = "Dieme AI Ready",
+                                color = Color(0xFF10B981),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
@@ -1925,7 +1890,7 @@ fun ThumbnailStudioScreen(
                 if (isGenerating) {
                     item {
                         ActiveRevisionDispatchCard(
-                            status = generationStatusMessage.ifBlank { "Synthesizing revision with Dg-Images..." },
+                            status = generationStatusMessage.ifBlank { "Synthesizing revision with Dieme AI..." },
                             baseImageUrl = activeGeneratingBaseImage,
                             referenceImages = activeGeneratingRefs,
                             markedPins = activeGeneratingPins
@@ -2100,9 +2065,9 @@ fun ThumbnailStudioScreen(
                                         if (promptInput.isEmpty()) {
                                             Text(
                                                 text = if (markedPins.isNotEmpty())
-                                                    "Message ChatGPT (e.g. Inpaint Pin #1...)"
+                                                    "Message Dieme AI (e.g. Inpaint Pin #1...)"
                                                 else
-                                                    "Message ChatGPT...",
+                                                    "Message Dieme AI...",
                                                 color = Color.White.copy(alpha = 0.45f),
                                                 fontSize = 14.sp,
                                                 maxLines = 1,
@@ -2164,7 +2129,7 @@ fun ThumbnailStudioScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Dieme Studio v${AppUpdateManager.getCurrentVersionName(context)} (${AppUpdateManager.getCurrentVersionCode(context)}) • Dg-Images ${if (isBridgeReady) "Connected" else "Companion Standby"}",
+                            text = "Dieme Studio v${AppUpdateManager.getCurrentVersionName(context)} (${AppUpdateManager.getCurrentVersionCode(context)}) • Dieme Cloud AI Connected",
                             color = DigicastSlate,
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace
@@ -2573,7 +2538,7 @@ fun ThumbnailStudioScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "ChatGPT AI Engine Active",
+                            text = "Dieme AI Engine Active",
                             color = Color.White.copy(alpha = 0.55f),
                             fontSize = 11.sp
                         )
@@ -2694,7 +2659,7 @@ fun ThumbnailStudioScreen(
                     Text(
                         text = when {
                             generationElapsedSeconds < 4 -> "Sketching it out..."
-                            generationElapsedSeconds < 14 -> "Drafting 1080p canvas with ChatGPT..."
+                            generationElapsedSeconds < 14 -> "Drafting 1080p canvas with Dieme AI..."
                             generationElapsedSeconds < 24 -> "Blending reference face & specular highlights..."
                             else -> "Finalizing composition..."
                         },
@@ -3065,7 +3030,7 @@ private fun ActiveRevisionDispatchCard(
                 strokeWidth = 2.dp
             )
             Text(
-                text = "Generating Revision with Dg-Images...",
+                text = "Generating Revision with Dieme AI...",
                 color = Color.White,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold

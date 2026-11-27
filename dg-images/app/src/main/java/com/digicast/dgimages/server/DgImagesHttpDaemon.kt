@@ -14,6 +14,7 @@ import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 
@@ -30,14 +31,22 @@ class DgImagesHttpDaemon(
     private var serverJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO)
 
+    fun isAlive(): Boolean = isRunning && serverSocket != null && serverSocket?.isBound == true && serverSocket?.isClosed == false
+
     fun start() {
-        if (isRunning) return
+        if (isAlive()) {
+            Log.i(TAG, "🟢 Daemon already listening and healthy on 127.0.0.1:$port")
+            return
+        }
         isRunning = true
 
         serverJob = scope.launch {
             try {
-                // Bind exclusively to 127.0.0.1 for local device security
-                serverSocket = ServerSocket(port, 50, InetAddress.getByName("127.0.0.1"))
+                // Bind exclusively to 127.0.0.1 with reuseAddress enabled
+                serverSocket = ServerSocket().apply {
+                    reuseAddress = true
+                    bind(InetSocketAddress(InetAddress.getByName("127.0.0.1"), port), 50)
+                }
                 Log.i(TAG, "🟢 Daemon listening on 127.0.0.1:$port")
                 while (isRunning) {
                     val clientSocket = try {
@@ -50,7 +59,10 @@ class DgImagesHttpDaemon(
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Server socket error", e)
+                Log.e(TAG, "Server socket error on port $port: ${e.message}", e)
+                isRunning = false
+                try { serverSocket?.close() } catch (_: Exception) {}
+                serverSocket = null
             }
         }
     }

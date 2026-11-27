@@ -14,12 +14,6 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" tools:ignore="ScopedStorage" />
 
-    <queries>
-        <package android:name="com.digicast.dgimages" />
-        <intent>
-            <action android:name="com.digicast.dgimages.START_DAEMON" />
-        </intent>
-    </queries>
 
     <application
         android:name=".DigicastApplication"
